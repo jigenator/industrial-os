@@ -1,8 +1,8 @@
 # Architecture
 
-This is the design system's architecture. Paths are relative to `design-system/` unless they start with `../`. The repository layout, including the Pi extensions and the planned Herdr home, is in the [root README](../../README.md#layout).
+This is the design system's architecture. Paths are relative to `design-system/` unless they start with `../`. The project map, dependency direction between projects, and where new projects go are in the [root architecture](../../docs/architecture.md); the repository-wide mission, design, and conventions are at the root too.
 
-Status: native showcase and terminal storybook. The four selected elements, their shared foundation (including the IndustrialOS color data and shade ramps), three motion primitives, the all-at-once showcase, and the storybook are implemented as plain Node.js 22 ES modules with no dependencies. Nothing is released; module paths are not a stable public API.
+Status: native showcase and terminal storybook. The design system's own engineering rules are in [conventions](conventions.md) and its experience in [design](design.md). The four selected elements, their shared foundation (including the IndustrialOS color data and shade ramps), three motion primitives, the all-at-once showcase, and the storybook are implemented as plain Node.js 22 ES modules with no dependencies. Nothing is released; module paths are not a stable public API.
 
 Evidence: design-system inventory with canonical Markdown guidance, `foundation/`, four folders under `elements/`, `motions/`, `examples/`, and colocated `node --test` checks. There is no package manifest, release, or CI.
 
@@ -12,15 +12,13 @@ Evidence: design-system inventory with canonical Markdown guidance, `foundation/
 
 | Path | Purpose | Public entry point | Dependencies |
 | --- | --- | --- | --- |
-| `../README.md`, `../AGENTS.md`, `../CLAUDE.md`, `../CONTRIBUTING.md` | Repository-wide orientation, agent rules and guidance map, and workflow | Repository landing page and root agent guide | Links to every package guide |
-| `../docs/mission.md` | Product boundaries | Goals and constraints | None |
-| `../docs/conventions.md` | Repository-wide engineering baseline | Rules, examples, and checks | Links to this architecture and contributing |
 | `README.md` | Design-system orientation and release status | Design-system landing page | Links to canonical guides |
 | `AGENTS.md`, `CLAUDE.md` | Design-system reading routes, supplementing the root guide | AGENTS; CLAUDE imports it | Root agent guide and its supporting-document map |
 | `CONTRIBUTING.md` | Setup, commands, and checks | Contributor workflow | Git, Node 22 |
-| `docs/design.md` | Visual and interaction specification | Design rules and acceptance criteria | Palette roles from `foundation/` |
-| `docs/architecture.md` | Placement, design-system engineering rules, and evolution | This guide | Current inventory |
-| `foundation/` | Acid / Black palette values, line model, text/glyph contract, role-or-RGB painting, IndustrialOS colors and derived shade ramps | `palette.mjs`, `cells.mjs`, `industrialos-colors.mjs`; [README](../foundation/README.md) | Node standard library |
+| `docs/architecture.md` | Placement, boundaries, and evolution | This guide | Current inventory |
+| `docs/conventions.md` | Design-system stack, text contract, palette mirror, and performance rules | Rules, examples, and checks | Repository-wide conventions |
+| `docs/design.md` | The design system's element set, reference colors, motions, and storybook | Design rules within the shared language | Repository-wide design |
+| `foundation/` | Acid / Black palette values mirrored from the Pi extensions, line model, text/glyph contract, role-or-RGB painting, IndustrialOS colors and derived shade ramps | `palette.mjs`, `cells.mjs`, `industrialos-colors.mjs`; [README](../foundation/README.md) | Node standard library |
 | `elements/label-plate/` | Informational label plate | `labelPlate()`; [README](../elements/label-plate/README.md) | `foundation/` |
 | `elements/numbered-panel/` | Numbered, bounded frame | `numberedPanel()`, `panelInnerWidth()`; [README](../elements/numbered-panel/README.md) | `foundation/`, label plate |
 | `elements/gauge/` | Calibrated value reading | `gauge()`, `gaugeScale()`, `gaugeReading()`; [README](../elements/gauge/README.md) | `foundation/` |
@@ -104,26 +102,6 @@ To refine a gauge:
 
 A new element gets its own `elements/<element-name>/` folder with README, code, and test. Map the README in the [root AGENTS](../../AGENTS.md#supporting-documents), then add its story as described in [examples](../examples/README.md#adding-to-the-storybook). A new motion follows the extension rules in [motions](../motions/README.md#extending).
 
-## Design-system engineering rules
-
-These rules apply only to the design system and supplement the repository-wide [conventions](../../docs/conventions.md).
-
-### Stack
-
-The stack is Markdown, Git, and plain Node.js 22 ES modules (`.mjs`), using only the standard library. No framework, package manager, or dependency is used.
-
-### Terminal text and dependencies
-
-**Rule:** do not hand-roll Unicode cell measurement when the chosen runtime already provides it.
-
-**Example:** Node 22 has no public cell-width API, so `foundation/cells.mjs` restricts display text to one-cell characters instead of estimating widths. Shipped elements and demos must not depend on HTML, CSS, DOM, canvas, or image rendering; their presentation is terminal text and terminal-native styling.
-
-### Performance and growth
-
-**Rule:** bound rendering by the supplied dimensions, stop work when disposed, and separate decorative motion from truthful data updates. Measure before adding caches, workers, or new packages.
-
-**Example:** gauge text must reflect the current value even if a decorative highlight is moving; scan and pulse change only styling, and no motion restyles warning or critical cells. **Reason:** correctness and a responsive input loop. **Check:** width, motion, and lifecycle tests exist. The live showcase has no redraw timer and redraws only on resize or scrolling. The storybook runs one 67 ms interval only while a motion preview plays, and clears it on pause, completion, selection changes, and every exit path. Node's key decoder owns a brief timeout for standalone Esc. Repaint measurements in Herdr have not been taken, and no workload baseline or performance defect has been established.
-
 ## Evolution and known limits
 
 - Element and motion functions are first-pass contracts, not a released API. When one changes, update its README, callers, showcase, storybook story, and checks together; do not silently repurpose an input or palette role.
@@ -134,4 +112,4 @@ The stack is Markdown, Git, and plain Node.js 22 ES modules (`.mjs`), using only
 
 ## Technical decisions
 
-No technical decision records exist yet. The confirmed product direction is in [mission](../../docs/mission.md) and [design](design.md). Add a record under `docs/decisions/` only for a consequential choice with alternatives and a revisit condition; map each record directly in AGENTS.
+No technical decision records exist yet. The confirmed product direction is in [mission](../../docs/mission.md) and [design](../../docs/design.md). Add a record under `docs/decisions/` only for a consequential choice with alternatives and a revisit condition; map each record directly in AGENTS.

@@ -1,6 +1,6 @@
 # Foundation: cells and palette
 
-The small seam every element shares. [palette.mjs](palette.mjs) is the single source of Acid / Black values. [cells.mjs](cells.mjs) defines the line model, the text and glyph contract, and painting. Element behavior does not belong here.
+The small seam every element shares. [palette.mjs](palette.mjs) holds the design system's copy of the Acid / Black values; the Pi extensions are the authority for them, as [design](../../docs/design.md#acid--black) and [the decision](../../docs/decisions/extension-colors-take-precedence.md) record; the check is a comparison of each extension's constants against this file. [cells.mjs](cells.mjs) defines the line model, the text and glyph contract, and painting. Element behavior does not belong here.
 
 ## Line model
 
