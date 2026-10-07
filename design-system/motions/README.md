@@ -54,7 +54,7 @@ Guarantees that hold for every motion:
 - **State-colored cells are exempt.** Cells whose `fg` or `bg` is `warning` or `critical` are never recolored, dimmed, or hidden. This protects individual cells, not the rest of a message or its stacked continuation lines.
 - **Essential content stays outside a reveal.** Scan and pulse never change a character. Reveal's `dim` veil preserves characters but reduces contrast; `blank` replaces them with spaces. Neither is appropriate for essential readings or error details. Compose the entire essential block unchanged after transforming only decoration.
 - **Time 0 is stable.** Scan and pulse at time 0 equal the input, so they can rest anywhere. Reveal at time 0 is its fully veiled start and equals the input only at or after `revealDuration()`.
-- **No flashing above 3 Hz.** `period` is at least 400 ms (`MIN_PERIOD_MS`, exported by `frame.mjs`), so a repeating motion cycles at most 2.5 times per second. Shorter periods throw.
+- **No frequency cap.** Any positive `period` is allowed (`MIN_PERIOD_MS` is 1, exported by `frame.mjs`), so a motion may cycle or flash faster than three times a second, as the [shared motion rule](../../docs/design.md#motion) permits. `animate: false` settles every motion; state the rate of a fast motion where it is used. No photosensitivity or WCAG flash compliance is claimed.
 
 ## `scan(lines, options)`
 
@@ -62,7 +62,7 @@ A bright band sweeping across the block, entering before the first cell and leav
 
 | Option | Contract | Default |
 | --- | --- | --- |
-| `period` | ms for one full sweep, `400`–`60000` | `2400` |
+| `period` | ms for one full sweep, `1`–`60000` | `2400` |
 | `band` | band size in cells (columns for `x`, rows for `y`), integer `1`–`1000` | `3` |
 | `axis` | `'x'` sweeps left to right across columns; `'y'` sweeps top to bottom across lines | `'x'` |
 
@@ -74,7 +74,7 @@ Alternates matching cells between their own style (first half of each period) an
 
 | Option | Contract | Default |
 | --- | --- | --- |
-| `period` | ms per bright-and-dim cycle, `400`–`60000` | `2000` |
+| `period` | ms per bright-and-dim cycle, `1`–`60000` | `2000` |
 | `roles` | non-empty array from `'accent'`, `'primary'`, `'secondary'`; cells whose `fg` matches pulse | `['accent']` |
 
 `warning` and `critical` throw: a fault must not fade. Pulse suggests "active", so pass only lines whose accent cells really are active. A gauge fill and a success marker are both accent. `PULSE_DEFAULTS` is exported.
@@ -134,8 +134,8 @@ const replay = () => { stop(); elapsed = 0; complete = false; play(); };
 
 ## Extending
 
-A new motion is a pure function `(lines, options) -> lines` in its own file here, built on `frame.mjs` (`resolveOptions`, `assertTime`, `restyleCells`). It needs a stated period or duration (at least `MIN_PERIOD_MS`), `animate: false` returning the stable view, and exemption for `warning` and `critical` cells. Add its checks to `motions.test.mjs`, and map its section here. Do not add timers or hidden state.
+A new motion is a pure function `(lines, options) -> lines` in its own file here, built on `frame.mjs` (`resolveOptions`, `assertTime`, `restyleCells`). It needs a stated period or duration (any positive value; state a fast rate where the motion is used), `animate: false` returning the stable view, and exemption for `warning` and `critical` cells. Add its checks to `motions.test.mjs`, and map its section here. Do not add timers or hidden state.
 
 ## Checks
 
-[motions.test.mjs](motions.test.mjs): motion-off, time and option validation, exact scan/pulse/reveal frames, state-color exemption, text preservation, exact widths from 1 to 160 with real renderers, determinism and input immutability, plain/color equivalence, the 3 Hz bound, composition with a numbered panel, and a source check that the primitives import only `foundation/` and use no clock, timer, process, or randomness. These are deterministic unit checks. [Storybook regressions](../examples/storybook-regressions.test.mjs) also execute the host sketch with a manual clock and exercise complete-message preservation in reveal examples. No native-terminal claim follows from these checks.
+[motions.test.mjs](motions.test.mjs): motion-off, time and option validation, exact scan/pulse/reveal frames, state-color exemption, text preservation, exact widths from 1 to 160 with real renderers, determinism and input immutability, plain/color equivalence, the absence of a frequency cap (a 50 ms period cycles 20 times a second), composition with a numbered panel, and a source check that the primitives import only `foundation/` and use no clock, timer, process, or randomness. These are deterministic unit checks. [Storybook regressions](../examples/storybook-regressions.test.mjs) also execute the host sketch with a manual clock and exercise complete-message preservation in reveal examples. No native-terminal claim follows from these checks.

@@ -2,8 +2,9 @@
 // Pure and I/O-free. See motions/README.md for the contract every motion shares.
 import { lineWidth, span } from '../foundation/cells.mjs';
 
-// Fastest allowed cycle. One cycle is at most one flash, so 400 ms keeps every motion at or below 2.5 Hz.
-export const MIN_PERIOD_MS = 400;
+// Shortest valid period. There is no frequency cap (../../docs/design.md#motion): any positive period is allowed,
+// and motion-off (animate: false) is what settles a motion.
+export const MIN_PERIOD_MS = 1;
 export const MAX_MS = 60_000;
 
 // Warning and critical cells are never recolored, dimmed, or hidden by any motion.

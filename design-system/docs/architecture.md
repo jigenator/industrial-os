@@ -90,7 +90,7 @@ No token schema, storage, or package export exists.
 | Displayed data is not falsified by layout, rounding, or fallback | Gauge and status-row contracts | `node --test`: fills and readouts never overstate; unknown is never zero |
 | Output respects cell budgets and safe display text | `foundation/cells.mjs` | `node --test`: widths 1–160 and short heights; control and Unicode injection. Native Herdr frame and glyph-ruler checks are recorded in Contributing. |
 | Terminal modes are always restored | `examples/terminal-host.mjs` | `node --test`, isolated real-PTY lifecycle checks for both hosts, and actual Herdr exit checks of both hosts; mouse support and an earlier version of the Colors story also have native Herdr injected-report checks, not physical-pointer verification, and the current Colors page has not been re-checked natively; see Contributing |
-| Motion is bounded, deterministic, and never alters state cells | `motions/` and `examples/storybook.mjs` | `node --test`: frames at explicit times, period floor of 400 ms, warning/critical exemption, one timer only while playing, cleared on every exit path. Isolated real-PTY frame-rate check; bounded native Herdr playback checks, not a performance baseline. |
+| Motion is bounded, deterministic, and never alters state cells | `motions/` and `examples/storybook.mjs` | `node --test`: frames at explicit times, any positive period with motion-off settling it, warning/critical exemption, one timer only while playing, cleared on every exit path. Isolated real-PTY frame-rate check; bounded native Herdr playback checks, not a performance baseline. |
 
 ## Where the next change belongs
 

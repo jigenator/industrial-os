@@ -234,7 +234,7 @@ export const STORIES = Object.freeze([
     rules: [
       'Time 0 equals the input; the frame at time + period equals the frame at time.',
       'Warning and critical cells are never restyled.',
-      'period below 400 ms throws, so a sweep cycles at most 2.5 times a second.',
+      'Any positive period is allowed; there is no frequency cap, so motion-off is the settled view.',
       'animate: false is the stable motion-off view; time may be omitted.',
     ],
     variants: [
@@ -252,7 +252,7 @@ export const STORIES = Object.freeze([
     rules: [
       'First half of each period is the original style; second half is decorative grey.',
       'roles takes accent, primary, or secondary; warning and critical throw, so a fault never fades.',
-      'period below 400 ms throws: at most 2.5 cycles a second.',
+      'Any positive period is allowed; there is no frequency cap.',
       'animate: false is the stable motion-off view.',
     ],
     variants: [

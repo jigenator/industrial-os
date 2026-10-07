@@ -203,7 +203,7 @@ test('invalid options are rejected, not clamped or ignored', () => {
     [scan, { time: 0, band: 1.5 }],
     [scan, { time: 0, band: 1001 }],
     [scan, { time: 0, axis: 'z' }],
-    [pulse, { time: 0, period: 399 }],
+    [pulse, { time: 0, period: 0 }],
     [pulse, { time: 0, period: Infinity }],
     [reveal, { time: 0, duration: 0 }],
     [reveal, { time: 0, duration: -5 }],
@@ -246,25 +246,19 @@ test('empty and tiny blocks are valid', () => {
   }
 });
 
-test('every motion stays at or below 3 flashes per second at its fastest allowed cycle', () => {
+test('there is no frequency cap: a 50 ms period cycles 20 times a second, and motion-off settles it', () => {
   const lines = [row('abcdef', { fg: 'accent' })];
-  const FASTEST = { period: MIN_PERIOD_MS };
-  // Count rising edges (a cell turning on) per cell inside every 1000 ms window sampled every 5 ms.
-  const edges = (frameAt, isOn) => {
-    const states = [];
-    for (let t = 0; t <= 4000; t += 5) states.push(cellsOf(frameAt(t)[0]).map(isOn));
-    let worst = 0;
-    for (let start = 0; start + 200 < states.length; start += 1) {
-      for (let c = 0; c < states[0].length; c++) {
-        let n = 0;
-        for (let i = start + 1; i <= start + 200; i++) if (states[i][c] && !states[i - 1][c]) n++;
-        worst = Math.max(worst, n);
-      }
-    }
-    return worst;
-  };
-  assert.ok(edges((time) => scan(lines, { ...FASTEST, band: 2, time }), (c) => c.fg === 'primary') <= 3);
-  assert.ok(edges((time) => pulse(lines, { ...FASTEST, time }), (c) => c.fg === 'accent') <= 3);
+  assert.equal(MIN_PERIOD_MS, 1);
+  // Count a cell's rising edges (dim to accent) in one second, sampled every millisecond.
+  let edges = 0;
+  for (let t = 1; t <= 1000; t++) {
+    const was = cellsOf(pulse(lines, { period: 50, time: t - 1 })[0])[0].fg === 'accent';
+    const is = cellsOf(pulse(lines, { period: 50, time: t })[0])[0].fg === 'accent';
+    if (is && !was) edges++;
+  }
+  assert.equal(edges, 20);
+  assert.doesNotThrow(() => scan(lines, { period: 1, time: 0 }));
+  for (const motion of [scan, pulse]) assert.deepEqual(motion(lines, { period: 50, animate: false }), lines);
 });
 
 test('motions compose with real renderers at the width they were rendered for', () => {
