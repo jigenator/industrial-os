@@ -44,7 +44,7 @@ Use cell-aligned geometry, compact labels, clear readouts, and restrained number
 
 ### Motion
 
-Motion is instrument detail, never data. A motion decorates already-rendered output at an explicit time; it does not supply or obscure values. Never veil a reading, a label, or a status message; warning and critical cells are never restyled by decoration. Repeating motions cycle at most 2.5 times a second, under the 3 Hz flashing limit; a single-cell indicator may be faster only when a maintainer accepts it and a motion-off control holds it steady. Pulse implies activity, so use it only where a signal really is active. Do not use motion to suggest progress that is not happening. Bound every animation and dispose of its timers; where a host has no reduced-motion setting, keep the animation short and say so.
+Motion is instrument detail, never data. A motion decorates already-rendered output at an explicit time; it does not supply or obscure values. Never veil a reading, a label, or a status message; warning and critical cells are never restyled by decoration. There is no frequency cap: a motion may repeat or flash at any rate, including flashes faster than three a second. In exchange, every motion has a motion-off state that settles it at once, and a project states each fast or flashing motion's rate in its design doc; no project claims photosensitivity or WCAG flash compliance unless it has checked it. Pulse implies activity, so use it only where a signal really is active. Do not use motion to suggest progress that is not happening. Bound every animation and dispose of its timers; where a host has no reduced-motion setting, keep the animation short and say so.
 
 ### Interaction and feedback
 
