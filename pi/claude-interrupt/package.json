@@ -6,7 +6,8 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jigenator/pi-claude-interrupt.git"
+    "url": "git+https://github.com/jigenator/industrial-os.git",
+    "directory": "pi/claude-interrupt"
   },
   "keywords": [
     "pi-package",

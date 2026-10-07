@@ -24,11 +24,13 @@ An unsent editor draft is left in the editor. If Pi has no submitted queue, this
 
 ## Install
 
-From GitHub:
+This package lives in the [Industrial OS](../../README.md) monorepo. Pi's git sources load a repository's root package, and the monorepo has none, so install from a local checkout:
 
 ```sh
-pi install git:github.com/jigenator/pi-claude-interrupt
+pi install <industrial-os checkout>/pi/claude-interrupt
 ```
+
+Pi loads a local package from that path without copying it or installing its dependencies; this package has no runtime dependencies. Pull the checkout to update it, then restart or reload Pi.
 
 For local development without changing Pi's settings:
 

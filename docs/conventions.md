@@ -2,7 +2,7 @@
 
 ## Project profile
 
-Industrial OS is a public monorepo for Pi and Herdr visualization, user experience, and tooling. Its only package today is the terminal-only design system in `design-system/`, starting as a reference kit. These rules apply to every package. Rules that apply only to the design system—its stack, cell measurement, and rendering performance—are in [its architecture](../design-system/docs/architecture.md#design-system-engineering-rules).
+Industrial OS is a public monorepo for Pi and Herdr visualization, user experience, and tooling. Its packages today are the terminal-only design system in `design-system/`, starting as a reference kit, and the Pi extensions in `pi/`. These rules apply to every package. Rules that apply only to the design system—its stack, cell measurement, and rendering performance—are in [its architecture](../design-system/docs/architecture.md#design-system-engineering-rules). Rules that apply only to Pi extensions are in [their agent guide](../pi/AGENTS.md).
 
 Scope reviewed: the repository's guidance and the design system's `foundation/`, `elements/`, `motions/`, and `examples/`, plus a bounded read-only survey of prior design explorations. No source was imported from those explorations. Rules marked proposed are targets, not a claim that the code already conforms.
 
@@ -67,5 +67,5 @@ Scope reviewed: the repository's guidance and the design system's `foundation/`,
 
 - The design system's four elements and the showcase have a bounded [Herdr verification baseline](../design-system/CONTRIBUTING.md#native-verification-baseline). The motions and storybook also have automated, isolated real-PTY, and bounded native Herdr checks; see [their scope](../design-system/CONTRIBUTING.md#storybook-verification-status). Visual acceptance and refinement remain a maintainer decision; this is not a released API.
 - Support matrix, licensing, and public API policy remain open. Resolve only the decisions the next change needs.
-- Failure-path, focus, and rejected-action checks remain proposed until an interactive or storage-backed element exists. There is no formatter, linter, or type checker.
-- No source migration is required: this is a new repository. Existing experiments remain outside it; reference-code limitations are not defects in this repository.
+- Failure-path, focus, and rejected-action checks remain proposed until an interactive or storage-backed element exists. There is no formatter or linter. The only type checker is each Pi extension's `tsc --noEmit`.
+- The design system needed no source migration. Pi extensions move in from their own repositories with their history and their documented limitations. Existing experiments remain outside the repository; reference-code limitations are not defects in this repository.

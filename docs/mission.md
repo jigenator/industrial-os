@@ -4,7 +4,7 @@
 
 Industrial OS is for people who run coding agents with Pi inside Herdr. It turns that workspace into an industrial-style control surface for managing agents, with one coherent visual and interaction language across the design system, Pi extensions, and Herdr tooling, instead of a different panel, gauge, or state convention in every tool.
 
-The repository is a monorepo for that work. The terminal design system is its foundation and, today, its only contents. Pi and Herdr packages maintained in separate repositories are planned to move in.
+The repository is a monorepo for that work. The terminal design system is its foundation. The first Pi extension has moved in; other Pi and Herdr packages maintained in separate repositories are planned to follow.
 
 The desired experience is an instrument that is clear and useful—not decoration pretending to be operational data.
 
@@ -33,6 +33,6 @@ Terminal-only is a hard constraint, not a delivery priority. Every element and d
 
 Optimize and verify the system in Herdr. The tested version, terminal capabilities, and input behavior are bounded by the [native verification baseline](../design-system/CONTRIBUTING.md#native-verification-baseline); no performance baseline or universal compatibility is claimed. Other terminals are not the initial optimization target.
 
-The repository is public. Include only material cleared for publication and preserve required third-party attribution. The native showcase and storybook use plain Node.js ES modules with no dependencies. They are the smallest working hosts for refining and browsing the elements and motions, not a framework or a published package. Pi and Herdr packages may need other runtimes or dependencies; their placement, boundaries, and checks will be defined in architecture and contributing when they move in. No open-source license, framework, or support matrix is selected yet.
+The repository is public. Include only material cleared for publication and preserve required third-party attribution. The native showcase and storybook use plain Node.js ES modules with no dependencies. They are the smallest working hosts for refining and browsing the elements and motions, not a framework or a published package. Pi extensions are TypeScript Pi packages with their own development dependencies; their placement and checks are in the [Pi guides](../pi/AGENTS.md). Herdr packages may need other runtimes or dependencies; their placement, boundaries, and checks will be defined when they move in. No project-wide open-source license, framework, or support matrix is selected yet; `pi/claude-interrupt` keeps its own MIT license.
 
 Keep exploration outside this repository. Bring an element here once its design is settled enough to maintain as part of the system.
