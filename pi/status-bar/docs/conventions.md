@@ -1,8 +1,10 @@
 # Engineering conventions
 
+The [repository-wide conventions](../../../docs/conventions.md) and the [Pi guide](../../AGENTS.md) apply. This guide adds only this project's rules; it is not a second repository rulebook.
+
 ## Project profile
 
-Pi Status Bar is a TypeScript ESM Pi package for Node.js 22.19+. Runtime code is `src/extension.ts`, `src/footer.ts`, `src/workspace.ts`, and `src/usage.ts`; Pi supplies the host, TUI, and TypeBox peers declared in `package.json`. Tests use Node's built-in runner and TypeScript stripping.
+Pi Status Bar, in `pi/status-bar/`, is a TypeScript ESM Pi package for Node.js 22.19+. Runtime code is `src/extension.ts`, `src/footer.ts`, `src/workspace.ts`, and `src/usage.ts`; Pi supplies the host, TUI, and TypeBox peers declared in `package.json`. Tests use Node's built-in runner and TypeScript stripping.
 
 Scope reviewed: baseline revision `60d738faa2b2264005717e599c4a917f69c59419`, the complete integrated source/test tree, `package.json`, and installed Pi 1.0.2 package/extension/TUI APIs and pi-subagents 0.76.0 public activity contract (native v9 integration on 2026-10-05). The installed host was read-only. This is a focused review of the complete current repository, not a claim about other Pi versions or platforms.
 
@@ -12,7 +14,7 @@ The baseline commit contained only Git metadata: no source, manifest, CI, README
 
 | Discovery | Classification | Canonical result |
 | --- | --- | --- |
-| Empty baseline repository at `60d738f` | Needs creation, not legacy conversion | Create the canonical root/docs set; no superseded files or stale links to remove |
+| Empty baseline repository at `60d738f` | Needs creation, not legacy conversion | Create the canonical guide and docs set; no superseded files or stale links to remove |
 | Approved behavior and frozen workspace contract | Needs documentation conversion | Product scope in `docs/mission.md`/`docs/design.md`; contracts and flows here and in `docs/architecture.md`; rationale in one decision record |
 | `src/workspace.ts` and `test/workspace.test.ts` | Already conforms to the frozen domain seam; documentation was missing | Module, validation, failure, I/O, and test rules below |
 | `src/footer.ts`, `src/extension.ts`, and their tests | Already implements the presentation/lifecycle seams; documentation was missing | Dependency/placement rules below and architecture flows |
@@ -20,7 +22,11 @@ The baseline commit contained only Git metadata: no source, manifest, CI, README
 
 Conversion map: there were no existing documents to move, merge, alias, or remove. Conversation requirements were canonicalized rather than copied as a parallel rulebook. `AGENTS.md` maps every created supporting guide, and `CLAUDE.md` contains only its exact import.
 
+That discovery and conversion took place in the package's own repository. When it moved into the monorepo with its history, its guides were converted in place to the [project document set](../../../docs/architecture.md#contracts-between-the-root-and-a-project): `AGENTS.md`, `CONTRIBUTING.md` and this guide link the root and Pi guides rather than standing alone, commands run from `pi/status-bar/`, and no project rule moved out. No source or test changed in the move.
+
 ## Engineering principles
+
+These are project applications of the [shared principles](../../../docs/conventions.md#engineering-principles), not additional repository rules.
 
 - **Progressive disclosure.** Rule: keep critical safety boundaries and a complete task-routed document map in `AGENTS.md`; put details in the relevant canonical guide. Example: a PR-lookup fix follows `AGENTS.md` to `src/workspace.ts`, the architecture contract, and the test command without requiring design prose. Reason: tasks should discover all applicable constraints without loading unrelated manuals. Check: review the code-change and human-facing routes plus every row in the supporting-documents map.
 - **YAGNI.** Rule: add only capabilities required by current footer behavior; document limitations with a concrete revisit condition instead of adding hooks. Example: `src/workspace.ts` directly supports public GitHub remotes and does not add an enterprise-host provider registry. Reason: hypothetical variants add contracts and failure modes without a user need. Check: name the current requirement for every dependency, abstraction, option, or background process.
@@ -33,7 +39,7 @@ Conversion map: there were no existing documents to move, merge, alias, or remov
 
 **Rule:** use the exported workspace types/functions as the public internal contract; keep subprocess parsing and renderer helpers private unless a real second caller needs them. **Example:** `resolveActivePath`, `inspectWorkspace`, and `inspectPullRequest` are the only runtime exports from `src/workspace.ts`; `USAGE_PROVIDERS` and `fetchUsage` are the only ones from `src/usage.ts`. **Reason:** broad exports couple callers to parsing details. **Check:** review exports and contract-focused workspace tests.
 
-Cycles are forbidden. Do not create a `shared`, `utils`, `helpers`, or `manager` module to conceal one; move behavior to the capability that owns its semantics.
+Cycles are forbidden, as are `shared`, `utils`, `helpers`, or `manager` modules to conceal one ([root rules](../../../docs/conventions.md#module-and-dependency-rules)); move behavior to the capability that owns its semantics. Do not import design-system code or another extension's code.
 
 ## Placement and naming
 
@@ -90,9 +96,11 @@ See `CONTRIBUTING.md` for the only canonical commands and prerequisites. A skipp
 
 ## Dependencies and generated output
 
-**Rule:** use Node standard library first and host-provided Pi packages only where the host boundary requires them. Declare Pi/TUI/TypeBox as `"*"` peers, never runtime dependencies, to avoid duplicate host classes/registries. **Check:** `package.json` plus Pi's package-loader warnings and real load test.
+**Rule:** use Node standard library first and host-provided Pi packages only where the host boundary requires them. Pi/TUI/TypeBox are `"*"` peers, never runtime dependencies, per [the Pi guide](../../AGENTS.md#critical-engineering-rules). **Check:** `package.json` plus Pi's package-loader warnings and real load test.
 
-A new dependency requires a current need, comparison with stdlib/host APIs, maintenance/security review, and deterministic tests. No lockfile is generated because there is nothing to install. There is no build artifact or generated file to edit.
+A new dependency requires a current need, comparison with stdlib/host APIs, maintenance/security review, and deterministic tests. There are no development dependencies: tests resolve the peers from the globally installed Pi host through `PI_HOST_ROOT`, so no lockfile is generated because there is nothing to install. That differs from the shared lockfile expectation; see the adoption gaps. There is no build artifact or generated file to edit.
+
+The fixed palette, `C` in `src/footer.ts`, is the authority for the shared Acid / Black roles; `design-system/foundation/palette.mjs` and `pi/claude-interrupt/src/index.ts` hold hand-kept copies of some of its values. See [the decision](../../../docs/decisions/extension-colors-take-precedence.md). Keep the colors as named entries of `C`, not inline literals.
 
 ## Performance and growth
 
@@ -111,3 +119,7 @@ No production workload or measured bottleneck exists. Treat suspected redraw, pr
 | No live authenticated GitHub validation | Low for deterministic correctness; API boundary is mocked and validated | Run a read-only opt-in smoke against a controlled public repository if explicitly authorized | Opt-in check—not implemented; normal suite remains offline |
 | Agent can forget to update Active | Product limitation inherent in explicit signaling | Collect evidence before changing the decision; do not infer from incidental reads | Revisit condition in the decision record |
 | Windows execution is untested | Unknown relevance; implementation uses platform APIs but POSIX fixtures | Add platform CI only when Windows support is required | Proposed check—not implemented |
+| No lockfile or development pin of Pi | The [Pi guide](../../AGENTS.md#critical-engineering-rules) and [root conventions](../../../docs/conventions.md#dependencies-and-generated-output) expect a lockfile, and claude-interrupt pins Pi as development dependencies. This package has neither by design: tests run against the globally installed host, so the tested Pi version is whatever is installed | Keep the global-host design unless a reproducible pinned run is wanted; then add pinned development dependencies and a lockfile in one reviewed change | Record the installed Pi version with each verification run |
+| No license | No `LICENSE` or `license` field, before or after the move; publication does not grant reuse | Resolve with the repository's open license decision | Review the manifest and folder |
+| No Herdr verification record | The [root design](../../../docs/design.md#accessibility-and-platform-behavior) asks each project to record the Herdr version and scope it was checked against | Record it with the manual interactive-terminal review above | Manual check—not run |
+| Palette values are copied by hand across projects | Shared Acid / Black values in `C` in `src/footer.ts` are mirrored without an import or check | Keep this package authoritative; share code only after an installed-package access decision | Review comparison against `design-system/foundation/palette.mjs`; see the [root gap](../../../docs/conventions.md#adoption-gaps) |

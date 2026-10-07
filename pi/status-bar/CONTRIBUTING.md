@@ -1,10 +1,12 @@
 # Contributing
 
+Follow the [repository workflow](../../CONTRIBUTING.md) as well as this package's checks.
+
 ## Toolchain and setup
 
 Use Node.js 22.19 or newer; the integrated baseline was checked with Node 22.23.0, Pi 1.0.2, Git 2.50.1, and `gh` 2.93.0 on macOS. USG parsing was built against recorded CodexBar 0.60.3 output; no installed `codexbar` is needed or used by tests. The extension has no runtime dependency to install: Pi supplies the three peer packages declared in `package.json`.
 
-Tests that exercise Pi need the installed host root. From the repository root:
+Tests that exercise Pi need the installed host root. From `pi/status-bar/`:
 
 ```sh
 export PI_HOST_ROOT="$(npm root -g)/@earendil-works/pi-coding-agent"
@@ -15,7 +17,7 @@ This only discovers an existing global installation. Do not run an installer to 
 
 ## Fast loop
 
-For local Git/GitHub domain changes:
+From `pi/status-bar/`, for local Git/GitHub domain changes:
 
 ```sh
 node --experimental-strip-types --test test/workspace.test.ts
@@ -43,11 +45,12 @@ Source: `package.json` and the test files under `test/`.
 
 | Order | Directory | Command | Prerequisites/effects | Coverage |
 | --- | --- | --- | --- | --- |
-| 1 | repository root | `export PI_HOST_ROOT="$(npm root -g)/@earendil-works/pi-coding-agent"` | Existing global Pi; reads npm's global root | Locates host-provided peers |
-| 2 | repository root | `test -f "$PI_HOST_ROOT/dist/index.js"` | No writes | Fails clearly when the host prerequisite is absent |
-| 3 | repository root | `PI_HOST_ROOT="$PI_HOST_ROOT" npm test` | Creates/removes temp Git/session fixtures; fake `gh` and `codexbar`; no live network | All workspace, usage, renderer, package-loader, lifecycle, refresh, and persistence tests |
+| 1 | `pi/status-bar/` | `export PI_HOST_ROOT="$(npm root -g)/@earendil-works/pi-coding-agent"` | Existing global Pi; reads npm's global root | Locates host-provided peers |
+| 2 | `pi/status-bar/` | `test -f "$PI_HOST_ROOT/dist/index.js"` | No writes | Fails clearly when the host prerequisite is absent |
+| 3 | `pi/status-bar/` | `PI_HOST_ROOT="$PI_HOST_ROOT" npm test` | Creates/removes temp Git/session fixtures; fake `gh` and `codexbar`; no live network | All workspace, usage, renderer, package-loader, lifecycle, refresh, and persistence tests |
+| 4 | `pi/status-bar/` | `printf '' \| pi --mode rpc --no-extensions --extension .` | Installed Pi; no model call; model-pattern warnings are expected and harmless because other extensions, including model providers, are off. Outside TUI mode the extension still inspects Pi's working directory with read-only Git commands and can start one read-only `gh` PR lookup | Package discovery and extension loading through the installed `pi` command; success exits 0, a throwing extension exits 1 |
 
-Record every check as passed, failed, skipped, or not run. A missing host is a failed prerequisite, not a passing or skipped integrated suite. There is currently no established formatter, linter, standalone typecheck, or build command; do not claim one ran.
+Then follow the [repository-wide checks](../../CONTRIBUTING.md#repository-wide-checks). Record every check as passed, failed, skipped, or not run. A missing host is a failed prerequisite, not a passing or skipped integrated suite. The RPC load check is not interactive terminal verification. There is currently no established formatter, linter, standalone typecheck, or build command; do not claim one ran.
 
 ## Making a change
 
@@ -73,4 +76,8 @@ Keep structural and semantic changes separate when practical. Preserve behavior 
 
 ## Keeping docs accurate
 
-Update `docs/conventions.md` when an engineering rule changes, `docs/architecture.md` when modules/contracts or flows change, this file when commands/prerequisites change, and `docs/design.md` when the footer experience changes. Add a decision record only for a consequential trade-off, and add every supporting guide to the `AGENTS.md` map.
+Update `docs/conventions.md` when an engineering rule changes, `docs/architecture.md` when modules/contracts or flows change, this file when commands/prerequisites change, and `docs/design.md` when the footer experience changes. Add a decision record only for a consequential trade-off, and add every supporting guide to the `AGENTS.md` map and the [root map](../../AGENTS.md#supporting-documents).
+
+## Verification records
+
+The toolchain baseline above was recorded before the package moved into the monorepo. No run of this sequence has been recorded here since the move. Record each run with its date, Node and Pi versions, and results, keeping the automated suite, the Pi load check and interactive Pi/Herdr checks separate.

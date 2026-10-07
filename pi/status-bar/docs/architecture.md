@@ -23,7 +23,7 @@ flowchart LR
 
 | Module/path | Purpose | Public entry point | Dependencies |
 | --- | --- | --- | --- |
-| `package.json` | Pi package metadata and test wiring | `pi.extensions[0]` → `src/extension.ts` | Host-provided peer packages |
+| `package.json` | Pi package metadata and test wiring | `pi.extensions[0]` → `src/extension.ts` | Host-provided peer packages; nothing outside `pi/status-bar/` |
 | `src/extension.ts` | Pi adapter: tool, motion command, session state, restoration, compaction count, refresh/cache, cancellation, footer and animation lifecycle | Default extension factory | Public Pi/TypeBox APIs, workspace functions, footer renderer |
 | `src/workspace.ts` | Path normalization and truthful local Git/GitHub/PR inspection | `resolveActivePath`, `inspectWorkspace`, `inspectPullRequest` and result types | Node filesystem/path/child-process only |
 | `src/usage.ts` | Explicit provider list, read-only CodexBar invocation and parsing into a discriminated usage-window result | `USAGE_PROVIDERS`, `fetchUsage` and result types | Node child-process only |
@@ -171,7 +171,7 @@ A new workspace status field starts in the appropriate `WorkspaceInfo` union and
 
 The footer shows Active as `⑂ branch` and its colored status text when the workspace snapshot has a known branch and a GitHub repository name, which the header shows as `owner/repository`; otherwise it shows Active's parent/current path, with Git details wrapping on an unnumbered continuation after the complete path. Launch (Pi's working directory) appears as a grey `cwd` line in the header spacer row only when its stored path differs from Active's, a pure snapshot comparison with no path I/O. The header omits the full PR URL. The context readout renders host `ContextUsage.tokens` in the scale's unit. The adapter resolves `FooterSnapshot.compactionReserve` from `pi.getSettings()` and the current model on every snapshot, mirroring Pi 1.0.4 `SettingsManager.getCompactionSettings` (absent when auto-compaction is disabled or the setting is invalid); the renderer then scales tokens to `window − reserve` for the gauge, tone, numeral and readout. Without a usable reserve, host percent drives them against the full window. Primary-checkout metadata remains part of the workspace result contract and inspection flow, but is not rendered or targeted by footer motion.
 
-A new footer-only presentation state belongs in `src/footer.ts` and must use a supplied snapshot, never call Git or `gh`. A new host lifecycle behavior belongs in `src/extension.ts` and must preserve disposal and stale-result guards. Do not expose private parsers or add a generic service layer merely to pass data across these existing seams.
+A new footer-only presentation state belongs in `src/footer.ts` and must use a supplied snapshot, never call Git or `gh`. A palette value changes in `C` in `src/footer.ts`; when it is one of the shared Acid / Black roles, the design system's mirror changes to match in its own commit, as the [root architecture](../../../docs/architecture.md#representative-flows) describes. A new host lifecycle behavior belongs in `src/extension.ts` and must preserve disposal and stale-result guards. Do not expose private parsers or add a generic service layer merely to pass data across these existing seams.
 
 ## Evolution and known limits
 

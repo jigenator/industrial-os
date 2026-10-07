@@ -72,7 +72,11 @@ No live interactive-terminal/motion, live CodexBar or live fleet-owner smoke tes
 
 ## Project guides
 
-- [Mission](docs/mission.md)
-- [Design](docs/design.md)
-- [Architecture](docs/architecture.md)
-- [Contributing](CONTRIBUTING.md)
+- [Agent guide](AGENTS.md): task routes and critical constraints.
+- [Contributing](CONTRIBUTING.md): setup, checks and review workflow.
+- [Mission](docs/mission.md): scope and non-goals.
+- [Architecture](docs/architecture.md): modules, flows, contracts and limits.
+- [Conventions](docs/conventions.md): engineering rules and adoption gaps.
+- [Design](docs/design.md): footer experience, palette and UI states.
+
+No license has been selected for this package; see the [repository licensing](../../README.md#licensing).
