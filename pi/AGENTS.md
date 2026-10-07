@@ -4,7 +4,7 @@ Purpose: the Pi extensions that bring the Industrial OS visual and interaction l
 
 ## Critical engineering rules
 
-- Each extension is a standalone Pi package: its own folder, `package.json` with an explicit `pi` manifest, dependencies, lockfile, checks, guides, and license. No shared root package, workspace, or `node_modules`; see [the decision](../docs/decisions/standalone-packages.md).
+- Each extension is a standalone Pi package: its own folder, `package.json` with an explicit `pi` manifest, dependencies, lockfile, checks, guides, and license. No shared workspace, dependencies, or `node_modules`; the root `package.json` only lists each extension's entry point so Pi can install from git, and a new extension adds its entry there. See [the decision](../docs/decisions/standalone-packages.md).
 - Declare the packages Pi supplies to extensions (`@earendil-works/pi-coding-agent`, `@earendil-works/pi-tui`, `@earendil-works/pi-ai`, `@earendil-works/pi-agent-core`, `typebox`) as `peerDependencies` with a `"*"` range, never as `dependencies`. Verify Pi APIs against the documentation and types of the Pi version in use; packaging rules are in Pi's `docs/packages.md`.
 - Human-facing output follows the [design](../docs/design.md): terminal text, Acid / Black roles, truthful values, and color or animation never the only carrier of meaning. Never block streaming, input, or focus.
 - The extensions are the authority for palette values; declare them as named constants in one place per extension. The design system follows; see [the decision](../docs/decisions/extension-colors-take-precedence.md).

@@ -1,0 +1,14 @@
+{
+  "name": "industrial-os",
+  "private": true,
+  "description": "Pi package manifest for installing this repository's Pi extensions from git; each extension is still its own package",
+  "pi": {
+    "extensions": [
+      "./pi/claude-interrupt/src/index.ts",
+      "./pi/status-bar/src/extension.ts"
+    ],
+    "skills": [],
+    "prompts": [],
+    "themes": []
+  }
+}
