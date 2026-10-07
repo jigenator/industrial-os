@@ -103,3 +103,17 @@ test('latch rejects invalid options and lines', () => {
   for (const lines of [null, 'abc', [null], [[{ text: 5 }]]]) assert.throws(() => latch(lines, { time: 0 }), TypeError);
   assert.deepEqual(latch([], { time: 0 }), []);
 });
+
+test('latch keeps opted-in full-block state cells visible against the field', () => {
+  for (const role of ['warning', 'critical']) {
+    for (const bg of ['field', 'primary', 'surface']) {
+      const block = [[span('█', { fg: role, bg })]];
+      for (const time of [0, 25, 50, 100, 149]) {
+        const [cell] = cellsOf(latch(block, { time, stateCells: true })[0]);
+        assert.equal(cell.ch, '█');
+        assert.notEqual(cell.fg, 'field', `${role} on ${bg} at ${time}`);
+      }
+      assert.equal(cellsOf(latch(block, { time: 0, stateCells: true })[0])[0].fg, 'accent');
+    }
+  }
+});

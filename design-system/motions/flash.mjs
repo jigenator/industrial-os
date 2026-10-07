@@ -1,5 +1,5 @@
 import { resolveColor } from '../foundation/cells.mjs';
-import { MIN_PERIOD_MS, assertLines, assertMs, assertTime, copyLines, inRegion, resolveOptions, resolveRegion, restyleCells } from './frame.mjs';
+import { MIN_PERIOD_MS, assertLines, assertMs, assertTime, copyLines, inRegion, invertCell, resolveOptions, resolveRegion, restyleCells } from './frame.mjs';
 
 // The defaults are claude-interrupt's plate flash (pi/claude-interrupt/src/index.ts FLASH_OFF, FLASH_ON): 0-79 ms
 // filled, 80-159 ms outline, then filled.
@@ -39,9 +39,9 @@ export function flashDuration(options = {}) {
 
 // How one cell looks in one pattern step; undefined keeps it.
 function frameOf(kind, style, ch) {
-  const fg = style.fg ?? 'secondary', bg = style.bg ?? 'field';
+  const bg = style.bg ?? 'field';
   if (kind === 'outline') return same(bg, 'field') ? undefined : { ...style, fg: bg, bg: 'field' };
-  if (kind === 'invert') return same(fg, bg) ? undefined : { ...style, fg: bg, bg: fg };
+  if (kind === 'invert') return invertCell(style, ch);
   if (kind === 'white') return ch === '█' ? { ...style, fg: 'primary' } : { fg: 'field', bg: 'primary', bold: true };
   return undefined;
 }

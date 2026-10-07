@@ -136,3 +136,19 @@ test('flash rejects invalid options and lines', () => {
   for (const lines of [null, 'abc', [null], [[{ text: 5 }]]]) assert.throws(() => flash(lines, { time: 0 }), TypeError);
   assert.deepEqual(flash([], { time: 0 }), []);
 });
+
+test('flash keeps opted-in full-block state cells visible, on the field and on white', () => {
+  const cellsOf = (line) => line.flatMap((s) => [...s.text].map((ch) => ({ ch, fg: s.style.fg ?? 'secondary', bg: s.style.bg ?? 'field' })));
+  for (const role of ['warning', 'critical']) {
+    for (const bg of ['field', 'primary', 'surface']) {
+      const block = [[span('█', { fg: role, bg })]];
+      for (const kind of ['outline', 'invert', 'white']) {
+        const [cell] = cellsOf(flash(block, { time: 0, pattern: [kind], stateCells: true })[0]);
+        assert.equal(cell.ch, '█');
+        assert.notEqual(cell.fg, 'field', `${kind} ${role} on ${bg}`);
+      }
+    }
+  }
+  // A white flash on a block over a white background is allowed: the block shows white against the field.
+  assert.deepEqual(cellsOf(flash([[span('█', { fg: 'warning', bg: 'primary' })]], { time: 0, pattern: ['white'], stateCells: true })[0])[0], { ch: '█', fg: 'primary', bg: 'primary' });
+});

@@ -6,7 +6,7 @@ import { labelPlate } from '../elements/label-plate/label-plate.mjs';
 import { numberedPanel, panelInnerWidth } from '../elements/numbered-panel/numbered-panel.mjs';
 import { gauge } from '../elements/gauge/gauge.mjs';
 import { statusRow } from '../elements/status-row/status-row.mjs';
-import { MIN_PERIOD_MS, inRegion, resolveRegion, restyleCells } from './frame.mjs';
+import { MIN_PERIOD_MS, glyphVisible, inRegion, invertCell, resolveRegion, restyleCells } from './frame.mjs';
 import { scan, SCAN_DEFAULTS } from './scan.mjs';
 import { pulse, PULSE_DEFAULTS } from './pulse.mjs';
 import { reveal, revealDuration, REVEAL_DEFAULTS } from './reveal.mjs';
@@ -310,4 +310,23 @@ test('resolveRegion validates a cell rectangle and inRegion tests membership', (
   assert.ok(inRegion(r, 2, 1) && inRegion(r, 4, 9) && !inRegion(r, 5, 1) && !inRegion(r, 2, 0));
   for (const bad of [{ top: -1 }, { left: 1.5 }, { rows: '2' }, { top: Infinity }]) assert.throws(() => resolveRegion('m', bad), RangeError, JSON.stringify(bad));
   for (const bad of [null, [], 3, { width: 2 }]) assert.throws(() => resolveRegion('m', bad), TypeError, JSON.stringify(bad));
+});
+
+test('the state cue guard knows a full block shows only its foreground', () => {
+  for (const role of ['warning', 'critical']) {
+    const onField = [[span('█', { fg: role, bg: 'field' })]];
+    const onWhite = [[span('█', { fg: role, bg: 'primary' })]];
+    // A black block on the field is hidden even though its colors differ.
+    assert.throws(() => restyleCells(onField, () => ({ style: { fg: 'field', bg: role } }), { stateCells: true }), /hide/);
+    // A white block on a white background still shows against the field.
+    assert.doesNotThrow(() => restyleCells(onWhite, () => ({ style: { fg: 'primary', bg: 'primary' } }), { stateCells: true }));
+    assert.ok(glyphVisible({ fg: role, bg: role }, '█'));
+    assert.ok(!glyphVisible({ fg: role, bg: role }, '▲'));
+    assert.ok(!glyphVisible({ fg: '#000000' }, '█'));
+  }
+  // invertCell swaps ordinary glyphs, recolors a block to its background, and keeps a block on the field.
+  assert.deepEqual(invertCell({ fg: 'warning', bg: 'field' }, '▲'), { fg: 'field', bg: 'warning' });
+  assert.deepEqual(invertCell({ fg: 'warning', bg: 'surface' }, '█'), { fg: 'surface', bg: 'surface' });
+  assert.equal(invertCell({ fg: 'warning', bg: 'field' }, '█'), undefined);
+  assert.equal(invertCell({ fg: 'accent', bg: 'accent' }, 'x'), undefined);
 });

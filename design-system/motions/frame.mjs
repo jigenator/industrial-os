@@ -75,14 +75,32 @@ export const blockWidth = (lines) => lines.reduce((max, line) => Math.max(max, l
 const norm = (s) => `${s.fg ?? 'secondary'}|${s.bg ?? 'field'}|${s.bold ?? false}`;
 const LETTER_OR_DIGIT = /[A-Za-z0-9]/;
 
-// Warning and critical cells keep their state cue in every frame: a motion that opted in with stateCells may
-// tint, invert or resize them, but never blank one, give it the field's color on the field, or change a letter
-// or digit of the state word. A violation is a bug in the motion, so it throws.
-function assertCue(cell, style, char) {
+const sameColor = (a, b) => resolveColor(a).toLowerCase() === resolveColor(b).toLowerCase();
+
+// Whether a cell's glyph shows. A full block paints its foreground over the whole cell, so it shows only when that
+// foreground differs from the field around it; any other glyph shows when its foreground differs from its background.
+export function glyphVisible(style, char) {
   const fg = style.fg ?? 'secondary', bg = style.bg ?? 'field';
+  if (char === ' ') return true;
+  return char === '█' ? !sameColor(fg, 'field') : !sameColor(fg, bg);
+}
+
+// A cell with foreground and background swapped, or undefined when swapping would hide it. A full block cannot
+// swap (its background never shows), so it takes its background color instead, unless that is the field or
+// already its color.
+export function invertCell(style, char, extra = {}) {
+  const fg = style.fg ?? 'secondary', bg = style.bg ?? 'field';
+  if (char === '█') return sameColor(bg, 'field') || sameColor(fg, bg) ? undefined : { ...style, ...extra, fg: bg };
+  return sameColor(fg, bg) ? undefined : { ...style, ...extra, fg: bg, bg: fg };
+}
+
+// Warning and critical cells keep their state cue in every frame: a motion that opted in with stateCells may
+// tint, invert or resize them, but never blank one, hide its glyph (see glyphVisible), or change a letter or digit
+// of the state word. A violation is a bug in the motion, so it throws.
+function assertCue(cell, style, char) {
   if (char === ' ' && cell.ch !== ' ') throw new Error('a motion must not blank a warning or critical cell');
   if (char !== cell.ch && LETTER_OR_DIGIT.test(cell.ch)) throw new Error('a motion must not change a state word');
-  if (char !== ' ' && resolveColor(fg).toLowerCase() === resolveColor(bg).toLowerCase()) throw new Error('a motion must not hide a warning or critical cell');
+  if (!glyphVisible(style, char)) throw new Error('a motion must not hide a warning or critical cell');
 }
 
 // Rebuild every line cell by cell. fn(style, col, row, char, state) returns undefined to keep the cell, or
