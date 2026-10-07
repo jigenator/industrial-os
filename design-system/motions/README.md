@@ -51,7 +51,7 @@ Animate only the content you mean to. To leave a panel's frame still, animate th
 
 Guarantees that hold for every motion:
 
-- **State-colored cells are exempt.** Cells whose `fg` or `bg` is `warning` or `critical` are never recolored, dimmed, or hidden. This protects individual cells, not the rest of a message or its stacked continuation lines.
+- **State-colored cells are exempt unless the motion opts in.** Cells whose `fg` or `bg` is the `warning` or `critical` role are left unchanged by default. This protects individual cells, not the rest of a message or its stacked continuation lines. A motion built for state cues (an attention beacon, a state latch, a warm-up) may opt in per call with a documented option; `restyleCells(lines, fn, { stateCells: true })` then passes those cells to `fn` and throws if a change would blank one, give it its background's color, or change a letter or digit of its word. Tinting, inverting and resizing a glyph (`▲` to `▴`) are allowed. Use role names for state colors so the exemption can see them. Scan, pulse and reveal never opt in.
 - **Essential content stays outside a reveal.** Scan and pulse never change a character. Reveal's `dim` veil preserves characters but reduces contrast; `blank` replaces them with spaces. Neither is appropriate for essential readings or error details. Compose the entire essential block unchanged after transforming only decoration.
 - **Time 0 is stable.** Scan and pulse at time 0 equal the input, so they can rest anywhere. Reveal at time 0 is its fully veiled start and equals the input only at or after `revealDuration()`.
 - **No frequency cap.** Any positive `period` is allowed (`MIN_PERIOD_MS` is 1, exported by `frame.mjs`), so a motion may cycle or flash faster than three times a second, as the [shared motion rule](../../docs/design.md#motion) permits. `animate: false` settles every motion; state the rate of a fast motion where it is used. No photosensitivity or WCAG flash compliance is claimed.
@@ -134,7 +134,7 @@ const replay = () => { stop(); elapsed = 0; complete = false; play(); };
 
 ## Extending
 
-A new motion is a pure function `(lines, options) -> lines` in its own file here, built on `frame.mjs` (`resolveOptions`, `assertTime`, `restyleCells`). It needs a stated period or duration (any positive value; state a fast rate where the motion is used), `animate: false` returning the stable view, and exemption for `warning` and `critical` cells. Add its checks to `motions.test.mjs`, and map its section here. Do not add timers or hidden state.
+A new motion is a pure function `(lines, options) -> lines` in its own file here, built on `frame.mjs` (`resolveOptions`, `assertTime`, `restyleCells`). It needs a stated period or duration (any positive value; state a fast rate where the motion is used), `animate: false` returning the stable view, and exemption for `warning` and `critical` cells unless it opts in as described above. Seeded variation comes from [foundation/seeded.mjs](../foundation/seeded.mjs), never `Math.random`. Add its checks to `motions.test.mjs`, and map its section here. Do not add timers or hidden state.
 
 ## Checks
 

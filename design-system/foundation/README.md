@@ -65,6 +65,10 @@ These are deterministic mixes of encoded 8-bit sRGB channels toward black/white,
 
 The IndustrialOS reference collection is separate data: its `Magenta` is `#FF15BE`, one step from status-bar's pink `#ff15bd`. The extension's value is the one elements use.
 
+## Seeded randomness
+
+[seeded.mjs](seeded.mjs) gives decorations that vary a repeatable source of chance: `random(seed)` returns a generator of numbers in [0, 1) (mulberry32, ported from status-bar's footer), `hash(a, b, c)` a stateless number in [0, 1) for three integers, and `between`, `pick`, `shuffle`, and `seedFrom` draw from a generator. The same seed always gives the same plan. A non-integer seed throws `RangeError`. Nothing here reads a clock or calls `Math.random`.
+
 ## Checks
 
-`node --test foundation/*.test.mjs` covers the signal colors' format and `mixOver`'s rounding, range and mirrored values, sanitization, truncation, exact line widths, unchanged named-role SGR, literal RGB and invalid-style boundaries, color/plain equivalence for all 110 color/ramp swatches, the 22 color records (unique ids, uppercase hex, families) and their immutability, exact ramp centers and all 256 channel values. Full validation remains in [Contributing](../CONTRIBUTING.md).
+`node --test foundation/*.test.mjs` covers seeded determinism and bounds, the signal colors' format and `mixOver`'s rounding, range and mirrored values, sanitization, truncation, exact line widths, unchanged named-role SGR, literal RGB and invalid-style boundaries, color/plain equivalence for all 110 color/ramp swatches, the 22 color records (unique ids, uppercase hex, families) and their immutability, exact ramp centers and all 256 channel values. Full validation remains in [Contributing](../CONTRIBUTING.md).

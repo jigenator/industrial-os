@@ -1,15 +1,15 @@
 // Shared seam for the motion primitives: option and time validation, plus per-cell restyling.
 // Pure and I/O-free. See motions/README.md for the contract every motion shares.
-import { lineWidth, span } from '../foundation/cells.mjs';
+import { lineWidth, resolveColor, span } from '../foundation/cells.mjs';
 
 // Shortest valid period. There is no frequency cap (../../docs/design.md#motion): any positive period is allowed,
 // and motion-off (animate: false) is what settles a motion.
 export const MIN_PERIOD_MS = 1;
 export const MAX_MS = 60_000;
 
-// Warning and critical cells are never recolored, dimmed, or hidden by any motion.
+// Warning and critical cells are exempt from every motion unless it opts in; see restyleCells.
 const STATE_ROLES = ['warning', 'critical'];
-const isStateCell = (style) => STATE_ROLES.includes(style.fg) || STATE_ROLES.includes(style.bg);
+export const isStateCell = (style) => STATE_ROLES.includes(style.fg) || STATE_ROLES.includes(style.bg);
 
 export function assertLines(lines) {
   if (!Array.isArray(lines)) throw new TypeError(`motion input must be an array of lines, got ${typeof lines}`);
@@ -56,19 +56,34 @@ export const copyLines = (lines) => lines.map((line) => line.slice());
 export const blockWidth = (lines) => lines.reduce((max, line) => Math.max(max, lineWidth(line)), 0);
 
 const norm = (s) => `${s.fg ?? 'secondary'}|${s.bg ?? 'field'}|${s.bold ?? false}`;
+const LETTER_OR_DIGIT = /[A-Za-z0-9]/;
 
-// Rebuild every line cell by cell. fn(style, col, row, char) returns undefined to keep the cell, or
+// Warning and critical cells keep their state cue in every frame: a motion that opted in with stateCells may
+// tint, invert or resize them, but never blank one, give it the field's color on the field, or change a letter
+// or digit of the state word. A violation is a bug in the motion, so it throws.
+function assertCue(cell, style, char) {
+  const fg = style.fg ?? 'secondary', bg = style.bg ?? 'field';
+  if (char === ' ' && cell.ch !== ' ') throw new Error('a motion must not blank a warning or critical cell');
+  if (char !== cell.ch && LETTER_OR_DIGIT.test(cell.ch)) throw new Error('a motion must not change a state word');
+  if (char !== ' ' && resolveColor(fg).toLowerCase() === resolveColor(bg).toLowerCase()) throw new Error('a motion must not hide a warning or critical cell');
+}
+
+// Rebuild every line cell by cell. fn(style, col, row, char, state) returns undefined to keep the cell, or
 // { style?, char? } to restyle it or swap its single character. Cell count and order never change, so
 // every line keeps its exact width. Adjacent cells with the same style are merged into one span.
-export function restyleCells(lines, fn) {
+// Warning and critical cells are exempt unless the caller opts in with { stateCells: true }; then fn also sees
+// them, with state true, and every change must keep the state cue readable (see assertCue).
+export function restyleCells(lines, fn, { stateCells = false } = {}) {
   return lines.map((line, row) => {
     const out = [];
     let col = 0;
     for (const s of line) {
       for (const ch of s.text) {
-        const change = isStateCell(s.style) ? undefined : fn(s.style, col, row, ch);
+        const state = isStateCell(s.style);
+        const change = state && !stateCells ? undefined : fn(s.style, col, row, ch, state);
         const style = change?.style ?? s.style;
         const char = change?.char ?? ch;
+        if (state && change) assertCue({ ch }, style, char);
         const prev = out[out.length - 1];
         if (prev && norm(prev.style) === norm(style)) prev.text += char;
         else out.push(span(char, style));

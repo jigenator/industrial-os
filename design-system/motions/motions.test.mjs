@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { lineWidth, paint, span } from '../foundation/cells.mjs';
 import { labelPlate } from '../elements/label-plate/label-plate.mjs';
 import { numberedPanel, panelInnerWidth } from '../elements/numbered-panel/numbered-panel.mjs';
 import { gauge } from '../elements/gauge/gauge.mjs';
 import { statusRow } from '../elements/status-row/status-row.mjs';
-import { MIN_PERIOD_MS } from './frame.mjs';
+import { MIN_PERIOD_MS, restyleCells } from './frame.mjs';
 import { scan, SCAN_DEFAULTS } from './scan.mjs';
 import { pulse, PULSE_DEFAULTS } from './pulse.mjs';
 import { reveal, revealDuration, REVEAL_DEFAULTS } from './reveal.mjs';
@@ -15,7 +15,7 @@ const MOTIONS = { scan, pulse, reveal };
 const plain = (lines) => lines.map((l) => paint(l, 'none'));
 const color = (lines) => lines.map((l) => paint(l, 'truecolor'));
 // One entry per cell: character, effective foreground role, bold.
-const cellsOf = (line) => line.flatMap((s) => [...s.text].map((ch) => ({ ch, fg: s.style.fg ?? 'secondary', bold: s.style.bold ?? false })));
+const cellsOf = (line) => line.flatMap((s) => [...s.text].map((ch) => ({ ch, fg: s.style.fg ?? 'secondary', bg: s.style.bg ?? 'field', bold: s.style.bold ?? false })));
 const row = (text, style = {}) => [span(text, style)];
 
 // A realistic block from the real renderers at one width.
@@ -275,11 +275,31 @@ test('motions compose with real renderers at the width they were rendered for', 
 });
 
 test('primitives stay pure: standard-library-free, no clock, timer, I/O, or randomness', () => {
-  for (const file of ['frame', 'scan', 'pulse', 'reveal']) {
-    const source = readFileSync(new URL(`./${file}.mjs`, import.meta.url), 'utf8');
+  const files = readdirSync(new URL('.', import.meta.url)).filter((f) => f.endsWith('.mjs') && !f.endsWith('.test.mjs'));
+  assert.ok(files.includes('frame.mjs') && files.includes('scan.mjs'));
+  for (const file of files) {
+    const source = readFileSync(new URL(`./${file}`, import.meta.url), 'utf8');
     const code = source.split('\n').filter((l) => !l.trimStart().startsWith('//')).join('\n');
     const imports = [...code.matchAll(/from '([^']+)'/g)].map((m) => m[1]);
     assert.ok(imports.every((i) => i.startsWith('./') || i.startsWith('../foundation/')), `${file} imports ${imports}`);
     assert.doesNotMatch(code, /\b(Date|performance|setTimeout|setInterval|setImmediate|queueMicrotask|process|console|Math\.random|require)\b/, file);
   }
+});
+
+test('restyleCells exempts state cells unless a motion opts in, and then keeps their cue readable', () => {
+  const lines = [[span('▲ WARN', { fg: 'warning', bold: true }), span(' ok', { fg: 'accent' })]];
+  const grey = () => ({ style: { fg: 'decorative' } });
+  assert.deepEqual(cellsOf(restyleCells(lines, grey)[0]).map((c) => c.fg), ['warning', 'warning', 'warning', 'warning', 'warning', 'warning', 'decorative', 'decorative', 'decorative']);
+  const seen = [];
+  restyleCells(lines, (style, col, row, ch, state) => { seen.push(state); }, { stateCells: true });
+  assert.deepEqual(seen, [true, true, true, true, true, true, false, false, false]);
+  // Allowed: tint, invert, or resize a glyph; the word keeps its letters.
+  const tinted = restyleCells(lines, (style, col, row, ch, state) => (state ? { style: { ...style, fg: '#6c4f29' }, char: ch === '▲' ? '▴' : undefined } : undefined), { stateCells: true });
+  assert.equal(cellsOf(tinted[0]).map((c) => c.ch).join(''), '▴ WARN ok');
+  const inverted = restyleCells(lines, (style, col, row, ch, state) => (state ? { style: { fg: 'field', bg: 'warning', bold: true } } : undefined), { stateCells: true });
+  assert.equal(cellsOf(inverted[0])[0].bg, 'warning');
+  // Not allowed: blank, hide on the field, or change a letter.
+  assert.throws(() => restyleCells(lines, (s, c, r, ch, state) => (state ? { char: ' ' } : undefined), { stateCells: true }), /blank/);
+  assert.throws(() => restyleCells(lines, (s, c, r, ch, state) => (state ? { style: { fg: '#000000' } } : undefined), { stateCells: true }), /hide/);
+  assert.throws(() => restyleCells(lines, (s, c, r, ch, state) => (state && ch === 'W' ? { char: 'X' } : undefined), { stateCells: true }), /state word/);
 });
