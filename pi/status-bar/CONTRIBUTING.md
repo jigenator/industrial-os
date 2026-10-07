@@ -80,4 +80,10 @@ Update `docs/conventions.md` when an engineering rule changes, `docs/architectur
 
 ## Verification records
 
-The toolchain baseline above was recorded before the package moved into the monorepo. No run of this sequence has been recorded here since the move. Record each run with its date, Node and Pi versions, and results, keeping the automated suite, the Pi load check and interactive Pi/Herdr checks separate.
+The toolchain baseline above was recorded before the package moved into the monorepo. Record each run with its date, Node and Pi versions, and results, keeping the automated suite, the Pi load check and interactive Pi/Herdr checks separate.
+
+2026-10-07, after the move, on macOS with Node 22.23.0 and installed Pi 1.0.4:
+
+- `npm test` (steps 1–3): **157 of 157 tests passed** in five runs. One further run failed in test 18's cleanup hook (`ENOTEMPTY` removing a `pi-footer-integration-*` temp folder, apparently a late write by the fake `git` racing the removal) with all assertions passing; no source or test changed in the move, so this is an intermittent fixture-cleanup failure inherited from the old repository.
+- Non-interactive Pi load check (step 4): **exit 0**. A throwing-extension control exited 1 in the same session.
+- Interactive Pi/Herdr check: **not run**.
