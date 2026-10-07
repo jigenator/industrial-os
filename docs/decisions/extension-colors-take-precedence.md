@@ -1,7 +1,7 @@
 # The Pi extensions' colors take precedence over the design-system palette
 
 Status: current.
-Date/evidence: 2026-10-07, stated by the maintainer. pi-status-bar, in its own repository, is the first implementation of the Industrial OS visual style and its design doc already listed its palette as the reference; claude-interrupt declares the same acid, black, white, grey, and dark-grey values as constants in `src/index.ts`; `design-system/foundation/palette.mjs` lists nine roles with the same values.
+Date/evidence: 2026-10-07, stated by the maintainer. pi-status-bar, then in its own repository and since moved to `pi/status-bar/`, is the first implementation of the Industrial OS visual style and its design doc already listed its palette as the reference; claude-interrupt declares the same acid, black, white, grey, and dark-grey values as constants in `src/index.ts`; `design-system/foundation/palette.mjs` lists nine roles with the same values.
 Supersedes / superseded by: none.
 
 ## Problem
@@ -25,4 +25,4 @@ The same colors exist in three places with no import between them. When they dis
 
 ## Revisit when
 
-A palette value changes for the first time after pi-status-bar moves in. That change will show whether three hand-kept copies are tolerable or whether a tested comparison or a generated file is worth its cost.
+A palette value changes for the first time after pi-status-bar's move into `pi/status-bar/`. That change will show whether three hand-kept copies are tolerable or whether a tested comparison or a generated file is worth its cost.

@@ -6,12 +6,13 @@ Industrial OS turns the [Pi](https://github.com/earendil-works/pi) coding agent 
 
 ## Status
 
-Two projects are here, and they do not share code:
+Three projects are here, and they do not share code:
 
 - [design-system](design-system/README.md): the terminal design system, a reference kit of elements, motions, a storybook, and a showcase. Plain Node.js, no dependencies, nothing released.
 - [pi/claude-interrupt](pi/claude-interrupt/README.md): a Pi extension that aborts the current response on Esc and continues with your queued text, marking the continuation with an animated plate.
+- [pi/status-bar](pi/status-bar/README.md): a Pi extension that replaces the footer with a framed Acid / Black instrument panel showing the agent-reported active project, where Pi's tools run, context use, model, and other extensions' statuses. It is the first implementation of the style.
 
-pi-status-bar, the first implementation of the style, and Herdr tooling still live in separate repositories and are planned to move in.
+Herdr tooling still lives in separate repositories and is planned to move in.
 
 ## Layout
 
@@ -21,7 +22,8 @@ Each top-level folder, and each folder under `pi/`, is its own project with its 
 industrial-os/
 ├── design-system/            terminal design system and its guides
 ├── pi/                       Pi extensions, each its own project
-│   └── claude-interrupt/     interrupt-and-continue with the DIRECTIVE UPDATED marker
+│   ├── claude-interrupt/     interrupt-and-continue with the DIRECTIVE UPDATED marker
+│   └── status-bar/           the Acid / Black footer for the agent-reported active project
 ├── docs/
 │   ├── mission.md            product scope and constraints
 │   ├── design.md             the shared visual and interaction language
@@ -49,4 +51,4 @@ Planned, not yet created: `herdr/` for Herdr configuration. It gets its folder a
 
 ## Licensing
 
-A project license has not been selected. Public visibility alone does not grant a reuse license. The exception is [claude-interrupt](pi/claude-interrupt/README.md), which keeps the MIT license in its [LICENSE](pi/claude-interrupt/LICENSE) from before it moved here.
+A project license has not been selected. Public visibility alone does not grant a reuse license. The exception is [claude-interrupt](pi/claude-interrupt/README.md), which keeps the MIT license in its [LICENSE](pi/claude-interrupt/LICENSE) from before it moved here. [status-bar](pi/status-bar/README.md) had no license before it moved here and has none now.
