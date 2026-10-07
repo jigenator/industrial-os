@@ -220,7 +220,7 @@ test('SIGNAL COLORS groups every mirrored value by use, exactly once, read from 
       assert.deepEqual(view.lines[i].filter(isSwatch).map((s) => s.style), [{ fg: hex, bg: hex }]);
     }
     const prose = text.join(' ').replace(/[│\s]+/g, ' ');
-    assert.match(prose, /Mirrored from status-bar's C palette, which is their authority/);
+    assert.match(prose, /The design system owns these; status-bar's C palette mirrors them/);
     assert.match(prose, /not Acid \/ Black roles, and separate from the IndustrialOS reference collection/);
     assert.match(prose, new RegExp(`${Object.keys(SIGNAL_COLORS).length} SIGNAL COLORS IN ${SIGNAL_GROUPS.length} GROUPS\\.`));
   }

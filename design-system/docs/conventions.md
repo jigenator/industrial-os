@@ -4,7 +4,7 @@ The [repository-wide conventions](../../docs/conventions.md) apply. This guide a
 
 ## Project profile
 
-Plain Node.js 22 ES modules (`.mjs`) using only the standard library, with Markdown and Git. There is no package manifest, dependency, build step, formatter, linter, or type checker, and none should be added without a current need. Checks run with `node --test` from `design-system/`; commands are in [Contributing](../CONTRIBUTING.md).
+Plain Node.js 22 ES modules (`.mjs`) using only the standard library, with Markdown and Git. `package.json` holds only the private package's name, module type, Node engine, and `exports` map. There is no dependency, script, build step, formatter, linter, or type checker, and none should be added without a current need. Checks run with `node --test` from `design-system/`; commands are in [Contributing](../CONTRIBUTING.md).
 
 Scope reviewed: `foundation/`, the folders under `elements/`, `motions/`, and `examples/`, with their colocated tests, most recently when the second element set and the newer motions joined the storybook. Herdr verification is recorded separately in Contributing.
 
@@ -14,6 +14,12 @@ Scope reviewed: `foundation/`, the folders under `elements/`, `motions/`, and `e
 
 **Example:** `elements/gauge/gauge.mjs` imports `foundation/` only; `elements/thread-rail/thread-rail.mjs` imports `lamp()`, `labelPlate()`, and `countPlate()`; `motions/scan.mjs` imports `motions/frame.mjs`, which imports `foundation/cells.mjs`. The instrument frame takes caller-rendered plates instead of importing them. The current element-to-element edges are listed in [architecture](architecture.md#dependency-direction). **Reason:** a host change must not rewrite an element's value semantics, and a part's contract has one owner. **Check:** review imports against the dependency diagram in [architecture](architecture.md#dependency-direction); `motions/motions.test.mjs` checks that every motion imports only `./` and `../foundation/`. No automated check covers elements.
 
+## Package exports
+
+**Rule:** every foundation module, element, and motion primitive has exactly one entry in the `exports` map of `package.json`, named for its group and file or folder: `./foundation/<name>`, `./elements/<name>`, or `./motions/<name>`. Tests, `examples/`, and the internal `motions/frame.mjs` seam are never exported. Add the entry in the same change as the module, and remove it with the module. The design system imports nothing from another project, and the package is never published; see [the decision](../../docs/decisions/in-repo-design-system-package.md).
+
+**Example:** `./elements/gauge` maps to `./elements/gauge/gauge.mjs`, and `./motions/scan` to `./motions/scan.mjs`; `@industrial-os/design-system/motions/frame` fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`. **Reason:** the exports map is the only contract other projects in the repository depend on, so it must match the modules exactly and keep internals private. **Check:** `package.test.mjs` fails on a missing, extra, or misdirected export and checks that each export loads by package name as the same module as its file.
+
 ## Terminal text and dependencies
 
 **Rule:** do not hand-roll Unicode cell measurement when the chosen runtime already provides it, and do not estimate widths the runtime cannot measure.
@@ -22,11 +28,9 @@ Scope reviewed: `foundation/`, the folders under `elements/`, `motions/`, and `e
 
 ## Palette
 
-**Rule:** `foundation/palette.mjs` is the design system's copy of the Acid / Black values, not their source. The Pi extensions are the authority; see [the decision](../../docs/decisions/extension-colors-take-precedence.md).
+**Rule:** `foundation/palette.mjs` is the source of the Acid / Black values, and `foundation/signal-colors.mjs` the source of status-bar's other product colors. A color change lands here first, then in each extension that still mirrors it; see [the decision](../../docs/decisions/in-repo-design-system-package.md). Elements and motions read those values from these files rather than repeating a hex value, and state colors stay role names so motions can recognise warning and critical cells.
 
-The same holds for `foundation/signal-colors.mjs`, the copy of status-bar's other product colors: elements and motions read those values from it rather than repeating a hex value, and state colors stay role names so motions can recognise warning and critical cells.
-
-**Example:** `paint()` accepts only `ACID_BLACK` role names or literal `#RRGGBB` strings and throws on anything else. The count plate's pink tier is `SIGNAL_COLORS.pink`; its 5+ tier is the `critical` role. **Reason:** one place to change a value inside the design system, and no silent coercion. **Check:** `cells.test.mjs` covers every role and invalid styles; `signal-colors.test.mjs` covers the mirror's format and mixes; agreement with the extensions is a review comparison of their constants against `palette.mjs` and `signal-colors.mjs`.
+**Example:** `paint()` accepts only `ACID_BLACK` role names or literal `#RRGGBB` strings and throws on anything else. The count plate's pink tier is `SIGNAL_COLORS.pink`; its 5+ tier is the `critical` role. **Reason:** one place to change a value inside the design system, and no silent coercion. **Check:** `cells.test.mjs` covers every role and invalid styles; `signal-colors.test.mjs` covers the signal colors' format and mixes; the extensions' agreement is a review comparison of their constants against `palette.mjs` and `signal-colors.mjs`.
 
 ## Performance and growth
 

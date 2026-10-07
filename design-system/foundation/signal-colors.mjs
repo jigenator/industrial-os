@@ -1,6 +1,6 @@
-// Signal colors: the design system's copy of the product colors the Pi extensions use beside the nine Acid / Black
-// roles. status-bar's `C` palette (../../pi/status-bar/src/footer.ts) is the authority for every value here; this
-// file mirrors it, as palette.mjs mirrors the roles. Contract: README.md#signal-colors.
+// Signal colors: the source of the product colors the Pi extensions use beside the nine Acid / Black roles.
+// status-bar's `C` palette (../../pi/status-bar/src/footer.ts) mirrors every value here until it imports them, as
+// it mirrors palette.mjs for the roles. Contract: README.md#signal-colors.
 import { ACID_BLACK } from './palette.mjs';
 import { resolveColor } from './cells.mjs';
 
@@ -44,8 +44,8 @@ export const SIGNAL_COLORS = Object.freeze({
   kmiMid: '#132b7e',
 });
 
-// Mixes whose mirrored value is authoritative. The extension computed some of them with a different tie rule, so
-// mixOver returns these exactly rather than recomputing them.
+// Mixes declared as signal colors, matching status-bar's current computed values. The extension computed some of
+// them with a different tie rule, so mixOver returns these exactly rather than recomputing them.
 const MIRRORED_MIXES = [
   ['accent', 0.25, 'accent25'], ['accent', 0.5, 'accent50'], ['accent', 0.75, 'accent75'],
   ['warning', 0.2, 'warningZone'], ['warning', 0.25, 'warning25'], ['warning', 0.5, 'warning50'], ['warning', 0.75, 'warning75'],
@@ -59,7 +59,7 @@ const hexOf = (name) => (Object.hasOwn(ACID_BLACK, name) ? ACID_BLACK[name] : SI
 const MIRRORED = new Map(MIRRORED_MIXES.map(([base, proportion, name]) => [`${hexOf(base)}@${proportion}`, SIGNAL_COLORS[name]]));
 
 // `proportion` of a color over the black field: each 8-bit sRGB channel times proportion, rounded to nearest with
-// ties up. Accepts an Acid / Black role or exact #RRGGBB; returns lowercase #rrggbb. Mirrored mixes win.
+// ties up. Accepts an Acid / Black role or exact #RRGGBB; returns lowercase #rrggbb. Declared mixes win.
 export function mixOver(color, proportion) {
   const hex = resolveColor(color).toLowerCase();
   if (typeof proportion !== 'number' || !Number.isFinite(proportion) || proportion < 0 || proportion > 1) {

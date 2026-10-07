@@ -166,8 +166,8 @@ const COUNT = element('count-plate', {
   variants: [
     { name: 'UNKNOWN', note: 'null: ?? on grey, distinct from a confirmed zero.', count: null, spec: 'compactions' },
     { name: 'ZERO', note: 'A known zero on grey.', count: 0, spec: 'compactions' },
-    { name: 'TIER 1-2', note: 'White on violet, mirrored from status-bar.', count: 1, spec: 'compactions' },
-    { name: 'TIER 3-4', note: 'Black on pink, mirrored from status-bar.', count: 4, spec: 'compactions' },
+    { name: 'TIER 1-2', note: 'White on violet, as status-bar shows it.', count: 1, spec: 'compactions' },
+    { name: 'TIER 3-4', note: 'Black on pink, as status-bar shows it.', count: 4, spec: 'compactions' },
     { name: 'TIER 5+', note: 'Black on the critical role, so motions see a state cell.', count: 12, spec: 'compactions' },
     { name: 'CAPPED', note: 'Above the cap the digits read 99+; the + takes the trailing pad, so the width holds.', count: 100, spec: 'compactions' },
     { name: 'AU BADGE', note: 'The units preset: label after the digits, black on white.', count: 3, spec: 'units' },

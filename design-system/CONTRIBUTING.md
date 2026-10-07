@@ -6,7 +6,7 @@ The design system's toolchain, commands, checks, and verification records. The w
 
 Run every command in the design-system guides from this `design-system/` folder (`cd design-system` from the repository root). Paths in those commands, and the contract and module paths the storybook displays, are relative to it.
 
-You need Git, a UTF-8 editor, and Node.js 22. The showcase, storybook, and motions were built and checked on v22.23.0. Code is plain ES modules (`.mjs`) using only the Node standard library. There is no package manifest, dependency installation, build step, formatter, type checker, or CI gate. Do not add one without a current need.
+You need Git, a UTF-8 editor, and Node.js 22. The showcase, storybook, and motions were built and checked on v22.23.0. Code is plain ES modules (`.mjs`) using only the Node standard library. `package.json` names the private package `@industrial-os/design-system` and declares its `exports` map; it has no dependencies or scripts. There is no dependency installation, build step, formatter, type checker, or CI gate. Do not add one without a current need. This folder's checks need no install: `package.test.mjs` imports the package by its own name, which Node resolves from this folder's `package.json`. Other projects reach the package through the root `npm install` in [setup](../CONTRIBUTING.md#setup).
 
 Herdr is the primary target. The baseline below is specific to Herdr 0.9.3 and Node v22.23.0, not a universal terminal compatibility claim. Verify version-specific Node contracts against the [matching documentation](https://nodejs.org/docs/v22.23.0/api/) before relying on them.
 
@@ -36,7 +36,7 @@ git diff --cached --check
 git status --short
 ```
 
-These commands are read-only. `node --test` finds every `*.test.mjs` beside the code it checks, and finishes in about ten seconds. It covers layout at every width from 1 to 160, short heights, boundary and invalid inputs, plain/color equivalence, deterministic motion frames, storybook navigation, index scrolling, and playback, executable usage text, CLI snapshot and argument behavior, and live-view mode restoration and timer cleanup through stand-in terminal streams and a manual clock. For a focused run, pass explicit file paths, such as `node --test elements/lamp/lamp.test.mjs`. Diff checks cover unstaged and staged tracked changes, not new untracked file contents, link correctness, design quality, or runtime behavior. Review newly created files explicitly.
+These commands are read-only. `node --test` finds every `*.test.mjs` beside the code it checks, and finishes in about ten seconds. It covers layout at every width from 1 to 160, short heights, boundary and invalid inputs, plain/color equivalence, deterministic motion frames, storybook navigation, index scrolling, and playback, executable usage text, CLI snapshot and argument behavior, and live-view mode restoration and timer cleanup through stand-in terminal streams and a manual clock. `package.test.mjs` checks that the package is private ESM with no dependencies, that every export names an existing module that is not a test, an example, or `motions/frame.mjs`, that the exports cover every foundation module, element, and motion primitive, and that each export loads by package name as the same module as its file while `motions/frame` is refused. A new module without an `exports` entry fails it, so add the entry in the same change. For a focused run, pass explicit file paths, such as `node --test elements/lamp/lamp.test.mjs`. Diff checks cover unstaged and staged tracked changes, not new untracked file contents, link correctness, design quality, or runtime behavior. Review newly created files explicitly.
 
 ## Full validation sequence
 
@@ -70,7 +70,7 @@ Consequential Node contracts were checked against v22.23.0 [TTY](https://nodejs.
 
 ### Storybook verification status
 
-**Current version: automated checks only.** The second element set (instrument frame, count plate, mode plate, state chip, lamp, pixel numeral, segment meter, thread rail, transcript marker), the label plate's slab form and bright tone, the gauge's zones and tick-free scale, the sixteen newer motions, the MARKER TIMELINE and SIGNAL COLORS stories, and the storybook's scrolling index, section keys, and step-rate playback (intervals from 40 to 400 ms) have **no native Herdr or real-PTY verification**. The storybook's autoplay, one-shot replay pause, and storybook-wide `o` motion setting are also unverified natively. All 350 automated checks pass (`node --test`, Node v22.23.0); they cover every story at widths 1–160, executable usage text for every element and motion example, each example's plain-playback flag against its frames, finite previews completing at their duration helpers, autoplay on selection, the replay pause and the motion setting, the marker timeline against its README, and timer cleanup with a manual clock. The records below are for earlier versions and do not cover any of this.
+**Current version: automated checks only.** The second element set (instrument frame, count plate, mode plate, state chip, lamp, pixel numeral, segment meter, thread rail, transcript marker), the label plate's slab form and bright tone, the gauge's zones and tick-free scale, the sixteen newer motions, the MARKER TIMELINE and SIGNAL COLORS stories, and the storybook's scrolling index, section keys, and step-rate playback (intervals from 40 to 400 ms) have **no native Herdr or real-PTY verification**. The storybook's autoplay, one-shot replay pause, and storybook-wide `o` motion setting are also unverified natively. All 354 automated checks pass (`node --test`, Node v22.23.0), including the four package checks; they cover every story at widths 1–160, executable usage text for every element and motion example, each example's plain-playback flag against its frames, finite previews completing at their duration helpers, autoplay on selection, the replay pause and the motion setting, the marker timeline against its README, and timer cleanup with a manual clock. The records below are for earlier versions and do not cover any of this.
 
 Checked on macOS with Node v22.23.0 and Herdr 0.9.3 (protocol 22). Keyboard-only baseline, from a pre-publication development version:
 
@@ -106,6 +106,16 @@ The Colors native checks used injected terminal reports, not physical-pointer/cl
 The protocol requirements, scope, and tiny-size keyboard fallback are in [examples](examples/README.md#left-clicks). SGR event splitting and coalesced Esc prefixes were checked against the installed Node v22.23.0 decoder and its [official implementation](https://github.com/nodejs/node/blob/v22.23.0/lib/internal/readline/utils.js), not inferred from the public keypress API alone. Repeat native interaction checks after relevant changes.
 
 The playback timer relies on v22.23.0 [`setInterval()`/`clearInterval()`](https://nodejs.org/docs/v22.23.0/api/timers.html#setintervalcallback-delay-args): fractional delays are truncated, so continuous previews use 67 ms (stepped previews use their own whole-millisecond step), and an active interval keeps the process alive until cleared. Playback time comes from [`performance.now()`](https://nodejs.org/docs/v22.23.0/api/perf_hooks.html#performancenow), called on the `performance` object as that version requires.
+
+## Package verification
+
+Checked on 2026-10-07 on macOS with Node v22.23.0 and Pi 1.0.4, when the package and the root `file:` dependency were added. Automated and Pi-load evidence only:
+
+- `node --test` from `design-system/`: 354 of 354 checks passed, including the four in `package.test.mjs`.
+- In a clean `git clone` of the branch, `npm install --omit=dev --legacy-peer-deps` at the root, the command Pi's git install runs, created `node_modules/@industrial-os/design-system` as a symlink to `design-system/`. A module under `pi/claude-interrupt/src` in that clone imported `@industrial-os/design-system/elements/transcript-marker` by name.
+- A scratch probe extension under `pi/` in that clone imported `foundation/palette` and `elements/label-plate` by package name and loaded with `printf '' | pi --mode rpc --no-extensions --extension ./index.ts`, exiting 0. A control importing a subpath not in the exports map exited 1 with "Package subpath ... is not defined by exports". The probe is not shipped.
+
+Neither extension imported the package, so this does not cover a migrated extension. `pi install git:` itself, an interactive Pi session, and Herdr were not checked.
 
 ## Making a change
 

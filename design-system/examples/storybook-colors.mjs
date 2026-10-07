@@ -1,5 +1,5 @@
 // The foundation color stories. COLORS: IndustrialOS colors grouped by hue, and the derived shade ramp of
-// each one. SIGNAL COLORS: the product colors mirrored from status-bar, grouped by use. Pure and I/O-free.
+// each one. SIGNAL COLORS: status-bar's product colors, owned here, grouped by use. Pure and I/O-free.
 // Every swatch, hex value, name, and role is read from foundation/industrialos-colors.mjs or
 // foundation/signal-colors.mjs, so the pages show the reusable data rather than copied constants.
 import { fitLine, safeText, span } from '../foundation/cells.mjs';
@@ -208,7 +208,7 @@ export const COLOR_STORY = Object.freeze({
 });
 
 // Signal colors by use. Each group's note says what status-bar uses them for; a key missing here gets an
-// OTHER group, so no mirrored value can silently drop off the page.
+// OTHER group, so no signal color can silently drop off the page.
 const USES = [
   ['COUNT TIERS AND MODE INKS', 'CMP count tiers, the USG plate, and PNYTL mode inks.', ['violet', 'pink', 'cobalt', 'magenta', 'teal']],
   ['GAUGE ZONE TRACKS', 'Unused track cells in the warning and high zones: 20% of the state color over the field.', ['warningZone', 'criticalZone']],
@@ -219,11 +219,11 @@ const USES = [
 ];
 const used = new Set(USES.flatMap(([, , names]) => names));
 const others = Object.keys(SIGNAL_COLORS).filter((name) => !used.has(name));
-export const SIGNAL_GROUPS = Object.freeze([...USES, ...(others.length ? [['OTHER', 'Mirrored values not yet grouped by use.', others]] : [])]
+export const SIGNAL_GROUPS = Object.freeze([...USES, ...(others.length ? [['OTHER', 'Values not yet grouped by use.', others]] : [])]
   .map(([title, note, names]) => Object.freeze({ title, note, names: Object.freeze(names.filter((name) => Object.hasOwn(SIGNAL_COLORS, name))) }))
   .filter((g) => g.names.length));
 
-const SIGNAL_NOTE = "Mirrored from status-bar's C palette, which is their authority. Literal #rrggbb values, not Acid / Black roles, and separate from the IndustrialOS reference collection.";
+const SIGNAL_NOTE = "The design system owns these; status-bar's C palette mirrors them. Literal #rrggbb values, not Acid / Black roles, and separate from the IndustrialOS reference collection.";
 
 function signals(width, swatchCells) {
   const out = [...paragraph(SIGNAL_NOTE, width)];
@@ -240,14 +240,14 @@ export const SIGNAL_STORY = Object.freeze({
   id: 'signal-colors',
   kind: 'foundation',
   title: 'SIGNAL COLORS',
-  summary: "The product colors status-bar uses beside the nine Acid / Black roles, mirrored for the elements and motions modeled on it. A reference page, not a theme.",
+  summary: "The product colors status-bar uses beside the nine Acid / Black roles, for the elements and motions modeled on it. A reference page, not a theme.",
   module: 'foundation/signal-colors.mjs',
   contract: 'foundation/README.md',
   rules: [
     'SIGNAL_COLORS is a frozen object of lowercase #rrggbb strings; paint() accepts them as fg or bg.',
-    "status-bar's C palette is the authority; agreement is a review comparison, not an import or test.",
+    "These values are the source; status-bar's C palette mirrors them, checked by review comparison.",
     'They are not role names: a motion never treats a literal color as a warning or critical cell.',
-    'mixOver(color, p) gives p of a color over the field; mirrored mixes are returned exactly.',
+    'mixOver(color, p) gives p of a color over the field; status-bar\'s declared mixes are returned exactly.',
     'Swatches need 24-bit color. No contrast or accessibility rating is claimed.',
   ],
   variants: [{ name: 'BY USE', note: 'Every signal color grouped by what status-bar uses it for, with its hex value and key.' }],

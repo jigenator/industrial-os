@@ -4,7 +4,7 @@ The design system's own experience, within the repository-wide [design](../../do
 
 ## Experience
 
-The design system is a curated reference kit of polished terminal elements for Herdr, with a storybook to browse them and a showcase that composes them. It is a reference for the Pi extensions and the planned Herdr tooling, not a library they import.
+The design system is a curated reference kit of polished terminal elements for Herdr, with a storybook to browse them and a showcase that composes them. It is a reference for the Pi extensions and the planned Herdr tooling, and a private package the repository's projects can import by name; nothing imports it yet.
 
 ## Elements
 
@@ -20,7 +20,7 @@ A separate reference collection of 22 named colors, with five-step derived shade
 
 ## Signal colors
 
-The product colors status-bar uses beside the Acid / Black roles (count tiers, mode inks, zone tracks, the lost-segment grey, the check fade, warm-up steps, and provider inks) are mirrored in [foundation](../foundation/README.md#signal-colors). status-bar is their authority, under the same [color decision](../../docs/decisions/extension-colors-take-precedence.md) as the roles. They are literal values, not roles, so they never mark a warning or critical cell: elements use role names for state colors. Wherever they are shown, say they are mirrored and keep them apart from Acid / Black and the IndustrialOS collection.
+The product colors status-bar uses beside the Acid / Black roles (count tiers, mode inks, zone tracks, the lost-segment grey, the check fade, warm-up steps, and provider inks) live in [foundation](../foundation/README.md#signal-colors), which is their source; status-bar mirrors them until it migrates, under the same [color decision](../../docs/decisions/in-repo-design-system-package.md) as the roles. They are literal values, not roles, so they never mark a warning or critical cell: elements use role names for state colors. Wherever they are shown, say they are status-bar's product colors, not roles, and keep them apart from Acid / Black and the IndustrialOS collection.
 
 ## Motions
 

@@ -2,9 +2,9 @@
 
 This is the design system's architecture. Paths are relative to `design-system/` unless they start with `../`. The project map, dependency direction between projects, and where new projects go are in the [root architecture](../../docs/architecture.md); the repository-wide mission, design, and conventions are at the root too.
 
-Status: native showcase and terminal storybook. The design system's own engineering rules are in [conventions](conventions.md) and its experience in [design](design.md). Thirteen elements, their shared foundation (including the IndustrialOS color data and shade ramps, the mirrored signal colors, and seeded randomness), nineteen motion primitives, the all-at-once showcase, and the storybook are implemented as plain Node.js 22 ES modules with no dependencies. Nothing is released; module paths are not a stable public API.
+Status: native showcase and terminal storybook. The design system's own engineering rules are in [conventions](conventions.md) and its experience in [design](design.md). Thirteen elements, their shared foundation (including the IndustrialOS color data and shade ramps, the signal colors, and seeded randomness), nineteen motion primitives, the all-at-once showcase, and the storybook are implemented as plain Node.js 22 ES modules with no dependencies. They form the private package `@industrial-os/design-system`, which this repository's projects may import by name and which is never published ([decision](../../docs/decisions/in-repo-design-system-package.md)). Nothing imports it yet, and its contracts are first-pass, not a stable API.
 
-Evidence: design-system inventory with canonical Markdown guidance, `foundation/`, thirteen folders under `elements/`, `motions/`, `examples/`, and colocated `node --test` checks. There is no package manifest, release, or CI.
+Evidence: design-system inventory with canonical Markdown guidance, `foundation/`, thirteen folders under `elements/`, `motions/`, `examples/`, `package.json` with its exports map, and colocated `node --test` checks including `package.test.mjs`. There is no release or CI.
 
 ## System and module map
 
@@ -15,10 +15,12 @@ Evidence: design-system inventory with canonical Markdown guidance, `foundation/
 | `README.md` | Design-system orientation and release status | Design-system landing page | Links to canonical guides |
 | `AGENTS.md`, `CLAUDE.md` | Design-system reading routes, supplementing the root guide | AGENTS; CLAUDE imports it | Root agent guide and its supporting-document map |
 | `CONTRIBUTING.md` | Setup, commands, and checks | Contributor workflow | Git, Node 22 |
+| `package.json` | Private package `@industrial-os/design-system`: ESM, Node 22 or newer, no dependencies, scripts, or `main`; the `exports` map | `@industrial-os/design-system/<foundation, elements, or motions>/<name>`, by package name | None |
+| `package.test.mjs` | Package shape and exports-map checks | `node --test` | `package.json`, every exported module, `node:fs` |
 | `docs/architecture.md` | Placement, boundaries, and evolution | This guide | Current inventory |
-| `docs/conventions.md` | Design-system stack, text contract, palette mirror, and performance rules | Rules, examples, and checks | Repository-wide conventions |
+| `docs/conventions.md` | Design-system stack, package exports, text contract, palette source, and performance rules | Rules, examples, and checks | Repository-wide conventions |
 | `docs/design.md` | The design system's element set, reference colors, motions, and storybook | Design rules within the shared language | Repository-wide design |
-| `foundation/` | Acid / Black palette values mirrored from the Pi extensions, line model, text/glyph contract with the curated `GLYPHS`, role-or-RGB painting and `resolveColor()`, IndustrialOS colors and derived shade ramps, signal colors mirrored from status-bar with `mixOver()`, and seeded randomness | `palette.mjs`, `cells.mjs`, `industrialos-colors.mjs`, `signal-colors.mjs`, `seeded.mjs`; [README](../foundation/README.md) | Node standard library |
+| `foundation/` | The Acid / Black palette values this project owns, line model, text/glyph contract with the curated `GLYPHS`, role-or-RGB painting and `resolveColor()`, IndustrialOS colors and derived shade ramps, status-bar's signal colors with `mixOver()`, and seeded randomness | `palette.mjs`, `cells.mjs`, `industrialos-colors.mjs`, `signal-colors.mjs`, `seeded.mjs`; [README](../foundation/README.md) | Node standard library |
 | `elements/label-plate/` | Informational label plate, capped or slab | `labelPlate()`; [README](../elements/label-plate/README.md) | `foundation/` |
 | `elements/numbered-panel/` | Numbered, bounded frame | `numberedPanel()`, `panelInnerWidth()`; [README](../elements/numbered-panel/README.md) | `foundation/`, label plate |
 | `elements/instrument-frame/` | status-bar's framed footer geometry | `instrumentFrame()`, `frameGeometry()`, `wrapLine()`; [README](../elements/instrument-frame/README.md) | `foundation/` |
@@ -73,6 +75,8 @@ flowchart LR
 
 Arrows point from a module to the modules it imports or calls. Inside `elements/`, two elements compose others through their public functions: the numbered panel uses the label plate, and the thread rail uses the lamp, label plate, and count plate. No other element imports an element, and there are no cycles; the rule is in [conventions](conventions.md#module-and-dependency-rules). The storybook's usage builder (`storybook-usage.mjs`) is imported by the element and motion stories and imports nothing. Only the live storybook supplies `onClick()` to the shared session, enabling normal tracking 1000 and SGR cell reports 1006; cleanup disables both. The bounded `terminal-mouse.mjs` accumulator consumes packets before their digits can become keys. The showcase and snapshots never opt in. Click scope and keyboard fallback are owned by [examples](../examples/README.md#left-clicks).
 
+Other projects enter only through the `exports` map in `package.json`, by package name: every foundation module, element, and motion primitive is exported, and `examples/`, the tests, and `motions/frame.mjs` are not. The design system imports nothing from another project. The rule for importers is in the [root conventions](../../docs/conventions.md#module-and-dependency-rules).
+
 Diagram notation follows [Mermaid flowchart syntax](https://mermaid.js.org/syntax/flowchart.html); no renderer is installed here.
 
 ## Representative flows
@@ -94,17 +98,18 @@ Element inputs, states, invalid-input outcomes, and width behavior are documente
 - Unknown values stay distinct from zero. Invalid numbers and dimensions throw rather than being clamped.
 - Color output is 24-bit SGR from `palette.mjs` roles or validated literal `#RRGGBB` values. Plain output has the same cells without escapes.
 - IndustrialOS colors are a reference collection, not a theme. Their derived ramp steps are generated, and are labeled so wherever they are shown.
-- Signal colors are a mirror of status-bar's palette, not roles: state colors stay role names so motions can recognise warning and critical cells.
+- Signal colors are status-bar's product colors, owned here and mirrored by status-bar until it migrates. They are not roles: state colors stay role names so motions can recognise warning and critical cells.
 - Motions take `lines` and options and return new lines with the same cells; seeded motions take an integer `seed` and draw from `seeded.mjs`, so the same seed gives the same frames.
 
-No token schema, storage, or package export exists.
+The package's public surface is its `exports` map. Each subpath, `./foundation/<name>`, `./elements/<name>`, or `./motions/<name>`, maps to one module file, and that module's README or section is its contract. Tests, `examples/`, and the `motions/frame.mjs` seam are not exported. No token schema or storage exists.
 
 ## Critical invariants
 
 | Must remain true | Current home | Check or gap |
 | --- | --- | --- |
 | Only polished, public-safe material belongs here | Mission and contributing | Publication review |
-| One canonical definition per rule, command, or palette value | AGENTS, canonical guides, `foundation/palette.mjs`, `foundation/industrialos-colors.mjs`, `foundation/signal-colors.mjs` | Link/map and duplication review; the color stories' tests read every displayed value from `industrialos-colors.mjs` and `signal-colors.mjs`. Agreement of the mirrors with the extensions is a review comparison. |
+| One canonical definition per rule, command, or palette value | AGENTS, canonical guides, `foundation/palette.mjs`, `foundation/industrialos-colors.mjs`, `foundation/signal-colors.mjs` | Link/map and duplication review; the color stories' tests read every displayed value from `industrialos-colors.mjs` and `signal-colors.mjs`. These files are the source of the colors; agreement of the extensions' mirrors with them is a review comparison. |
+| Every foundation module, element, and motion primitive is exported by package name, and nothing else is | `package.json` | `node --test`: `package.test.mjs` |
 | Displayed data is not falsified by layout, rounding, or fallback | Gauge and status-row contracts | `node --test`: fills and readouts never overstate; unknown is never zero |
 | Output respects cell budgets and safe display text | `foundation/cells.mjs` | `node --test`: widths 1–160 and short heights; control and Unicode injection. Native Herdr frame and glyph-ruler checks are recorded in Contributing. |
 | Terminal modes are always restored | `examples/terminal-host.mjs` | `node --test`, isolated real-PTY lifecycle checks for both hosts, and actual Herdr exit checks of both hosts; mouse support and an earlier version of the Colors story also have native Herdr injected-report checks, not physical-pointer verification, and the current Colors page has not been re-checked natively; see Contributing |
@@ -118,12 +123,12 @@ To refine a gauge:
 3. Add shared behavior to `foundation/` only when a second element needs the same semantics.
 4. Update the showcase fixtures and the gauge story in `examples/storybook-elements.mjs` if its specimen states change, and check them in Herdr.
 
-A new element gets its own `elements/<element-name>/` folder with README, code, and test. Map the README in the [root AGENTS](../../AGENTS.md#supporting-documents), then add its story as described in [examples](../examples/README.md#adding-to-the-storybook). A new motion follows the extension rules in [motions](../motions/README.md#extending).
+A new element gets its own `elements/<element-name>/` folder with README, code, and test, and an `./elements/<element-name>` entry in the `exports` map of `package.json`; a new foundation module or motion primitive gets its entry too, and `package.test.mjs` fails until it has one. Map the README in the [root AGENTS](../../AGENTS.md#supporting-documents), then add its story as described in [examples](../examples/README.md#adding-to-the-storybook). A new motion follows the extension rules in [motions](../motions/README.md#extending).
 
 ## Evolution and known limits
 
 - Element and motion functions are first-pass contracts, not a released API. When one changes, update its README, callers, showcase, storybook story, and checks together; do not silently repurpose an input or palette role.
-- The second element set and the newer motions model the Pi extensions but do not replace them: the extensions do not import the design system, and each README records where the reference differs. Mirrored values change when the extensions change, by review.
+- The second element set and the newer motions model the Pi extensions but do not replace them yet: the extensions do not import the design system, and each README records where the reference differs. Colors are owned here; the extensions mirror them until each moves onto the package, as [the decision](../../docs/decisions/in-repo-design-system-package.md#migrating-an-extension) describes.
 - An extension sequence that no single motion expresses is composed by a host from several motions, as the storybook's marker timeline is; add a motion only when a sequence needs a frame rule that composition cannot give.
 - The text contract is deliberately narrow. Supporting multilingual or emoji text requires a cell-measurement decision, and possibly a dependency; ask first.
 - There are no 256-color, 16-color, or ASCII-glyph fallbacks. Add one when a target terminal needs it.
@@ -132,4 +137,4 @@ A new element gets its own `elements/<element-name>/` folder with README, code, 
 
 ## Technical decisions
 
-No technical decision records exist yet. The confirmed product direction is in [mission](../../docs/mission.md) and [design](../../docs/design.md). Add a record under `docs/decisions/` only for a consequential choice with alternatives and a revisit condition; map each record directly in AGENTS.
+The package and color ownership are recorded at the root in [the in-repo design-system package](../../docs/decisions/in-repo-design-system-package.md). No project-level decision records exist yet. The confirmed product direction is in [mission](../../docs/mission.md) and [design](../../docs/design.md). Add a record under `docs/decisions/` only for a consequential choice with alternatives and a revisit condition; map each record directly in AGENTS.

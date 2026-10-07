@@ -1,6 +1,6 @@
 # Foundation: cells and palette
 
-The small seam every element shares. [palette.mjs](palette.mjs) holds the design system's copy of the Acid / Black values; the Pi extensions are the authority for them, as [design](../../docs/design.md#acid--black) and [the decision](../../docs/decisions/extension-colors-take-precedence.md) record; the check is a comparison of each extension's constants against this file. [cells.mjs](cells.mjs) defines the line model, the text and glyph contract, and painting. Element behavior does not belong here.
+The small seam every element shares. [palette.mjs](palette.mjs) is the source of the Acid / Black values, as [design](../../docs/design.md#acid--black) and [the decision](../../docs/decisions/in-repo-design-system-package.md) record; the Pi extensions mirror them until they import them, and the check is a comparison of each extension's constants against this file. [cells.mjs](cells.mjs) defines the line model, the text and glyph contract, and painting. Element behavior does not belong here.
 
 ## Line model
 
@@ -57,13 +57,13 @@ These are deterministic mixes of encoded 8-bit sRGB channels toward black/white,
 
 ## Signal colors
 
-[signal-colors.mjs](signal-colors.mjs) mirrors the product colors the Pi extensions use beside the nine Acid / Black roles: count tiers and mode inks, gauge zone tracks, the ghost grey of a lost segment, the checking fade, warm-up steps, and the usage providers' lit, used and burn-out colors. Status-bar's `C` palette in `pi/status-bar/src/footer.ts` is their authority, under [the same decision](../../docs/decisions/extension-colors-take-precedence.md) as the roles; agreement is a review comparison, not an import or test. They are literal `#rrggbb` values that `paint()` accepts directly, not new role names, and not part of Acid / Black.
+[signal-colors.mjs](signal-colors.mjs) is the source of the product colors the Pi extensions use beside the nine Acid / Black roles: count tiers and mode inks, gauge zone tracks, the ghost grey of a lost segment, the checking fade, warm-up steps, and the usage providers' lit, used and burn-out colors. Status-bar's `C` palette in `pi/status-bar/src/footer.ts` mirrors them until it migrates, under [the same decision](../../docs/decisions/in-repo-design-system-package.md) as the roles; agreement is a review comparison, not an import or test. They are literal `#rrggbb` values that `paint()` accepts directly, not new role names, and not part of Acid / Black.
 
 `SIGNAL_COLORS` is a frozen object of lowercase `#rrggbb` strings. Each entry's comment names its `C` constant.
 
-`mixOver(color, proportion)` returns `proportion` (0–1) of a role or `#RRGGBB` color over the black field: each 8-bit sRGB channel times `proportion`, rounded to nearest with ties up, as lowercase `#rrggbb`. Where status-bar declares a mix, the mirrored value is returned exactly, because the extension rounded some of its mixes differently (accent at 75% is `#90be03`, where ties up would give `#90bf03`). Out-of-range proportions throw `RangeError`; invalid colors throw `TypeError`. It is pure, like `shadeRamp`, and differs from it: `shadeRamp` derives a fixed five-step ramp toward black and white for the reference collection.
+`mixOver(color, proportion)` returns `proportion` (0–1) of a role or `#RRGGBB` color over the black field: each 8-bit sRGB channel times `proportion`, rounded to nearest with ties up, as lowercase `#rrggbb`. Where status-bar declares a mix, the declared signal color is returned exactly, matching status-bar's current computed value, because the extension rounded some of its mixes differently (accent at 75% is `#90be03`, where ties up would give `#90bf03`). Out-of-range proportions throw `RangeError`; invalid colors throw `TypeError`. It is pure, like `shadeRamp`, and differs from it: `shadeRamp` derives a fixed five-step ramp toward black and white for the reference collection.
 
-The IndustrialOS reference collection is separate data. Where one of its colors is also a status-bar color, it takes status-bar's value: its `Magenta` is `#FF15BD`, status-bar's pink.
+The IndustrialOS reference collection is separate data. Where one of its colors is also a signal color, it has the same value: its `Magenta` is `#FF15BD`, the signal colors' `pink`.
 
 ## Seeded randomness
 
@@ -71,4 +71,4 @@ The IndustrialOS reference collection is separate data. Where one of its colors 
 
 ## Checks
 
-`node --test foundation/*.test.mjs` covers seeded determinism and bounds, the signal colors' format and `mixOver`'s rounding, range and mirrored values, sanitization, truncation, exact line widths, unchanged named-role SGR, literal RGB and invalid-style boundaries, color/plain equivalence for all 110 color/ramp swatches, the 22 color records (unique ids, uppercase hex, families) and their immutability, exact ramp centers and all 256 channel values. Full validation remains in [Contributing](../CONTRIBUTING.md).
+`node --test foundation/*.test.mjs` covers seeded determinism and bounds, the signal colors' format and `mixOver`'s rounding, range and declared mixes, sanitization, truncation, exact line widths, unchanged named-role SGR, literal RGB and invalid-style boundaries, color/plain equivalence for all 110 color/ramp swatches, the 22 color records (unique ids, uppercase hex, families) and their immutability, exact ramp centers and all 256 channel values. Full validation remains in [Contributing](../CONTRIBUTING.md).
