@@ -6,7 +6,7 @@ The [repository-wide conventions](../../../docs/conventions.md) and the [Pi guid
 
 Pi Status Bar, in `pi/status-bar/`, is a TypeScript ESM Pi package for Node.js 22.19+. Runtime code is `src/extension.ts`, `src/footer.ts`, `src/workspace.ts`, and `src/usage.ts`; Pi supplies the host, TUI, and TypeBox peers declared in `package.json`. Tests use Node's built-in runner and TypeScript stripping.
 
-Scope reviewed: baseline revision `60d738faa2b2264005717e599c4a917f69c59419`, the complete integrated source/test tree, `package.json`, and installed Pi 1.0.2 package/extension/TUI APIs and pi-subagents 0.76.0 public activity contract (native v9 integration on 2026-10-05). The installed host was read-only. This is a focused review of the complete current repository, not a claim about other Pi versions or platforms.
+Scope reviewed: baseline revision `60d738faa2b2264005717e599c4a917f69c59419`, the complete integrated source/test tree, `package.json`, and installed Pi 1.0.2 package/extension/TUI APIs and pi-subagents 0.76.0 public activity contract (native v9 integration on 2026-10-05). The installed host was read-only. This is a focused review of the complete project as it stood in its own repository, not a claim about other Pi versions or platforms.
 
 ### Baseline discovery and conversion
 
