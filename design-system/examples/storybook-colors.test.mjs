@@ -33,7 +33,10 @@ test('COLORS and SIGNAL COLORS close the index as FOUNDATION views, and never pl
   assert.doesNotMatch(all, /▐ DEMO ▌|P PLAY|R REPLAY|O OFF/);
   for (const variant of STORY.variants) for (const mode of ['PLAIN', 'TRUECOLOR']) assert.equal(canPlay(STORY, variant, mode), false);
   const s = at();
-  for (const action of ['play-pause', 'replay', 'motion-off']) assert.equal(press(s, action, { now: 5, mode: 'TRUECOLOR' }), s, action);
+  for (const action of ['play-pause', 'replay']) assert.equal(press(s, action, { now: 5, mode: 'TRUECOLOR' }), s, action);
+  const off = press(s, 'motion-off', { now: 5, mode: 'TRUECOLOR' });
+  assert.deepEqual([off.motion, off.playback.status], [false, 'off'], 'O switches the storybook-wide setting; the view stays settled');
+  assert.deepEqual(press(off, 'motion-off', { now: 6, mode: 'TRUECOLOR' }).playback.status, 'off');
 });
 
 test('the index needs 15 rows beside the panel; shorter frames name the story instead', () => {
