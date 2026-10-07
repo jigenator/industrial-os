@@ -1,0 +1,110 @@
+# Contributing to the design system
+
+The design system's toolchain, commands, checks, and verification records. The workflow for every change in the repository, including review and publication, is in the [root contributing guide](../CONTRIBUTING.md).
+
+## Toolchain and setup
+
+Run every command in the design-system guides from this `design-system/` folder (`cd design-system` from the repository root). Paths in those commands, and the contract and module paths the storybook displays, are relative to it.
+
+You need Git, a UTF-8 editor, and Node.js 22. The showcase, storybook, and motions were built and checked on v22.23.0. Code is plain ES modules (`.mjs`) using only the Node standard library. There is no package manifest, dependency installation, build step, formatter, type checker, or CI gate. Do not add one without a current need.
+
+Herdr is the primary target. The baseline below is specific to Herdr 0.9.3 and Node v22.23.0, not a universal terminal compatibility claim. Verify version-specific Node contracts against the [matching documentation](https://nodejs.org/docs/v22.23.0/api/) before relying on them.
+
+### Running the hosts
+
+Both hosts take the same options. Keys and the reuse guide are in [examples](examples/README.md).
+
+| Command | Effect |
+| --- | --- |
+| `node examples/storybook.mjs` | Storybook when stdin and stdout are terminals: alternate screen, hidden cursor, raw keys. Browse stories with `j`/`k`, arrows, Tab, or `1`–`8`; states, examples, or color views with `h`/`l`; page with Space/`b`. `p`/`r`/`o` play or pause, replay, or turn off a motion preview. `?` lists every key. Left-click complete visible index labels, variants, and footer actions; keyboard fallback remains. `q`, Esc, or Ctrl-C quit. |
+| `node examples/showcase.mjs` | Showcase live view: all four elements on one screen. Redraws only on resize or scrolling. `j`/`k`, arrow keys, PgUp/PgDn, and Space scroll. `q`, Esc, or Ctrl-C quit. |
+| `node examples/<host>.mjs --plain` | One snapshot without escape sequences, at the terminal width (80 when piped). The storybook snapshot is its first story with motion off, at full height. |
+| `node examples/<host>.mjs --plain --columns 48 --rows 20` | Snapshot at an explicit size (1–1000 each) |
+| `node examples/<host>.mjs --color --columns 120` | 24-bit color snapshot, even when piped |
+| `node examples/<host>.mjs --help` | Options |
+
+When output is not a terminal, each host prints one snapshot and exits. Color is used only when Node reports 24-bit support, or with `--color`. `NO_COLOR` suppresses automatic color unless overridden by Node's `FORCE_COLOR` setting, but does not disable live cursor/screen controls; use `--plain` for an escape-free snapshot. Explicit `--color` overrides `NO_COLOR`. Invalid options exit with status 2. The live views exit 0 on `q`/Esc, 130 on Ctrl-C or SIGINT, 143 on SIGTERM, and 129 on SIGHUP. In the storybook, Esc first closes the key list if it is open. Each exit disables the storybook's 1000/1006 mouse reporting and restores the cursor, style, screen, and terminal mode, and stops any playing preview's timer.
+
+## Fast loop
+
+From `design-system/`:
+
+```sh
+node --test
+git diff --check
+git diff --cached --check
+git status --short
+```
+
+These commands are read-only. `node --test` finds every `*.test.mjs` beside the code it checks, and finishes in a few seconds. It covers layout at every width from 1 to 160, short heights, boundary and invalid inputs, plain/color equivalence, deterministic motion frames, storybook navigation and playback, CLI snapshot and argument behavior, and live-view mode restoration and timer cleanup through stand-in terminal streams and a manual clock. Diff checks cover unstaged and staged tracked changes, not new untracked file contents, link correctness, design quality, or runtime behavior. Review newly created files explicitly.
+
+## Full validation sequence
+
+Source: the actual repository inventory and Git state; no application manifest or CI exists.
+
+| Order | Directory | Command or review | Prerequisites/effects | Coverage |
+| --- | --- | --- | --- | --- |
+| 1 | `design-system/` | Fast-loop commands above | Node 22 and Git; read-only | Unit, contract, and CLI checks; whitespace in diffs; changed-file inventory |
+| 2 | `design-system/` | `node examples/showcase.mjs --plain --columns N` for 120, 100, 80, 48, 40, and 23; `node examples/storybook.mjs --plain --columns N --rows 24` for 120, 80, 48, 24, and 12 | Node 22; prints only | Human review of the composition at normal, compact, and fallback widths |
+| 3 | A new, unoccupied Herdr pane | `node examples/showcase.mjs`; resize; scroll; quit with `q`, then Ctrl-C. `node examples/storybook.mjs`; browse every story and state; play, pause, replay, and turn off each motion; resize while playing; click every visible control class (including paging, help/close, and quit); check ignored clicks and press/release; quit with `q`, Esc, and Ctrl-C during playback | Herdr; interactive | Actual appearance, glyph widths, color, motion, resize, input, and restoration. The only evidence for Herdr support. |
+
+Then run the [repository-wide checks](../CONTRIBUTING.md#repository-wide-checks) from the repository root.
+
+The automated suite does not drive a real terminal. Report a real-PTY or Herdr run separately, with what it covered. When you add an executable element, document its setup, fast check, full tests, prerequisites, and side effects here. A required check that is skipped does not count as a pass.
+
+## Native verification baseline
+
+This baseline covers the four elements and the **showcase only**. It predates the motions and the storybook and is not evidence for them; see [storybook verification status](#storybook-verification-status).
+
+Checked on macOS with Node v22.23.0 and Herdr 0.9.3 (protocol 22), `TERM=xterm-256color`, and `COLORTERM=truecolor`:
+
+- All 44 automated checks of that pre-publication development version passed, including fragmented keys, control-safe text, prototype-key rejection, and large finite gauge readings.
+- Actual Herdr text readback matches composed frames at 139×37, 140×18, and 140×30, including a scrolled short viewport. All nine palette RGB values survive ANSI readback. Curated-glyph ruler rows retain their rails without soft wrapping.
+- Plain snapshots at 120, 100, 80, 48, 40, 24, 23, and 1 columns match in Herdr with an 18-row budget. These are explicit-width snapshots, not physical narrow-pane resize tests.
+- Real Herdr arrow scrolling, height resize/repaint, `q`, and Ctrl-C were exercised. Full terminal settings matched before and after both exits and snapshot runs. A fragmented-key scroll assertion was inconclusive after a concurrent layout resize; the new layout was left intact.
+- Eleven isolated real-PTY scenarios pass: resize/scroll/quit, Ctrl-C, SIGTERM, TTY `--plain`, tiny plain/live output, fragmented arrows, `NO_COLOR`, Esc, SIGINT, and SIGHUP. These are automated input, not physical keyboard tests.
+
+This establishes a bounded native baseline, not physical-pixel/contrast, screen-reader, performance, every-font, or every-terminal certification. Private captures and harnesses are not shipped. Repeat native checks after relevant changes; unit tests alone do not preserve host compatibility.
+
+Consequential Node contracts were checked against v22.23.0 [TTY](https://nodejs.org/docs/v22.23.0/api/tty.html), [process](https://nodejs.org/docs/v22.23.0/api/process.html), [keypress emission](https://nodejs.org/docs/v22.23.0/api/readline.html#readlineemitkeypresseventsstream-interface), and [PassThrough](https://nodejs.org/docs/v22.23.0/api/stream.html#class-streampassthrough) documentation. Key-event `sequence` details are verified against [that version's official implementation](https://github.com/nodejs/node/blob/v22.23.0/lib/internal/readline/utils.js), since the public emitter documentation does not specify the full event payload. Node decodes fragmented keys and briefly delays standalone Esc to distinguish it from an escape sequence; the showcase has no redraw timer.
+
+### Storybook verification status
+
+Checked on macOS with Node v22.23.0 and Herdr 0.9.3 (protocol 22). Keyboard-only baseline, from a pre-publication development version:
+
+- All 103 automated checks of that version passed, including executable motion usage examples, complete-message preservation, completed-reveal resizing, the documented host sketch, and timer cleanup.
+- Isolated real-PTY automation, outside Herdr, exercised browsing, fragmented arrows, resize, the key list and Esc, `NO_COLOR`, a 1×1 terminal, TTY `--plain`, and quitting with `q`, Esc, Ctrl-C, SIGINT, SIGTERM, and SIGHUP during playback. Terminal settings matched before and after. A playing preview redrew at no more than 15 frames a second, and nothing redrew while motion was off, paused, or complete. The showcase still started and quit through the shared host.
+
+- An independent rerun passed 28 real-PTY assertions covering the scenarios above. These are separate from the native Herdr checks below.
+- At 139×30 in Herdr, all 28 component states and motion examples were browsed with native keys. Thirty static text captures, including a paged detail view, match the pure layout. All nine palette RGB values appear in native ANSI readback.
+- Herdr arrow and Tab/Shift-Tab navigation, detail paging, help/Escape, scan/pulse play-pause-replay-off, and both reveals playing to completion were exercised. Scan/pulse specimen styling changed in the native captures; essential readings and complete warning/error messages remained present during reveals.
+- Quitting during playback with `q`, Esc, and Ctrl-C returned the expected codes and identical full `stty` settings.
+
+Input was automated, not physical keyboard use. Storybook resizing, tiny dimensions, fragmented keys, and `NO_COLOR` were tested in isolated PTYs, not by changing Herdr's layout or color environment in this round of checks. No physical-pixel contrast, screen-reader, every-font, or performance certification is claimed. Private harnesses and captures are not shipped.
+
+Mouse support, from a later pre-publication development version, checked on the same versions:
+
+- All **118 automated checks of that version passed**, including every visible click class versus keyboard transitions, label boundaries and inert cells at widths 1–160, fragmented/coalesced and malformed/overlong reports, ignored buttons/modifiers/releases, rapid Esc-plus-report recovery, stale geometry, opt-in reporting, and exit/failure cleanup.
+- The independent rerun passes **52 real-PTY assertions**, including click controls, fragmented reports, keyboard recovery, ignored input, and full terminal restoration on click quit, `q`, Esc, Ctrl-C, SIGINT, SIGTERM, and SIGHUP. Separately, 1,792 snapshot frames remain exactly equal to the pre-mouse baseline, including spans and styles.
+- In Herdr at the observed 139×30 and 140×30 sizes, injected SGR reports selected all 28 variants. **31 static text captures** match the pure layout. Footer navigation, paging, help/close, scan/pulse play-pause-replay-off, reveal completion, fragmented input, and ignored reports were exercised. A rapid Esc followed by an ignored mouse report closed help without changing stories.
+- Click quit, Esc, and Ctrl-C during playback returned the expected codes and identical full `stty` settings. Native terminal mode queries after each exit confirmed both 1000 and 1006 were reset.
+
+These Herdr checks use **automated terminal mouse-report input**, not a physical pointer or execution of client-side hit testing. Herdr 0.9.3's [client forwarding](https://github.com/herdrdev/herdr/blob/v0.9.3/src/client/shell/mouse.rs#L2205) and [server encoding](https://github.com/herdrdev/herdr/blob/v0.9.3/src/server/pane_input.rs#L226) were inspected separately in versioned source. No layout, focus, or input-routing configuration was changed. Physical-pointer testing remains a verification gap.
+
+Colors story, first published version, checked on the same versions. These records **predate the current COLORS page**, which renamed the collection to IndustrialOS colors, changed color ids, names, and roles, removed the earlier per-color labels and notes, and shortened the title notice. **None of the real-PTY or Herdr checks below has been re-run against the current page.** The current automated suite passes all **139 checks** (`node --test`), including COLORS placement, BASE/DERIVED labels, every color and ramp step, swatch SGR, plain fallback, widths 1–160, paging, keyboard/click equivalence, and no playback timer.
+
+- Story 8, COLORS, added static views of 22 colors and their five-step shade ramps. All 141 automated checks of that version passed. Its new checks covered FOUNDATION placement, the per-color and derived labels then shown, every color and ramp step, swatch SGR, plain fallback, widths 1–160, paging, keyboard/click equivalence, and no playback timer.
+- Separate checks covered 252 color-view dimension/mode combinations, including 1×1 and 1000×1000. Another 840 comparisons preserved original-story cells and styles after normalizing the changed story count/key range and excluding the intentionally changed wide sidebar. This is not exhaustive frame equivalence: the index gains FOUNDATION, its height threshold becomes 15 rows, and one key-list line changes.
+- The 52-assertion real-PTY mouse regression passed again. Additional Colors PTY checks exercised both views, paging through every base and all 110 ramp RGB values, idle and p/r/o without redraws, help/Esc, resize to 12×4 and 1×1, `NO_COLOR`, and q/Esc/Ctrl-C with full terminal restoration.
+- In actual Herdr at 139×30, injected SGR reports selected all 30 variants/views. **47 static text captures** matched the pure layout, including every Colors page. All 22 then-current names, the base hex values, and all 110 ramp RGB values appeared in text/ANSI readback. Footer navigation, help, paging, existing motion controls, ignored/fragmented reports, rapid Esc recovery, and switching from playback to COLORS were exercised.
+- Click quit, Esc, and Ctrl-C returned the expected codes, preserved full `stty` settings, and left both 1000/1006 modes reset by native terminal query. No pane focus, layout, or input-routing setting was changed.
+
+The Colors native checks used injected terminal reports, not physical-pointer/client hit testing. Tiny dimensions, resizing, and `NO_COLOR` were exercised in isolated PTYs rather than by changing Herdr's layout or environment. RGB readback is not a physical-display or contrast certification.
+
+The protocol requirements, scope, and tiny-size keyboard fallback are in [examples](examples/README.md#left-clicks). SGR event splitting and coalesced Esc prefixes were checked against the installed Node v22.23.0 decoder and its [official implementation](https://github.com/nodejs/node/blob/v22.23.0/lib/internal/readline/utils.js), not inferred from the public keypress API alone. Repeat native interaction checks after relevant changes.
+
+The playback timer relies on v22.23.0 [`setInterval()`/`clearInterval()`](https://nodejs.org/docs/v22.23.0/api/timers.html#setintervalcallback-delay-args): fractional delays are truncated, so the host uses 67 ms, and an active interval keeps the process alive until cleared. Playback time comes from [`performance.now()`](https://nodejs.org/docs/v22.23.0/api/perf_hooks.html#performancenow), called on the `performance` object as that version requires.
+
+## Making a change
+
+Follow the [repository workflow](../CONTRIBUTING.md#making-a-change) and the routes in this folder's [AGENTS.md](AGENTS.md). All elements and demos must be terminal-ready text, without a browser presentation layer; verify appearance, resizing, input, and repaint behavior in Herdr.

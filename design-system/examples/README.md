@@ -7,7 +7,7 @@ Two terminal hosts compose the real elements and motions; the storybook also sho
 | `node examples/storybook.mjs` | Terminal storybook: browse each element by state, each motion by example, and the IndustrialOS colors by view, with usage and contract notes |
 | `node examples/showcase.mjs` | All four elements composed on one scrolling screen |
 
-Commands, options, and exit codes are in [Contributing](../CONTRIBUTING.md#running-the-hosts).
+Commands, options, and exit codes are in [Contributing](../CONTRIBUTING.md#running-the-hosts). Commands run from `design-system/`, and the paths the storybook displays, such as `elements/gauge/README.md` and `foundation/industrialos-colors.mjs`, are relative to it.
 
 ## Browsing the storybook
 

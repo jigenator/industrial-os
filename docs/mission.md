@@ -19,7 +19,7 @@ The desired experience is an instrument that is clear and useful—not decoratio
 - Make element behavior, constraints, and supported terminal conditions explicit.
 - Keep implementation choices small enough to evolve with real consumers.
 
-An element is ready when it meets the acceptance criteria in [design](design.md), not merely when its screenshot looks finished.
+An element is ready when it meets the acceptance criteria in [design](../design-system/docs/design.md), not merely when its screenshot looks finished.
 
 ### Non-goals
 
@@ -31,7 +31,7 @@ An element is ready when it meets the acceptance criteria in [design](design.md)
 
 Terminal-only is a hard constraint, not a delivery priority. Every element and demo must be terminal-ready text, using terminal-native color/style and cell-based layout. No browser presentation layer or browser-only effect may be required.
 
-Optimize and verify the system in Herdr. The tested version, terminal capabilities, and input behavior are bounded by the [native verification baseline](../CONTRIBUTING.md#native-verification-baseline); no performance baseline or universal compatibility is claimed. Other terminals are not the initial optimization target.
+Optimize and verify the system in Herdr. The tested version, terminal capabilities, and input behavior are bounded by the [native verification baseline](../design-system/CONTRIBUTING.md#native-verification-baseline); no performance baseline or universal compatibility is claimed. Other terminals are not the initial optimization target.
 
 The repository is public. Include only material cleared for publication and preserve required third-party attribution. The native showcase and storybook use plain Node.js ES modules with no dependencies. They are the smallest working hosts for refining and browsing the elements and motions, not a framework or a published package. Pi and Herdr packages may need other runtimes or dependencies; their placement, boundaries, and checks will be defined in architecture and contributing when they move in. No open-source license, framework, or support matrix is selected yet.
 
