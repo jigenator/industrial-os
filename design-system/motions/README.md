@@ -275,6 +275,169 @@ A one-shot flash on the cells of `region`: the step `pattern[floor(time / step)]
 - **Motion-off:** the settled block.
 - **Differences from the extensions:** claude-interrupt follows its flash with a ping and a settling wipe; only the flash is here. Status-bar lights a lit cell white on white; here a full block keeps its background and turns its ink white, which looks the same, because an opted-in state cell may not take its background's color. Status-bar picks the lit cells and the mark cell itself; pass them as `region`. Status-bar's tag window lasts eight ticks, the last one settled, so its frames match the 350 ms here.
 
+## `ping(lines, options)` and `pingDuration(lines, options)`
+
+Stationary bars launch in left-to-right **non-space cell order per line**, brighten in acid, turn grey, disappear, then repeat once. Gaps never move; supply only a bar decoration such as `││ │ │  │  │   │`. `PING_DEFAULTS` is frozen.
+
+| Option | Default | Range / meaning |
+| --- | --- | --- |
+| `launch` | `160` | First launch, ms `0–60000` |
+| `stagger` | `40` | Delay per bar, ms `0–60000` |
+| `ghostAt` | `440` | First grey frame, ms `launch–60000` |
+| `ghostFor` | `120` | Grey lifetime, ms `1–60000` |
+| `repeatAfter` | `720` | Launch-to-launch offset, ms `0–60000`; positive when repeating |
+| `repeats` | `1` | Additional pings, integer `0–100` |
+| `frame` | `40` | Quantization grid, ms `1–60000` |
+| `region` | Whole block | Shared cell rectangle |
+
+Default frames for seven bars: 0 invisible, 160 first acid bar, 400 all acid, 440 first grey, 800 all gone; second launch 880, completion 1520 ms. Rate: 25 frame steps/s, two launches 720 ms apart. `pingDuration` returns the last disappearance rounded up to the frame grid (1520 ms for the seven-bar specimen, 0 for no bars).
+
+State cells are exempt; **motion-off returns the supplied input unchanged**. Source: [claude-interrupt index.ts](../../pi/claude-interrupt/src/index.ts), lines 67–71 and 113–120.
+
+**Differences from claude-interrupt:** arbitrary input bar positions replace its fixed offsets; DS uses Acid / Black rather than Pi's light-theme accent conversion or transparent theme background. The settled marker has no bar row: the host stops rendering this line at `pingDuration`, and with motion off renders the record plate without a bar line. Do not use ping's unchanged motion-off output as the marker's settled view. Labels/readings must never be passed as bars.
+
+## `wipe(lines, options)` and `wipeDuration(options)`
+
+A stepped style settle, preserving every character. **Input carries the settled target style**; cells not yet reached show `fromStyle`. `WIPE_DEFAULTS` is frozen, including its nested arrays/style.
+
+| Option | Default | Range / meaning |
+| --- | --- | --- |
+| `direction` | `'rtl'` | `'rtl'` or `'ltr'` |
+| `times` | `[2800,2880,2960]` | Nonempty, strictly increasing ms `0–60000` |
+| `fractions` | `[0.4,0.8,1]` | Same length as times, strictly increasing in `(0,1]`, final value 1 |
+| `fromStyle` | `{fg:'field',bg:'accent',bold:true}` | Style with only `fg`, `bg`, `bold`; valid roles/RGB and boolean bold |
+| `region` | Whole block | Shared cell rectangle; proportions computed per targeted line |
+
+Each step settles `ceil(targetedWidth × fraction)` cells. A 19-cell record plate settles its rightmost 8 at 2800, 16 at 2880, all at 2960 ms; shorter plates retain these proportions. Rate: 12.5 step opportunities/s during the 80 ms settle grid. `wipeDuration()` is the final step time, 2960 ms by default. At completion and **motion-off**, output equals input.
+
+State cells are exempt; no opt-in. Source: [claude-interrupt index.ts](../../pi/claude-interrupt/src/index.ts), lines 105–110.
+
+**Differences from claude-interrupt:** input is the record plate, not a live plate; target style belongs to that input, not an option. The host separately composes the initial flash and ping. Direction, proportions and starting style are configurable; no Pi theme/background conversion.
+
+## `fillIn(lines, options)` and `fillInDuration(lines, options)`
+
+USG's cell latch: current glyphs are grey before their tick, white on that tick, then their settled input ink. Independent lines and equal-width windows run in parallel. Characters never change. `FILL_IN_DEFAULTS` is frozen.
+
+| Option | Default | Range / meaning |
+| --- | --- | --- |
+| `tick` | `50` | Ms per latch, `1–60000` |
+| `window` | `8` | Parallel window width, integer `1–1000`; restarts every window from region.left |
+| `region` | Whole block | Shared cell rectangle |
+
+Eight squares: 0 ms first white, others decorative; 50 ms first settled, second white; 350 ms last white; 400 ms all settled. Rate: 20 latch steps/s. Duration is the longest targeted window (at most `window` cells) × `tick`; 400 ms for eight squares, 0 for no targeted cells. Motion-off equals input. State cells are exempt, including state-colored backgrounds.
+
+Source: [status-bar footer.ts](../../pi/status-bar/src/footer.ts), lines 379 and 1228–1238.
+
+**Differences from status-bar:** the host supplies square-only windows/regions; split unequal windows into separate calls so gaps and tags do not latch. Countdown grey-to-secondary settling, data-arrival triggers, newer-sample interruption and row-boot suppression belong to the host. Essential readings and countdowns stay outside this decoration.
+
+## `burnOut(lines, options)` and `burnOutDuration(options)`
+
+A one-shot burn of **lost `■` squares only**. Input is their already-settled ghost ink (normally `SIGNAL_COLORS.ghost`). Only color changes. `BURN_OUT_DEFAULTS` and `BURN_OUT_PRESETS` are frozen; spread `BURN_OUT_PRESETS.cld` or `.kmi` over options for provider colors.
+
+| Option | Default | Range / meaning |
+| --- | --- | --- |
+| `lit` | `SIGNAL_COLORS.gpt` | Valid role or RGB; provider lit ink |
+| `mid` | `SIGNAL_COLORS.gptMid` | Valid role or RGB; 50% burn ink |
+| `used` | `SIGNAL_COLORS.gptUsed` | Valid role or RGB; 20% burn ink |
+| `times` | `[100,250,400,600]` | Four strictly increasing ms in `1–60000` |
+| `region` | Whole block | Shared cell rectangle; caller selects only newly lost segments |
+
+Default frames: 0–99 white, 100–249 lit, 250–399 mid, 400–599 used, 600+ settled input. Rate: four color phases in 600 ms (boundaries 100/250/400/600). `burnOutDuration()` is 600 ms; motion-off and completion equal input. State cells are exempt.
+
+Source: [status-bar footer.ts](../../pi/status-bar/src/footer.ts), lines 216 and 1259–1264.
+
+**Differences from status-bar:** the primitive does not detect quota loss, decide which squares are lost, or hold other effects off. The host passes only lost cells and settles interrupted effects to the latest input. The source's burn temporarily overstates remaining quota; this is a reference decoration, not a truthful live quota representation or progress signal. Prefer an explicitly labeled demonstration until live acceptance.
+
+## `edgePulse(lines, options)`
+
+Size-only pulse on each targeted line's highest lit `■` (foreground matching `lit`); every other glyph/readout stays unchanged. `EDGE_PULSE_DEFAULTS` is frozen.
+
+| Option | Default | Range / meaning |
+| --- | --- | --- |
+| `fraction` | `1` | Slice fraction `0–1`; source period is `600 + 3400 × fraction` ms |
+| `period` | Derived from fraction | Optional override, ms `1–60000` |
+| `step` | `50` | Ms per pulse step, `1–60000` |
+| `lit` | `SIGNAL_COLORS.gpt` | Valid role/RGB matching the settled lit square |
+| `used` | `SIGNAL_COLORS.gptUsed` | Valid role/RGB for the dim pulse |
+| `region` | Whole block | Shared cell rectangle; one window per line/call |
+
+For P=4000 ms: through 3849 settled; 3850–3899 `▪` lit; 3900–3949 `▪` used; 3950–3999 `■` used; 4000 settled. Never opens on a pulse. Rate: default cycles every 0.6–4 s (0.25–1.67 onsets/s), three 50 ms pulse steps. Custom periods have no frequency cap; when `period < 4 × step`, each step shrinks to `period/4` to retain a quiet opening quarter.
+
+Motion-off equals input. Warning/critical cells are exempt and cannot become a selected edge. Source: [status-bar footer.ts](../../pi/status-bar/src/footer.ts), lines 219, 238–242, 781–786 and 1255–1261.
+
+**Differences from status-bar:** caller supplies the true fraction and provider colors; use separate calls for side-by-side windows. The primitive does not infer quota from color, suppress full/exhausted windows, or arbitrate fill-in/burn-out/boot. The host does that. Period/step overrides extend the reference; proportional short-period steps deliberately preserve the stable opening at any positive period.
+
+## `restrike(lines, options)` and `restrikeDuration(lines, options)`
+
+Finite seeded surface re-stamping: source `heavy|void|flash|mid|light|worn` treatments, shared 2–5-step programmes, pauses, cell order, drops and recovery tails. **Characters never change**, including padding. `RESTRIKE_DEFAULTS` and `RESTRIKE_WAIT = [4000,6000]` (ambient start-to-start ms) are frozen.
+
+| Option | Default | Range / meaning |
+| --- | --- | --- |
+| `seed` | `0` | Integer; foundation's deterministic generator |
+| `tick` | `50` | Ms per programme frame, `1–60000` |
+| `programme` | `'auto'` | `'auto'` draws hard with source 55% chance; `'hard'` / `'soft'` force initial vocabulary; later steps may mix |
+| `treatment` | `'plate'` | `'plate'`: non-field background cells; `'panel'`: occupied ink/caption cells |
+| `region` | Whole block | Shared cell rectangle; caller supplies the selected patch |
+
+Plate heavy/void expose its background ink on field; mid/worn use a worn surface; flash uses black on white; light fades the plate. Panel blocks `█▀▄` retain occupancy and change ink only; caption characters use source inversions/surfaces. Use palette role names for source hue-specific branches.
+
+Rate: 20 programme frames/s; source programmes are 2–5 frames plus possible recovery tails and per-cell delays. Duration depends on the seeded plan/current targeted geometry; `restrikeDuration(lines, options)` returns its final recovery time (0 for no eligible cells). At that time and on motion-off, input is returned. State cells are exempt.
+
+Source: [status-bar footer.ts](../../pi/status-bar/src/footer.ts), lines 891–916 and 967–999.
+
+**Differences from status-bar:** one explicit region is one patch, retaining its first eligible anchor; the host chooses plate/panel patches, panel identities and ambient scheduling. No guessed ROOT/AU/plate geometry. Padding stays spaces, instead of source texture glyph replacements, to uphold DS's character-preservation contract. The source's ink/background treatments and seeded programme vocabulary are retained.
+
+## `ghost(lines, options)` and `ghostDuration(lines, options)`
+
+Finite seeded **fill glitches** or **registration ghosts**. An explicit decoration-only `region` is mandatory, even with motion off. `GHOST_DEFAULTS`, `GHOST_WAIT = [2200,4200]` (wait after registration), and nested `GHOST_GLITCH` configurations are frozen.
+
+| Option | Default | Range / meaning |
+| --- | --- | --- |
+| `seed` | `0` | Integer; deterministic plan |
+| `tick` | `50` | Ms per frame, `1–60000` |
+| `level` | `1` | Integer `1–3`; fill glitch strength |
+| `mode` | `'fill'` | `'fill'` or `'registration'` |
+| `region` | Required | Shared cell rectangle, restricted to decoration |
+
+| Fill level | Frames | Runs | Run lengths | Glyphs | Wait after event (ms) |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 2–3 | 1 | 1–3 | `▓▒` | 5500–10000 |
+| 2 | 3–4 | 1–2 | 2–4 | `▓▒▚▞` | 2600–5200 |
+| 3 | 4–6 | 2–3 | 2–6 | `▓▒░▚▞▀▄` | 1200–2800 |
+
+Fill runs are fixed during the event, retain input ink/background, with source level-3 12% white highlights. Only filled-track glyph candidates `█▀▄▏▎▍▋▊▉▓▒░▚▞■` are eligible; the highest candidate on each line is protected, except a single-candidate line uses `▓` as in the source. **Letters, numbers, spaces, readout padding, every cell outside region and state cells remain unchanged.** The caller must keep unfilled/Unknown tracks, labels, state messages, activity cells, styled extensions and actual readouts outside the region; glyphs alone cannot establish which cells contain real fill.
+
+Registration uses the source's geometry-only corner/side/bracket/center groups, shuffled A+B with 2–5 tick start separation. Echoes go into blank neighbours only: first tick secondary, next two decorative; an actual frame anchor `┏┓┗┛┃━` can lift (blank) for its second tick, then restores. It never overwrites nonblank text. Region defines the frame's bounds; at narrow geometry, unavailable targets are skipped.
+
+Rate: 20 frame steps/s; fill events 100–300 ms; registration echoes three ticks (150 ms) with a bounded A+B plan. `ghostDuration(lines, options)` returns seeded event completion, including A+B delays; at completion and motion-off, output equals input. Warning/critical foreground/background cells are exempt, no state opt-in.
+
+Source: [status-bar footer.ts](../../pi/status-bar/src/footer.ts), lines 369–374, 847–889, 1441–1456 and 1627–1643.
+
+**Differences from status-bar:** event-only, explicit generic regions, no inferred footer ownership. Registration omits the semantic plate-edge group (the source's act/ctx/mdl/ext identities); four frame-geometry groups remain. Echoes only occupy blanks, not other occupied frame cells. Fill eligibility additionally excludes text even inside a mis-sized region. Hosts own ambient scheduling and current-fill targeting; do not send an entire gauge/readout to this primitive.
+
+### Scheduling seeded events
+
+The host can keep a generator from `random(hostSeed)` in [foundation/seeded.mjs](../foundation/seeded.mjs), draw a fresh event seed with `seedFrom(r)`, and select timing with `between(r, RESTRIKE_WAIT)` for re-strikes (start-to-start), `between(r, GHOST_WAIT)` after registration completion, or `between(r, GHOST_GLITCH[level].wait)` after a fill glitch. Pass elapsed event time and the same seed through every frame; use the duration helper to stop rendering the event. The primitives never run that scheduler. The host cancels pending events on motion-off, settles latest input immediately, and starts fresh without catch-up on resume. Ambient panel selection, footer boot coordination and interruption remain host responsibilities.
+
+## `nudge(lines, options)`
+
+Calibration slip of a **single** marked glyph, swapping ±1 cell with a blank neighbour and returning home; exact width and neighbouring readings remain intact. `NUDGE_DEFAULTS` is frozen.
+
+| Option | Default | Range / meaning |
+| --- | --- | --- |
+| `glyph` | `'┼'` | Exactly one curated `GLYPHS` character |
+| `period` | `6000` | Ms per cycle, `1–60000` |
+| `tick` | `50` | Ms per calibration step, `1–60000` |
+| `region` | Whole block | Shared cell rectangle, including the mark and destination blanks |
+
+First matching non-state mark in row/column order is the anchor. Offsets at 0/50/100/150/200/250 ms are `[+1,+1,0,-1,-1,0]`; rest until 6000, then repeat. No move if the destination is occupied, outside the region/line or state-colored. The vacated cell takes the blank neighbour's style; the shifted mark uses bold acid (`accent`), as in the source, and its input background. Home/rest frames retain the input ink.
+
+Rate: a 300 ms calibration programme every 6 s by default, 20 step opportunities/s during it; custom periods have no frequency cap. Motion-off equals input. State cells and state-colored destination blanks are protected.
+
+Source: [status-bar footer.ts](../../pi/status-bar/src/footer.ts), lines 365–366, 500 and 1549–1550.
+
+**Differences from status-bar:** the source knows its standalone header mark and fixed frame geometry; here the caller targets it explicitly and occupied neighbours are never displaced. No ambient scheduler or header layout is inferred.
+
 ## Shared targeting
 
 Motions that act on part of a block take an optional `region`: `{ top, left, rows, cols }` in cells, each a non-negative integer, with `rows` and `cols` allowed to be `Infinity`. Omitted fields cover the whole block. `resolveRegion(name, region)` in `frame.mjs` validates it and `inRegion(region, col, row)` tests a cell. Unknown fields throw `TypeError`; invalid values throw `RangeError`.
