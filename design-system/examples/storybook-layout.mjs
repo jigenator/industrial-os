@@ -228,8 +228,13 @@ function selectionLine(story, state, width) {
 
 function bodyLines(story, variant, state, width, mode, now) {
   const p = state.playback;
-  const animate = story.kind === 'motion' && (p.status === 'playing' || p.status === 'paused');
-  const specimen = story.specimen(variant, width, { animate, time: animate ? playbackTime(p, now) : 0, mode });
+  const live = story.kind === 'motion' && (p.status === 'playing' || p.status === 'paused');
+  // A completed preview holds its final frame. That equals the input for every finite motion except ping,
+  // whose bars are gone at the end; its motion-off view (the input bars) is shown only before playback.
+  const complete = story.kind === 'motion' && p.status === 'complete';
+  const animate = live || complete;
+  const time = live ? playbackTime(p, now) : complete ? story.duration(variant, width) : 0;
+  const specimen = story.specimen(variant, width, { animate, time, mode });
   const out = [blank(width), ...wrap(story.summary, width).map((l) => fitLine([text(l, muted)], width)), blank(width)];
   out.push(...field(story.kind === 'foundation' ? 'VIEW' : 'FIXTURE', variant.note, width), blank(width));
   out.push(...specimen.lines.map((l) => fitLine(l, width)), blank(width));

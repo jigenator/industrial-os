@@ -36,7 +36,7 @@ import { restrike } from '../motions/restrike.mjs';
 import { ghost } from '../motions/ghost.mjs';
 import { nudge } from '../motions/nudge.mjs';
 import { STORIES } from './storybook-stories.mjs';
-import { advance, composeStorybook, initialState } from './storybook-layout.mjs';
+import { advance, composeStorybook, initialState, press } from './storybook-layout.mjs';
 
 // Everything the generated usage text may name.
 const API = {
@@ -123,8 +123,11 @@ test('finite previews complete at their duration helper and end on the settled v
       assert.equal(advance(state, { now: end - 1, ...size }), state, `${story.id}/${variant.name} still playing`);
       assert.equal(advance(state, { now: end, ...size }).playback.status, 'complete', `${story.id}/${variant.name} complete`);
       const painted = (lines) => lines.map((l) => paint(l, 'truecolor')).join('\n');
-      // Ping's own motion-off view is its input bars; its settled marker drops them (MARKER TIMELINE).
-      if (story.id !== 'ping') assert.equal(painted(story.specimen(variant, inner, { animate: true, time: end }).lines), painted(story.specimen(variant, inner).lines), `${story.id}/${variant.name} ends settled`);
+      // Every finite motion except ping ends on its input; ping ends with its bars gone (its motion-off view is the
+      // input bars, shown only before playback).
+      const final = painted(story.specimen(variant, inner, { animate: true, time: end }).lines);
+      if (story.id !== 'ping') assert.equal(final, painted(story.specimen(variant, inner).lines), `${story.id}/${variant.name} ends settled`);
+      else assert.notEqual(final, painted(story.specimen(variant, inner).lines), 'ping ends with its bars gone');
     });
   }
 });
@@ -188,7 +191,8 @@ test('completed reveal is a final frame after resize, not a frozen incomplete ti
     for (const columns of [24, 120]) {
       const view = composeStorybook(state, { columns, rows: 40, mode: 'TRUECOLOR' });
       const [, width, options] = frames.at(-1);
-      assert.equal(options.animate, false, 'completed rendering must be dimension-independent');
+      // A completed preview renders its final frame for the current width: motion off, or the end of its duration.
+      assert.ok(options.animate === false || options.time >= story.duration(story.variants[1], width), 'completed rendering must be dimension-independent');
       assert.deepEqual(text(render(story.variants[1], width, options).lines), text(render(story.variants[1], width).lines));
       if (columns === 120) {
         const duration = (story.duration(story.variants[1], width) / 1000).toFixed(2);
@@ -246,4 +250,22 @@ test('documented reveal host completes without recursion and bounds its timer', 
   assert.equal(timers.size, 1);
   host.pause();
   assert.equal(timers.size, 0);
+});
+
+test('a completed PING preview keeps its bars gone, through resize and until replay', () => {
+  const i = STORIES.findIndex((s) => s.id === 'ping');
+  const story = STORIES[i];
+  const BARS = '││ │ │  │  │   │';
+  const textOf = (state, size) => composeStorybook(state, { ...size, mode: 'PLAIN' }).lines.map((l) => paint(l, 'none')).join('\n');
+  const before = { ...initialState(), story: i };
+  for (const columns of [120, 80, 48]) assert.ok(textOf(before, { columns, rows: 40, now: 0 }).includes(BARS), `motion-off specimen shows bars at ${columns}`);
+  const playing = { ...before, playback: { status: 'playing', elapsed: 0, startedAt: 0 } };
+  const end = story.duration(story.variants[0], 30);
+  const done = advance(playing, { columns: 30, rows: 40, now: end });
+  assert.equal(done.playback.status, 'complete');
+  for (const columns of [30, 48, 80, 120]) assert.ok(!textOf(done, { columns, rows: 40, now: end + 5000 }).includes(BARS), `complete hides bars at ${columns}`);
+  const replay = press(done, 'replay', { columns: 80, rows: 40, now: end + 6000 });
+  assert.equal(replay.playback.status, 'playing');
+  // Replay plays the ping again from the start: by 420 ms all seven bars are lit, before any turns grey.
+  assert.ok(textOf(replay, { columns: 80, rows: 40, now: end + 6000 + 420 }).includes(BARS), 'replay shows the bars again');
 });
