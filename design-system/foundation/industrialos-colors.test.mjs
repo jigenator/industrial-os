@@ -10,7 +10,7 @@ const approved = [
   ['indigo', '#3F01FB', 'indigo'], ['link-blue', '#0000F8', 'blue'], ['field-black', '#000000', 'neutral'],
   ['input-black', '#0E0E0E', 'neutral'], ['surface-grey', '#1C1C1C', 'neutral'], ['input-hover-grey', '#1F1F1F', 'neutral'],
   ['structure-grey', '#555555', 'neutral'], ['muted-grey', '#717171', 'neutral'], ['light-paper', '#F6F6F6', 'neutral'],
-  ['paper-white', '#FFFFFF', 'neutral'], ['magenta', '#FF15BE', 'magenta'], ['lavender', '#9C84F5', 'violet'],
+  ['paper-white', '#FFFFFF', 'neutral'], ['magenta', '#FF15BD', 'magenta'], ['lavender', '#9C84F5', 'violet'],
   ['steel-blue', '#48617F', 'blue'], ['pale-blue', '#95B8D1', 'blue'], ['yellow', '#F8ED34', 'yellow'],
   ['mint', '#8DF3BC', 'mint'],
 ];

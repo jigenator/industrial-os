@@ -63,7 +63,7 @@ These are deterministic mixes of encoded 8-bit sRGB channels toward black/white,
 
 `mixOver(color, proportion)` returns `proportion` (0–1) of a role or `#RRGGBB` color over the black field: each 8-bit sRGB channel times `proportion`, rounded to nearest with ties up, as lowercase `#rrggbb`. Where status-bar declares a mix, the mirrored value is returned exactly, because the extension rounded some of its mixes differently (accent at 75% is `#90be03`, where ties up would give `#90bf03`). Out-of-range proportions throw `RangeError`; invalid colors throw `TypeError`. It is pure, like `shadeRamp`, and differs from it: `shadeRamp` derives a fixed five-step ramp toward black and white for the reference collection.
 
-The IndustrialOS reference collection is separate data: its `Magenta` is `#FF15BE`, one step from status-bar's pink `#ff15bd`. The extension's value is the one elements use.
+The IndustrialOS reference collection is separate data. Where one of its colors is also a status-bar color, it takes status-bar's value: its `Magenta` is `#FF15BD`, status-bar's pink.
 
 ## Seeded randomness
 
