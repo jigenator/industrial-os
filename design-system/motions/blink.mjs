@@ -2,12 +2,13 @@ import { GLYPHS, resolveColor } from '../foundation/cells.mjs';
 import { MIN_PERIOD_MS, assertLines, assertMs, assertTime, copyLines, inRegion, resolveOptions, resolveRegion, restyleCells } from './frame.mjs';
 
 // The defaults are status-bar's Thread Rail lamp (pi/status-bar/src/footer.ts lampOn): 500 ms on, 300 ms dim.
-export const BLINK_DEFAULTS = Object.freeze({ on: 500, off: 300, offStyle: Object.freeze({ bg: 'surface' }), offGlyph: null, region: undefined });
+export const BLINK_DEFAULTS = Object.freeze({ on: 500, off: 300, offStyle: Object.freeze({ fg: 'surface', bg: 'surface' }), offGlyph: null, region: undefined });
 
 // Extension blinks as ready-made option sets; target the cell with `region`.
 export const BLINK_PRESETS = Object.freeze({
-  // Thread Rail lamp: a blank cell on acid, dimmed to surface. 1.25 cycles a second.
-  lamp: Object.freeze({ on: 500, off: 300, offStyle: Object.freeze({ bg: 'surface' }) }),
+  // Thread Rail lamp: the lit cell dimmed to surface on surface, which works for status-bar's blank cell on acid and
+  // for the design-system lamp's acid block. 1.25 cycles a second.
+  lamp: Object.freeze({ on: 500, off: 300, offStyle: Object.freeze({ fg: 'surface', bg: 'surface' }) }),
   // PNYTL activity light (lightOn): the lit pink `•` alternates with the black `⌑` icon every 50 ms, 10 cycles a second.
   activityLight: Object.freeze({ on: 50, off: 50, offStyle: Object.freeze({ fg: 'field' }), offGlyph: '⌑' }),
 });

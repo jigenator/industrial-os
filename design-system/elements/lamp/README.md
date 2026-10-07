@@ -29,6 +29,8 @@ The element never blinks. status-bar blinks a working lamp 500 ms lit, then 300 
 
 The dim frame is `LAMP_DIM_STYLE` (surface on surface): the working glyph `█` in the idle cell's color. In color it matches the footer's dim frame; in plain text it still reads `█`, so a blink never changes the plain-text state. Motion-off is the working cell, lit.
 
+To blink it, apply the [blink motion](../../motions/README.md#blinklines-options) with `BLINK_PRESETS.lamp` to the lamp cell. The preset's `offStyle` equals `LAMP_DIM_STYLE`, so it dims this element's full block and status-bar's blank lit cell alike. The storybook's BLINK story does this.
+
 ## Width and glyphs
 
 Always one cell. Uses `█` and `╱` from the curated glyph set and the `accent`, `primary`, `surface` and `decorative` roles.

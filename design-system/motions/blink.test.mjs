@@ -34,7 +34,7 @@ test('blink: motion-off returns the input (the lit frame) and needs no time', ()
     assert.deepEqual(color(out), color(lines));
     assert.notEqual(out, lines);
   }
-  assert.deepEqual(JSON.parse(JSON.stringify(BLINK_DEFAULTS)), { on: 500, off: 300, offStyle: { bg: 'surface' }, offGlyph: null });
+  assert.deepEqual(JSON.parse(JSON.stringify(BLINK_DEFAULTS)), { on: 500, off: 300, offStyle: { fg: 'surface', bg: 'surface' }, offGlyph: null });
 });
 
 test('blink: the lamp preset is 500 ms acid / 300 ms dim (footer.ts:776 lampOn, 1329)', () => {
@@ -100,4 +100,11 @@ test('blink rejects invalid options and lines', () => {
   for (const time of [undefined, -1, Number.NaN, Infinity]) assert.throws(() => blink([row('x')], { time }), RangeError);
   for (const lines of [null, 'abc', [null], [[{ text: 5 }]]]) assert.throws(() => blink(lines, { time: 0 }), TypeError);
   assert.deepEqual(blink([], { time: 600 }), []);
+});
+
+test('the lamp preset visibly dims the design-system lamp block as well as a blank cell on acid', () => {
+  const block = [[span('█', { fg: 'accent', bg: 'accent' })]];
+  const dim = cellsOf(blink(block, { time: 600, ...BLINK_PRESETS.lamp })[0])[0];
+  assert.equal(dim.fg, 'surface');
+  assert.equal(dim.bg, 'surface');
 });
