@@ -1,6 +1,6 @@
 # Design
 
-This is the visual and interaction language of every project in the repository: the design system, the Pi extensions, and the planned Herdr tooling. Each project's own design doc, where it has one, describes that project's experience and must agree with this one.
+This is the visual and interaction language of every project in the repository: the design system, the Pi extensions, and the planned Herdr tooling. It holds only what they share. Each project's own design doc describes that project's experience and must agree with this one: [the design system](../design-system/docs/design.md) and [claude-interrupt](../pi/claude-interrupt/docs/design.md).
 
 ## Experience
 
@@ -16,7 +16,7 @@ Avoid simulated telemetry, decorative noise over content, unnecessary chrome, an
 
 ### Acid / Black
 
-This is the selected default palette. The Pi extensions are the authority for its values: pi-status-bar, the first implementation of the style, in its own repository until it moves in, and [claude-interrupt](../pi/claude-interrupt/docs/design.md), which declares acid, black, white, decorative grey, and structural grey as constants. [foundation/palette.mjs](../design-system/foundation/palette.mjs) mirrors them for the design system. This table defines what each role is for. The palette is not a shipped theme API or a blanket contrast certification.
+This is the selected default palette. The Pi extensions are the authority for its values: pi-status-bar, the first implementation of the style, in its own repository until it moves in, and [claude-interrupt](../pi/claude-interrupt/docs/design.md), which declares acid, black, white, decorative grey, and structural grey as constants in its source. [foundation/palette.mjs](../design-system/foundation/palette.mjs) mirrors them for the design system and is where every role's value can be read. This table defines what each role is for. The palette is not a shipped theme API or a blanket contrast certification.
 
 | Role (`palette.mjs` key) | Intended use |
 | --- | --- |
@@ -32,11 +32,7 @@ This is the selected default palette. The Pi extensions are the authority for it
 
 Do not use decorative greys for essential control boundaries or readable small text without checking the actual contrast. Accent is not a substitute for a label; warning and critical states must remain understandable without color.
 
-If a value differs between an extension and this table or the design system, the extension's value is correct, and this table and `palette.mjs` change to match, each in its own commit; see [the decision](decisions/extension-colors-take-precedence.md). All nine roles currently use the same values as pi-status-bar, and claude-interrupt's five constants match them.
-
-### IndustrialOS colors
-
-A separate reference collection of 22 named colors, with five-step derived shade ramps. Values live in [foundation](../design-system/foundation/README.md#industrialos-colors). It does not replace Acid / Black, add roles to it, or form a theme switch. Wherever a generated ramp step is shown, label it `DERIVED`, distinct from its `BASE` color. Put hex values and names on the normal field rather than on the swatch, and do not claim contrast or accessibility for any combination without checking it.
+If a value differs between an extension's constants and `palette.mjs`, the extension's value is correct and `palette.mjs` changes to match in its own commit; see [the decision](decisions/extension-colors-take-precedence.md). The check is a direct comparison of each extension's constants against `palette.mjs`, using this table only to map a constant to its role. All nine roles currently match pi-status-bar, and claude-interrupt's five constants match them.
 
 ### Pi extensions
 
@@ -44,17 +40,11 @@ An extension renders inside Pi's transcript, footer, or widgets with Pi's own st
 
 ### Shape and composition
 
-Use cell-aligned geometry, compact labels, clear readouts, and restrained numbered plates or calibration marks. Borders should organize content rather than consume every available cell. Do not require a particular proprietary font; work with the user's terminal font and declared glyph capabilities.
-
-The selected first set is numbered panels, label plates, gauges, and status rows. Each has a first-pass contract and native implementation: [numbered panel](../design-system/elements/numbered-panel/README.md), [label plate](../design-system/elements/label-plate/README.md), [gauge](../design-system/elements/gauge/README.md), and [status row](../design-system/elements/status-row/README.md). `examples/showcase.mjs` composes them for refinement. They have a bounded [native Herdr verification baseline](../design-system/CONTRIBUTING.md#native-verification-baseline); final visual acceptance remains a maintainer decision.
+Use cell-aligned geometry, compact labels, clear readouts, and restrained numbered plates or calibration marks. Borders should organize content rather than consume every available cell. Do not require a particular proprietary font; work with the user's terminal font and declared glyph capabilities. The design system's element set and its specimens are in [its design](../design-system/docs/design.md).
 
 ### Motion
 
-Motion is instrument detail, never data. The initial set is [scan, pulse, and reveal](../design-system/motions/README.md): pure decorations of already-rendered lines at an explicit time. Scan and pulse preserve characters. Reveal belongs only on nonessential decoration: compose complete readings, labels, and status messages outside it. Warning/critical foreground or background cells are exempt from all three transforms, but this does not protect an entire associated message. Repeating motions cycle at most 2.5 times a second (under the 3 Hz flashing limit). Pulse implies activity, so use it only where a signal really is active. Do not use motion to suggest progress that is not happening.
-
-### Storybook
-
-`examples/storybook.mjs` is the browsing surface for the system: an index of elements, motions, and the IndustrialOS colors, state, example, or view selection, a specimen from the real renderer or foundation data, its generated call, and key contract rules. Its keys and layout rules are in [examples](../design-system/examples/README.md). Motion previews are labeled demonstration playback, start with motion off, and play only on request. The COLORS story is static and never plays.
+Motion is instrument detail, never data. A motion decorates already-rendered output at an explicit time; it does not supply or obscure values. Never veil a reading, a label, or a status message; warning and critical cells are never restyled by decoration. Repeating motions cycle at most 2.5 times a second, under the 3 Hz flashing limit; a single-cell indicator may be faster only when a maintainer accepts it and a motion-off control holds it steady. Pulse implies activity, so use it only where a signal really is active. Do not use motion to suggest progress that is not happening. Bound every animation and dispose of its timers; where a host has no reduced-motion setting, keep the animation short and say so.
 
 ### Interaction and feedback
 
@@ -72,7 +62,7 @@ Separate focus, selection, active work, saved state, and historical state. A tra
 - State truecolor, color-depth, glyph, terminal-mode, and host prerequisites honestly. A tested fallback is different from an assumed one.
 - Verify accessibility, input, focus, resizing, glyph alignment, and repaint behavior in Herdr. Record the actual access methods tested; do not claim universal accessibility.
 
-Herdr is the reference environment and optimization target. Its tested version and capability baseline are recorded in [Contributing](../design-system/CONTRIBUTING.md#native-verification-baseline). Broader compatibility and additional fallbacks remain open. Do not infer support from a browser reconstruction or assume a particular Herdr API.
+Herdr is the reference environment and optimization target. Each project records the Herdr version and scope it was checked against in its contributing guide. Broader compatibility and additional fallbacks remain open. Do not infer support from a browser reconstruction or assume a particular Herdr API.
 
 ## UI states
 
@@ -93,15 +83,13 @@ Each element specifies the states that apply; omit irrelevant states rather than
 
 ### Polished-element acceptance
 
-An element entering this repository needs:
+An element entering any project in this repository needs:
 1. A clear purpose, public usage contract, and appropriate state coverage.
 2. Readable normal, narrow, and boundary layouts with explicit glyph/color assumptions.
 3. Keyboard/focus behavior where interactive, plus a defined motion-off state.
 4. A useful specimen and checks matching its claims.
 5. Public-safe content and cleared redistribution rights for any included material.
 
-Label specification-only, native rendering, automated PTY input, and actual Herdr verification accurately. Appearance evidence alone does not prove interaction, persistence, or application integration. Each project records its own verification in its contributing guide; the status below is the design system's.
+Label specification-only, native rendering, automated PTY input, and actual Herdr verification accurately. Appearance evidence alone does not prove interaction, persistence, or application integration. Each project records its own verification in its contributing guide.
 
-Current status: the four elements have native renderers with automated layout and contract checks. The three motions have deterministic frame checks, and `animate: false` is their motion-off state. The showcase and storybook pass automated checks of their live-view lifecycle, using stand-in terminal streams and, for storybook playback, a manual clock. The showcase is static. The storybook's motion previews default to motion off and run a bounded timer only while playing. The elements are not interactive; the storybook's keyboard path and optional left-click controls are defined by its host and [examples](../design-system/examples/README.md#left-clicks). Automated mouse checks are not proof of native Herdr mouse forwarding. This first pass requires 24-bit color, or falls back to plain text, and requires one-cell rendering of the curated glyphs; see [foundation](../design-system/foundation/README.md). Actual Herdr text/ANSI readback, scrolling, resizing, and exit cleanup have been checked for the showcase within the [documented scope](../design-system/CONTRIBUTING.md#native-verification-baseline). The storybook also has native Herdr frame, navigation, playback, and exit checks within its separate [verification scope](../design-system/CONTRIBUTING.md#storybook-verification-status). An earlier version of the storybook's COLORS story had isolated real-PTY checks and actual Herdr text/ANSI, paging, navigation, and cleanup checks, using injected mouse reports rather than a physical pointer; they have not been re-run against the current COLORS page. See the same verification scope. No accessibility certification, physical-pixel contrast assessment, or performance measurement is claimed.
-
-Open decisions: visual refinements to the first four elements and the motions; any broader terminal support, including 256-color and ASCII-glyph fallbacks; and the project license.
+Open decisions shared by every project: any broader terminal support, including 256-color and ASCII-glyph fallbacks, and the project license. Each project's own open decisions are in its design doc.

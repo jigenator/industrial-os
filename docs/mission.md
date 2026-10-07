@@ -19,7 +19,7 @@ The desired experience is an instrument that is clear and useful—not decoratio
 - Make element behavior, constraints, and supported terminal conditions explicit.
 - Keep implementation choices small enough to evolve with real consumers.
 
-An element is ready when it meets the acceptance criteria in [design](design.md), not merely when its screenshot looks finished.
+An element is ready when it meets the acceptance criteria in [design](design.md#polished-element-acceptance), not merely when its screenshot looks finished.
 
 ### Non-goals
 

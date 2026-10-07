@@ -7,7 +7,7 @@ This guide holds the rules for the whole repository. Each project is its own pro
 ## Critical engineering rules
 
 - No project imports another project's code, and a Pi extension must load from its own folder with the host's peer packages only. Full rule: [conventions](docs/conventions.md#module-and-dependency-rules). Check: review imports; no automated check.
-- The Pi extensions are the authority for palette values; the design system mirrors them. Full rule: [decision](docs/decisions/extension-colors-take-precedence.md). Check: review comparison against [design](docs/design.md).
+- The Pi extensions are the authority for palette values; the design system mirrors them. Full rule: [decision](docs/decisions/extension-colors-take-precedence.md). Check: review comparison of the extension constants against `design-system/foundation/palette.mjs`.
 - Claim only what the stated checks support. Do not invent an installed package, released API, or Herdr check that has not run; keep automated, Pi-load, and interactive evidence separate. Full rule: [conventions](docs/conventions.md#tests).
 - Do not publish private paths, data, credentials, or copied assets without rights and notices. Full rule: [conventions](docs/conventions.md#dependencies-and-generated-output).
 - Keep each rule, command, and value in one canonical place and trace callers before changing shared behavior. Full rule: [conventions](docs/conventions.md#engineering-principles).
@@ -28,7 +28,7 @@ Scan the supporting-documents map and read every document whose condition applie
 
 | Change | Start here | Boundary |
 | --- | --- | --- |
-| An element, motion, storybook story, or terminal host | `design-system/`; placement in [its architecture](design-system/docs/architecture.md#where-the-next-change-belongs) | Standard library only; elements and motions never own I/O |
+| An element, motion, storybook story, or terminal host | `design-system/`; placement in [its architecture](design-system/docs/architecture.md#where-the-next-change-belongs), rules in [its conventions](design-system/docs/conventions.md) | Standard library only; elements and motions never own I/O |
 | claude-interrupt behavior or marker | `pi/claude-interrupt/`; placement in [its architecture](pi/claude-interrupt/docs/architecture.md) | Pi peer packages only; never block streaming, input, or focus |
 | A new Pi extension | `pi/<name>/` with the [project document set](docs/architecture.md#contracts-between-the-root-and-a-project) | Its own manifest, checks, and license |
 | Shared experience or scope | `docs/design.md`, `docs/mission.md` | Then each project separately |
@@ -57,7 +57,9 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [design-system/AGENTS.md](design-system/AGENTS.md) | Design-system rules, task routes, and placement | Working anywhere in `design-system/` |
 | [design-system/CLAUDE.md](design-system/CLAUDE.md) | Runtime import of the design-system guide | Checking agent entry points |
 | [design-system/CONTRIBUTING.md](design-system/CONTRIBUTING.md) | Design-system setup, commands, validation, and verification records | Making or verifying a design-system change |
-| [design-system/docs/architecture.md](design-system/docs/architecture.md) | Design-system modules, boundaries, engineering rules, and evolution | Adding elements or changing design-system dependencies or contracts |
+| [design-system/docs/architecture.md](design-system/docs/architecture.md) | Design-system modules, boundaries, and evolution | Adding elements or changing design-system dependencies or contracts |
+| [design-system/docs/conventions.md](design-system/docs/conventions.md) | Design-system stack, text contract, palette mirror, and performance rules | Writing or reviewing design-system code |
+| [design-system/docs/design.md](design-system/docs/design.md) | The design system's element set, reference colors, motions, and storybook | Changing anything human-facing in the design system |
 | [design-system/foundation/README.md](design-system/foundation/README.md) | Line model, text/glyph contract, palette mirror, color output | Changing shared rendering, text handling, glyphs, or colors |
 | [design-system/elements/label-plate/README.md](design-system/elements/label-plate/README.md) | Label plate contract | Using or changing label plates |
 | [design-system/elements/numbered-panel/README.md](design-system/elements/numbered-panel/README.md) | Numbered panel contract | Using or changing panels |

@@ -11,7 +11,7 @@ Industrial OS is one repository holding several independent projects. A project 
 
 | Project | Language and runtime | Public entry point | Dependencies | Guides |
 | --- | --- | --- | --- | --- |
-| `design-system/` | Plain Node.js 22 ES modules (`.mjs`), standard library only, no manifest | `node examples/storybook.mjs`, `node examples/showcase.mjs`; module paths are not a released API | None outside Node | [README](../design-system/README.md), [AGENTS](../design-system/AGENTS.md), [architecture](../design-system/docs/architecture.md), [contributing](../design-system/CONTRIBUTING.md) |
+| `design-system/` | Plain Node.js 22 ES modules (`.mjs`), standard library only, no manifest | `node examples/storybook.mjs`, `node examples/showcase.mjs`; module paths are not a released API | None outside Node | [README](../design-system/README.md), [AGENTS](../design-system/AGENTS.md), [architecture](../design-system/docs/architecture.md), [conventions](../design-system/docs/conventions.md), [design](../design-system/docs/design.md), [contributing](../design-system/CONTRIBUTING.md) |
 | `pi/claude-interrupt/` | TypeScript ES modules run by Node 22 type stripping; npm; `tsc --noEmit` | `package.json` `pi.extensions` → `src/index.ts`, loaded by the Pi host | Host-provided Pi packages as peer dependencies; development dependencies pin Pi 0.99.1 | [README](../pi/claude-interrupt/README.md), [AGENTS](../pi/claude-interrupt/AGENTS.md), [architecture](../pi/claude-interrupt/docs/architecture.md), [contributing](../pi/claude-interrupt/CONTRIBUTING.md) |
 
 `pi/` groups the Pi extensions and holds the rules they share: [its guide](../pi/AGENTS.md). `herdr/` is planned for Herdr configuration and does not exist.
@@ -33,14 +33,14 @@ flowchart LR
     DS -->|imports| Node
     CI -->|imports, peer| PiHost
     CI -->|imports| Node
-    PiHost -->|renders in| Herdr
-    DS -->|renders in| Herdr
+    PiHost ==>|renders in| Herdr
+    DS ==>|renders in| Herdr
     StatusBar -.->|palette values, by hand| Design
-    Design -.->|roles and values, by hand| DS
-    Design -.->|roles and values, by hand| CI
+    CI -.->|palette values, by hand| Design
+    Design -.->|roles; values mirrored by hand| DS
 ```
 
-Solid arrows are imports verified in source. Dotted arrows are values carried by hand: there is no import, build step, or package between projects. `pi/claude-interrupt/src/index.ts` declares five Acid / Black colors as constants; `design-system/foundation/palette.mjs` declares nine. The Pi extensions are the authority for those values and the design system follows them; see [the decision](decisions/extension-colors-take-precedence.md).
+Solid arrows labelled imports are imports verified in source. Thick arrows are where a project's output is rendered at run time. Dotted arrows are values carried by hand, from the extensions that own them to the design doc that names their roles and on to the design system's mirror: there is no import, build step, or package between projects. `pi/claude-interrupt/src/index.ts` declares five Acid / Black colors as constants; `design-system/foundation/palette.mjs` declares nine. The Pi extensions are the authority for those values and the design system mirrors them; see [the decision](decisions/extension-colors-take-precedence.md).
 
 No project imports another. That is a rule, not an accident: a Pi extension is installed from its own folder by the Pi host and must load with nothing outside that folder, and the design system has no package to import. A shared module needs a decision on how an installed extension reaches it; see [Evolution](#evolution-and-known-limits).
 
@@ -64,7 +64,7 @@ A project's guides supplement these and never restate them; they link.
 
 **A change inside one project** starts from that project's `AGENTS.md`, is traced through that project's architecture, and is verified by that project's contributing sequence, then by the [repository-wide checks](../CONTRIBUTING.md#repository-wide-checks). For example, refining the gauge touches only `design-system/elements/gauge/` and the design-system storybook; adjusting the marker timing of claude-interrupt touches only `pi/claude-interrupt/src/index.ts`, its tests, and its design doc.
 
-**A change to the visual language** starts in `docs/design.md`. If a palette value changes, the authority is the Pi extension that renders it; `design-system/foundation/palette.mjs` and the constants in each extension then change in separate commits in their own projects, each with its own checks. There is no mechanism that keeps them equal; the check is a review comparison of the values listed in design.
+**A change to the visual language** starts in `docs/design.md`. If a palette value changes, the authority is the Pi extension that renders it; `design-system/foundation/palette.mjs` and the constants in each extension then change in separate commits in their own projects, each with its own checks. There is no mechanism that keeps them equal; the check is a review comparison of each extension's constants against `palette.mjs`, with the design doc mapping constants to roles.
 
 **Moving a project in** follows [the Pi contributing guide](../pi/CONTRIBUTING.md#moving-an-extension-in): rewrite its history under its new path, merge with a merge commit, point its install and `repository` fields at the monorepo, give it the required project document set, and add its guides to the root map. claude-interrupt was moved this way in pull request #4.
 
@@ -76,7 +76,8 @@ Every project must provide:
 - `AGENTS.md` and `CLAUDE.md`: the project's rules and routes, supplementing the root; `CLAUDE.md` is exactly `@AGENTS.md`.
 - `CONTRIBUTING.md`: its toolchain, exact commands, validation sequence, and verification records.
 - `docs/architecture.md`: its modules, dependency direction, flows, invariants, and evolution.
-- `docs/conventions.md` only when it has rules of its own beyond the repository-wide ones; `docs/design.md` and `docs/mission.md` only when it has an experience or product scope of its own beyond the repository's. The design system keeps its rules in its architecture and has no mission or design doc of its own; claude-interrupt has all three.
+- `docs/conventions.md` with its own rules beyond the repository-wide ones, and `docs/design.md` with its own experience within the shared language. Both projects have them.
+- `docs/mission.md` only when it has a product scope of its own beyond the repository's; claude-interrupt has one, the design system does not.
 - A license notice if it carries a license.
 
 Every project's guides must appear in the [root supporting-documents map](../AGENTS.md#supporting-documents) with a direct link.
@@ -89,7 +90,7 @@ Every project's guides must appear in the [root supporting-documents map](../AGE
 | A Pi extension loads from its own folder with the host's peer packages only | `pi/*/package.json` | Each extension's non-interactive load check in its contributing guide |
 | Every element and demo is terminal text with terminal-native styling | Mission; each project's design or architecture | Review check; the design system's automated checks compare plain and color output |
 | Displayed values are truthful: unknown is never zero, failure is never success-shaped | `design-system/elements/*`, `pi/claude-interrupt/src/index.ts` | Each project's tests for unknown and failure states |
-| Palette values are identical across projects, with the extensions as the authority | `pi/claude-interrupt/src/index.ts`, `design-system/foundation/palette.mjs`, design | Review comparison against the values listed in design; no automated check |
+| Palette values are identical across projects, with the extensions as the authority | `pi/claude-interrupt/src/index.ts`, `design-system/foundation/palette.mjs`, design | Review comparison of the extension constants against `palette.mjs`; design maps roles; no automated check |
 | Every guide is mapped once, with one canonical home per rule | `AGENTS.md` | Repository-wide checks 2 and 3 |
 
 ## Where the next change belongs

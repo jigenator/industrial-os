@@ -6,12 +6,12 @@ Purpose: the curated, terminal-only design system optimized for Herdr, at the fo
 
 - Keep polished elements here; leave experiments, source catalogs, recordings, and discovery reports outside the repository. See [mission](../docs/mission.md).
 - Render all elements and demos as terminal text and terminal-native styling, never HTML/CSS/canvas/images. Herdr is the reference environment; verify behavior there before claiming support. See [design](../docs/design.md).
-- The only runtime is the unreleased native example hosts, the showcase and the storybook: plain Node.js 22 ES modules, standard library only. See [architecture](docs/architecture.md).
+- The only runtime is the unreleased native example hosts, the showcase and the storybook: plain Node.js 22 ES modules, standard library only. See [conventions](docs/conventions.md).
 - Keep displayed values truthful, render within the supplied cell budget, and preserve input/focus behavior. Color and animation cannot be the only carriers of meaning. See [design](../docs/design.md).
 
 ## Read for the task
 
-Design is the repository-wide [design](../docs/design.md), architecture is [docs/architecture.md](docs/architecture.md), conventions are the repository-wide [conventions](../docs/conventions.md), and contributing is [CONTRIBUTING.md](CONTRIBUTING.md). The other guides are listed in the [root supporting-documents map](../AGENTS.md#supporting-documents).
+Design is the repository-wide [design](../docs/design.md) plus [this project's](docs/design.md); conventions are the repository-wide [conventions](../docs/conventions.md) plus [this project's](docs/conventions.md); architecture is [docs/architecture.md](docs/architecture.md); contributing is [CONTRIBUTING.md](CONTRIBUTING.md). The other guides are listed in the [root supporting-documents map](../AGENTS.md#supporting-documents).
 
 | Task | Route |
 | --- | --- |

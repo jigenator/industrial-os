@@ -20,10 +20,10 @@ All element and motion values are labeled demonstration fixtures, and motion pre
 
 ## Start here
 
-- [Design](../docs/design.md): visual language, interaction rules, and the bar for a polished element.
+- [Design](../docs/design.md): the shared visual language and the bar for a polished element; [this project's design](docs/design.md): its elements, colors, motions, and storybook.
 - [Mission](../docs/mission.md): goals and scope.
-- [Architecture](docs/architecture.md): current contents, element placement, boundaries, and design-system engineering rules.
-- [Conventions](../docs/conventions.md): repository-wide engineering rules.
+- [Architecture](docs/architecture.md): current contents, element placement, and boundaries.
+- [Conventions](../docs/conventions.md): repository-wide engineering rules; [this project's conventions](docs/conventions.md): its stack and rendering rules.
 - Element contracts: [label plate](elements/label-plate/README.md), [numbered panel](elements/numbered-panel/README.md), [gauge](elements/gauge/README.md), [status row](elements/status-row/README.md), and their shared [foundation](foundation/README.md), which also holds the IndustrialOS colors.
 - [Motions](motions/README.md): scan, pulse, and reveal, with parameters and motion-off behavior.
 - [Storybook and examples](examples/README.md): keys, reuse examples, and how to add a story.
