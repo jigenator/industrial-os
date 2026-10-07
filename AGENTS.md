@@ -52,7 +52,7 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [docs/design.md](docs/design.md) | The shared visual and interaction language, states, and acceptance | Changing anything human-facing in any project |
 | [docs/conventions.md](docs/conventions.md) | Repository-wide engineering rules and adoption gaps | Writing or reviewing code or technical guidance |
 | [docs/architecture.md](docs/architecture.md) | Project map, dependency direction, project contracts, and where new projects go | Adding a project, changing what a project depends on, or tracing a cross-project change |
-| [docs/decisions/standalone-packages.md](docs/decisions/standalone-packages.md) | Why there is no root manifest, workspace, or repository command | Proposing a root toolchain or CI |
+| [docs/decisions/standalone-packages.md](docs/decisions/standalone-packages.md) | Why there is no workspace or repository command, and why the root `package.json` only lists the Pi extensions | Proposing a root toolchain or CI |
 | [docs/decisions/extension-colors-take-precedence.md](docs/decisions/extension-colors-take-precedence.md) | Why the extensions own palette values and the design system follows | Changing a color anywhere |
 | [design-system/README.md](design-system/README.md) | Design-system orientation, run commands, and status | Using the design system or changing its onboarding |
 | [design-system/AGENTS.md](design-system/AGENTS.md) | Design-system rules, task routes, and placement | Working anywhere in `design-system/` |

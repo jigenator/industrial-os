@@ -8,7 +8,7 @@ This guide covers the workflow for every change and the checks that apply to the
 | `pi/claude-interrupt/` | Node.js 22, npm, TypeScript, an installed Pi for the load check | [pi/claude-interrupt/CONTRIBUTING.md](pi/claude-interrupt/CONTRIBUTING.md) |
 | `pi/status-bar/` | Node.js 22, npm, TypeScript run by type stripping, the globally installed Pi for its tests and the load check | [pi/status-bar/CONTRIBUTING.md](pi/status-bar/CONTRIBUTING.md) |
 
-There is no root manifest, install step, or test command. Running `node --test` from the root discovers the extensions' TypeScript tests, which need each extension's own setup; it is not a repository check. See [the decision](docs/decisions/standalone-packages.md).
+There is no root install step, test command, or workspace. The root `package.json` only lists the Pi extensions' entry points for Pi's git install; see [installing the Pi extensions](pi/README.md#install). Running `node --test` from the root discovers the extensions' TypeScript tests, which need each extension's own setup; it is not a repository check. See [the decision](docs/decisions/standalone-packages.md).
 
 ## Making a change
 

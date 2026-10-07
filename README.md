@@ -34,6 +34,8 @@ industrial-os/
 ├── AGENTS.md                 repository-wide agent rules and the map of every guide
 ├── CLAUDE.md                 imports AGENTS.md
 ├── CONTRIBUTING.md           workflow, repository-wide checks, adding a project
+├── package.json              lists the Pi extensions for Pi's git install; nothing else
+├── package-lock.json         npm's lockfile for that manifest
 └── .gitignore
 ```
 

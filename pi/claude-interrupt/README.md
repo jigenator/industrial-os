@@ -8,13 +8,13 @@ No submitted queue means native Escape behavior. If continuation preflight fails
 
 ## Install
 
-This package lives in the [Industrial OS](../../README.md) monorepo. Pi's git sources load a repository's root package, and the monorepo has none, so install from a local checkout:
+This package lives in the [Industrial OS](../../README.md) monorepo. Install it from git with this entry in the `packages` array of Pi's `settings.json`; see [installing the Pi extensions](../README.md#install) for the source, filter and updates:
 
-```sh
-pi install <industrial-os checkout>/pi/claude-interrupt
+```json
+{ "source": "git:github.com/jigenator/industrial-os", "extensions": ["pi/claude-interrupt/src/index.ts"] }
 ```
 
-Pi loads a local package from that path without copying it or installing its dependencies; this package has no runtime dependencies. Pull the checkout to update it, then restart or reload Pi.
+This package has no runtime dependencies. To install it from a local checkout instead: `pi install <industrial-os checkout>/pi/claude-interrupt`.
 
 For local development without changing Pi's settings:
 

@@ -59,6 +59,7 @@ The root holds what every project shares and nothing else:
 | This guide | The project map, dependency direction, and where new projects go |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | The workflow for a change and the repository-wide checks; it routes to each project's own validation |
 | [AGENTS.md](../AGENTS.md) | Critical rules and the complete map of every guide |
+| `package.json` | Only the Pi extensions' entry points in `pi.extensions`, so Pi can install them from git; no workspaces, dependencies, or scripts |
 | [docs/decisions/](decisions/) | Consequential choices with alternatives and revisit conditions |
 
 A project's guides supplement these and never restate them; they link.
@@ -69,7 +70,7 @@ A project's guides supplement these and never restate them; they link.
 
 **A change to the visual language** starts in `docs/design.md`. If a palette value changes, the authority is the Pi extension that renders it; `design-system/foundation/palette.mjs` and the constants in each extension then change in separate commits in their own projects, each with its own checks. There is no mechanism that keeps them equal; the check is a review comparison of each extension's constants against `palette.mjs`, with the design doc mapping constants to roles.
 
-**Moving a project in** follows [the Pi contributing guide](../pi/CONTRIBUTING.md#moving-an-extension-in): rewrite its history under its new path, merge with a merge commit, point its install and `repository` fields at the monorepo, give it the required project document set, and add its guides to the root map. claude-interrupt was moved this way in pull request #4, and status-bar the same way in the pull request that added `pi/status-bar/`.
+**Moving a project in** follows [the Pi contributing guide](../pi/CONTRIBUTING.md#moving-an-extension-in): rewrite its history under its new path, merge with a merge commit, add its entry point to the root `package.json`, point its install and `repository` fields at the monorepo, give it the required project document set, and add its guides to the root map. claude-interrupt was moved this way in pull request #4, and status-bar the same way in the pull request that added `pi/status-bar/`.
 
 ## Contracts between the root and a project
 
@@ -82,6 +83,7 @@ Every project must provide:
 - `docs/conventions.md` with its own rules beyond the repository-wide ones, and `docs/design.md` with its own experience within the shared language. Every current project has them.
 - `docs/mission.md` only when it has a product scope of its own beyond the repository's; claude-interrupt and status-bar have one, the design system does not.
 - A license notice if it carries a license.
+- For a Pi extension, its entry point in `pi.extensions` of the root `package.json`.
 
 Every project's guides must appear in the [root supporting-documents map](../AGENTS.md#supporting-documents) with a direct link.
 
