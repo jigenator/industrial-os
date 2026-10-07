@@ -60,7 +60,7 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [design-system/CONTRIBUTING.md](design-system/CONTRIBUTING.md) | Design-system setup, commands, validation, and verification records | Making or verifying a design-system change |
 | [design-system/docs/architecture.md](design-system/docs/architecture.md) | Design-system modules, boundaries, and evolution | Adding elements or changing design-system dependencies or contracts |
 | [design-system/docs/conventions.md](design-system/docs/conventions.md) | Design-system stack, text contract, palette mirror, and performance rules | Writing or reviewing design-system code |
-| [design-system/docs/design.md](design-system/docs/design.md) | The design system's element set, reference colors, motions, and storybook | Changing anything human-facing in the design system |
+| [design-system/docs/design.md](design-system/docs/design.md) | The design system's element set, reference and signal colors, motions with their rates, and storybook | Changing anything human-facing in the design system |
 | [design-system/foundation/README.md](design-system/foundation/README.md) | Line model, text/glyph contract, palette and signal-color mirrors, color mixing, seeded randomness, color output | Changing shared rendering, text handling, glyphs, or colors |
 | [design-system/elements/label-plate/README.md](design-system/elements/label-plate/README.md) | Label plate contract: capped and slab forms, tones | Using or changing label plates |
 | [design-system/elements/numbered-panel/README.md](design-system/elements/numbered-panel/README.md) | Numbered panel contract | Using or changing panels |
@@ -75,8 +75,8 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [design-system/elements/segment-meter/README.md](design-system/elements/segment-meter/README.md) | Segment meter contract: quota segments, provider columns, countdowns, and stale ages | Using or changing segment meters or provider columns |
 | [design-system/elements/state-chip/README.md](design-system/elements/state-chip/README.md) | State chip contract: label, shape, and code states with the Tatsu preset | Using or changing state chips |
 | [design-system/elements/mode-plate/README.md](design-system/elements/mode-plate/README.md) | Mode plate contract: icon, title, and mode letters with the PNYTL preset | Using or changing mode plates |
-| [design-system/motions/README.md](design-system/motions/README.md) | Motion contract, parameters, motion-off, host timing, and extension rules | Using, adding, or changing a motion |
-| [design-system/examples/README.md](design-system/examples/README.md) | Storybook keys, reuse examples, host seam, and how to add stories | Using the storybook or showcase, adding a story, or changing a host |
+| [design-system/motions/README.md](design-system/motions/README.md) | Every motion's contract, parameters, rates, presets, state-cell opt-in, motion-off, host timing, and extension rules | Using, adding, or changing a motion |
+| [design-system/examples/README.md](design-system/examples/README.md) | Storybook keys, sections and scrolling index, playback rates, the marker timeline, reuse examples, host seam, and how to add stories | Using the storybook or showcase, adding a story, or changing a host |
 | [pi/README.md](pi/README.md) | Pi extensions index and status | Using the Pi extensions or adding one |
 | [pi/AGENTS.md](pi/AGENTS.md) | Rules every Pi extension shares and the required project set | Working anywhere in `pi/` |
 | [pi/CLAUDE.md](pi/CLAUDE.md) | Runtime import of the Pi guide | Checking agent entry points |

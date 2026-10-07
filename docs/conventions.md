@@ -19,7 +19,7 @@ Scope reviewed: the full source and test trees of the design system and claude-i
 
 **Rule:** no project imports another project's code. Inside a project, callers use the project's declared public entry points, never deep imports into another module's internals. No cycles, and no shared or `common` folder created to hide one.
 
-**Example:** `design-system/elements/gauge/gauge.mjs` imports only `design-system/foundation/cells.mjs`; motions import only `foundation/`; hosts in `examples/` import layouts and elements. `pi/claude-interrupt/src/index.ts` imports Node and the host-provided Pi packages only. A Pi extension is installed from its own folder and must load with nothing outside it. **Reason:** each project stays independently installable, testable, and replaceable. **Check:** review each project's imports against its architecture; `grep -rn "from '\.\./\.\./" design-system pi/*/src` must find nothing that crosses a project root. No automated boundary check exists (proposed).
+**Example:** `design-system/elements/gauge/gauge.mjs` imports only `design-system/foundation/`; the thread rail composes the lamp, label plate, and count plate through their public functions; motions import only `foundation/`; hosts in `examples/` import layouts and elements. `pi/claude-interrupt/src/index.ts` imports Node and the host-provided Pi packages only. A Pi extension is installed from its own folder and must load with nothing outside it. **Reason:** each project stays independently installable, testable, and replaceable. **Check:** review each project's imports against its architecture; `grep -rn "from '\.\./\.\./" design-system pi/*/src` must find nothing that crosses a project root. No automated boundary check exists (proposed).
 
 ## Placement and naming
 
