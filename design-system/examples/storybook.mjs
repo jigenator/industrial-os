@@ -7,8 +7,7 @@ import { clearInterval, setInterval } from 'node:timers';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { paint } from '../foundation/cells.mjs';
-import { advance, composeStorybook, hitAction, initialState, press } from './storybook-layout.mjs';
-import { STORIES } from './storybook-stories.mjs';
+import { SECTIONS, advance, composeStorybook, hitAction, initialState, playbackInterval, press } from './storybook-layout.mjs';
 import { colorMode, runTerminal, sizeOption } from './terminal-host.mjs';
 
 const USAGE = `Usage: node examples/storybook.mjs [options]
@@ -23,14 +22,12 @@ of the first story and exits.
   --color           force 24-bit color, e.g. when piping to a file
   -h, --help        show this help
 
-Live keys: j/k, arrows, or Tab/Shift-Tab change story; 1-${STORIES.length} jump to one; h/l or left/right
-change state or example; Space/PgDn and b/PgUp page the details; p plays or pauses a motion preview,
-r replays it, o turns motion off; ? shows every key; q or Esc quits, Ctrl-C quits.
+Live keys: j/k, arrows, or Tab/Shift-Tab change story; 1-${SECTIONS.length} jump to a section; h/l or left/right
+change state or example; Space/PgDn and b/PgUp page the details; p plays or pauses a motion preview
+at its own step rate, r replays it, o turns motion off; ? shows every key; q or Esc quits, Ctrl-C quits.
 Left-click visible index rows, variant names, and footer controls (SGR cell mouse reports required).
 Keyboard controls remain available at every size; clipped or omitted controls are not clickable.`;
 
-// setInterval truncates fractional delays, so round up: 67 ms keeps playback at or under 15 fps.
-export const FRAME_MS = Math.ceil(1000 / 15);
 const SYSTEM_CLOCK = { now: () => performance.now(), setInterval, clearInterval };
 
 const KEYS = new Map([
@@ -44,7 +41,7 @@ const KEYS = new Map([
   ['r', 'replay'],
   ['o', 'motion-off'],
   ['?', 'help'],
-  ...STORIES.map((_, i) => [String(i + 1), `story:${i}`]),
+  ...SECTIONS.map((_, i) => [String(i + 1), `section:${i}`]),
 ]);
 
 export function parseOptions(args) {
@@ -75,7 +72,8 @@ export function renderSnapshot({ columns, rows, color }) {
 
 // Live storybook on a terminal. Resolves with the exit code after restoring every mode it changed.
 // Redraws on resize and on keys that change the view. While, and only while, a motion preview plays,
-// one interval timer redraws at FRAME_MS; every exit path clears it. `clock` is injectable for checks.
+// one interval timer redraws at that preview's step (playbackInterval); every exit path clears it.
+// `clock` is injectable for checks.
 export function runLive({ input, output, proc = process, color, clock = SYSTEM_CLOCK }) {
   const mode = color === 'none' ? 'PLAIN' : 'TRUECOLOR';
   let state = initialState();
@@ -104,7 +102,7 @@ export function runLive({ input, output, proc = process, color, clock = SYSTEM_C
         syncTimer(host); // a finished reveal stops its own timer before the final frame
         host.redraw();
       }),
-      FRAME_MS,
+      playbackInterval(state),
     );
   };
 

@@ -5,10 +5,12 @@ import { assertCells, blank, fit, fitLine, lineWidth, safeText, span } from '../
 import { labelPlate } from '../elements/label-plate/label-plate.mjs';
 import { numberedPanel, panelInnerWidth } from '../elements/numbered-panel/numbered-panel.mjs';
 import { STORIES, canPlay, motionParameters } from './storybook-stories.mjs';
+import { CONTINUOUS_FRAME_MS } from './storybook-motions.mjs';
 
-const SIDEBAR = 20;
+const SIDEBAR = 22; // '> 13 TRANSCRIPT MARKER'
 const GAP = 2;
 const WIDE_FROM = 72; // columns for the index sidebar beside the story pane
+const INDEX_FROM = 13; // pane rows for the index sidebar; a longer index scrolls with the selection
 const BRAND_FROM = 12; // rows for the title line
 const NOTICE_FROM = 20; // rows for the title, fixture notice, and a spacer
 const LABEL = 10; // label column of field lines such as USAGE
@@ -22,8 +24,9 @@ const picked = { fg: 'accent', bold: true };
 const bar = { fg: 'primary', bg: 'surface' };
 const text = (value, style = {}) => span(safeText(value), style);
 
-// Index sections in story order, and the words for each kind's variants.
-const SECTIONS = { component: 'COMPONENTS', motion: 'MOTIONS', foundation: 'FOUNDATION' };
+// Index sections in story order, each with its jump key (1, 2, 3), and the words for each kind's variants.
+const SECTION_TITLES = { component: 'COMPONENTS', motion: 'MOTIONS', foundation: 'FOUNDATION' };
+export const SECTIONS = Object.freeze(STORIES.flatMap((story, i) => (story.kind === STORIES[i - 1]?.kind ? [] : [Object.freeze({ title: SECTION_TITLES[story.kind], first: i })])));
 const VARIANT_LABEL = { component: 'STATE', motion: 'EXAMPLE', foundation: 'VIEW' };
 
 const OFF = Object.freeze({ status: 'off', elapsed: 0, startedAt: null });
@@ -41,10 +44,17 @@ export function playbackTime(playback, now) {
 const hold = (playback, now) => (playback.status === 'playing' ? { status: 'paused', elapsed: playbackTime(playback, now), startedAt: null } : playback);
 const start = (elapsed, now) => ({ status: 'playing', elapsed, startedAt: now });
 
+// The redraw interval while the current preview plays: its motion's own step, in ms.
+export function playbackInterval(state) {
+  const story = STORIES[state.story];
+  return story.frameMs(story.variants[state.variant]);
+}
+
 export const ACTIONS = Object.freeze(['next-story', 'prev-story', 'next-variant', 'prev-variant', 'page-down', 'page-up', 'play-pause', 'replay', 'motion-off', 'help', 'close-help']);
 
 // Apply one action; an action that changes nothing returns the same state object, so the host can
-// skip the redraw. `story:N` and `variant:N` select their zero-based indexes. Changing either resets scrolling and
+// skip the redraw. `story:N`, `variant:N`, and `section:N` select their zero-based indexes (a section by its
+// first story). Changing story or variant resets scrolling and
 // turns motion off; opening the key list pauses a playing preview. Play, replay, and motion-off apply
 // only to a motion that changes visibly in `mode`. page and maxOffset come from the last frame.
 export function press(state, action, { now = 0, page = 1, maxOffset = 0, mode = 'PLAIN' } = {}) {
@@ -56,6 +66,11 @@ export function press(state, action, { now = 0, page = 1, maxOffset = 0, mode = 
   if (jump) {
     const target = Number(jump[1]);
     return target < STORIES.length && target !== state.story ? select(target, 0) : state;
+  }
+  const sectionJump = /^section:(\d+)$/.exec(action);
+  if (sectionJump) {
+    const target = SECTIONS[Number(sectionJump[1])]?.first;
+    return target !== undefined && target !== state.story ? select(target, 0) : state;
   }
   const variantJump = /^variant:(\d+)$/.exec(action);
   if (variantJump) {
@@ -98,7 +113,7 @@ function geometry(columns, rows) {
   const footer = rows === undefined || rows >= 2 ? 1 : 0;
   const brand = rows === undefined || rows >= NOTICE_FROM ? 3 : rows >= BRAND_FROM ? 1 : 0;
   const paneRows = rows === undefined ? undefined : rows - footer - brand;
-  const wide = columns >= WIDE_FROM && (paneRows === undefined || paneRows >= sidebarLength());
+  const wide = columns >= WIDE_FROM && (paneRows === undefined || paneRows >= INDEX_FROM);
   const paneWidth = wide ? columns - SIDEBAR - GAP : columns;
   return { footer, brand, paneRows, wide, paneWidth, inner: panelInnerWidth(paneWidth) };
 }
@@ -158,17 +173,19 @@ function bullets(rules, width) {
 
 const seconds = (ms) => `${(ms / 1000).toFixed(2)} s`;
 
+// The playback status, then the redraw interval the host uses for this preview, so its rate is never implied.
 function playLine(story, variant, state, width, mode, now) {
   const p = state.playback;
   const plate = labelPlate('DEMO', { tone: p.status === 'playing' ? 'accent' : 'neutral', maxWidth: width });
   const word = { off: 'MOTION OFF', playing: 'PLAYING', paused: 'PAUSED', complete: 'COMPLETE' }[p.status];
+  const rate = `  ${story.frameMs(variant)} MS FRAMES`;
   let detail;
-  if (p.status === 'off') detail = canPlay(story, variant, mode) ? 'stable view, P plays' : 'stable view; without color this motion has nothing to show';
+  if (p.status === 'off') detail = canPlay(story, variant, mode) ? `stable view, P plays${rate}` : 'stable view; without color this motion has nothing to show';
   else {
     const end = story.duration(variant, width);
-    const period = variant.options.period ?? story.motion.defaults.period;
+    const loop = story.loop(variant);
     const t = p.status === 'complete' && end !== null ? end : playbackTime(p, now);
-    detail = end === null ? `${seconds(t)}  loop ${seconds(period)}` : `${seconds(Math.min(t, end))} of ${seconds(end)}`;
+    detail = (end === null ? `${seconds(t)}${loop === null ? '' : `  loop ${seconds(loop)}`}` : `${seconds(Math.min(t, end))} of ${seconds(end)}`) + rate;
   }
   return fitLine([...plate, span(' '), text(word, p.status === 'playing' ? picked : strong), text('  ' + detail, muted)], width);
 }
@@ -221,7 +238,7 @@ function bodyLines(story, variant, state, width, mode, now) {
   if (story.motion) {
     out.push(...field('OPTIONS', `from ${story.motion.defaultsName}; * set here`, width));
     for (const o of motionParameters(story, variant)) {
-      out.push(fitLine([text(`  ${o.set ? '*' : ' '} ${o.name.padEnd(9)}`, muted), text(o.value.padEnd(10), strong), text(`  default ${o.defaultValue}`, muted)], width));
+      out.push(fitLine([text(`  ${o.set ? '*' : ' '} ${o.name.padEnd(11)}`, muted), text(o.value.padEnd(10), strong), text(`  default ${o.defaultValue}`, muted)], width));
     }
     out.push(blank(width));
   }
@@ -233,7 +250,7 @@ function bodyLines(story, variant, state, width, mode, now) {
 const KEY_HELP = [
   ['J K, DOWN UP', 'next or previous story'],
   ['TAB, SHIFT-TAB', 'next or previous story'],
-  [`1-${STORIES.length}`, 'jump to a story'],
+  [`1-${SECTIONS.length}`, `jump to a section: ${SECTIONS.map((s, i) => `${i + 1} ${s.title}`).join(', ')}`],
   ['L H, RIGHT LEFT', 'next or previous state, example, or view'],
   ['SPACE, PGDN', 'page the details down'],
   ['B, PGUP', 'page the details up'],
@@ -243,8 +260,10 @@ const KEY_HELP = [
   ['?', 'show or hide these keys; Esc also hides them'],
   ['Q, ESC', 'quit; Ctrl-C quits from anywhere'],
 ];
+// The redraw intervals the previews use, from the stories themselves.
+const RATES = STORIES.filter((s) => s.kind === 'motion').flatMap((s) => s.variants.map((v) => s.frameMs(v)));
 const PLAYBACK_HELP =
-  'Motion previews are demonstration playback over fixture lines and start with motion off. While one plays, a single redraw timer runs at no more than 15 frames a second. Pausing, completing, changing story or example, opening these keys, and quitting stop it. Without color, scan, pulse, and the dim reveal look the same as motion off, so they do not play.';
+  `Motion previews are demonstration playback over fixture lines and start with motion off. While one plays, a single redraw timer runs at that motion's own step, shown as MS FRAMES (${Math.min(...RATES)} to ${Math.max(...RATES)} ms here); motions that change continuously redraw every ${CONTINUOUS_FRAME_MS} ms, at most 15 frames a second. Pausing, completing, changing story or example, opening these keys, and quitting stop it. A completed preview shows the motion-off view. Without color, motions that change only color look the same as motion off, so they do not play.`;
 
 function helpLines(width) {
   const out = [blank(width), fitLine([text('KEYS', strong)], width)];
@@ -257,24 +276,35 @@ function helpLines(width) {
   return out;
 }
 
-const sectionCount = () => STORIES.filter((story, i) => story.kind !== STORIES[i - 1]?.kind).length;
-
 function sidebarLength() {
-  return STORIES.length + 2 * sectionCount() - 1; // a heading per section, spacers between, one line per story
+  return STORIES.length + 2 * SECTIONS.length - 1; // a heading per section, spacers between, one line per story
 }
 
+// The index: a numbered heading per section, then its stories. When it is taller than `height`, a window
+// around the selection scrolls with it, and its first or last line says how many stories are out of view.
 function sidebar(state, height) {
-  const targets = [];
-  const section = (t) => fitLine([text(t, heading)], SIDEBAR);
-  const lines = [];
+  const rows = [];
   STORIES.forEach((story, i) => {
-    if (story.kind !== STORIES[i - 1]?.kind) lines.push(...(i ? [blank(SIDEBAR)] : []), section(SECTIONS[story.kind]));
+    const s = SECTIONS.findIndex((section) => section.first === i);
+    if (s >= 0) rows.push(...(i ? [{ line: blank(SIDEBAR) }] : []), { line: fitLine([text(`${s + 1} ${SECTIONS[s].title}`, heading)], SIDEBAR) });
     const on = i === state.story;
     const label = `${on ? '>' : ' '} ${String(i + 1).padStart(2, '0')} ${story.title}`;
-    if (label.length <= SIDEBAR) targets.push({ column: on ? 1 : 3, row: lines.length + 1, width: label.length - (on ? 0 : 2), action: `story:${i}` });
-    lines.push(fitLine([text(fit(label, SIDEBAR), on ? { ...picked, bg: 'surface' } : muted)], SIDEBAR, on ? { bg: 'surface' } : {}));
+    const line = fitLine([text(fit(label, SIDEBAR), on ? { ...picked, bg: 'surface' } : muted)], SIDEBAR, on ? { bg: 'surface' } : {});
+    rows.push({ line, story: i, target: label.length <= SIDEBAR ? { column: on ? 1 : 3, width: label.length - (on ? 0 : 2), action: `story:${i}` } : undefined });
   });
-  lines.push(blank(SIDEBAR), fitLine([text(`1-${STORIES.length} JUMP  ? KEYS`, muted)], SIDEBAR));
+  const tail = [blank(SIDEBAR), fitLine([text(`1-${SECTIONS.length} SECTION  ? KEYS`, muted)], SIDEBAR)];
+  const room = height - tail.length;
+  let shown = rows;
+  if (rows.length > room) {
+    const selected = rows.findIndex((r) => r.story === state.story);
+    const start = Math.max(0, Math.min(rows.length - room, selected - Math.floor(room / 2)));
+    shown = rows.slice(start, start + room);
+    const more = (hidden, where) => ({ line: fitLine([text(`  ${hidden.filter((r) => r.story !== undefined).length} MORE ${where}`, muted)], SIDEBAR) });
+    if (start > 0) shown[0] = more(rows.slice(0, start + 1), 'ABOVE');
+    if (start + room < rows.length) shown[room - 1] = more(rows.slice(start + room - 1), 'BELOW');
+  }
+  const targets = shown.flatMap((r, i) => (r.target ? [{ ...r.target, row: i + 1 }] : []));
+  const lines = [...shown.map((r) => r.line), ...tail];
   while (lines.length < height) lines.push(blank(SIDEBAR));
   return { lines: lines.slice(0, height), targets: targets.filter((t) => t.row <= height) };
 }

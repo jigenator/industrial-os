@@ -2,9 +2,9 @@
 
 This is the design system's architecture. Paths are relative to `design-system/` unless they start with `../`. The project map, dependency direction between projects, and where new projects go are in the [root architecture](../../docs/architecture.md); the repository-wide mission, design, and conventions are at the root too.
 
-Status: native showcase and terminal storybook. The design system's own engineering rules are in [conventions](conventions.md) and its experience in [design](design.md). The four selected elements, their shared foundation (including the IndustrialOS color data and shade ramps), three motion primitives, the all-at-once showcase, and the storybook are implemented as plain Node.js 22 ES modules with no dependencies. Nothing is released; module paths are not a stable public API.
+Status: native showcase and terminal storybook. The design system's own engineering rules are in [conventions](conventions.md) and its experience in [design](design.md). Thirteen elements, their shared foundation (including the IndustrialOS color data and shade ramps, the mirrored signal colors, and seeded randomness), nineteen motion primitives, the all-at-once showcase, and the storybook are implemented as plain Node.js 22 ES modules with no dependencies. Nothing is released; module paths are not a stable public API.
 
-Evidence: design-system inventory with canonical Markdown guidance, `foundation/`, four folders under `elements/`, `motions/`, `examples/`, and colocated `node --test` checks. There is no package manifest, release, or CI.
+Evidence: design-system inventory with canonical Markdown guidance, `foundation/`, thirteen folders under `elements/`, `motions/`, `examples/`, and colocated `node --test` checks. There is no package manifest, release, or CI.
 
 ## System and module map
 
@@ -18,17 +18,29 @@ Evidence: design-system inventory with canonical Markdown guidance, `foundation/
 | `docs/architecture.md` | Placement, boundaries, and evolution | This guide | Current inventory |
 | `docs/conventions.md` | Design-system stack, text contract, palette mirror, and performance rules | Rules, examples, and checks | Repository-wide conventions |
 | `docs/design.md` | The design system's element set, reference colors, motions, and storybook | Design rules within the shared language | Repository-wide design |
-| `foundation/` | Acid / Black palette values mirrored from the Pi extensions, line model, text/glyph contract, role-or-RGB painting, IndustrialOS colors and derived shade ramps | `palette.mjs`, `cells.mjs`, `industrialos-colors.mjs`; [README](../foundation/README.md) | Node standard library |
-| `elements/label-plate/` | Informational label plate | `labelPlate()`; [README](../elements/label-plate/README.md) | `foundation/` |
+| `foundation/` | Acid / Black palette values mirrored from the Pi extensions, line model, text/glyph contract with the curated `GLYPHS`, role-or-RGB painting and `resolveColor()`, IndustrialOS colors and derived shade ramps, signal colors mirrored from status-bar with `mixOver()`, and seeded randomness | `palette.mjs`, `cells.mjs`, `industrialos-colors.mjs`, `signal-colors.mjs`, `seeded.mjs`; [README](../foundation/README.md) | Node standard library |
+| `elements/label-plate/` | Informational label plate, capped or slab | `labelPlate()`; [README](../elements/label-plate/README.md) | `foundation/` |
 | `elements/numbered-panel/` | Numbered, bounded frame | `numberedPanel()`, `panelInnerWidth()`; [README](../elements/numbered-panel/README.md) | `foundation/`, label plate |
-| `elements/gauge/` | Calibrated value reading | `gauge()`, `gaugeScale()`, `gaugeReading()`; [README](../elements/gauge/README.md) | `foundation/` |
+| `elements/instrument-frame/` | status-bar's framed footer geometry | `instrumentFrame()`, `frameGeometry()`, `wrapLine()`; [README](../elements/instrument-frame/README.md) | `foundation/` |
+| `elements/count-plate/` | Exact count plate (CMP, AU) | `countPlate()`, `COUNT_PLATES`; [README](../elements/count-plate/README.md) | `foundation/` |
+| `elements/mode-plate/` | Inline mode plate (PNYTL) | `modePlate()`, `pnytlPlate()`; [README](../elements/mode-plate/README.md) | `foundation/` |
+| `elements/state-chip/` | Supplied-state chips (Tatsu) | `stateChip()`, `stateChips()`; [README](../elements/state-chip/README.md) | `foundation/` |
+| `elements/lamp/` | One-cell root lamp | `lamp()`, `LAMP_BLINK`, `LAMP_DIM_STYLE`; [README](../elements/lamp/README.md) | `foundation/` |
 | `elements/status-row/` | Label/value/state row | `statusRow()`; [README](../elements/status-row/README.md) | `foundation/` |
-| `motions/` | Pure scan, pulse, and reveal line transforms at an explicit time | `scan()`, `pulse()`, `reveal()`, `revealDuration()`; [README](../motions/README.md) | `foundation/` |
-| `examples/showcase-layout.mjs` | Pure composition of all four elements with labeled fixtures | `composeShowcase()`, `viewport()` | `foundation/`, elements |
+| `elements/gauge/` | Calibrated value reading, with opt-in zones and a tick-free scale | `gauge()`, `gaugeScale()`, `gaugeReading()`, `READOUT_CHIP`; [README](../elements/gauge/README.md) | `foundation/` |
+| `elements/pixel-numeral/` | Half-block pixel numeral and its reconstruction | `pixelNumeral()`, `numeralGrid()`, `numeralLines()`, `numeralAt()`; [README](../elements/pixel-numeral/README.md) | `foundation/` |
+| `elements/segment-meter/` | USG quota squares and provider columns, with time formatters | `segmentMeter()`, `providerColumn()`, `countdown()`, `staleAge()`; [README](../elements/segment-meter/README.md) | `foundation/` |
+| `elements/thread-rail/` | Lamp, ROOT plate, unit marks, and AU badge | `threadRail()`, `threadRailPieces()`, `threadRailSpans()`; [README](../elements/thread-rail/README.md) | `foundation/`, lamp, label plate, count plate |
+| `elements/transcript-marker/` | claude-interrupt's DIRECTIVE UPDATED marker as static pieces | `transcriptMarker()`, `markerPlate()`, `markerBars()`, `MARKER_TIMELINE`; [README](../elements/transcript-marker/README.md) | `foundation/` |
+| `motions/` | Pure line transforms at an explicit time: scan, pulse, reveal, draw-in, warm-up, latch, beacon, cycle, fade, blink, flash, ping, wipe, fill-in, burn-out, edge pulse, restrike, ghost, nudge, on the shared `frame.mjs` | One file per motion with its function, `*_DEFAULTS`, and a duration helper when finite; [README](../motions/README.md) | `foundation/` |
+| `examples/showcase-layout.mjs` | Pure composition of the first four elements with labeled fixtures | `composeShowcase()`, `viewport()` | `foundation/`, elements |
 | `examples/showcase.mjs` | Showcase host: options, snapshot, scroll keys | `node examples/showcase.mjs` | Layout, terminal host, `node:util`, `node:url` |
-| `examples/storybook-stories.mjs` | Pure story catalog: element states and motion examples from the real renderers and motions, then the color story | `STORIES`, `canPlay()`, `motionParameters()`; [README](../examples/README.md) | `foundation/`, elements, motions, color story |
-| `examples/storybook-colors.mjs` | Pure COLORS story: IndustrialOS colors by hue, and their shade ramps | `COLOR_STORY`, `HUE_GROUPS` | `foundation/` |
-| `examples/storybook-layout.mjs` | Pure browsing state, key actions, and frame composition | `initialState()`, `press()`, `advance()`, `composeStorybook()` | Stories, `foundation/`, label plate, numbered panel |
+| `examples/storybook-stories.mjs` | Pure story catalog in index order | `STORIES`, `canPlay()`, `motionParameters()`; [README](../examples/README.md) | Element, motion, and color stories; usage |
+| `examples/storybook-elements.mjs` | Pure element stories from the real renderers | `ELEMENT_STORIES` | `foundation/`, elements, usage |
+| `examples/storybook-motions.mjs` | Pure motion stories, the composed marker timeline, and each example's redraw interval | `MOTION_STORIES`, `CONTINUOUS_FRAME_MS` | `foundation/`, elements, motions, element stories, usage |
+| `examples/storybook-colors.mjs` | Pure COLORS and SIGNAL COLORS stories | `COLOR_STORY`, `HUE_GROUPS`, `SIGNAL_STORY`, `SIGNAL_GROUPS` | `foundation/` |
+| `examples/storybook-usage.mjs` | Pure usage-text builder | `call()`, `literal()`, `code()`, `spread()` | None |
+| `examples/storybook-layout.mjs` | Pure browsing state, key actions, sections, scrolling index, and frame composition | `initialState()`, `press()`, `advance()`, `playbackInterval()`, `composeStorybook()`, `SECTIONS` | Stories, motion stories, `foundation/`, label plate, numbered panel |
 | `examples/storybook.mjs` | Storybook host: options, snapshot, key bindings, playback clock, the redraw timer | `node examples/storybook.mjs` | Layout, terminal host, `node:perf_hooks`, `node:timers`, `node:util`, `node:url` |
 | `examples/terminal-mouse.mjs` | Bounded SGR cell mouse accumulator at Node's decoded-key seam, without timers | `mouseDecoder()` | None |
 | `examples/terminal-host.mjs` | Shared terminal session for both hosts: modes, key decoder, listeners, cleanup | `runTerminal()`, `sizeOption()`, `colorMode()` | `foundation/`, terminal mouse, `node:readline`, `node:stream` |
@@ -45,19 +57,23 @@ flowchart LR
     Storybook["examples/storybook.mjs: key bindings, clock, timer"] --> Session
     Storybook -->|state, size, color mode, clock reading| BookLayout["examples/storybook-layout.mjs: pure state and frame"]
     BookLayout --> Stories["examples/storybook-stories.mjs: pure catalog"]
-    Stories --> Colors["examples/storybook-colors.mjs: color story"]
-    Colors -->|IndustrialOS colors, shade ramps, spans| Foundation
+    Stories --> ElementStories["examples/storybook-elements.mjs"]
+    Stories --> MotionStories["examples/storybook-motions.mjs"]
+    Stories --> Colors["examples/storybook-colors.mjs: color stories"]
+    MotionStories --> ElementStories
+    Colors -->|IndustrialOS colors, shade ramps, signal colors, spans| Foundation
     ShowLayout -->|fixture state and cell budgets| Elements["elements/*: pure renderers"]
     BookLayout --> Elements
-    Stories --> Elements
-    Stories -->|rendered lines, time, options| Motions["motions/*: pure line transforms"]
-    Elements -->|spans, palette roles, text contract| Foundation
-    Motions --> Foundation
+    ElementStories --> Elements
+    MotionStories --> Elements
+    MotionStories -->|rendered lines, time, options| Motions["motions/*: pure line transforms"]
+    Elements -->|spans, palette roles, signal colors, text contract| Foundation
+    Motions -->|cells, roles, signal colors, seeded| Foundation
 ```
 
-Arrows point from a module to the modules it imports or calls. Only the live storybook supplies `onClick()` to the shared session, enabling normal tracking 1000 and SGR cell reports 1006; cleanup disables both. The bounded `terminal-mouse.mjs` accumulator consumes packets before their digits can become keys. The showcase and snapshots never opt in. Click scope and keyboard fallback are owned by [examples](../examples/README.md#left-clicks).
+Arrows point from a module to the modules it imports or calls. Inside `elements/`, two elements compose others through their public functions: the numbered panel uses the label plate, and the thread rail uses the lamp, label plate, and count plate. No other element imports an element, and there are no cycles; the rule is in [conventions](conventions.md#module-and-dependency-rules). The storybook's usage builder (`storybook-usage.mjs`) is imported by the element and motion stories and imports nothing. Only the live storybook supplies `onClick()` to the shared session, enabling normal tracking 1000 and SGR cell reports 1006; cleanup disables both. The bounded `terminal-mouse.mjs` accumulator consumes packets before their digits can become keys. The showcase and snapshots never opt in. Click scope and keyboard fallback are owned by [examples](../examples/README.md#left-clicks).
 
-The only cross-element import is the numbered panel's use of the label plate's public function. Motions import only `foundation/`; elements never import motions. Diagram notation follows [Mermaid flowchart syntax](https://mermaid.js.org/syntax/flowchart.html); no renderer is installed here.
+Diagram notation follows [Mermaid flowchart syntax](https://mermaid.js.org/syntax/flowchart.html); no renderer is installed here.
 
 ## Representative flows
 
@@ -65,7 +81,7 @@ The only cross-element import is the numbered panel's use of the label plate's p
 
 **Live view:** with terminal stdin and stdout, the shared terminal host enters the alternate screen, hides the cursor, and enables raw mode. It repaints every row at an absolute position in one write per frame. The showcase redraws only on `resize` or a scroll key. Node's key decoder buffers fragmented escape sequences on an owned PassThrough stream, which is disposed with the input listener. Quit keys, SIGINT, SIGTERM, SIGHUP, and drawing errors all run the same cleanup: reset style, show the cursor, leave the alternate screen, restore cooked mode, and remove listeners. A synchronous `exit` listener is the last resort. Unexpected failures print their cause and exit 1, never a success-shaped screen.
 
-**Storybook:** `node examples/storybook.mjs` uses the same session. Keys, as decoded by Node, and optional unmodified left clicks on layout-generated visible targets map to the same `press()` actions on pure browsing state; the host redraws only when an action changes it, or on resize. `p` starts playback: the host records a clock reading and starts one 67 ms interval. Each tick asks `advance()` whether a finite reveal is complete, then redraws a frame composed for the current clock reading. Pause, completion, story or example changes, the key list, and every exit path clear the interval. Without color, previews whose frames would not change do not start. Non-terminal output and `--plain` print the first story once and exit.
+**Storybook:** `node examples/storybook.mjs` uses the same session. Keys, as decoded by Node, and optional unmodified left clicks on layout-generated visible targets map to the same `press()` actions on pure browsing state; the host redraws only when an action changes it, or on resize. `p` starts playback: the host records a clock reading and starts one interval at `playbackInterval(state)`, the preview's own step (67 ms for a continuously changing motion). Each tick asks `advance()` whether a finite preview has reached its motion's duration helper, then redraws a frame composed for the current clock reading. Pause, completion, story or example changes, the key list, and every exit path clear the interval. Without color, previews whose frames would not change do not start. Non-terminal output and `--plain` print the first story once and exit.
 
 Elements and motions do not own files, network requests, model turns, clocks, timers, or global keybindings. Interaction and time belong to a host; the elements themselves are not interactive.
 
@@ -73,11 +89,13 @@ Elements and motions do not own files, network requests, model turns, clocks, ti
 
 Element inputs, states, invalid-input outcomes, and width behavior are documented in each element README. Shared rules are in [foundation](../foundation/README.md):
 
-- Every renderer returns lines of exactly its `width` (1–1000 cells), built from spans that carry palette roles. The color story's swatches carry literal `#RRGGBB` values from `industrialos-colors.mjs` instead.
+- Every block renderer returns lines of exactly its `width` (1–1000 cells). Inline pieces (plates, chips, the lamp, a segment meter) return spans no wider than their `maxWidth` for the caller to place. Spans carry palette roles, or literal `#RRGGBB` values from `signal-colors.mjs` where an element models an extension color; the color stories' swatches carry literal values from `industrialos-colors.mjs` and `signal-colors.mjs`.
 - Caller text is shown as printable ASCII, with every other code point replaced by `?`. Structural glyphs come from one curated set that must render one cell wide.
 - Unknown values stay distinct from zero. Invalid numbers and dimensions throw rather than being clamped.
 - Color output is 24-bit SGR from `palette.mjs` roles or validated literal `#RRGGBB` values. Plain output has the same cells without escapes.
 - IndustrialOS colors are a reference collection, not a theme. Their derived ramp steps are generated, and are labeled so wherever they are shown.
+- Signal colors are a mirror of status-bar's palette, not roles: state colors stay role names so motions can recognise warning and critical cells.
+- Motions take `lines` and options and return new lines with the same cells; seeded motions take an integer `seed` and draw from `seeded.mjs`, so the same seed gives the same frames.
 
 No token schema, storage, or package export exists.
 
@@ -86,11 +104,11 @@ No token schema, storage, or package export exists.
 | Must remain true | Current home | Check or gap |
 | --- | --- | --- |
 | Only polished, public-safe material belongs here | Mission and contributing | Publication review |
-| One canonical definition per rule, command, or palette value | AGENTS, canonical guides, `foundation/palette.mjs`, `foundation/industrialos-colors.mjs` | Link/map and duplication review; the color story's tests read every displayed value from `industrialos-colors.mjs` |
+| One canonical definition per rule, command, or palette value | AGENTS, canonical guides, `foundation/palette.mjs`, `foundation/industrialos-colors.mjs`, `foundation/signal-colors.mjs` | Link/map and duplication review; the color stories' tests read every displayed value from `industrialos-colors.mjs` and `signal-colors.mjs`. Agreement of the mirrors with the extensions is a review comparison. |
 | Displayed data is not falsified by layout, rounding, or fallback | Gauge and status-row contracts | `node --test`: fills and readouts never overstate; unknown is never zero |
 | Output respects cell budgets and safe display text | `foundation/cells.mjs` | `node --test`: widths 1–160 and short heights; control and Unicode injection. Native Herdr frame and glyph-ruler checks are recorded in Contributing. |
 | Terminal modes are always restored | `examples/terminal-host.mjs` | `node --test`, isolated real-PTY lifecycle checks for both hosts, and actual Herdr exit checks of both hosts; mouse support and an earlier version of the Colors story also have native Herdr injected-report checks, not physical-pointer verification, and the current Colors page has not been re-checked natively; see Contributing |
-| Motion is bounded, deterministic, and never alters state cells | `motions/` and `examples/storybook.mjs` | `node --test`: frames at explicit times, any positive period with motion-off settling it, warning/critical exemption, one timer only while playing, cleared on every exit path. Isolated real-PTY frame-rate check; bounded native Herdr playback checks, not a performance baseline. |
+| Motion is bounded and deterministic, and never alters state cells unless it opts in and keeps their cue | `motions/`, `motions/frame.mjs`, and `examples/storybook.mjs` | `node --test`: frames at explicit times, any positive period with motion-off settling it, warning/critical exemption and the opt-in guard, seeded determinism, finite previews completing at their duration helper, each preview's redraw interval, one timer only while playing, cleared on every exit path. The isolated real-PTY frame-rate and native Herdr playback checks in Contributing cover scan, pulse, and reveal only, not the newer motions; neither is a performance baseline. |
 
 ## Where the next change belongs
 
@@ -98,17 +116,19 @@ To refine a gauge:
 1. Update `elements/gauge/README.md` and `gauge.mjs` together, with a failing check in `gauge.test.mjs` first.
 2. Keep it I/O-free. Hosts supply values and cell budgets.
 3. Add shared behavior to `foundation/` only when a second element needs the same semantics.
-4. Update the showcase fixtures and the gauge story in `examples/storybook-stories.mjs` if its specimen states change, and check them in Herdr.
+4. Update the showcase fixtures and the gauge story in `examples/storybook-elements.mjs` if its specimen states change, and check them in Herdr.
 
 A new element gets its own `elements/<element-name>/` folder with README, code, and test. Map the README in the [root AGENTS](../../AGENTS.md#supporting-documents), then add its story as described in [examples](../examples/README.md#adding-to-the-storybook). A new motion follows the extension rules in [motions](../motions/README.md#extending).
 
 ## Evolution and known limits
 
 - Element and motion functions are first-pass contracts, not a released API. When one changes, update its README, callers, showcase, storybook story, and checks together; do not silently repurpose an input or palette role.
+- The second element set and the newer motions model the Pi extensions but do not replace them: the extensions do not import the design system, and each README records where the reference differs. Mirrored values change when the extensions change, by review.
+- An extension sequence that no single motion expresses is composed by a host from several motions, as the storybook's marker timeline is; add a motion only when a sequence needs a frame rule that composition cannot give.
 - The text contract is deliberately narrow. Supporting multilingual or emoji text requires a cell-measurement decision, and possibly a dependency; ask first.
 - There are no 256-color, 16-color, or ASCII-glyph fallbacks. Add one when a target terminal needs it.
 - Successful testing in Herdr would not establish compatibility with every other terminal or multiplexer. Record the tested scope.
-- No measured need justifies multiple packages, a renderer abstraction, a general animation engine, a story registry or discovery CLI, a backend, or a release service. The terminal host is shared because two real entry points use it.
+- No measured need justifies multiple packages, a renderer abstraction, a general animation engine, a story registry or discovery CLI, a backend, or a release service. The terminal host is shared because two real entry points use it. The storybook's index scrolls rather than paging into a separate catalog; revisit only if browsing by section and scrolling stops being enough.
 
 ## Technical decisions
 

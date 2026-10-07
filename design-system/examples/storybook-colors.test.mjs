@@ -3,28 +3,31 @@ import assert from 'node:assert/strict';
 import { stripVTControlCharacters } from 'node:util';
 import { lineWidth, paint, span } from '../foundation/cells.mjs';
 import { INDUSTRIALOS_COLORS, shadeRamp } from '../foundation/industrialos-colors.mjs';
+import { SIGNAL_COLORS } from '../foundation/signal-colors.mjs';
 import { composeStorybook, hitAction, initialState, press } from './storybook-layout.mjs';
-import { HUE_GROUPS } from './storybook-colors.mjs';
+import { HUE_GROUPS, SIGNAL_GROUPS } from './storybook-colors.mjs';
 import { STORIES, canPlay } from './storybook-stories.mjs';
 
 const INDEX = STORIES.findIndex((s) => s.id === 'colors');
 const STORY = STORIES[INDEX];
 const at = (variant = 0, extra = {}) => ({ ...initialState(), story: INDEX, variant, ...extra });
 const plain = (view) => view.lines.map((l) => paint(l, 'none'));
-// The story pane alone: from 72 columns the index sidebar and its gap take the first 22 cells.
-const pane = (view, columns) => plain(view).map((l) => (columns >= 72 ? [...l].slice(22).join('') : l));
+// The story pane alone: from 72 columns the index sidebar and its gap take the first 24 cells.
+const pane = (view, columns) => plain(view).map((l) => (columns >= 72 ? [...l].slice(24).join('') : l));
 const full = (variant, columns, mode = 'TRUECOLOR') => composeStorybook(at(variant), { columns, mode });
 const isSwatch = (s) => /^█+$/.test(s.text);
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(';');
 
-test('COLORS is story 8, a FOUNDATION view after the original seven, and never plays', () => {
-  assert.deepEqual(STORIES.map((s) => s.id), ['numbered-panel', 'label-plate', 'gauge', 'status-row', 'scan', 'pulse', 'reveal', 'colors']);
+test('COLORS and SIGNAL COLORS close the index as FOUNDATION views, and never play', () => {
+  assert.deepEqual(STORIES.slice(-2).map((s) => s.id), ['colors', 'signal-colors']);
+  assert.ok(STORIES.slice(0, -2).every((s) => s.kind !== 'foundation'));
   assert.deepEqual([STORY.kind, STORY.title, STORY.variants.map((v) => v.name)], ['foundation', 'COLORS', ['PALETTE', 'SHADES']]);
+  const n = STORIES.length;
   const all = plain(composeStorybook(at(), { columns: 120, rows: 40 })).join('\n');
-  assert.match(all, /COMPONENTS[\s\S]*MOTIONS[\s\S]*FOUNDATION\s+│[\s\S]*> 08 COLORS/);
-  assert.match(all, /▐08▌ COLORS ─+ FOUNDATION 8\/8/);
+  assert.match(all, new RegExp(`3 FOUNDATION\\s+│[\\s\\S]*> ${n - 1} COLORS[\\s\\S]*  ${n} SIGNAL COLORS`));
+  assert.match(all, new RegExp(`▐${n - 1}▌ COLORS ─+ FOUNDATION ${n - 1}/${n}`));
   assert.match(all, /VIEW {2}\[PALETTE\] {2}SHADES/);
-  assert.match(all, /1-8 JUMP/);
+  assert.match(all, /1-3 SECTION/);
   assert.match(all, /REFERENCE VALUES, NOT A THEME OR LIVE DATA/);
   assert.doesNotMatch(all, /FIXTURE/);
   assert.doesNotMatch(all, /▐ DEMO ▌|P PLAY|R REPLAY|O OFF/);
@@ -36,15 +39,17 @@ test('COLORS is story 8, a FOUNDATION view after the original seven, and never p
 test('the index needs 15 rows beside the panel; shorter frames name the story instead', () => {
   const tall = composeStorybook(at(), { columns: 72, rows: 15 });
   const lines = plain(tall);
-  assert.ok(lines.some((l) => l.startsWith('> 08 COLORS')));
-  const row = lines.findIndex((l) => l.startsWith('> 08 COLORS')) + 1;
-  assert.equal(hitAction(tall, { column: 1, row }), 'story:7');
-  assert.equal(hitAction(tall, { column: 3, row: lines.findIndex((l) => l.startsWith('  07 REVEAL')) + 1 }), 'story:6');
+  const row = lines.findIndex((l) => l.startsWith(`> ${INDEX + 1} COLORS`)) + 1;
+  assert.ok(row > 0);
+  assert.equal(hitAction(tall, { column: 1, row }), `story:${INDEX}`);
+  const before = STORIES[INDEX - 1];
+  assert.equal(hitAction(tall, { column: 3, row: lines.findIndex((l) => l.startsWith(`  ${INDEX} ${before.title}`)) + 1 }), `story:${INDEX - 1}`);
+  assert.ok(lines.some((l) => /^ {2}\d+ MORE ABOVE/.test(l)), 'the scrolled index says what is out of view');
   const short = plain(composeStorybook(at(), { columns: 72, rows: 14 })).join('\n');
   assert.doesNotMatch(short, /FOUNDATION\s+│/);
-  assert.match(short, /▐08▌ COLORS/);
-  assert.deepEqual(plain(composeStorybook(at(), { columns: 1, rows: 1 })), ['0']);
-  assert.deepEqual(plain(composeStorybook(at(1), { columns: 24, rows: 3 }))[0], '08 COLORS  [SHADES] 2/2 ');
+  assert.match(short, new RegExp(`▐${INDEX + 1}▌ COLORS`));
+  assert.deepEqual(plain(composeStorybook(at(), { columns: 1, rows: 1 })), [String(INDEX + 1)[0]]);
+  assert.deepEqual(plain(composeStorybook(at(1), { columns: 24, rows: 3 }))[0], `${INDEX + 1} COLORS  [SHADES] 2/2 `);
 });
 
 test('every IndustrialOS color is in exactly one hue group, in hue order', () => {
@@ -188,5 +193,69 @@ test('usage text executes and returns exactly the swatches drawn (the page shows
       assert.deepEqual(order(made), order(drawn), `${variant.name}/${width}`);
       for (const line of specimen.lines) assert.equal(lineWidth(line), Math.min(width, 76));
     }
+  }
+});
+
+const SIGNAL_INDEX = STORIES.findIndex((s) => s.id === 'signal-colors');
+const SIGNAL = STORIES[SIGNAL_INDEX];
+const signalAt = (extra = {}) => ({ ...initialState(), story: SIGNAL_INDEX, ...extra });
+
+test('SIGNAL COLORS groups every mirrored value by use, exactly once, read from SIGNAL_COLORS', () => {
+  assert.deepEqual([SIGNAL.kind, SIGNAL.title, SIGNAL.module, SIGNAL.variants.map((v) => v.name)], ['foundation', 'SIGNAL COLORS', 'foundation/signal-colors.mjs', ['BY USE']]);
+  assert.deepEqual(SIGNAL_GROUPS.map((g) => g.title), ['COUNT TIERS AND MODE INKS', 'GAUGE ZONE TRACKS', 'LOST SEGMENT', 'CHECKING FADE', 'WARM-UP STEPS', 'USAGE PROVIDERS']);
+  const names = SIGNAL_GROUPS.flatMap((g) => g.names);
+  assert.equal(names.length, new Set(names).size, 'no value is listed twice');
+  assert.deepEqual(new Set(names), new Set(Object.keys(SIGNAL_COLORS)), 'every value is listed');
+  assert.ok(Object.isFrozen(SIGNAL_GROUPS) && SIGNAL_GROUPS.every((g) => Object.isFrozen(g) && Object.isFrozen(g.names)));
+  for (const columns of [120, 60, 40]) {
+    const view = composeStorybook(signalAt(), { columns, mode: 'TRUECOLOR' });
+    const text = pane(view, columns);
+    for (const [name, hex] of Object.entries(SIGNAL_COLORS)) {
+      // Two keys can share a value (ghost and gptUsed), so match the swatch row by its key too.
+      const i = text.findIndex((l, j) => l.includes(`  ${hex}`) && l.includes('██') && new RegExp(`\\b${name}\\b`).test(text.slice(j, j + 2).join(' ')));
+      assert.ok(i >= 0, `${columns}: ${name}`);
+      assert.deepEqual(view.lines[i].filter(isSwatch).map((s) => s.style), [{ fg: hex, bg: hex }]);
+    }
+    const prose = text.join(' ').replace(/[│\s]+/g, ' ');
+    assert.match(prose, /Mirrored from status-bar's C palette, which is their authority/);
+    assert.match(prose, /not Acid \/ Black roles, and separate from the IndustrialOS reference collection/);
+    assert.match(prose, new RegExp(`${Object.keys(SIGNAL_COLORS).length} SIGNAL COLORS IN ${SIGNAL_GROUPS.length} GROUPS\\.`));
+  }
+});
+
+test('SIGNAL COLORS fits every width, keeps color and plain cells equal, pages to every value, and never plays', () => {
+  for (let columns = 1; columns <= 160; columns++) for (const rows of [1, 3, 9, 24, undefined]) {
+    const view = composeStorybook(signalAt(), { columns, rows, mode: 'TRUECOLOR' });
+    if (rows !== undefined) assert.ok(view.lines.length <= rows);
+    for (const line of view.lines) {
+      assert.equal(lineWidth(line), columns, `${columns}x${rows}`);
+      assert.equal(stripVTControlCharacters(paint(line, 'truecolor')), paint(line, 'none'));
+    }
+  }
+  assert.match(plain(composeStorybook(signalAt(), { columns: 120, mode: 'PLAIN' })).join('\n'), /PLAIN OUTPUT: swatches show position only/);
+  let state = signalAt();
+  let view = composeStorybook(state, { columns: 40, rows: 9 });
+  const seen = new Set(plain(view));
+  for (let guard = 0; guard < 500 && state.offset < view.maxOffset; guard++) {
+    state = press(state, 'page-down', view);
+    view = composeStorybook(state, { columns: 40, rows: 9 });
+    plain(view).forEach((l) => seen.add(l));
+  }
+  for (const hex of Object.values(SIGNAL_COLORS)) assert.ok([...seen].join('\n').includes(hex), hex);
+  for (const mode of ['PLAIN', 'TRUECOLOR']) assert.equal(canPlay(SIGNAL, SIGNAL.variants[0], mode), false);
+  for (const action of ['play-pause', 'replay', 'motion-off']) assert.equal(press(signalAt(), action, { now: 5, mode: 'TRUECOLOR' }).playback.status, 'off');
+  const all = plain(composeStorybook(signalAt(), { columns: 120, rows: 40 })).join('\n');
+  assert.match(all, /REFERENCE VALUES, NOT A THEME OR LIVE DATA/);
+  assert.doesNotMatch(all, /▐ DEMO ▌|P PLAY/);
+});
+
+test('SIGNAL COLORS usage text executes and returns exactly the swatches drawn', () => {
+  const order = (spans) => spans.map((s) => JSON.stringify(s)).sort();
+  for (const width of [1, 6, 24, 60, 94]) {
+    const specimen = SIGNAL.specimen(SIGNAL.variants[0], width);
+    const statements = specimen.calls.map((c) => c.replace(/^(\w+) = /, 'const $1 = ')).join('\n');
+    // Execute only our trusted, generated example source; no user input is evaluated.
+    const made = new Function('SIGNAL_COLORS', 'span', `${statements}\nreturn swatches;`)(SIGNAL_COLORS, span);
+    assert.deepEqual(order(made), order(specimen.lines.flatMap((l) => l.filter(isSwatch))), String(width));
   }
 });

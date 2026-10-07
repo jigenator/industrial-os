@@ -1,8 +1,32 @@
 # Motions
 
-Three small, reusable motion primitives for instrument-like terminal details: **scan**, **pulse**, and **reveal**. Each is a pure function: rendered lines and an explicit time in, new lines out. Nothing here reads a clock, starts a timer, writes to the terminal, or keeps state. The host owns time, redraws, and cleanup. See [foundation](../foundation/README.md) for the line model.
+Small, reusable motion primitives for instrument-like terminal details. Each is a pure function: rendered lines and an explicit time in, new lines out. Nothing here reads a clock, starts a timer, writes to the terminal, or keeps state. The host owns time, redraws, and cleanup. See [foundation](../foundation/README.md) for the line model.
 
-A motion decorates rendered lines; it does not supply data. Scan and pulse preserve characters. Reveal can obscure text, including numeric values and error explanations: apply it only to nonessential decoration and compose complete readings, labels, and status rows outside the transform.
+A motion decorates rendered lines; it does not supply data. Most preserve every character. Reveal and draw-in hide cells they have not reached, and ghost, ping, cycle, beacon, edge pulse, nudge, and blink with an `offGlyph` change or blank glyphs; each section says which. Apply anything that can obscure text only to nonessential decoration, and compose complete readings, labels, and status rows outside the transform.
+
+| Motion | Runs | Ends at | Changes | State cells |
+| --- | --- | --- | --- | --- |
+| [scan](#scanlines-options) | loop | | foreground, bold | exempt |
+| [pulse](#pulselines-options) | loop | | foreground, bold | exempt |
+| [reveal](#reveallines-options-and-revealdurationlinecount-options) | once | `revealDuration` | foreground; `blank` veil hides cells | exempt |
+| [draw-in](#drawinlines-options-and-drawindurationlines-options) | once | `drawInDuration` | style; hides cells past its front | exempt |
+| [warm-up](#warmuplines-options-and-warmupdurationoptions) | once | `warmUpDuration` | foreground | opt in |
+| [latch](#latchlines-options-and-latchdurationoptions) | once | `latchDuration` | foreground, background, bold | opt in |
+| [beacon](#beaconlines-options) | loop | | glyph size, foreground | opt in |
+| [cycle](#cyclelines-options) | loop | | glyph | exempt |
+| [fade](#fadelines-options) | loop | | foreground | exempt |
+| [blink](#blinklines-options) | loop | | style; optional glyph | exempt |
+| [flash](#flashlines-options-and-flashdurationoptions) | once | `flashDuration` | foreground, background, bold | opt in |
+| [ping](#pinglines-options-and-pingdurationlines-options) | once | `pingDuration` | foreground, bold; blanks bars | exempt |
+| [wipe](#wipelines-options-and-wipedurationoptions) | once | `wipeDuration` | style | exempt |
+| [fill-in](#fillinlines-options-and-fillindurationlines-options) | once | `fillInDuration` | foreground | exempt |
+| [burn-out](#burnoutlines-options-and-burnoutdurationoptions) | once | `burnOutDuration` | foreground | exempt |
+| [edge pulse](#edgepulselines-options) | loop | | glyph size, foreground | exempt |
+| [restrike](#restrikelines-options-and-restrikedurationlines-options) | once, seeded | `restrikeDuration` | style | exempt |
+| [ghost](#ghostlines-options-and-ghostdurationlines-options) | once, seeded | `ghostDuration` | glyphs, style | exempt |
+| [nudge](#nudgelines-options) | loop | | glyph position | exempt |
+
+Each motion lives in its own file here, named like its row, with its checks beside it in `<name>.test.mjs` (scan, pulse, and reveal are checked in `motions.test.mjs`).
 
 ## Usage
 
@@ -35,7 +59,7 @@ const frame = (time) => pulse(scan(lines, { time }), { time });
 
 Animate only the content you mean to. To leave a panel's frame still, animate the body before `numberedPanel(...)`, as in the checks.
 
-## Contract shared by all three
+## Contract shared by every motion
 
 `motion(lines, options) -> lines`
 
@@ -47,13 +71,14 @@ Animate only the content you mean to. To leave a panel's frame still, animate th
 | Output | New arrays with exactly as many lines and cells as the input, so every line keeps its exact width, including 1 cell. Unchanged spans may be shared with the input; treat spans as read-only. Input is never mutated. |
 | Determinism | The same lines and options always give the same lines. |
 | Unknown options | Throw `TypeError` (a typo must not silently do nothing). `undefined` means the default. |
-| Color | Motions change only palette roles (`fg`, `bold`) and, for reveal's `blank` veil, characters. Painted in color or plain, frames show the same cells. |
+| Style and color | Motions change `fg`, `bg`, and `bold`; each section says which. Colors are Acid / Black role names or literal `#rrggbb` values, such as a [`mixOver`](../foundation/README.md#signal-colors) step or a `SIGNAL_COLORS` ink, which `paint()` accepts. Painted in color or plain, frames show the same cells. |
+| Characters | Kept, except where a section says a motion hides, blanks, swaps, or moves glyphs (see the table above). Any glyph a motion writes comes from `GLYPHS`. |
 
 Guarantees that hold for every motion:
 
 - **State-colored cells are exempt unless the motion opts in.** Cells whose `fg` or `bg` is the `warning` or `critical` role are left unchanged by default. This protects individual cells, not the rest of a message or its stacked continuation lines. A motion built for state cues (an attention beacon, a state latch, a warm-up) may opt in per call with a documented option; `restyleCells(lines, fn, { stateCells: true })` then passes those cells to `fn` and throws if a change would blank one, give it its background's color, or change a letter or digit of its word. Tinting, inverting and resizing a glyph (`▲` to `▴`) are allowed. Use role names for state colors so the exemption can see them. Scan, pulse and reveal never opt in.
-- **Essential content stays outside a reveal.** Scan and pulse never change a character. Reveal's `dim` veil preserves characters but reduces contrast; `blank` replaces them with spaces. Neither is appropriate for essential readings or error details. Compose the entire essential block unchanged after transforming only decoration.
-- **Time 0 is stable.** Scan and pulse at time 0 equal the input, so they can rest anywhere. Reveal at time 0 is its fully veiled start and equals the input only at or after `revealDuration()`.
+- **Essential content stays outside a motion that can obscure it.** Reveal's `dim` veil preserves characters but reduces contrast; `blank` and draw-in replace them with spaces; ghost and the glyph motions replace them. None is appropriate for essential readings or error details. Compose the entire essential block unchanged after transforming only decoration.
+- **Time 0 and the end are stated.** Scan, pulse, beacon, fade (with its defaults), blink, and edge pulse at time 0 equal the input, so they can rest anywhere; cycle shows its first glyph and nudge starts its programme. A finite motion equals the input from its duration helper's time onward, except ping, which ends with every bar gone because a host drops the bar line.
 - **No frequency cap.** Any positive `period` is allowed (`MIN_PERIOD_MS` is 1, exported by `frame.mjs`), so a motion may cycle or flash faster than three times a second, as the [shared motion rule](../../docs/design.md#motion) permits. `animate: false` settles every motion; state the rate of a fast motion where it is used. No photosensitivity or WCAG flash compliance is claimed.
 
 ## `scan(lines, options)`
@@ -226,7 +251,7 @@ A looping blink on the cells of `region`. For `on` ms they keep their own style;
 | --- | --- | --- |
 | `on` | ms in the input style, `1`–`60000` | `500` |
 | `off` | ms in the off style, `1`–`60000` | `300` |
-| `offStyle` | `{ fg?, bg?, bold? }`: roles or `#rrggbb`, and a boolean | `{ bg: 'surface' }` |
+| `offStyle` | `{ fg?, bg?, bold? }`: roles or `#rrggbb`, and a boolean | `{ fg: 'surface', bg: 'surface' }` |
 | `offGlyph` | `null`, or one character from `GLYPHS` | `null` |
 | `region` | the cells that blink | whole block |
 
@@ -234,7 +259,7 @@ A looping blink on the cells of `region`. For `on` ms they keep their own style;
 
 | Preset | Options | Input | Rate |
 | --- | --- | --- | --- |
-| `lamp`, the Thread Rail root lamp while working | `on: 500, off: 300, offStyle: { bg: 'surface' }` | a blank cell on acid, `{ fg: 'primary', bg: 'accent' }` | 1.25 cycles a second |
+| `lamp`, the Thread Rail root lamp while working | `on: 500, off: 300, offStyle: { fg: 'surface', bg: 'surface' }` | the lit lamp cell: status-bar's blank cell on acid, or the design-system lamp's acid block | 1.25 cycles a second |
 | `activityLight`, PNYTL's activity light | `on: 50, off: 50, offStyle: { fg: 'field' }, offGlyph: '⌑'` | a bold `•` in `SIGNAL_COLORS.pink` on `primary`; `region` the icon cell | toggles every 50 ms, 10 lit onsets a second |
 
 - **Rate:** as the presets show. The activity light exceeds three flashes a second on one cell, as the [shared motion rule](../../docs/design.md#motion) permits; state that rate wherever it is used. No photosensitivity or WCAG flash compliance is claimed.
@@ -446,7 +471,7 @@ Motions that act on part of a block take an optional `region`: `{ top, left, row
 
 Motion-off means `animate: false`: the stable, final, fully truthful view. A host with a reduced-motion or no-motion setting passes it and starts no timer. Real data changes are never delayed by this. Re-render the new data and show it at once.
 
-Scan and pulse only change color, so a plain (no-color) frame has the same text as the input; there is nothing to animate, and a host should treat plain output as motion-off. Reveal with `veil: 'blank'` is the one motion whose frames differ in plain text.
+Motions that change only styles (scan, pulse, reveal's `dim` veil, warm-up, latch, fade, flash, wipe, fill-in, burn-out, restrike, and blink without an `offGlyph`) give plain (no-color) frames with the same text as the input: there is nothing to animate, and a host should treat plain output as motion-off. Reveal's `blank` veil, draw-in, beacon, cycle, blink with an `offGlyph`, ping, edge pulse, ghost, and nudge change plain text.
 
 ## Host integration
 
@@ -478,15 +503,16 @@ const pause = () => { stop(); draw(); };
 const replay = () => { stop(); elapsed = 0; complete = false; play(); };
 ```
 
-- Looping motions (scan, pulse) run until paused. Finite motions (reveal) stop themselves.
+- Looping motions run until paused. Finite motions, those with a duration helper, stop at its time.
 - Clear the timer on pause, motion-off, selection change, quit, signal, and drawing error.
+- Redraw a stepped motion on its own step (a `tick`, `step`, or `frame` option, or the grid of its times); a slower timer samples it and misstates its rate. The [storybook](../examples/README.md#playback-rate) does this and shows the interval it uses.
 - At 15 fps a scan moves at most one cell per frame when `period >= (width + band) / 15` seconds. A faster period skips cells but remains correct.
 - Label demonstration playback as a demonstration. Do not run motion on live data that is not changing.
 
 ## Extending
 
-A new motion is a pure function `(lines, options) -> lines` in its own file here, built on `frame.mjs` (`resolveOptions`, `assertTime`, `restyleCells`). It needs a stated period or duration (any positive value; state a fast rate where the motion is used), `animate: false` returning the stable view, and exemption for `warning` and `critical` cells unless it opts in as described above. Seeded variation comes from [foundation/seeded.mjs](../foundation/seeded.mjs), never `Math.random`. Add its checks to `motions.test.mjs`, and map its section here. Do not add timers or hidden state.
+A new motion is a pure function `(lines, options) -> lines` in its own file here, built on `frame.mjs` (`resolveOptions`, `assertTime`, `restyleCells`, `resolveRegion`). It needs a stated period or duration (any positive value; state a fast rate where the motion is used), a duration helper if it is finite, `animate: false` returning the stable view, and exemption for `warning` and `critical` cells unless it opts in as described above. Seeded variation comes from [foundation/seeded.mjs](../foundation/seeded.mjs), never `Math.random`. Put its checks in `<name>.test.mjs` beside it, add its row to the table at the top and its section here, then give it a story as described in [examples](../examples/README.md#adding-to-the-storybook). Do not add timers or hidden state.
 
 ## Checks
 
-[motions.test.mjs](motions.test.mjs): motion-off, time and option validation, exact scan/pulse/reveal frames, state-color exemption, text preservation, exact widths from 1 to 160 with real renderers, determinism and input immutability, plain/color equivalence, the absence of a frequency cap (a 50 ms period cycles 20 times a second), composition with a numbered panel, and a source check that the primitives import only `foundation/` and use no clock, timer, process, or randomness. These are deterministic unit checks. [Storybook regressions](../examples/storybook-regressions.test.mjs) also execute the host sketch with a manual clock and exercise complete-message preservation in reveal examples. No native-terminal claim follows from these checks.
+[motions.test.mjs](motions.test.mjs) holds the shared checks: motion-off, time and option validation, exact scan/pulse/reveal frames, state-color exemption, text preservation, exact widths from 1 to 160 with real renderers, determinism and input immutability, plain/color equivalence, the absence of a frequency cap (a 50 ms period cycles 20 times a second), composition with a numbered panel, `restyleCells` and `resolveRegion`, and a source check that every file here imports only `foundation/` and uses no clock, timer, process, or randomness. Each other motion's `<name>.test.mjs` checks its frames at stated times, its duration helper where it has one, motion-off, invalid options, and state-cell behavior. Run one with `node --test motions/<name>.test.mjs` from `design-system/`. [Storybook regressions](../examples/storybook-regressions.test.mjs) also execute every storybook motion example, the host sketch with a manual clock, and the composed marker timeline against the [transcript marker](../elements/transcript-marker/README.md#extension-timeline) timeline. These are deterministic automated checks; no native-terminal or Herdr claim follows from them.
