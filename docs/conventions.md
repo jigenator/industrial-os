@@ -49,7 +49,7 @@ Scope reviewed: the full source and test trees of the design system and claude-i
 
 **Rule:** the host or adapter owns subscriptions, timers, writes, and disposal; it clears every timer on every exit path. Rendering consumes state and never persists it. No project has storage; define concurrency and migration rules only if one is introduced.
 
-**Example:** the storybook runs one 67 ms interval only while a preview plays and clears it on pause, completion, and every exit. claude-interrupt's marker timer is cleared on a new Escape, session shutdown, reload, and session switch, and saved markers render settled without replaying. **Reason:** nothing keeps running or half-written after the user leaves. **Check:** lifecycle tests in each project.
+**Example:** the storybook runs one interval, at the playing preview's own step, only while a preview plays or a finished one-shot waits to replay, and clears it on pause, motion off, the key list, a still story, and every exit. claude-interrupt's marker timer is cleared on a new Escape, session shutdown, reload, and session switch, and saved markers render settled without replaying. **Reason:** nothing keeps running or half-written after the user leaves. **Check:** lifecycle tests in each project.
 
 ## Tests
 
