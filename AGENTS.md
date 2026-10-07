@@ -1,6 +1,6 @@
 # Agent guide
 
-Purpose: build a curated, terminal-only design system optimized for Herdr. Product scope lives in [the mission](docs/mission.md).
+Purpose: build the monorepo for Pi and Herdr visualization, user experience, and tooling, starting with its curated, terminal-only design system optimized for Herdr. Product scope lives in [the mission](docs/mission.md).
 
 ## Critical engineering rules
 

@@ -30,6 +30,8 @@ This is the selected default palette. Its color values are maintained once, in [
 
 Do not use decorative greys for essential control boundaries or readable small text without checking the actual contrast. Accent is not a substitute for a label; warning and critical states must remain understandable without color.
 
+The pi-status-bar extension's colors take precedence over the storybook's. If a color differs between them, pi-status-bar's value is correct and this palette changes to match. All nine roles above currently use the same values as pi-status-bar.
+
 ### IndustrialOS colors
 
 A separate reference collection of 22 named colors, with five-step derived shade ramps. Values live in [foundation](../foundation/README.md#industrialos-colors). It does not replace Acid / Black, add roles to it, or form a theme switch. Wherever a generated ramp step is shown, label it `DERIVED`, distinct from its `BASE` color. Put hex values and names on the normal field rather than on the swatch, and do not claim contrast or accessibility for any combination without checking it.

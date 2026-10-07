@@ -1,10 +1,12 @@
 # Industrial OS
 
-A terminal-only design system for precise, industrial interfaces, optimized for Herdr. **Acid / Black** is the default: black fields, acid-green emphasis, clear white readouts, and restrained instrument-like detail.
+Industrial OS turns the [Pi](https://github.com/earendil-works/pi) coding agent and the [Herdr](https://github.com/herdrdev/herdr) terminal into an industrial-style control surface for managing agents. This monorepo holds everything that shapes that setup: the visual language, the user experience, and the tools built on them.
 
-This repository holds polished, reusable elements—not a collection of experiments. Every element and demo renders as terminal-ready text with terminal-native styling: no HTML, CSS, canvas, image-based presentation, or browser-only effects.
+Its foundation is a terminal-only design system optimized for Herdr. **Acid / Black** is the default: black fields, acid-green emphasis, clear white readouts, and restrained instrument-like detail. Every element and demo renders as terminal-ready text with terminal-native styling: no HTML, CSS, canvas, image-based presentation, or browser-only effects. The repository holds polished, maintained work, not a collection of experiments.
 
 ## Status
+
+The design system is the only part here today. Pi extensions and Herdr tooling that currently live in separate repositories are planned to move in; none have yet, and nothing below covers them.
 
 The four selected elements are implemented: numbered panels, label plates, gauges, and status rows. Three reusable motions decorate their output: scan, pulse, and reveal. A terminal storybook browses each element by state and each motion by example, with play, pause, and replay, and shows a reference page of IndustrialOS colors with derived shade ramps; a native showcase composes all four elements on one screen. Everything uses plain Node.js 22 ES modules with no dependencies. Nothing is released yet: there is no package, installation command, or stable API.
 
