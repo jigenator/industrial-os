@@ -1128,3 +1128,37 @@ test("Tatsu public events: late provider, synchronous-only replies, UI/session/c
 	assert.equal(queried, 0); assert.equal(print.subscriptions.get("tatsu-status:changed") ?? 0, 0); assert.equal(print.subscriptions.get("tatsu-status:ready") ?? 0, 0);
 	assert.equal(print.component, undefined);
 });
+
+test("background tasks: real loader draws the producer's status natively, keeps raw fallback, and wakes Idle only while tasks run", async (t) => {
+	const f = await fixtures(t), h = await harness(f, host.SessionManager.inMemory(f.launch), "tui", { emptyStatuses: true });
+	t.after(() => h.stop());
+	await h.emitStart(); await until(() => !/Git pending/.test(h.text())); await until(f.idle);
+	// pi-background-tasks 2.6.9 wraps its padded label in a light-blue chip.
+	const chip = (label: string) => `\x1b[48;2;183;223;255m\x1b[38;2;11;70;110m ${label} \x1b[0m`;
+	const running = chip("bg 1 running · Shift↓"), finished = chip("bg 1 done · Shift↓ · /bg-clear");
+	h.setStatus("background-tasks", running);
+	assert.match(row(h.text(), "05 EXT"), /05 EXT  BG ◆ RUN×1   Shift↓ +━┛$/);
+	assert.doesNotMatch(h.text(), /bg 1 running/); assert.doesNotMatch(h.component.render(300).join(""), /183;223;255/);
+	assert.equal(h.statuses.get("background-tasks"), running, "host map untouched");
+	h.setStatus("background-tasks", chip("bg 1 running · Shift↓ · extra"));
+	assert.match(h.text(), /05 EXT +bg 1 running · Shift↓ · extra/, "unrecognized text stays raw");
+	assert.match(h.component.render(300).join(""), /\x1b\[48;2;183;223;255m\x1b\[38;2;11;70;110m bg 1 running/);
+	// The ◆ ink: white lit, graphic grey on the ROOT lamp's off phase.
+	const diamond = () => { const out = h.component.render(300).join("\n"); return [...out.slice(0, out.indexOf("◆")).matchAll(/\x1b\[38;2;(\d+;\d+;\d+)m/g)].at(-1)?.[1]; };
+	await h.motion("off");
+	const advance = mockClock(t);
+	h.setStatus("background-tasks", running);
+	assert.equal(diamond(), "255;255;255", "motion off holds it lit");
+	// Resumed and Idle with no fleet units, the ┼ nudge settles by 250 ms and the first ghost is due at 800 ms. Between
+	// them only a running ◆ wakes the decoration timeout, at the 500 ms lamp edge, and that wake dims it.
+	const wakes = async (status: string) => {
+		h.setStatus("background-tasks", status); await h.motion("on");
+		await advance(300); const renders = h.renders; await advance(450);
+		return h.renders - renders;
+	};
+	assert.equal(await wakes(running), 1, "a running task wakes the Idle footer at the lamp edge");
+	assert.equal(diamond(), "113;113;113", "graphic grey on the ROOT lamp's off phase");
+	await h.motion("off");
+	assert.equal(await wakes(finished), 0, "finished-only status adds no wake");
+	await h.stop(); assert.deepEqual(h.errors, []);
+});
