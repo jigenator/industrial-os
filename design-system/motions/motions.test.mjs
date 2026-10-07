@@ -6,7 +6,7 @@ import { labelPlate } from '../elements/label-plate/label-plate.mjs';
 import { numberedPanel, panelInnerWidth } from '../elements/numbered-panel/numbered-panel.mjs';
 import { gauge } from '../elements/gauge/gauge.mjs';
 import { statusRow } from '../elements/status-row/status-row.mjs';
-import { MIN_PERIOD_MS, restyleCells } from './frame.mjs';
+import { MIN_PERIOD_MS, inRegion, resolveRegion, restyleCells } from './frame.mjs';
 import { scan, SCAN_DEFAULTS } from './scan.mjs';
 import { pulse, PULSE_DEFAULTS } from './pulse.mjs';
 import { reveal, revealDuration, REVEAL_DEFAULTS } from './reveal.mjs';
@@ -302,4 +302,12 @@ test('restyleCells exempts state cells unless a motion opts in, and then keeps t
   assert.throws(() => restyleCells(lines, (s, c, r, ch, state) => (state ? { char: ' ' } : undefined), { stateCells: true }), /blank/);
   assert.throws(() => restyleCells(lines, (s, c, r, ch, state) => (state ? { style: { fg: '#000000' } } : undefined), { stateCells: true }), /hide/);
   assert.throws(() => restyleCells(lines, (s, c, r, ch, state) => (state && ch === 'W' ? { char: 'X' } : undefined), { stateCells: true }), /state word/);
+});
+
+test('resolveRegion validates a cell rectangle and inRegion tests membership', () => {
+  assert.deepEqual({ ...resolveRegion('m') }, { top: 0, left: 0, rows: Infinity, cols: Infinity });
+  const r = resolveRegion('m', { top: 1, left: 2, cols: 3 });
+  assert.ok(inRegion(r, 2, 1) && inRegion(r, 4, 9) && !inRegion(r, 5, 1) && !inRegion(r, 2, 0));
+  for (const bad of [{ top: -1 }, { left: 1.5 }, { rows: '2' }, { top: Infinity }]) assert.throws(() => resolveRegion('m', bad), RangeError, JSON.stringify(bad));
+  for (const bad of [null, [], 3, { width: 2 }]) assert.throws(() => resolveRegion('m', bad), TypeError, JSON.stringify(bad));
 });

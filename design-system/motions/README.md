@@ -91,6 +91,10 @@ A one-shot wipe left to right. Each line starts `stagger` ms after the one above
 
 `revealDuration(lineCount, options)` returns `duration + (lineCount - 1) * stagger` (just `duration` for 0 or 1 lines) and validates the same options. Hosts use it to know when to stop redrawing. At that time and later, `reveal` equals the input. `REVEAL_DEFAULTS` is exported.
 
+## Shared targeting
+
+Motions that act on part of a block take an optional `region`: `{ top, left, rows, cols }` in cells, each a non-negative integer, with `rows` and `cols` allowed to be `Infinity`. Omitted fields cover the whole block. `resolveRegion(name, region)` in `frame.mjs` validates it and `inRegion(region, col, row)` tests a cell. Unknown fields throw `TypeError`; invalid values throw `RangeError`.
+
 ## Motion-off and no-color
 
 Motion-off means `animate: false`: the stable, final, fully truthful view. A host with a reduced-motion or no-motion setting passes it and starts no timer. Real data changes are never delayed by this. Re-render the new data and show it at once.

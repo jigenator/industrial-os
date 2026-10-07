@@ -48,6 +48,23 @@ export function assertTime(o, name) {
   }
 }
 
+// A cell rectangle a motion is limited to: { top, left, rows, cols }, each a non-negative integer (rows and cols
+// may be Infinity). Omitted fields cover the whole block. Returns a frozen, complete region.
+export function resolveRegion(name, region) {
+  if (region === undefined) return Object.freeze({ top: 0, left: 0, rows: Infinity, cols: Infinity });
+  if (region === null || typeof region !== 'object' || Array.isArray(region)) throw new TypeError(`${name} region must be an object`);
+  for (const key of Object.keys(region)) if (!['top', 'left', 'rows', 'cols'].includes(key)) throw new TypeError(`${name} region has no field '${key}'`);
+  const r = { top: 0, left: 0, rows: Infinity, cols: Infinity, ...region };
+  for (const key of ['top', 'left', 'rows', 'cols']) {
+    const v = r[key];
+    const ok = typeof v === 'number' && v >= 0 && (Number.isInteger(v) || ((key === 'rows' || key === 'cols') && v === Infinity));
+    if (!ok) throw new RangeError(`${name} region ${key} must be a non-negative integer, got ${v}`);
+  }
+  return Object.freeze(r);
+}
+
+export const inRegion = (r, col, row) => row >= r.top && row < r.top + r.rows && col >= r.left && col < r.left + r.cols;
+
 // Position within a repeating cycle, in [0, 1).
 export const phase = (time, period) => (time % period) / period;
 
