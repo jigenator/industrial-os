@@ -24,7 +24,7 @@ These are package applications of the shared principles, not additional global r
 | Rule | Real example/path | Reason | Check |
 | --- | --- | --- | --- |
 | Use public host imports; keep Pi-supplied packages as `"*"` peers, never runtime dependencies | `package.json` declares `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` as peers; development copies are pinned | Avoid bundling a competing host runtime; wildcard peers are not proof of compatibility | Review manifest and the version's Pi `docs/packages.md`, extension docs and public types; run real-loader and installed-host checks |
-| Do not import design-system internals or introduce cycles | `src/index.ts` imports only Node and Pi packages | The installed local package must not depend on an unpublished design-system API | Review import graph; shared-code packaging requires a separate decision |
+| Import the design system only by package name through an exported subpath, never by a relative path or an unexported module, and introduce no cycles | `src/index.ts` imports only Node and Pi packages; it does not import the design system yet | The exports map is the design system's only contract with other projects, and an installed extension reaches it only through the root install | Review import graph; moving onto the package is its own change, with the [migration requirements](../../../docs/decisions/in-repo-design-system-package.md#migrating-an-extension) |
 
 Pi uses the default export. Named `createClaudeInterrupt` and `renderMarker` exports support regression tests, not a promised cross-project library API. Keep queue/lifecycle internals private.
 
@@ -62,9 +62,9 @@ Pi uses the default export. Named `createClaudeInterrupt` and `renderMarker` exp
 
 ## Dependencies and generated output
 
-**Rule:** prefer Node and current host facilities; add no dependency without a current need. **Example:** the package has no runtime dependencies and has its own development lockfile. **Reason:** it must remain a standalone project rather than implicitly requiring a monorepo workspace. **Check:** review necessity, license and version-matched API before changing the manifest; use the locked setup and validation in Contributing. `node_modules/` is ignored, there is no emitted build output, and lockfile updates must be deliberate rather than edited by hand.
+**Rule:** prefer Node and current host facilities; add no dependency without a current need. **Example:** the package has no runtime dependencies and has its own development lockfile. **Reason:** it must remain a standalone project rather than implicitly requiring a monorepo workspace; the design-system package, once imported, comes from the root install, not this manifest. **Check:** review necessity, license and version-matched API before changing the manifest; use the locked setup and validation in Contributing. `node_modules/` is ignored, there is no emitted build output, and lockfile updates must be deliberate rather than edited by hand.
 
-The marker's palette currently duplicates values used by the design system. The extension's values take precedence, not the reverse; this is an explicit packaging boundary, not permission to add further copies. See the adoption gap below.
+The marker's palette currently mirrors values the design system owns ([decision](../../../docs/decisions/in-repo-design-system-package.md)). The design system's values take precedence: a change starts in `design-system/foundation/palette.mjs`, then these constants follow. The mirror lasts until this package imports its colors; it is not permission to add further copies. See the adoption gap below.
 
 ## Performance and growth
 
@@ -74,7 +74,7 @@ The marker's palette currently duplicates values used by the design system. The 
 
 | Gap | Evidence | Next change / revisit condition | Verification |
 | --- | --- | --- | --- |
-| Palette values are duplicated across standalone projects | Named constants in this module; no design-system import contract | Keep the extension authoritative. Share code only after an installed-package access decision, not by a deep import | Review palette changes against design and decoded-cell tests |
+| Palette values mirror the design system by hand | Named constants in this module; no design-system import yet | Import the colors from `@industrial-os/design-system/foundation/palette`, following the [migration requirements](../../../docs/decisions/in-repo-design-system-package.md#migrating-an-extension); `tsc` needs types for the `.mjs` modules | Review comparison against `design-system/foundation/palette.mjs` and decoded-cell tests |
 | No interactive Pi/Herdr record for this move | Automated transport is isolated; RPC only loads the package | Run the manual contributing step when the host is available | Manual check: not run |
 | No reduced-motion control | No host setting or extension command is read; animation is bounded but always enabled | Decide on a host signal or explicit control when required | Proposed motion-off check: not implemented |
 | Existing development dependency audit finding | On 2026-10-07, `npm audit --json` reported one high-severity vulnerable transitive `brace-expansion` under Pi's development package | Review an authorized dependency/lockfile update separately; no automatic audit fix in this documentation change | Rerun audit, type check and both suites after an approved update |

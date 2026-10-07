@@ -1,8 +1,10 @@
-// The COLORS foundation story: IndustrialOS colors grouped by hue, and the derived shade ramp of
-// each one. Pure and I/O-free. Every swatch, hex value, name, and role is read from
-// foundation/industrialos-colors.mjs, so the page shows the reusable data rather than copied constants.
+// The foundation color stories. COLORS: IndustrialOS colors grouped by hue, and the derived shade ramp of
+// each one. SIGNAL COLORS: status-bar's product colors, owned here, grouped by use. Pure and I/O-free.
+// Every swatch, hex value, name, and role is read from foundation/industrialos-colors.mjs or
+// foundation/signal-colors.mjs, so the pages show the reusable data rather than copied constants.
 import { fitLine, safeText, span } from '../foundation/cells.mjs';
 import { INDUSTRIALOS_COLORS, shadeRamp } from '../foundation/industrialos-colors.mjs';
+import { SIGNAL_COLORS } from '../foundation/signal-colors.mjs';
 
 const strong = { fg: 'primary', bold: true };
 const heading = { fg: 'secondary', bold: true };
@@ -200,6 +202,58 @@ export const COLOR_STORY = Object.freeze({
   specimen(variant, width, { mode = 'TRUECOLOR' } = {}) {
     const w = Math.min(width, 76);
     const view = VIEWS[variant.name](w, Math.min(variant.name === 'PALETTE' ? SWATCH : w >= GRID ? STEP : 4, w));
+    const lines = mode === 'PLAIN' ? [...paragraph(PLAIN, w), fitLine([], w), ...view.out] : view.out;
+    return { lines, calls: view.calls, facts: [] };
+  },
+});
+
+// Signal colors by use. Each group's note says what status-bar uses them for; a key missing here gets an
+// OTHER group, so no signal color can silently drop off the page.
+const USES = [
+  ['COUNT TIERS AND MODE INKS', 'CMP count tiers, the USG plate, and PNYTL mode inks.', ['violet', 'pink', 'cobalt', 'magenta', 'teal']],
+  ['GAUGE ZONE TRACKS', 'Unused track cells in the warning and high zones: 20% of the state color over the field.', ['warningZone', 'criticalZone']],
+  ['LOST SEGMENT', 'A lost quota square at rest, the same grey for every provider.', ['ghost']],
+  ['CHECKING FADE', 'The check fade: decorative grey lightening in four steps.', ['checkLow', 'checkMid', 'checkHigh', 'checkPeak']],
+  ['WARM-UP STEPS', '25, 50, and 75% of a state color over the field.', ['accent25', 'accent50', 'accent75', 'warning25', 'warning50', 'warning75', 'critical25', 'critical50', 'critical75', 'decorative50']],
+  ['USAGE PROVIDERS', 'Each provider: lit, used (20% over the field), and the burn-out mid (50%).', ['gpt', 'gptUsed', 'gptMid', 'cld', 'cldUsed', 'cldMid', 'kmi', 'kmiUsed', 'kmiMid']],
+];
+const used = new Set(USES.flatMap(([, , names]) => names));
+const others = Object.keys(SIGNAL_COLORS).filter((name) => !used.has(name));
+export const SIGNAL_GROUPS = Object.freeze([...USES, ...(others.length ? [['OTHER', 'Values not yet grouped by use.', others]] : [])]
+  .map(([title, note, names]) => Object.freeze({ title, note, names: Object.freeze(names.filter((name) => Object.hasOwn(SIGNAL_COLORS, name))) }))
+  .filter((g) => g.names.length));
+
+const SIGNAL_NOTE = "The design system owns these; status-bar's C palette mirrors them. Literal #rrggbb values, not Acid / Black roles, and separate from the IndustrialOS reference collection.";
+
+function signals(width, swatchCells) {
+  const out = [...paragraph(SIGNAL_NOTE, width)];
+  for (const group of SIGNAL_GROUPS) {
+    const n = group.names.length;
+    out.push(fitLine([], width), ...flow([text(group.title, strong), text(`${n} ${n === 1 ? 'COLOR' : 'COLORS'}`, muted)], width), ...paragraph(group.note, width, 0));
+    for (const name of group.names) out.push(...flow([swatch(SIGNAL_COLORS[name], swatchCells), text(SIGNAL_COLORS[name], strong), text(name, named)], width, { rest: INDENT }));
+  }
+  out.push(fitLine([], width), ...paragraph(`${Object.keys(SIGNAL_COLORS).length} SIGNAL COLORS IN ${SIGNAL_GROUPS.length} GROUPS.`, width));
+  return { out, calls: [`swatches = Object.entries(SIGNAL_COLORS).map(([name, hex]) => span(${BLOCK}.repeat(${swatchCells}), { fg: hex, bg: hex }))`] };
+}
+
+export const SIGNAL_STORY = Object.freeze({
+  id: 'signal-colors',
+  kind: 'foundation',
+  title: 'SIGNAL COLORS',
+  summary: "The product colors status-bar uses beside the nine Acid / Black roles, for the elements and motions modeled on it. A reference page, not a theme.",
+  module: 'foundation/signal-colors.mjs',
+  contract: 'foundation/README.md',
+  rules: [
+    'SIGNAL_COLORS is a frozen object of lowercase #rrggbb strings; paint() accepts them as fg or bg.',
+    "These values are the source; status-bar's C palette mirrors them, checked by review comparison.",
+    'They are not role names: a motion never treats a literal color as a warning or critical cell.',
+    'mixOver(color, p) gives p of a color over the field; status-bar\'s declared mixes are returned exactly.',
+    'Swatches need 24-bit color. No contrast or accessibility rating is claimed.',
+  ],
+  variants: [{ name: 'BY USE', note: 'Every signal color grouped by what status-bar uses it for, with its hex value and key.' }],
+  specimen(variant, width, { mode = 'TRUECOLOR' } = {}) {
+    const w = Math.min(width, 76);
+    const view = signals(w, Math.min(SWATCH, w));
     const lines = mode === 'PLAIN' ? [...paragraph(PLAIN, w), fitLine([], w), ...view.out] : view.out;
     return { lines, calls: view.calls, facts: [] };
   },

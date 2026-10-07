@@ -1,7 +1,10 @@
 {
   "name": "industrial-os",
   "private": true,
-  "description": "Pi package manifest for installing this repository's Pi extensions from git; each extension is still its own package",
+  "description": "Root manifest: lists the Pi extensions' entry points for Pi's git install, and links the in-repo design-system package into node_modules for the repository's projects",
+  "dependencies": {
+    "@industrial-os/design-system": "file:design-system"
+  },
   "pi": {
     "extensions": [
       "./pi/claude-interrupt/src/index.ts",

@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { lineWidth, paint, span } from '../foundation/cells.mjs';
 import { labelPlate } from '../elements/label-plate/label-plate.mjs';
 import { numberedPanel, panelInnerWidth } from '../elements/numbered-panel/numbered-panel.mjs';
 import { gauge } from '../elements/gauge/gauge.mjs';
 import { statusRow } from '../elements/status-row/status-row.mjs';
-import { MIN_PERIOD_MS } from './frame.mjs';
+import { MIN_PERIOD_MS, glyphVisible, inRegion, invertCell, resolveRegion, restyleCells } from './frame.mjs';
 import { scan, SCAN_DEFAULTS } from './scan.mjs';
 import { pulse, PULSE_DEFAULTS } from './pulse.mjs';
 import { reveal, revealDuration, REVEAL_DEFAULTS } from './reveal.mjs';
@@ -15,7 +15,7 @@ const MOTIONS = { scan, pulse, reveal };
 const plain = (lines) => lines.map((l) => paint(l, 'none'));
 const color = (lines) => lines.map((l) => paint(l, 'truecolor'));
 // One entry per cell: character, effective foreground role, bold.
-const cellsOf = (line) => line.flatMap((s) => [...s.text].map((ch) => ({ ch, fg: s.style.fg ?? 'secondary', bold: s.style.bold ?? false })));
+const cellsOf = (line) => line.flatMap((s) => [...s.text].map((ch) => ({ ch, fg: s.style.fg ?? 'secondary', bg: s.style.bg ?? 'field', bold: s.style.bold ?? false })));
 const row = (text, style = {}) => [span(text, style)];
 
 // A realistic block from the real renderers at one width.
@@ -203,7 +203,7 @@ test('invalid options are rejected, not clamped or ignored', () => {
     [scan, { time: 0, band: 1.5 }],
     [scan, { time: 0, band: 1001 }],
     [scan, { time: 0, axis: 'z' }],
-    [pulse, { time: 0, period: 399 }],
+    [pulse, { time: 0, period: 0 }],
     [pulse, { time: 0, period: Infinity }],
     [reveal, { time: 0, duration: 0 }],
     [reveal, { time: 0, duration: -5 }],
@@ -246,25 +246,19 @@ test('empty and tiny blocks are valid', () => {
   }
 });
 
-test('every motion stays at or below 3 flashes per second at its fastest allowed cycle', () => {
+test('there is no frequency cap: a 50 ms period cycles 20 times a second, and motion-off settles it', () => {
   const lines = [row('abcdef', { fg: 'accent' })];
-  const FASTEST = { period: MIN_PERIOD_MS };
-  // Count rising edges (a cell turning on) per cell inside every 1000 ms window sampled every 5 ms.
-  const edges = (frameAt, isOn) => {
-    const states = [];
-    for (let t = 0; t <= 4000; t += 5) states.push(cellsOf(frameAt(t)[0]).map(isOn));
-    let worst = 0;
-    for (let start = 0; start + 200 < states.length; start += 1) {
-      for (let c = 0; c < states[0].length; c++) {
-        let n = 0;
-        for (let i = start + 1; i <= start + 200; i++) if (states[i][c] && !states[i - 1][c]) n++;
-        worst = Math.max(worst, n);
-      }
-    }
-    return worst;
-  };
-  assert.ok(edges((time) => scan(lines, { ...FASTEST, band: 2, time }), (c) => c.fg === 'primary') <= 3);
-  assert.ok(edges((time) => pulse(lines, { ...FASTEST, time }), (c) => c.fg === 'accent') <= 3);
+  assert.equal(MIN_PERIOD_MS, 1);
+  // Count a cell's rising edges (dim to accent) in one second, sampled every millisecond.
+  let edges = 0;
+  for (let t = 1; t <= 1000; t++) {
+    const was = cellsOf(pulse(lines, { period: 50, time: t - 1 })[0])[0].fg === 'accent';
+    const is = cellsOf(pulse(lines, { period: 50, time: t })[0])[0].fg === 'accent';
+    if (is && !was) edges++;
+  }
+  assert.equal(edges, 20);
+  assert.doesNotThrow(() => scan(lines, { period: 1, time: 0 }));
+  for (const motion of [scan, pulse]) assert.deepEqual(motion(lines, { period: 50, animate: false }), lines);
 });
 
 test('motions compose with real renderers at the width they were rendered for', () => {
@@ -281,11 +275,58 @@ test('motions compose with real renderers at the width they were rendered for', 
 });
 
 test('primitives stay pure: standard-library-free, no clock, timer, I/O, or randomness', () => {
-  for (const file of ['frame', 'scan', 'pulse', 'reveal']) {
-    const source = readFileSync(new URL(`./${file}.mjs`, import.meta.url), 'utf8');
+  const files = readdirSync(new URL('.', import.meta.url)).filter((f) => f.endsWith('.mjs') && !f.endsWith('.test.mjs'));
+  assert.ok(files.includes('frame.mjs') && files.includes('scan.mjs'));
+  for (const file of files) {
+    const source = readFileSync(new URL(`./${file}`, import.meta.url), 'utf8');
     const code = source.split('\n').filter((l) => !l.trimStart().startsWith('//')).join('\n');
     const imports = [...code.matchAll(/from '([^']+)'/g)].map((m) => m[1]);
     assert.ok(imports.every((i) => i.startsWith('./') || i.startsWith('../foundation/')), `${file} imports ${imports}`);
     assert.doesNotMatch(code, /\b(Date|performance|setTimeout|setInterval|setImmediate|queueMicrotask|process|console|Math\.random|require)\b/, file);
   }
+});
+
+test('restyleCells exempts state cells unless a motion opts in, and then keeps their cue readable', () => {
+  const lines = [[span('▲ WARN', { fg: 'warning', bold: true }), span(' ok', { fg: 'accent' })]];
+  const grey = () => ({ style: { fg: 'decorative' } });
+  assert.deepEqual(cellsOf(restyleCells(lines, grey)[0]).map((c) => c.fg), ['warning', 'warning', 'warning', 'warning', 'warning', 'warning', 'decorative', 'decorative', 'decorative']);
+  const seen = [];
+  restyleCells(lines, (style, col, row, ch, state) => { seen.push(state); }, { stateCells: true });
+  assert.deepEqual(seen, [true, true, true, true, true, true, false, false, false]);
+  // Allowed: tint, invert, or resize a glyph; the word keeps its letters.
+  const tinted = restyleCells(lines, (style, col, row, ch, state) => (state ? { style: { ...style, fg: '#6c4f29' }, char: ch === '▲' ? '▴' : undefined } : undefined), { stateCells: true });
+  assert.equal(cellsOf(tinted[0]).map((c) => c.ch).join(''), '▴ WARN ok');
+  const inverted = restyleCells(lines, (style, col, row, ch, state) => (state ? { style: { fg: 'field', bg: 'warning', bold: true } } : undefined), { stateCells: true });
+  assert.equal(cellsOf(inverted[0])[0].bg, 'warning');
+  // Not allowed: blank, hide on the field, or change a letter.
+  assert.throws(() => restyleCells(lines, (s, c, r, ch, state) => (state ? { char: ' ' } : undefined), { stateCells: true }), /blank/);
+  assert.throws(() => restyleCells(lines, (s, c, r, ch, state) => (state ? { style: { fg: '#000000' } } : undefined), { stateCells: true }), /hide/);
+  assert.throws(() => restyleCells(lines, (s, c, r, ch, state) => (state && ch === 'W' ? { char: 'X' } : undefined), { stateCells: true }), /state word/);
+});
+
+test('resolveRegion validates a cell rectangle and inRegion tests membership', () => {
+  assert.deepEqual({ ...resolveRegion('m') }, { top: 0, left: 0, rows: Infinity, cols: Infinity });
+  const r = resolveRegion('m', { top: 1, left: 2, cols: 3 });
+  assert.ok(inRegion(r, 2, 1) && inRegion(r, 4, 9) && !inRegion(r, 5, 1) && !inRegion(r, 2, 0));
+  for (const bad of [{ top: -1 }, { left: 1.5 }, { rows: '2' }, { top: Infinity }]) assert.throws(() => resolveRegion('m', bad), RangeError, JSON.stringify(bad));
+  for (const bad of [null, [], 3, { width: 2 }]) assert.throws(() => resolveRegion('m', bad), TypeError, JSON.stringify(bad));
+});
+
+test('the state cue guard knows a full block shows only its foreground', () => {
+  for (const role of ['warning', 'critical']) {
+    const onField = [[span('█', { fg: role, bg: 'field' })]];
+    const onWhite = [[span('█', { fg: role, bg: 'primary' })]];
+    // A black block on the field is hidden even though its colors differ.
+    assert.throws(() => restyleCells(onField, () => ({ style: { fg: 'field', bg: role } }), { stateCells: true }), /hide/);
+    // A white block on a white background still shows against the field.
+    assert.doesNotThrow(() => restyleCells(onWhite, () => ({ style: { fg: 'primary', bg: 'primary' } }), { stateCells: true }));
+    assert.ok(glyphVisible({ fg: role, bg: role }, '█'));
+    assert.ok(!glyphVisible({ fg: role, bg: role }, '▲'));
+    assert.ok(!glyphVisible({ fg: '#000000' }, '█'));
+  }
+  // invertCell swaps ordinary glyphs, recolors a block to its background, and keeps a block on the field.
+  assert.deepEqual(invertCell({ fg: 'warning', bg: 'field' }, '▲'), { fg: 'field', bg: 'warning' });
+  assert.deepEqual(invertCell({ fg: 'warning', bg: 'surface' }, '█'), { fg: 'surface', bg: 'surface' });
+  assert.equal(invertCell({ fg: 'warning', bg: 'field' }, '█'), undefined);
+  assert.equal(invertCell({ fg: 'accent', bg: 'accent' }, 'x'), undefined);
 });

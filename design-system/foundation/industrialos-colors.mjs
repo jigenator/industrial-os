@@ -16,7 +16,7 @@ export const INDUSTRIALOS_COLORS = Object.freeze([
   { id: 'muted-grey', name: 'Muted text', hex: '#717171', family: 'neutral', role: 'Muted foreground and decorative strokes' },
   { id: 'light-paper', name: 'Light section', hex: '#F6F6F6', family: 'neutral', role: 'Light section background' },
   { id: 'paper-white', name: 'White', hex: '#FFFFFF', family: 'neutral', role: 'Primary foreground' },
-  { id: 'magenta', name: 'Magenta', hex: '#FF15BE', family: 'magenta', role: 'Accent fill' },
+  { id: 'magenta', name: 'Magenta', hex: '#FF15BD', family: 'magenta', role: 'Accent fill' },
   { id: 'lavender', name: 'Lavender', hex: '#9C84F5', family: 'violet', role: 'Accent fill' },
   { id: 'steel-blue', name: 'Steel blue', hex: '#48617F', family: 'blue', role: 'Body fill and corner marks' },
   { id: 'pale-blue', name: 'Pale ice blue', hex: '#95B8D1', family: 'blue', role: 'Small accent marks' },

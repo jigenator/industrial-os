@@ -2,18 +2,18 @@
 
 This is the architecture of the monorepo: which projects it holds, how they relate, and where the next one goes. Each project has its own architecture guide for its internals; this guide does not repeat them.
 
-Status: current repository at the revision that moved status-bar in, with the planned Herdr home named as planned.
-Evidence: the full source tree of `design-system/` and `pi/claude-interrupt/`, every import statement across all three projects, all three projects' manifests and test commands, the guides of `pi/status-bar/`, and the Git history of the moves of claude-interrupt and status-bar. No dependency graph was inferred from folder names.
+Status: current repository at the revision that made the design system an in-repo package, with the planned Herdr home named as planned.
+Evidence: the full source tree of `design-system/` and `pi/claude-interrupt/`, every import statement across all three projects, all three projects' manifests and test commands, the root `package.json` and lockfile, `design-system/package.test.mjs`, the guides of `pi/status-bar/`, and the Git history of the moves of claude-interrupt and status-bar. No dependency graph was inferred from folder names.
 
 ## Projects
 
-Industrial OS is one repository holding several independent projects. A project is a folder that owns its language, toolchain, dependencies, checks, and guides. Today there are three, and they do not share code.
+Industrial OS is one repository holding several independent projects. A project is a folder that owns its language, toolchain, dependencies, checks, and guides. Today there are three. They share code only through the design-system package, and nothing imports it yet.
 
 | Project | Language and runtime | Public entry point | Dependencies | Guides |
 | --- | --- | --- | --- | --- |
-| `design-system/` | Plain Node.js 22 ES modules (`.mjs`), standard library only, no manifest | `node examples/storybook.mjs`, `node examples/showcase.mjs`; module paths are not a released API | None outside Node | [README](../design-system/README.md), [AGENTS](../design-system/AGENTS.md), [architecture](../design-system/docs/architecture.md), [conventions](../design-system/docs/conventions.md), [design](../design-system/docs/design.md), [contributing](../design-system/CONTRIBUTING.md) |
-| `pi/claude-interrupt/` | TypeScript ES modules run by Node 22 type stripping; npm; `tsc --noEmit` | `package.json` `pi.extensions` → `src/index.ts`, loaded by the Pi host | Host-provided Pi packages as peer dependencies; development dependencies pin Pi 0.99.1 | [README](../pi/claude-interrupt/README.md), [AGENTS](../pi/claude-interrupt/AGENTS.md), [architecture](../pi/claude-interrupt/docs/architecture.md), [contributing](../pi/claude-interrupt/CONTRIBUTING.md) |
-| `pi/status-bar/` | TypeScript ES modules run by Node 22 type stripping; npm scripts; no type check | `package.json` `pi.extensions` → `src/extension.ts`, loaded by the Pi host | Host-provided Pi packages and TypeBox as peer dependencies; no development dependencies, tests use the globally installed Pi | [README](../pi/status-bar/README.md), [AGENTS](../pi/status-bar/AGENTS.md), [architecture](../pi/status-bar/docs/architecture.md), [contributing](../pi/status-bar/CONTRIBUTING.md) |
+| `design-system/` | Plain Node.js 22 ES modules (`.mjs`), standard library only; a private `package.json` with an `exports` map and no dependencies or scripts | `@industrial-os/design-system/<foundation, elements, or motions>/<name>`, by package name inside this repository only; `node examples/storybook.mjs`, `node examples/showcase.mjs`. Never published; the module contracts are first-pass, not a stable API | None outside Node | [README](../design-system/README.md), [AGENTS](../design-system/AGENTS.md), [architecture](../design-system/docs/architecture.md), [conventions](../design-system/docs/conventions.md), [design](../design-system/docs/design.md), [contributing](../design-system/CONTRIBUTING.md) |
+| `pi/claude-interrupt/` | TypeScript ES modules run by Node 22 type stripping; npm; `tsc --noEmit` | `package.json` `pi.extensions` → `src/index.ts`, loaded by the Pi host | Host-provided Pi packages as peer dependencies; development dependencies pin Pi 0.99.1. May import the design-system package by name; does not yet | [README](../pi/claude-interrupt/README.md), [AGENTS](../pi/claude-interrupt/AGENTS.md), [architecture](../pi/claude-interrupt/docs/architecture.md), [contributing](../pi/claude-interrupt/CONTRIBUTING.md) |
+| `pi/status-bar/` | TypeScript ES modules run by Node 22 type stripping; npm scripts; no type check | `package.json` `pi.extensions` → `src/extension.ts`, loaded by the Pi host | Host-provided Pi packages and TypeBox as peer dependencies; no development dependencies, tests use the globally installed Pi. May import the design-system package by name; does not yet | [README](../pi/status-bar/README.md), [AGENTS](../pi/status-bar/AGENTS.md), [architecture](../pi/status-bar/docs/architecture.md), [contributing](../pi/status-bar/CONTRIBUTING.md) |
 
 `pi/` groups the Pi extensions and holds the rules they share: [its guide](../pi/AGENTS.md). `herdr/` is planned for Herdr configuration and does not exist.
 
@@ -26,6 +26,7 @@ flowchart LR
         CI["pi/claude-interrupt/<br/>src/index.ts"]
         SB["pi/status-bar/<br/>src/extension.ts, footer.ts<br/>reference implementation"]
         Design["docs/design.md<br/>visual language"]
+        Root["package.json<br/>file: dependency"]
     end
     Node["Node.js 22 standard library"]
     PiHost["Pi host<br/>@earendil-works/pi-coding-agent, pi-tui, typebox"]
@@ -38,14 +39,17 @@ flowchart LR
     SB -->|imports| Node
     PiHost ==>|renders in| Herdr
     DS ==>|renders in| Herdr
-    SB -.->|palette values, by hand| Design
-    CI -.->|palette values, by hand| Design
-    Design -.->|roles; values mirrored by hand| DS
+    Root -.->|links by package name| DS
+    CI -.->|may import by name, not yet| DS
+    SB -.->|may import by name, not yet| DS
+    Design -.->|role meanings| DS
+    DS -.->|color values, mirrored by hand until migration| CI
+    DS -.->|color values, mirrored by hand until migration| SB
 ```
 
-Solid arrows labelled imports are imports verified in source. Thick arrows are where a project's output is rendered at run time. Dotted arrows are values carried by hand, from the extensions that own them to the design doc that names their roles and on to the design system's mirror: there is no import, build step, or package between projects. `pi/status-bar/src/footer.ts` declares all nine Acid / Black roles in its `C` palette, with colors of its own beside them; `pi/claude-interrupt/src/index.ts` declares five as constants; `design-system/foundation/palette.mjs` declares nine. The Pi extensions are the authority for those values and the design system mirrors them; see [the decision](decisions/extension-colors-take-precedence.md).
+Solid arrows labelled imports are imports verified in source. Thick arrows are where a project's output is rendered at run time. Dotted arrows are not imports today: the root manifest links the design-system package into `node_modules/`, the extensions are allowed to import it by name but do not yet, the design doc names the color roles, and the design system's color values are copied by hand into the extensions. `design-system/foundation/palette.mjs` declares the nine Acid / Black roles and `design-system/foundation/signal-colors.mjs` status-bar's other product colors; `pi/status-bar/src/footer.ts` mirrors all of them in its `C` palette, and `pi/claude-interrupt/src/index.ts` mirrors five roles as constants. The design system owns those values; see [the decision](decisions/in-repo-design-system-package.md).
 
-No project imports another. That is a rule, not an accident: a Pi extension is installed from its own folder by the Pi host and must load with nothing outside that folder, and the design system has no package to import. A shared module needs a decision on how an installed extension reaches it; see [Evolution](#evolution-and-known-limits).
+No project imports another project's code, with one exception: any project may import `@industrial-os/design-system` by package name through an exported subpath. The rule is in [conventions](conventions.md#module-and-dependency-rules). A Pi extension still loads from its own folder with the host's peer packages, and reaches the design system through the root install: Pi's git install runs `npm install` in the clone root, and a checkout needs the root `npm install` described in [contributing](../CONTRIBUTING.md#setup). The design system imports nothing from another project.
 
 ### Repository-wide documents
 
@@ -59,7 +63,7 @@ The root holds what every project shares and nothing else:
 | This guide | The project map, dependency direction, and where new projects go |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | The workflow for a change and the repository-wide checks; it routes to each project's own validation |
 | [AGENTS.md](../AGENTS.md) | Critical rules and the complete map of every guide |
-| `package.json` | Only the Pi extensions' entry points in `pi.extensions`, so Pi can install them from git; no workspaces, dependencies, or scripts |
+| `package.json` and `package-lock.json` | The Pi extensions' entry points in `pi.extensions`, so Pi can install them from git, and the one `file:design-system` dependency that links the design-system package; no workspaces or scripts |
 | [docs/decisions/](decisions/) | Consequential choices with alternatives and revisit conditions |
 
 A project's guides supplement these and never restate them; they link.
@@ -68,7 +72,7 @@ A project's guides supplement these and never restate them; they link.
 
 **A change inside one project** starts from that project's `AGENTS.md`, is traced through that project's architecture, and is verified by that project's contributing sequence, then by the [repository-wide checks](../CONTRIBUTING.md#repository-wide-checks). For example, refining the gauge touches only `design-system/elements/gauge/` and the design-system storybook; adjusting the marker timing of claude-interrupt touches only `pi/claude-interrupt/src/index.ts`, its tests, and its design doc.
 
-**A change to the visual language** starts in `docs/design.md`. If a palette value changes, the authority is the Pi extension that renders it; `design-system/foundation/palette.mjs` and the constants in each extension then change in separate commits in their own projects, each with its own checks. There is no mechanism that keeps them equal; the check is a review comparison of each extension's constants against `palette.mjs`, with the design doc mapping constants to roles.
+**A change to the visual language** starts in `docs/design.md`. If a color value changes, the design system owns it: `design-system/foundation/palette.mjs` or `signal-colors.mjs` changes first, then the constants of each extension that still mirrors the value, in separate commits in their own projects, each with its own checks. Until the extensions import their colors, nothing keeps them equal; the check is a review comparison of each extension's constants against those files, with the design doc mapping constants to roles.
 
 **Moving a project in** follows [the Pi contributing guide](../pi/CONTRIBUTING.md#moving-an-extension-in): rewrite its history under its new path, merge with a merge commit, add its entry point to the root `package.json`, point its install and `repository` fields at the monorepo, give it the required project document set, and add its guides to the root map. claude-interrupt was moved this way in pull request #4, and status-bar the same way in the pull request that added `pi/status-bar/`.
 
@@ -84,6 +88,7 @@ Every project must provide:
 - `docs/mission.md` only when it has a product scope of its own beyond the repository's; claude-interrupt and status-bar have one, the design system does not.
 - A license notice if it carries a license.
 - For a Pi extension, its entry point in `pi.extensions` of the root `package.json`.
+- If it imports the design system, the root `npm install` in its setup and checks that run from a checkout where it has run. It does not add the package to its own manifest.
 
 Every project's guides must appear in the [root supporting-documents map](../AGENTS.md#supporting-documents) with a direct link.
 
@@ -91,32 +96,34 @@ Every project's guides must appear in the [root supporting-documents map](../AGE
 
 | Must remain true | Relevant code or guide | Check |
 | --- | --- | --- |
-| No project imports another project's code | Every `import` in `design-system/` and `pi/*/src` | Review check: `grep -rn "from '\.\./\.\./" design-system pi/*/src` finds nothing that crosses a project root; no automated boundary check exists |
-| A Pi extension loads from its own folder with the host's peer packages only | `pi/*/package.json` | Each extension's non-interactive load check in its contributing guide |
+| No project imports another project's code, except the design-system package by name through an exported subpath | Every `import` in `design-system/` and `pi/*/src` | Review check: `grep -rn "from '\.\./\.\./" design-system pi/*/src` finds nothing that crosses a project root, and every `@industrial-os/design-system` import names an exported subpath; no automated boundary check exists |
+| The package exports every foundation module, element, and motion primitive, and nothing else | `design-system/package.json` | `design-system/package.test.mjs` in the design system's `node --test` |
+| A Pi extension loads from its own folder with the host's peer packages plus the linked design-system package | `pi/*/package.json`, the root `package.json` | Each extension's non-interactive load check in its contributing guide |
 | Every element and demo is terminal text with terminal-native styling | Mission; each project's design or architecture | Review check; the design system's automated checks compare plain and color output |
 | Displayed values are truthful: unknown is never zero, failure is never success-shaped | `design-system/elements/*`, `pi/claude-interrupt/src/index.ts`, `pi/status-bar/src/*` | Each project's tests for unknown and failure states |
-| Palette values are identical across projects, with the extensions as the authority | `pi/status-bar/src/footer.ts`, `pi/claude-interrupt/src/index.ts`, `design-system/foundation/palette.mjs`, design | Review comparison of the extension constants against `palette.mjs`; design maps roles; no automated check |
+| Color values are identical across projects, with the design system as the source | `design-system/foundation/palette.mjs`, `design-system/foundation/signal-colors.mjs`, `pi/status-bar/src/footer.ts`, `pi/claude-interrupt/src/index.ts`, design | Review comparison of each extension's constants against `palette.mjs` and `signal-colors.mjs`; design maps roles; no automated check |
 | Every guide is mapped once, with one canonical home per rule | `AGENTS.md` | Repository-wide checks 2 and 3 |
 
 ## Where the next change belongs
 
-**A new Pi extension** gets `pi/<name>/` with the full project document set when it has its own experience and product scope, as claude-interrupt and status-bar do. It keeps its own `package.json`, tests, and license. If it renders Acid / Black roles, it declares them as named constants and joins the review comparison against `palette.mjs`. Nothing in `design-system/` changes unless the design doc changes.
+**A new Pi extension** gets `pi/<name>/` with the full project document set when it has its own experience and product scope, as claude-interrupt and status-bar do. It keeps its own `package.json`, tests, and license. If it renders Acid / Black roles or reuses an element, it imports them from the design-system package by name rather than copying them, and follows the migration requirements in [the decision](decisions/in-repo-design-system-package.md#migrating-an-extension).
 
-**A new design-system element** stays entirely inside `design-system/`; its placement is in [the design-system architecture](../design-system/docs/architecture.md#where-the-next-change-belongs). Its README is mapped from the root.
+**A new design-system element** stays entirely inside `design-system/`, with an entry in its `exports` map; its placement is in [the design-system architecture](../design-system/docs/architecture.md#where-the-next-change-belongs). Its README is mapped from the root.
 
 **Herdr configuration** gets `herdr/` with the project document set when the first maintained content exists. Its language and toolchain are its own; nothing at the root presumes Node.
 
-**A change that spans projects**, such as a new palette role, is several changes: the design doc, then each project in its own commit with its own checks.
+**A change that spans projects**, such as a new palette role, is several changes: the design doc, the design system, then each extension that mirrors it, each in its own commit with its own checks.
 
 ## Evolution and known limits
 
-- **Shared code between projects.** The design system is the reference kit the extensions imitate, not a dependency they import. Sharing an element implementation with an installed extension needs a decision on packaging: a published package, a copied module, or a generated file. Revisit when a second extension renders the same element as the design system and both change together; until then, copying values is the simpler correct choice.
+- **Shared code between projects.** The design system is a private package that the extensions may import by name, but neither does yet. Each extension migrates in its own change; the requirements, including type declarations for claude-interrupt's `tsc`, are in [the decision](decisions/in-repo-design-system-package.md#migrating-an-extension). Publishing it, or consumers outside this repository, are out of scope.
 - **One command for the whole repository.** None exists. Each project has its own validation sequence, and a project in another language would not fit a root Node command. Revisit if a CI gate is added; a root script that calls each project's documented sequence would be the smallest form, and it must not presume a language. Recorded as [a decision](decisions/standalone-packages.md).
-- **Palette drift.** Values are copied by hand in three places: `pi/status-bar/src/footer.ts`, `pi/claude-interrupt/src/index.ts`, and `design-system/foundation/palette.mjs`. The check is manual. Revisit when a value changes for the first time after status-bar's move; that change will show whether a generated or tested comparison is worth adding.
+- **Palette drift.** The design system owns the colors in `design-system/foundation/palette.mjs` for the nine roles and `design-system/foundation/signal-colors.mjs` for status-bar's other product colors (count tiers, mode inks, gauge zones, warm-up steps, usage providers). Until the extensions migrate, `pi/status-bar/src/footer.ts` and `pi/claude-interrupt/src/index.ts` copy them by hand. The check is manual; no automated comparison exists, because migration removes the copies.
 - **The planned Herdr home.** No content exists, so no rules exist. Do not create the folder, placeholder guides, or adapters before the first maintained content.
 - **License.** The repository has no license; claude-interrupt carries MIT from before its move, and status-bar has none. Resolve when the repository is offered for reuse.
 
 ## Technical decisions
 
-- [Standalone packages, no shared workspace](decisions/standalone-packages.md)
-- [The Pi extensions' colors take precedence over the design-system palette](decisions/extension-colors-take-precedence.md)
+- [The design system is an in-repo package and owns the colors](decisions/in-repo-design-system-package.md)
+- [Standalone packages, no shared workspace](decisions/standalone-packages.md), superseded in part by the package decision
+- [The Pi extensions' colors take precedence over the design-system palette](decisions/extension-colors-take-precedence.md), superseded by the package decision

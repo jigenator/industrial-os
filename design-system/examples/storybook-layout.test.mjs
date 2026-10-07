@@ -8,7 +8,7 @@ import { numberedPanel } from '../elements/numbered-panel/numbered-panel.mjs';
 import { statusRow } from '../elements/status-row/status-row.mjs';
 import { scan } from '../motions/scan.mjs';
 import { revealDuration } from '../motions/reveal.mjs';
-import { advance, composeStorybook, hitAction, initialState, playbackTime, press } from './storybook-layout.mjs';
+import { REPLAY_PAUSE_MS, advance, composeStorybook, hitAction, initialState, needsTimer, playbackTime, press } from './storybook-layout.mjs';
 import { STORIES, canPlay } from './storybook-stories.mjs';
 
 const allowed = (s) => [...s].every((c) => (c >= ' ' && c <= '~') || GLYPHS.includes(c));
@@ -18,7 +18,7 @@ const at = (id, variant = 0, extra = {}) => ({ ...initialState(), story: story(i
 const playing = (id, variant = 0, startedAt = 0) => at(id, variant, { playback: { status: 'playing', elapsed: 0, startedAt } });
 
 test('every story fits every width from 1 to 160 at short, normal, and unbounded heights', () => {
-  const states = [...STORIES.map((_, i) => ({ ...initialState(), story: i })), playing('scan', 0), playing('reveal', 1), at('colors', 1), { ...initialState(), help: true }];
+  const states = [...STORIES.map((_, i) => ({ ...initialState(), story: i })), playing('scan', 0), playing('reveal', 1), playing('ghost', 1), playing('marker-timeline'), at('colors', 1), { ...initialState(), help: true }];
   for (const state of states) {
     for (let columns = 1; columns <= 160; columns++) {
       for (const rows of [1, 2, 3, 5, 9, 14, 24, undefined]) {
@@ -46,17 +46,32 @@ test('the story, its state, and key hints stay visible at every supplied size, d
     });
   }
   assert.deepEqual(plain(composeStorybook(initialState(), { columns: 1, rows: 1 })), ['0']);
-  assert.deepEqual(plain(composeStorybook(at('gauge'), { columns: 12, rows: 2 })), ['03  [KNOWN] ', '? Q         ']);
+  const g = String(story('gauge') + 1).padStart(2, '0');
+  assert.deepEqual(plain(composeStorybook(at('gauge'), { columns: 12, rows: 2 })), [`${g}  [KNOWN] `, '? Q         ']);
   assert.deepEqual(plain(composeStorybook(at('numbered-panel', 2), { columns: 24, rows: 3 })), ['01  [HEADER PRIORITY]   ', '                        ', 'LINES 1-1 OF 55  ? Q    ']);
-  assert.equal(plain(composeStorybook(at('gauge', 1), { columns: 30, rows: 3 }))[0], '03 GAUGE  [ZERO] 2/6          ');
+  assert.equal(plain(composeStorybook(at('gauge', 1), { columns: 30, rows: 3 }))[0], `${g} GAUGE  [ZERO] 2/10         `);
 });
 
 test('the wide layout keeps an index of every story with the selection marked in text', () => {
+  const label = (i) => `${String(i + 1).padStart(2, '0')} ${STORIES[i].title}`;
+  const unbounded = plain(composeStorybook(at('pulse'), { columns: 120 })).join('\n');
+  for (const i of STORIES.keys()) assert.ok(unbounded.includes(label(i)), STORIES[i].title);
+  assert.match(unbounded, /1 COMPONENTS[\s\S]*2 MOTIONS[\s\S]*3 FOUNDATION[\s\S]*COLORS/);
+  assert.doesNotMatch(unbounded, /MORE (ABOVE|BELOW)/, 'a full-height snapshot lists every story');
   const all = plain(composeStorybook(at('pulse'), { columns: 120, rows: 40 })).join('\n');
-  for (const [i, s] of STORIES.entries()) assert.ok(all.includes(`${String(i + 1).padStart(2, '0')} ${s.title}`), s.title);
-  assert.match(all, /> 06 PULSE/);
-  assert.match(all, /COMPONENTS[\s\S]*MOTIONS[\s\S]*FOUNDATION[\s\S]*08 COLORS/);
+  assert.match(all, new RegExp(`> ${label(story('pulse'))}`));
   assert.match(all, /FIXTURE VALUES AND DEMONSTRATION PLAYBACK, NOT LIVE TELEMETRY/);
+  // A short index scrolls with the selection: every story is visible when selected, with counts of the rest.
+  for (const rows of [15, 24, 40]) {
+    for (const i of STORIES.keys()) {
+      const lines = plain(composeStorybook({ ...initialState(), story: i }, { columns: 100, rows }));
+      const side = lines.map((l) => [...l].slice(0, 22).join('').trimEnd());
+      assert.ok(side.includes(`> ${label(i)}`), `${rows} rows: story ${i} visible`);
+      const shown = side.filter((l) => /^[> ] \d\d [A-Z]/.test(l) && !/ MORE (ABOVE|BELOW)$/.test(l)).length;
+      const more = side.map((l) => /^ {2}(\d+) MORE (ABOVE|BELOW)$/.exec(l)).filter(Boolean).reduce((n, m) => n + Number(m[1]), 0);
+      assert.equal(shown + more, STORIES.length, `${rows} rows, story ${i}: shown plus hidden counts every story`);
+    }
+  }
   // No sidebar when it would not fit; the panel header still names the story.
   assert.doesNotMatch(plain(composeStorybook(at('pulse'), { columns: 71, rows: 40 })).join('\n'), /COMPONENTS/);
   assert.doesNotMatch(plain(composeStorybook(at('pulse'), { columns: 120, rows: 10 })).join('\n'), /COMPONENTS/);
@@ -94,6 +109,27 @@ test('state variants cover gauge, status row, plate, and panel states without co
   assert.equal(STORIES[story('gauge')].variants[3].input.value, null, 'unknown stays null, never zero');
 });
 
+test('the new element states read without color: words, shapes, and digits carry them', () => {
+  const text = (id) => STORIES[story(id)].variants.map((v, j) => plain(composeStorybook(at(id, j), { columns: 120 })).join('\n')).join('\n');
+  const expect = {
+    gauge: ['70.0 %', '▲ WARN', '▲ HIGH', '? UNKNOWN'],
+    'label-plate': [' 01 ACT ', ' 03 MDL ', '▐ MODEL ▌'],
+    'count-plate': ['CMP×??', 'CMP×00', 'CMP×04', 'CMP×99+', ' 03 AU ', '  ? AU ', ' 120 AU ', '###'],
+    'mode-plate': ['⌑ PNYTL // LTE', '⌑ PNYTL // UNK', '• PNYTL // LTE', '◆ LINK // ON'],
+    'state-chip': ['▲ UP×1', '▲ FIX ◆ EDIT', '✕ MISS', '✕ UNAV', '· CHK', '· OFF'],
+    lamp: ['PLAIN: a full block', 'PLAIN: a space', 'PLAIN: a hatch'],
+    'pixel-numeral': ['▀▀▀ ▀▀▀', 'FALLBACK', '64.0'],
+    'segment-meter': ['GPT ■■■■■■■■', 'pending', 'timeout', '16m', 'none', '????????', '41m', '4h03m'],
+    'thread-rail': ['█  ROOT  █·█·█·······  03 AU', '00 AU', '╱  ROOT', '? AU', '120 AU'],
+    'instrument-frame': ['┏━ CMP×12', 'cwd /launch unrelated', 'FORM minimal at 30 cells', 'gutter 1'],
+    'transcript-marker': ['DIRECTIVE UPDATED  ││ │ │  │  │   │', 'DIRECTIVE UPDATED  ││ │ │ '],
+  };
+  for (const [id, shown] of Object.entries(expect)) {
+    const all = text(id);
+    for (const s of shown) assert.ok(all.includes(s), `${id}: ${s}`);
+  }
+});
+
 test('motion previews are the real motion over real renderer output, framed by a still panel', () => {
   const s = STORIES[story('scan')];
   const v = s.variants[0];
@@ -128,7 +164,7 @@ test('the composed frame follows playback time; motion off and t=0 of a loop sho
 });
 
 test('color and plain frames have the same cells; plain frames have no escapes', () => {
-  for (const state of [initialState(), playing('pulse', 0), { ...initialState(), help: true }]) {
+  for (const state of [initialState(), playing('pulse', 0), playing('blink', 1), playing('nudge'), playing('marker-timeline', 1), at('signal-colors'), { ...initialState(), help: true }]) {
     for (const [columns, rows] of [[120, 40], [48, 12], [12, 3]]) {
       for (const line of composeStorybook(state, { columns, rows, mode: 'TRUECOLOR', now: 1500 }).lines) {
         assert.equal(stripVTControlCharacters(paint(line, 'truecolor')), paint(line, 'none'));
@@ -138,7 +174,7 @@ test('color and plain frames have the same cells; plain frames have no escapes',
   }
 });
 
-test('story and state navigation wraps, resets scrolling, and turns motion off', () => {
+test('story and state navigation wraps, resets scrolling, and autoplays only a motion that can show', () => {
   const n = STORIES.length;
   let s = press(initialState(), 'prev-story');
   assert.equal(s.story, n - 1);
@@ -152,13 +188,93 @@ test('story and state navigation wraps, resets scrolling, and turns motion off',
   assert.equal(press(s, 'prev-variant').variant, count - 1);
   assert.equal(press(press(s, 'next-variant'), 'next-variant').variant, 2);
   s = { ...playing('scan'), offset: 9 };
-  for (const action of ['next-story', 'prev-story', 'next-variant', 'prev-variant', 'story:0']) {
+  // From a playing scan: pulse and the other scan example autoplay in color; a component and pulse without color settle.
+  const expect = { 'next-story': ['playing', 'off'], 'prev-story': ['off', 'off'], 'next-variant': ['playing', 'off'], 'prev-variant': ['playing', 'off'], 'story:0': ['off', 'off'] };
+  for (const [action, [color, none]] of Object.entries(expect)) {
     const next = press(s, action, { now: 10, mode: 'TRUECOLOR' });
     assert.equal(next.offset, 0, action);
-    assert.equal(next.playback.status, 'off', action);
+    assert.deepEqual(next.playback, color === 'playing' ? { status: 'playing', elapsed: 0, startedAt: 10 } : { status: 'off', elapsed: 0, startedAt: null }, action);
+    assert.equal(press(s, action, { now: 10, mode: 'PLAIN' }).playback.status, none, `${action} without color`);
+    assert.equal(press({ ...s, motion: false }, action, { now: 10, mode: 'TRUECOLOR' }).playback.status, 'off', `${action} with motion off`);
   }
   assert.equal(press(s, 'bogus'), s);
   assert.equal(press(s, 'toString'), s);
+});
+
+test('every selection route autoplays a motion preview from time 0 at now: keys, digits, and clicks', () => {
+  const ctx = { now: 4321, mode: 'TRUECOLOR' };
+  const PLAY = { status: 'playing', elapsed: 0, startedAt: 4321 };
+  const start = initialState();
+  assert.deepEqual([start.story, start.motion, start.playback.status, STORIES[0].kind], [0, true, 'off', 'component'], 'nothing plays at start');
+  assert.deepEqual(press(start, 'section:1', ctx).playback, PLAY, 'digit 2 jumps to scan');
+  assert.deepEqual(press(start, `story:${story('ping')}`, ctx).playback, PLAY, 'an index click');
+  assert.deepEqual(press(at('reveal'), 'variant:1', ctx).playback, PLAY, 'a variant click');
+  assert.deepEqual(press(at('reveal'), 'next-variant', ctx).playback, PLAY);
+  assert.deepEqual(press(at('nudge'), 'next-story', ctx).playback, PLAY, 'marker timeline follows nudge');
+  assert.deepEqual(press(at('pulse'), 'prev-story', ctx).playback, PLAY);
+  // Every motion example that can show autoplays; without color only those whose plain frames change.
+  STORIES.forEach((st, i) => st.variants.forEach((v, j) => {
+    for (const mode of ['PLAIN', 'TRUECOLOR']) {
+      const from = j === 0 ? { ...initialState(), story: i === 0 ? 1 : 0 } : { ...initialState(), story: i };
+      const next = press(from, j === 0 ? `story:${i}` : `variant:${j}`, { now: 7, mode });
+      assert.deepEqual([next.story, next.variant], [i, j]);
+      assert.equal(next.playback.status, st.kind === 'motion' && canPlay(st, v, mode) ? 'playing' : 'off', `${st.id}/${v.name} ${mode}`);
+    }
+  }));
+  assert.equal(press(start, 'section:2', ctx).playback.status, 'off', 'color views never play');
+});
+
+test('a finished one-shot holds its last frame and replays REPLAY_PAUSE_MS after completing while motion is on', () => {
+  assert.equal(REPLAY_PAUSE_MS, 1500);
+  const size = { columns: 120, rows: 40 };
+  const r = STORIES[story('reveal')];
+  const end = r.duration(r.variants[0], 94);
+  const done = advance(playing('reveal', 0, 0), { now: end + 30, ...size });
+  assert.deepEqual(done.playback, { status: 'complete', elapsed: end, startedAt: null, completedAt: end + 30 });
+  assert.equal(needsTimer(done), true, 'the host keeps its timer for the replay');
+  assert.equal(advance(done, { now: end + 30 + REPLAY_PAUSE_MS - 1, ...size }), done, 'holds until the pause has passed');
+  assert.deepEqual(advance(done, { now: end + 30 + REPLAY_PAUSE_MS, ...size }).playback, { status: 'playing', elapsed: 0, startedAt: end + 30 + REPLAY_PAUSE_MS });
+  assert.match(plain(composeStorybook(done, { ...size, now: end + 900 })).join('\n'), /COMPLETE {2}0\.72 s of 0\.72 s {2}replays after 1\.50 s {2}67 MS FRAMES/);
+  // Motion off: settled, nothing waits. The key list holds the wait; closing it lets an overdue replay fire.
+  const off = press(done, 'motion-off', { now: end + 40, mode: 'TRUECOLOR' });
+  assert.deepEqual([off.motion, off.playback.status, needsTimer(off)], [false, 'off', false]);
+  assert.equal(advance({ ...done, motion: false }, { now: 1e9, ...size }).playback.status, 'complete', 'no replay while motion is off');
+  assert.equal(needsTimer({ ...done, motion: false }), false);
+  const help = press(done, 'help', { now: end + 40 });
+  assert.deepEqual([help.help, help.playback], [true, done.playback], 'a finished preview is not paused, only held');
+  assert.equal(needsTimer(help), false, 'no timer behind the key list');
+  assert.equal(advance(help, { now: 1e9, ...size }), help);
+  const closed = press(help, 'close-help', { now: 1e6 });
+  assert.equal(needsTimer(closed), true);
+  assert.deepEqual(advance(closed, { now: 1e6 + 67, ...size }).playback, { status: 'playing', elapsed: 0, startedAt: 1e6 + 67 });
+  // Looping previews never complete, so never wait; still and settled previews need no timer.
+  assert.equal(needsTimer(playing('scan')), true);
+  for (const state of [initialState(), at('scan'), at('colors'), { ...playing('scan'), playback: { status: 'paused', elapsed: 5, startedAt: null } }]) assert.equal(needsTimer(state), false);
+});
+
+test('O toggles the storybook-wide motion setting from any story; later selections stay settled', () => {
+  const ctx = (now, mode = 'TRUECOLOR') => ({ now, mode });
+  let s = press(initialState(), 'motion-off', ctx(5));
+  assert.deepEqual([s.motion, s.playback.status, s.story], [false, 'off', 0], 'from a component');
+  for (const action of ['section:1', 'next-story', 'next-variant', `story:${story('ping')}`, 'variant:1']) {
+    s = press(s, action, ctx(10));
+    assert.deepEqual([s.motion, s.playback.status], [false, 'off'], action);
+  }
+  assert.match(plain(composeStorybook(s, { columns: 120, rows: 40, mode: 'TRUECOLOR' })).join('\n'), /▐ DEMO ▌ MOTION OFF {2}stable view, O turns motion on {2}40 MS FRAMES/);
+  for (const action of ['play-pause', 'replay']) assert.equal(press(s, action, ctx(20)), s, `${action} does nothing while motion is off`);
+  s = press(s, 'motion-off', ctx(30));
+  assert.deepEqual([s.motion, s.playback], [true, { status: 'playing', elapsed: 0, startedAt: 30 }], 'motion on autoplays the current preview');
+  s = press(press(s, 'play-pause', ctx(100)), 'motion-off', ctx(200));
+  assert.deepEqual([s.motion, s.playback.status], [false, 'off'], 'a paused preview settles too');
+  // Turning motion on where nothing can play keeps the settled view.
+  for (const state of [{ ...at('gauge'), motion: false }, { ...at('pulse'), motion: false }]) {
+    const on = press(state, 'motion-off', ctx(1, 'PLAIN'));
+    assert.deepEqual([on.motion, on.playback.status], [true, 'off'], STORIES[state.story].id);
+  }
+  // Not while the key list is open.
+  const help = { ...playing('scan'), help: true };
+  assert.equal(press(help, 'motion-off', ctx(1)), help);
+  assert.equal(press({ ...help, motion: false }, 'motion-off', ctx(1)).motion, false);
 });
 
 test('paging is bounded by the last frame', () => {
@@ -177,40 +293,68 @@ test('paging is bounded by the last frame', () => {
   assert.equal(composeStorybook({ ...initialState(), offset: 999 }, { columns: 60, rows: 12 }).offset, view.maxOffset);
 });
 
-test('playback: default off, play, pause holds time, resume, replay, motion off', () => {
+test('playback: pause holds time, resume, replay; the key list pauses and resumes, but keeps a user pause', () => {
   const ctx = (now) => ({ now, mode: 'TRUECOLOR' });
-  let s = at('scan');
-  assert.equal(s.playback.status, 'off');
-  s = press(s, 'play-pause', ctx(1000));
+  let s = press(initialState(), 'section:1', ctx(1000));
   assert.deepEqual(s.playback, { status: 'playing', elapsed: 0, startedAt: 1000 });
   assert.equal(playbackTime(s.playback, 1750), 750);
   s = press(s, 'play-pause', ctx(1750));
-  assert.deepEqual(s.playback, { status: 'paused', elapsed: 750, startedAt: null });
+  assert.deepEqual(s.playback, { status: 'paused', elapsed: 750, startedAt: null, byHelp: false });
   assert.equal(playbackTime(s.playback, 9999), 750);
   s = press(s, 'play-pause', ctx(5000));
   assert.equal(playbackTime(s.playback, 5100), 850);
   s = press(s, 'replay', ctx(6000));
   assert.equal(playbackTime(s.playback, 6000), 0);
-  s = press(s, 'motion-off', ctx(6100));
-  assert.equal(s.playback.status, 'off');
-  // Opening the key list pauses; while it is open, playback keys do nothing.
-  s = press(press(at('scan'), 'play-pause', ctx(0)), 'help', ctx(300));
+  // A settled preview while motion is on plays from 0 on P.
+  assert.deepEqual(press(at('scan'), 'play-pause', ctx(7)).playback, { status: 'playing', elapsed: 0, startedAt: 7 });
+  // Opening the key list pauses; while it is open, playback keys do nothing; closing resumes from the same time.
+  s = press(playing('scan'), 'help', ctx(300));
   assert.deepEqual([s.help, s.playback.status, s.playback.elapsed], [true, 'paused', 300]);
   assert.equal(press(s, 'play-pause', ctx(400)), s);
-  assert.equal(press(s, 'close-help').help, false);
+  assert.equal(press(s, 'replay', ctx(400)), s);
+  let closed = press(s, 'close-help', ctx(900));
+  assert.deepEqual([closed.help, closed.playback], [false, { status: 'playing', elapsed: 300, startedAt: 900 }]);
+  closed = press(s, 'help', ctx(900));
+  assert.deepEqual([closed.help, closed.playback], [false, { status: 'playing', elapsed: 300, startedAt: 900 }], '? closes it too');
+  // A preview the user paused stays paused through the key list.
+  const paused = press(playing('scan'), 'play-pause', ctx(250));
+  const through = press(press(paused, 'help', ctx(300)), 'close-help', ctx(900));
+  assert.deepEqual([through.help, through.playback], [false, paused.playback]);
+  assert.equal(press(at('scan'), 'close-help', ctx(1)).help, false);
 });
 
-test('playback keys do nothing for components or for color-only motion without color', () => {
-  for (const action of ['play-pause', 'replay', 'motion-off']) {
+test('play and replay do nothing for components or for color-only motion without color', () => {
+  for (const action of ['play-pause', 'replay']) {
     const component = at('gauge');
     assert.equal(press(component, action, { now: 1, mode: 'TRUECOLOR' }), component);
     const scanPlain = at('scan');
     assert.equal(press(scanPlain, action, { now: 1, mode: 'PLAIN' }), scanPlain);
   }
+  for (const state of [at('gauge'), at('scan')]) {
+    const off = press(state, 'motion-off', { now: 1, mode: 'PLAIN' });
+    assert.deepEqual([off.motion, off.playback.status], [false, 'off'], 'O is storybook-wide, even where nothing plays');
+  }
   assert.equal(canPlay(STORIES[story('reveal')], STORIES[story('reveal')].variants[1], 'PLAIN'), true);
   assert.equal(press(at('reveal', 1), 'play-pause', { now: 1, mode: 'PLAIN' }).playback.status, 'playing');
   assert.match(plain(composeStorybook(at('pulse'), { columns: 120, rows: 40, mode: 'PLAIN' })).join('\n'), /MOTION OFF {2}stable view; without color this motion has nothing to show/);
   assert.doesNotMatch(plain(composeStorybook(at('pulse'), { columns: 120, rows: 40, mode: 'PLAIN' })).at(-1), /P PLAY/);
+});
+
+test('the footer names the motion setting O would switch to; P and R are inert while motion is off', () => {
+  const foot = (state) => {
+    const view = composeStorybook(state, { columns: 160, rows: 24, mode: 'TRUECOLOR' });
+    return { line: plain(view).at(-1), actions: view.targets.map((t) => t.action) };
+  };
+  const on = foot(playing('scan'));
+  assert.match(on.line, /P PLAY\/PAUSE {2}R REPLAY {2}O MOTION OFF/);
+  for (const action of ['play-pause', 'replay', 'motion-off']) assert.ok(on.actions.includes(action), action);
+  const off = foot({ ...at('scan'), motion: false });
+  assert.match(off.line, /P PLAY\/PAUSE {2}R REPLAY {2}O MOTION ON/);
+  assert.ok(off.actions.includes('motion-off'));
+  assert.ok(!off.actions.includes('play-pause') && !off.actions.includes('replay'));
+  // Shorter footers keep the same controls with one-letter labels.
+  const short = composeStorybook({ ...at('scan'), motion: false }, { columns: 60, rows: 24, mode: 'TRUECOLOR' });
+  assert.ok(short.targets.some((t) => t.action === 'motion-off') && !short.targets.some((t) => t.action === 'play-pause'));
 });
 
 test('a finite reveal completes at its duration and ends on the input; loops keep playing', () => {
@@ -220,7 +364,7 @@ test('a finite reveal completes at its duration and ends on the input; loops kee
   let s = playing('reveal', 0, 0);
   assert.equal(advance(s, { now: end - 1, ...size }), s);
   s = advance(s, { now: end + 500, ...size });
-  assert.deepEqual(s.playback, { status: 'complete', elapsed: end, startedAt: null });
+  assert.deepEqual(s.playback, { status: 'complete', elapsed: end, startedAt: null, completedAt: end + 500 });
   const done = plain(composeStorybook(s, { ...size, now: end + 500 })).join('\n');
   assert.match(done, /COMPLETE {2}0\.72 s of 0\.72 s/);
   assert.equal(press(s, 'play-pause', { now: 2000, mode: 'TRUECOLOR' }).playback.elapsed, 0, 'play after complete starts over');
@@ -236,8 +380,12 @@ test('a finite reveal completes at its duration and ends on the input; loops kee
 test('the key list names every binding and the playback rules', () => {
   const all = plain(composeStorybook({ ...initialState(), help: true }, { columns: 60 })).join('\n');
   const prose = all.replace(/[│\s]+/g, ' ');
-  for (const key of ['J K, DOWN UP', 'TAB, SHIFT-TAB', `1-${STORIES.length}`, 'L H, RIGHT LEFT', 'SPACE, PGDN', 'B, PGUP', 'P ', 'R ', 'O ', '? ', 'Q, ESC']) assert.ok(all.includes(key), key);
-  assert.match(prose, /no more than 15 frames a second/);
+  for (const key of ['J K, DOWN UP', 'TAB, SHIFT-TAB', '1-3', 'L H, RIGHT LEFT', 'SPACE, PGDN', 'B, PGUP', 'P ', 'R ', 'O ', '? ', 'Q, ESC']) assert.ok(all.includes(key), key);
+  assert.match(prose, /jump to a section: 1 COMPONENTS, 2 MOTIONS, 3 FOUNDATION/);
+  assert.match(prose, /that motion's own step, shown as MS FRAMES \(40 to 400 ms here\); motions that change continuously redraw every 67 ms, at most 15 frames a second/);
+  assert.match(prose, /A completed preview holds its last frame; for ping that is its bars gone/);
+  assert.match(prose, /While motion is on, selecting one plays it automatically, and a one-shot motion replays 1\.5 s after it completes; O turns motion off for the whole storybook/);
+  assert.match(prose, /O turn motion off for the whole storybook \(every preview settled\) or back on/);
   assert.match(all, /\? OR ESC CLOSES KEYS/);
 });
 
@@ -294,7 +442,7 @@ test('hit geometry covers only complete visible controls at every width and shor
 test('click actions use keyboard transitions; direct variants reset playback and scroll', () => {
   const state = playing('scan');
   const view = composeStorybook(state, { columns: 160, rows: 24, mode: 'TRUECOLOR' });
-  for (const action of ['story:0', 'variant:1', 'prev-story', 'next-story', 'prev-variant', 'next-variant', 'play-pause', 'replay', 'motion-off', 'page-down', 'help', 'quit']) {
+  for (const action of [`story:${story('scan') + 1}`, 'variant:1', 'prev-story', 'next-story', 'prev-variant', 'next-variant', 'play-pause', 'replay', 'motion-off', 'page-down', 'help', 'quit']) {
     assert.ok(view.targets.some((t) => t.action === action), action);
   }
   assert.deepEqual(press({ ...state, offset: 4 }, 'variant:1'), press({ ...state, offset: 4 }, 'next-variant'));

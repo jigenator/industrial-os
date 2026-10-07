@@ -16,7 +16,7 @@ Avoid simulated telemetry, decorative noise over content, unnecessary chrome, an
 
 ### Acid / Black
 
-This is the selected default palette. The Pi extensions are the authority for its values: [status-bar](../pi/status-bar/docs/design.md#palette-and-context-semantics), the first implementation of the style, which declares every role in the `C` palette of `pi/status-bar/src/footer.ts`, and [claude-interrupt](../pi/claude-interrupt/docs/design.md), which declares acid, black, white, decorative grey, and structural grey as constants in its source. [foundation/palette.mjs](../design-system/foundation/palette.mjs) mirrors them for the design system and is where every role's value can be read. This table defines what each role is for. The palette is not a shipped theme API or a blanket contrast certification.
+This is the selected default palette. The design system owns its values: [foundation/palette.mjs](../design-system/foundation/palette.mjs) is their source and where every role's value can be read. Until they import it, the Pi extensions mirror those values: [status-bar](../pi/status-bar/docs/design.md#palette-and-context-semantics), the first implementation of the style, declares every role in the `C` palette of `pi/status-bar/src/footer.ts`, and [claude-interrupt](../pi/claude-interrupt/docs/design.md) declares acid, black, white, decorative grey, and structural grey as constants in its source. This table defines what each role is for. The palette is not a shipped theme API or a blanket contrast certification.
 
 | Role (`palette.mjs` key) | Intended use |
 | --- | --- |
@@ -32,7 +32,7 @@ This is the selected default palette. The Pi extensions are the authority for it
 
 Do not use decorative greys for essential control boundaries or readable small text without checking the actual contrast. Accent is not a substitute for a label; warning and critical states must remain understandable without color.
 
-If a value differs between an extension's constants and `palette.mjs`, the extension's value is correct and `palette.mjs` changes to match in its own commit; see [the decision](decisions/extension-colors-take-precedence.md). The check is a direct comparison of each extension's constants against `palette.mjs`, using this table only to map a constant to its role. All nine roles currently match status-bar's constants, and claude-interrupt's five constants match them.
+To change a value, change `palette.mjs` first, then each extension that still mirrors it, each in its own commit; see [the decision](decisions/in-repo-design-system-package.md). If an extension's constant differs from `palette.mjs`, `palette.mjs` is correct. The check is a direct comparison of each extension's constants against `palette.mjs`, using this table only to map a constant to its role. All nine roles currently match status-bar's constants, and claude-interrupt's five constants match them. status-bar's colors beyond these roles (count tiers, mode inks, gauge zones, warm-up steps, and usage providers) are product colors, not roles; their source is [foundation/signal-colors.mjs](../design-system/foundation/signal-colors.mjs), and status-bar mirrors them under the same rule.
 
 ### Pi extensions
 
@@ -44,7 +44,7 @@ Use cell-aligned geometry, compact labels, clear readouts, and restrained number
 
 ### Motion
 
-Motion is instrument detail, never data. A motion decorates already-rendered output at an explicit time; it does not supply or obscure values. Never veil a reading, a label, or a status message; warning and critical cells are never restyled by decoration. Repeating motions cycle at most 2.5 times a second, under the 3 Hz flashing limit; a single-cell indicator may be faster only when a maintainer accepts it and a motion-off control holds it steady. Pulse implies activity, so use it only where a signal really is active. Do not use motion to suggest progress that is not happening. Bound every animation and dispose of its timers; where a host has no reduced-motion setting, keep the animation short and say so.
+Motion is instrument detail, never data. A motion decorates already-rendered output at an explicit time; it does not supply or obscure values. Never veil a reading, a label, or a status message. Decoration leaves warning and critical cells alone unless a motion opts in for that use; an opted-in motion may tint, invert, or resize their glyphs, but every frame still shows the state's shape and word, never blanked, hidden on the field, or replaced. There is no frequency cap: a motion may repeat or flash at any rate, including flashes faster than three a second. In exchange, every motion has a motion-off state that settles it at once, and a project states each fast or flashing motion's rate in its design doc; no project claims photosensitivity or WCAG flash compliance unless it has checked it. Pulse implies activity, so use it only where a signal really is active. Do not use motion to suggest progress that is not happening. Bound every animation and dispose of its timers; where a host has no reduced-motion setting, keep the animation short and say so.
 
 ### Interaction and feedback
 

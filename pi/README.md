@@ -13,7 +13,7 @@ None of the extensions is published to npm.
 
 ## Install
 
-The repository root holds a manifest-only `package.json` whose `pi.extensions` lists every extension's entry point, so Pi can install them from git. Pi identifies a git package by its repository URL, so use one settings entry for this repository and select the extensions you want with its `extensions` filter, in the `packages` array of Pi's `settings.json`:
+The repository root holds a `package.json` whose `pi.extensions` lists every extension's entry point, so Pi can install them from git. It also links the in-repo design-system package; Pi's git install runs `npm install` in the clone, which creates that link with no extra step. Pi identifies a git package by its repository URL, so use one settings entry for this repository and select the extensions you want with its `extensions` filter, in the `packages` array of Pi's `settings.json`:
 
 ```json
 {
@@ -24,7 +24,7 @@ The repository root holds a manifest-only `package.json` whose `pi.extensions` l
 
 Omit `extensions` to load every extension, or list a subset. Without a ref the entry follows `main`; `pi update --extensions` pulls it. `pi install git:github.com/jigenator/industrial-os` adds the unfiltered entry. Each extension's README names its entry point and any load-order needs.
 
-For development, install an extension from a local checkout instead, `pi install <industrial-os checkout>/pi/<name>`; Pi loads it from that path without copying it. Pi identifies a local package by its path and a git package by its URL, so configuring one extension from both sources loads it twice; use one.
+For development, install an extension from a local checkout instead, `pi install <industrial-os checkout>/pi/<name>`; Pi loads it from that path without copying it and installs nothing. Neither extension imports the design-system package yet, but run `npm install` once at the checkout root first so the package is linked when one does; see [setup](../CONTRIBUTING.md#setup). Pi identifies a local package by its path and a git package by its URL, so configuring one extension from both sources loads it twice; use one.
 
 ## Guides
 

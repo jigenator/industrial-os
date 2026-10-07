@@ -1,8 +1,8 @@
 # The Pi extensions' colors take precedence over the design-system palette
 
-Status: current.
+Status: superseded on 2026-10-07 by [the design system as an in-repo package that owns the colors](in-repo-design-system-package.md). The design system is now the source of every color; the extensions mirror it until they migrate. This record is kept as history.
 Date/evidence: 2026-10-07, stated by the maintainer. pi-status-bar, then in its own repository and since moved to `pi/status-bar/`, is the first implementation of the Industrial OS visual style and its design doc already listed its palette as the reference; claude-interrupt declares the same acid, black, white, grey, and dark-grey values as constants in `src/index.ts`; `design-system/foundation/palette.mjs` lists nine roles with the same values.
-Supersedes / superseded by: none.
+Supersedes / superseded by: superseded by [in-repo design-system package](in-repo-design-system-package.md).
 
 ## Problem
 
@@ -21,6 +21,7 @@ The same colors exist in three places with no import between them. When they dis
 - `docs/design.md` lists the roles, names the extensions as the authority, and points to `palette.mjs` as the readable mirror of every value; it does not hold a third copy of the values.
 - Each extension declares its colors as named constants in one place.
 - The design system's `palette.mjs` is a mirror; its tests check its own consistency, not agreement with the extensions.
+- The same rule covers status-bar's colors beyond the nine roles. `design-system/foundation/signal-colors.mjs` mirrors them as literal values, not new roles; status-bar's `C` palette is their authority, and the same review comparison applies.
 - Verification is a review comparison of each extension's constants against `palette.mjs`, using the design doc only to map a constant to its role. No automated comparison exists.
 
 ## Revisit when

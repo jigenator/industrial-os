@@ -86,3 +86,62 @@ test('labels and units cannot inject terminal controls', () => {
   const [line] = gauge({ label: '\x1b[2J', value: 1, unit: '\x1b' }, { width: 40 });
   assert.doesNotMatch(paint([line].flat(), 'none'), /\x1b/);
 });
+
+test('opt-in context thresholds, chip palette and text tags match status-bar', async () => {
+  // footer.ts:163-176 READOUT_CHIP/TAG/toneOf. Gauge uses percentage readout, not context tokens.
+  const { READOUT_CHIP } = await import('./gauge.mjs');
+  const zones = { warn: 70, high: 90 };
+  for (const [value, tone, tag] of [[0, 'ok', ''], [70, 'ok', ''], [70.1, 'warn', '▲ WARN'], [90, 'warn', '▲ WARN'], [90.1, 'high', '▲ HIGH'], [null, 'unknown', '? UNKNOWN']]) {
+    const lines = gauge({ label: 'CTX', value }, { width: 80, zones });
+    const shown = text(lines)[0];
+    assert.ok(shown.includes(tag));
+    const chip = lines[0].find((s) => s.style.bg === READOUT_CHIP[tone].bg && s.style.bold);
+    assert.deepEqual(chip.style, READOUT_CHIP[tone]);
+    if (value !== null) {
+      const filled = lines[0].find((s) => s.text === '█');
+      if (value) assert.equal(filled.style.fg, tone === 'ok' ? 'accent' : tone === 'warn' ? 'warning' : 'critical');
+    }
+  }
+  assert.deepEqual(READOUT_CHIP.ok, { fg: 'field', bg: 'primary', bold: true });
+  assert.deepEqual(READOUT_CHIP.unknown, { fg: 'primary', bg: 'structural', bold: true });
+});
+test('context track zones mirror footer tints without adopting ceil fill', async () => {
+  // footer.ts:1032-1033 and 1413-1435 zone positions; DS floors rather than fillCount's ceil.
+  const { SIGNAL_COLORS } = await import('../../foundation/signal-colors.mjs');
+  const lines = gauge({ value: 0 }, { width: 30, labelWidth: 20, zones: { warn: 70, high: 90 } });
+  const track = lines[1];
+  assert.equal(track[20].style.bg, 'surface');
+  assert.equal(track[21].style.bg, SIGNAL_COLORS.warningZone);
+  assert.equal(track[27].style.bg, SIGNAL_COLORS.criticalZone);
+  assert.ok(text(gauge({ value: 0.01 }, { width: 30, labelWidth: 20, zones: { warn: 70, high: 90 } }))[1].startsWith('░'));
+  assert.deepEqual(text(gauge({ value: null }, { width: 1, zones: { warn: 70, high: 90 } })), ['?', '╱', '?']);
+  assert.deepEqual(text(gauge({ value: 0 }, { width: 1, zones: { warn: 70, high: 90 } })), ['#', '░']);
+});
+test('tick-free scale exact collision priority and styled 70/90 labels', () => {
+  // footer.ts:1463-1474: same label positions/priority, without boot treatment. DS 48-cell cap remains.
+  const line = gaugeScale({}, { width: 80, tickFree: true });
+  assert.equal(paint(line, 'none'), '         0   10   20   30   40   50  60   70   80   90  100'.padEnd(80));
+  assert.ok(line.some((s) => s.text === '7' && s.style.fg === 'warning' && s.style.bold));
+  assert.ok(line.some((s) => s.text === '9' && s.style.fg === 'critical' && s.style.bold));
+  assert.doesNotMatch(paint(line, 'none'), /╵/);
+});
+test('opt-in gauges/scales at all widths and states are glyph-safe and plain/color equivalent', async () => {
+  const { stripVTControlCharacters } = await import('node:util');
+  for (let width = 1; width <= 160; width++) for (const value of [0, 37.5, 70, 71, 90, 91, 100, null]) {
+    const input = { label: 'CONTROL\x1b', value }, options = { width, zones: { warn: 70, high: 90 } };
+    for (const line of [...gauge(input, options), gaugeScale(input, { ...options, tickFree: true })]) {
+      assert.equal(lineWidth(line), width);
+      assert.ok(allowed(paint(line, 'none')));
+      assert.equal(stripVTControlCharacters(paint(line, 'truecolor')), paint(line, 'none'));
+    }
+  }
+});
+test('invalid opt-in thresholds and layout columns are rejected', () => {
+  for (const zones of [null, {}, { warn: 70, high: 70 }, { warn: -1, high: 90 }, { warn: 70, high: 101 }, { warn: '70', high: 90 }]) {
+    assert.throws(() => gauge({ value: 0 }, { width: 30, zones }), RangeError);
+    assert.throws(() => gaugeScale({}, { width: 30, zones }), RangeError);
+  }
+  assert.throws(() => gauge({ value: 0 }, { width: 30, labelWidth: -1 }), RangeError);
+  assert.throws(() => gaugeScale({}, { width: 30, readoutWidth: 0.5 }), RangeError);
+  assert.throws(() => gaugeScale({}, { width: 30, tickFree: 'yes' }), TypeError);
+});

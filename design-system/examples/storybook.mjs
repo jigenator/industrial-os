@@ -7,8 +7,7 @@ import { clearInterval, setInterval } from 'node:timers';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { paint } from '../foundation/cells.mjs';
-import { advance, composeStorybook, hitAction, initialState, press } from './storybook-layout.mjs';
-import { STORIES } from './storybook-stories.mjs';
+import { SECTIONS, advance, composeStorybook, hitAction, initialState, needsTimer, playbackInterval, press } from './storybook-layout.mjs';
 import { colorMode, runTerminal, sizeOption } from './terminal-host.mjs';
 
 const USAGE = `Usage: node examples/storybook.mjs [options]
@@ -23,14 +22,13 @@ of the first story and exits.
   --color           force 24-bit color, e.g. when piping to a file
   -h, --help        show this help
 
-Live keys: j/k, arrows, or Tab/Shift-Tab change story; 1-${STORIES.length} jump to one; h/l or left/right
-change state or example; Space/PgDn and b/PgUp page the details; p plays or pauses a motion preview,
-r replays it, o turns motion off; ? shows every key; q or Esc quits, Ctrl-C quits.
+Live keys: j/k, arrows, or Tab/Shift-Tab change story; 1-${SECTIONS.length} jump to a section; h/l or left/right
+change state or example; Space/PgDn and b/PgUp page the details. Motion previews play automatically at
+their own step rate and one-shots replay after a pause; p pauses or resumes, r replays, o turns motion off
+for the whole storybook and on again; ? shows every key; q or Esc quits, Ctrl-C quits.
 Left-click visible index rows, variant names, and footer controls (SGR cell mouse reports required).
 Keyboard controls remain available at every size; clipped or omitted controls are not clickable.`;
 
-// setInterval truncates fractional delays, so round up: 67 ms keeps playback at or under 15 fps.
-export const FRAME_MS = Math.ceil(1000 / 15);
 const SYSTEM_CLOCK = { now: () => performance.now(), setInterval, clearInterval };
 
 const KEYS = new Map([
@@ -44,7 +42,7 @@ const KEYS = new Map([
   ['r', 'replay'],
   ['o', 'motion-off'],
   ['?', 'help'],
-  ...STORIES.map((_, i) => [String(i + 1), `story:${i}`]),
+  ...SECTIONS.map((_, i) => [String(i + 1), `section:${i}`]),
 ]);
 
 export function parseOptions(args) {
@@ -65,23 +63,26 @@ export function parseOptions(args) {
   return { ...values, columns, rows, snapshot: Boolean(values.snapshot || values.plain || columns || rows) };
 }
 
-// The first story with motion off. Without rows its details are shown in full. Plain output trims
+// The first story, settled: a snapshot never plays. Without rows its details are shown in full. Plain output trims
 // trailing pad cells; color output keeps them so the black field is painted.
 export function renderSnapshot({ columns, rows, color }) {
   const mode = color === 'none' ? 'PLAIN' : 'TRUECOLOR';
-  const { lines } = composeStorybook(initialState(), { columns, rows, mode, snapshot: true });
+  const { lines } = composeStorybook({ ...initialState(), motion: false }, { columns, rows, mode, snapshot: true });
   return lines.map((l) => (color === 'none' ? paint(l, color).trimEnd() : paint(l, color))).join('\n') + '\n';
 }
 
 // Live storybook on a terminal. Resolves with the exit code after restoring every mode it changed.
-// Redraws on resize and on keys that change the view. While, and only while, a motion preview plays,
-// one interval timer redraws at FRAME_MS; every exit path clears it. `clock` is injectable for checks.
+// Redraws on resize and on keys that change the view. While, and only while, a motion preview plays or a
+// finished one-shot waits to replay (needsTimer), one interval timer runs at that preview's step
+// (playbackInterval); every exit path clears it.
+// `clock` is injectable for checks.
 export function runLive({ input, output, proc = process, color, clock = SYSTEM_CLOCK }) {
   const mode = color === 'none' ? 'PLAIN' : 'TRUECOLOR';
   let state = initialState();
   let view = { page: 1, maxOffset: 0 };
   let size;
   let timer = null;
+  let timerMs = null; // the step the running timer was started at
 
   const render = (next) => {
     size = next;
@@ -94,17 +95,24 @@ export function runLive({ input, output, proc = process, color, clock = SYSTEM_C
     if (timer === null) return;
     clock.clearInterval(timer);
     timer = null;
+    timerMs = null;
   };
 
   const syncTimer = (host) => {
-    if (state.playback.status !== 'playing') return stopTimer();
-    timer ??= clock.setInterval(
+    if (!needsTimer(state)) return stopTimer();
+    // Moving straight from one playing preview to another can change the step: restart at the new one.
+    if (timer !== null && timerMs === playbackInterval(state)) return;
+    stopTimer();
+    timerMs = playbackInterval(state);
+    timer = clock.setInterval(
       host.guard(() => {
+        const before = state;
         if (size) state = advance(state, { now: clock.now(), ...size }); // no frame yet: nothing to complete
-        syncTimer(host); // a finished reveal stops its own timer before the final frame
-        host.redraw();
+        syncTimer(host);
+        // Draw every playing frame and each change, such as completing or replaying; a waiting replay draws nothing.
+        if (state.playback.status === 'playing' || state !== before) host.redraw();
       }),
-      FRAME_MS,
+      timerMs,
     );
   };
 

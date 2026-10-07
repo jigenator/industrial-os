@@ -4,7 +4,7 @@
 import { ACID_BLACK } from './palette.mjs';
 
 // Curated structural glyphs. All are East Asian Width Narrow or Ambiguous and must render one cell wide.
-export const GLYPHS = '─│┌┐└┘╵╱▐▌█▏▎▍▋▊▉░○●▲✕…';
+export const GLYPHS = '─│┌┐└┘╵╱▐▌█▏▎▍▋▊▉░○●▲✕…━┃┏┓┗┛┼▀▄▒▓▚▞■▪·•◆▴⌑⑂×';
 
 const PRINTABLE_ASCII = /[^\x20-\x7e]/gu;
 
@@ -59,7 +59,8 @@ export function assertCells(n, name) {
 
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(';');
 
-function colorHex(value) {
+// The #RRGGBB value of an Acid / Black role name or an exact #RRGGBB string; anything else throws.
+export function resolveColor(value) {
   if (typeof value === 'string') {
     if (Object.hasOwn(ACID_BLACK, value)) return ACID_BLACK[value];
     if (value.length === 7 && /^#[0-9a-f]{6}$/i.test(value)) return value;
@@ -68,7 +69,7 @@ function colorHex(value) {
 }
 
 function sgr({ fg = 'secondary', bg = 'field', bold = false }) {
-  return `\x1b[0;${bold ? '1;' : ''}38;2;${rgb(colorHex(fg))};48;2;${rgb(colorHex(bg))}m`;
+  return `\x1b[0;${bold ? '1;' : ''}38;2;${rgb(resolveColor(fg))};48;2;${rgb(resolveColor(bg))}m`;
 }
 
 // Truecolor validates named roles or literal RGB; 'none' emits text without inspecting styles.
