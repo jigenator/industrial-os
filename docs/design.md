@@ -32,7 +32,7 @@ This is the selected default palette. The Pi extensions are the authority for it
 
 Do not use decorative greys for essential control boundaries or readable small text without checking the actual contrast. Accent is not a substitute for a label; warning and critical states must remain understandable without color.
 
-If a value differs between an extension's constants and `palette.mjs`, the extension's value is correct and `palette.mjs` changes to match in its own commit; see [the decision](decisions/extension-colors-take-precedence.md). The check is a direct comparison of each extension's constants against `palette.mjs`, using this table only to map a constant to its role. All nine roles currently match status-bar's constants, and claude-interrupt's five constants match them.
+If a value differs between an extension's constants and `palette.mjs`, the extension's value is correct and `palette.mjs` changes to match in its own commit; see [the decision](decisions/extension-colors-take-precedence.md). The check is a direct comparison of each extension's constants against `palette.mjs`, using this table only to map a constant to its role. All nine roles currently match status-bar's constants, and claude-interrupt's five constants match them. status-bar's colors beyond these roles (count tiers, mode inks, gauge zones, warm-up steps, and usage providers) are its own product colors, not roles; the design system mirrors them in [foundation/signal-colors.mjs](../design-system/foundation/signal-colors.mjs) under the same authority.
 
 ### Pi extensions
 

@@ -71,7 +71,7 @@ Scope reviewed: the full source and test trees of the design system and claude-i
 
 ## Adoption gaps
 
-- **Palette values are copied by hand** in three places: `pi/status-bar/src/footer.ts`, `pi/claude-interrupt/src/index.ts`, and `design-system/foundation/palette.mjs`. The authority is decided; the comparison is a manual review of each extension's constants against `palette.mjs`. Next change: when a value first changes, decide between a tested comparison and a generated file. Verify by the review comparison until then.
+- **Palette values are copied by hand** in four places: `pi/status-bar/src/footer.ts`, `pi/claude-interrupt/src/index.ts`, `design-system/foundation/palette.mjs`, and `design-system/foundation/signal-colors.mjs`. The authority is decided; the comparison is a manual review of each extension's constants against `palette.mjs`. Next change: when a value first changes, decide between a tested comparison and a generated file. Verify by the review comparison until then.
 - **No automated cross-project boundary check.** The import rule is reviewed by hand. Next change: a small test that walks each project's imports, if a violation ever appears. Verify by running it in each project's sequence.
 - **No continuous integration and no single repository command.** Each project's sequence is run by hand. Recorded in [the decision](decisions/standalone-packages.md). Next change: a root script calling each project's documented sequence, only when a CI gate is wanted.
 - **Neither Pi extension has an interactive Pi or Herdr verification record** since its move; each one's automated suite and load check pass. Next change: run each interactive check and record it in that extension's contributing guide.

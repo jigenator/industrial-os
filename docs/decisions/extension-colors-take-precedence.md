@@ -21,6 +21,7 @@ The same colors exist in three places with no import between them. When they dis
 - `docs/design.md` lists the roles, names the extensions as the authority, and points to `palette.mjs` as the readable mirror of every value; it does not hold a third copy of the values.
 - Each extension declares its colors as named constants in one place.
 - The design system's `palette.mjs` is a mirror; its tests check its own consistency, not agreement with the extensions.
+- The same rule covers status-bar's colors beyond the nine roles. `design-system/foundation/signal-colors.mjs` mirrors them as literal values, not new roles; status-bar's `C` palette is their authority, and the same review comparison applies.
 - Verification is a review comparison of each extension's constants against `palette.mjs`, using the design doc only to map a constant to its role. No automated comparison exists.
 
 ## Revisit when
