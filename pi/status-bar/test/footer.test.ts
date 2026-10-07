@@ -22,6 +22,7 @@ const widthCases = new Set([
 	"linked-worktree footer (branch-only or directory first) and PNYTL coexist through mode changes and wrapping",
 	"USG wraps whole provider columns with their text rows; every line is bounded at widths 1..280 in every state and frame",
 	"USG row boot frames stay width-bounded at every width 1..280 on every tick",
+	"Background tasks: every line fits widths 1..280 for each label and frame, recognized or raw",
 ]);
 const eventCases = [
 	"re-strikes and ghosts touch only plates, panel ink, ROOT/AU and free frame cells; readable and fully recovered",
@@ -2423,6 +2424,212 @@ test("Tatsu: attention beacon changes only the ▲ cell at most once per four se
 	assert.equal(tatsuPlain(f), "TCLI ▲ UP×1   AWKS ▲ FIX");
 	const ghost: FooterFrame = { ...SETTLED_FRAME, ghosts: { k: 0, items: [{ fam: "ghost", start: 0, at: { row: "ext", col: 8, colFrom: "plate" }, frames: [{ ch: "?", fg: "high" }] }] } };
 	assert.deepEqual(tatsuCells(f, ghost), tatsuCells(f));
+});
+
+// pi-background-tasks 2.6.9's footer status: its light-blue chip around a padded label.
+const BG_SGR = "\x1b[48;2;183;223;255m\x1b[38;2;11;70;110m";
+const bgRaw = (label: string) => `${BG_SGR} ${label} \x1b[0m`;
+const BG_FULL = "bg 2 running · 1 failed · 1 stopped · 3 done · Shift↓ · /bg-clear · ⬆ v2.7.0 /bg-update";
+const bgFixture = (label: string, activity: FooterSnapshot["activity"] = { working: false, units: 0 }, extra: [string, string][] = []): FooterSnapshot =>
+	({ ...session(41.8, activity), statuses: new Map([["background-tasks", bgRaw(label)], ...extra]) });
+// The BG entry's content cells, from the content column (framed layouts) or the line start (minimal).
+const bgCells = (f: FooterSnapshot, width = 120, frame?: FooterFrame) => {
+	const lines = renderFooter(f, width, theme, frame), at = lines.findIndex((line: string) => stripTerminalSequences(line).includes("BG "));
+	const cells = cellsOf(lines[at]), start = text(cells).indexOf("BG ");
+	return { lines, at, cells: cells.slice(start, width - metrics(width).G) };
+};
+// Exact styled runs: spaces by background only, other characters by ink, weight and background; trailing field dropped.
+const styleRuns = (cells: TestCell[]) => {
+	const runs: [string, string][] = [];
+	for (const c of cells) {
+		const style = c.ch === " " ? `space/${c.bg}` : `${c.fg}${c.bold ? " bold" : ""}/${c.bg}`, last = runs.at(-1);
+		if (last && last[1] === style) last[0] += c.ch; else runs.push([c.ch, style]);
+	}
+	if (runs.at(-1)?.[1] === "space/field") runs.pop();
+	return runs;
+};
+const lampDiamond = (f: FooterSnapshot, frame?: FooterFrame) => {
+	const g = grid(renderFooter(f, 120, theme, frame)), diamond = g.flat().find((c) => c.ch === "◆")!;
+	return { lamp: rail(g[0]).lamp.bg, diamond: diamond.fg, bold: diamond.bold };
+};
+
+test("Background tasks: the exact v2.6.9 label grammar is recognized; every other text is not", () => {
+	const parse = footer.backgroundTasks, kinds = ["running", "failed", "stopped", "done"] as const, hints = ["focused", "Shift↓", "CtrlAltB", "/tasks"] as const;
+	let accepted = 0;
+	for (let mask = 1; mask < 16; mask++) for (const hint of hints) for (const clear of [false, true]) for (const update of [undefined, "2.7.0", "3.0.0-rc.1+sha.5"]) {
+		const counts = kinds.filter((_, i) => mask & (1 << i)), finished = counts.some((kind) => kind !== "running");
+		const label = `bg ${[...counts.map((kind, i) => `${i + 1} ${kind}`), hint, ...(clear ? ["/bg-clear"] : []), ...(update ? [`⬆ v${update} /bg-update`] : [])].join(" · ")}`;
+		const expected = !clear || (finished && hint !== "focused")
+			? { clear, hint, ...Object.fromEntries(counts.map((kind, i) => [kind, i + 1])), ...(update ? { update } : {}) } : undefined;
+		for (const raw of [label, bgRaw(label)]) assert.deepEqual(parse(raw), expected, JSON.stringify(raw));
+		if (expected) accepted++;
+	}
+	assert.equal(accepted, 15 * 4 * 3 + 14 * 3 * 3, "every count set and hint, with /bg-clear only after finished counts and an unfocused hint");
+	// Update alone is the only form without counts; the producer's real SGR-wrapped strings, padded or not.
+	assert.deepEqual(parse(bgRaw("bg ⬆ v2.7.0 /bg-update")), { clear: false, update: "2.7.0" });
+	assert.deepEqual(parse("bg ⬆ v10.0.0-beta.1 /bg-update"), { clear: false, update: "10.0.0-beta.1" });
+	assert.deepEqual(parse(`${BG_SGR} bg 1 running · Shift↓ \x1b[0m`), { clear: false, running: 1, hint: "Shift↓" });
+	assert.deepEqual(parse("\x1b[48:2::183:223:255m bg 12 done · /tasks · /bg-clear \x1b[0m"), { clear: true, done: 12, hint: "/tasks" });
+	for (const raw of [
+		"bg 1 failed · 1 running · Shift↓", "bg 1 done · 1 stopped · Shift↓", "bg 1 running · 2 running · Shift↓", "bg 1 done · 2 done · Shift↓ · /bg-clear",
+		"bg 0 running · Shift↓", "bg -1 running · Shift↓", "bg 01 running · Shift↓", "bg x running · Shift↓", "bg 1.5 running · Shift↓", "bg 1e3 running · Shift↓",
+		"bg 9007199254740993 running · Shift↓", "bg 1 runs · Shift↓", "bg 1  running · Shift↓",
+		"bg 1 running", "bg 1 running · /bg-clear", "bg 1 failed · ⬆ v2.7.0 /bg-update", "bg Shift↓", "bg /bg-clear", "bg 1 running · Shift↓ · CtrlAltB",
+		"bg 1 done · focused · /bg-clear", "bg 1 running · Shift↓ · /bg-clear", "bg 1 failed · Shift↓ · /bg-clear · /bg-clear", "bg 1 failed · /bg-clear · Shift↓",
+		"bg 1 running · Shift↓ · extra", "bg 1 running · Shift↓ ·", "bg 1 running ·  Shift↓", "bg 1 running · shift↓", "bg 1 running · Ctrl+Alt+B", "bg 1 running · tasks",
+		"bg ⬆ v2.7.0 /bg-update · 1 running · Shift↓", "bg ⬆ vv2.7.0 /bg-update", "bg ⬆ v2.7 /bg-update", "bg ⬆ 2.7.0 /bg-update", "bg ▲ v2.7.0 /bg-update",
+		"bg ⬆ v2.7.0 /bg-update · ⬆ v2.8.0 /bg-update", "bg ⬆ v2.7.0  /bg-update", "bg ⬆ v2.7.0-", `bg ⬆ v2.7.0-${"a".repeat(41)} /bg-update`,
+		"bg", "bg ", "", "1 running · Shift↓", "BG 1 running · Shift↓", "bg  1 running · Shift↓", "bg·1 running · Shift↓",
+		"bg 1 running · Shift↓\n", "bg 1 running · Shift↓\t", "\x1b]0;x\x07bg 1 running · Shift↓", "\x1b[2Jbg 1 running · Shift↓", "\u202ebg 1 running · Shift↓",
+		`bg 1 running · Shift↓${" ".repeat(600)}`,
+	]) assert.equal(parse(raw), undefined, JSON.stringify(raw));
+	for (const raw of [undefined, null, 42, { label: "bg 1 running · Shift↓" }]) assert.equal(parse(raw), undefined);
+});
+
+test("Background tasks: grey BG label on the first part, bold coloured counts, grey hint and update command, three cells apart", () => {
+	for (const glyph of "◆✕■•▲×↓") assert.equal(visibleWidth(glyph), 1, glyph);
+	const f = bgFixture(BG_FULL), { cells } = bgCells(f, 120);
+	assert.deepEqual(styleRuns(cells), [
+		["BG", "graphic/field"], [" ", "space/field"], ["◆", "text bold/field"], [" ", "space/field"], ["RUN×2", "text bold/field"], ["   ", "space/field"],
+		["✕", "high bold/field"], [" ", "space/field"], ["FAIL×1", "high bold/field"], ["   ", "space/field"],
+		["■", "warn bold/field"], [" ", "space/field"], ["STOP×1", "warn bold/field"], ["   ", "space/field"],
+		["•", "primary bold/field"], [" ", "space/field"], ["DONE×3", "primary bold/field"], ["   ", "space/field"],
+		["Shift↓", "graphic/field"], [" ", "space/field"], ["/bg-clear", "graphic/field"], ["   ", "space/field"],
+		["▲", "warn bold/field"], [" ", "space/field"], ["v2.7.0", "warn bold/field"], [" ", "space/field"], ["/bg-update", "graphic/field"],
+	]);
+	// Starts at the EXT content column, like any status; the producer's light-blue chip never reaches the footer.
+	const lines = renderFooter(f, 120, theme), ext = lines.findIndex((line: string) => stripTerminalSequences(line).includes("05 EXT"));
+	assert.equal(stripTerminalSequences(lines[ext]).indexOf("BG ◆"), 11);
+	assert.doesNotMatch(lines.join("\n"), /183;223;255|11;70;110|bg 2 running|⬆/);
+	for (const [label, expected] of [
+		["bg 1 running · focused", "BG ◆ RUN×1   focused"],
+		["bg 4 stopped · CtrlAltB · /bg-clear", "BG ■ STOP×4   CtrlAltB /bg-clear"],
+		["bg 1 failed · /tasks", "BG ✕ FAIL×1   /tasks"],
+		["bg 1 running · 1 done · focused · ⬆ v2.7.0 /bg-update", "BG ◆ RUN×1   • DONE×1   focused   ▲ v2.7.0 /bg-update"],
+		["bg ⬆ v2.7.0 /bg-update", "BG ▲ v2.7.0 /bg-update"],
+	] as const) assert.equal(text(bgCells(bgFixture(label)).cells).trimEnd(), expected, label);
+	// Update alone: the label rides on the update group.
+	assert.deepEqual(styleRuns(bgCells(bgFixture("bg ⬆ v2.7.0 /bg-update")).cells), [
+		["BG", "graphic/field"], [" ", "space/field"], ["▲", "warn bold/field"], [" ", "space/field"], ["v2.7.0", "warn bold/field"], [" ", "space/field"], ["/bg-update", "graphic/field"],
+	]);
+	// 256-colour output converts the same inks; no truecolor sequences remain.
+	const indexed = renderFooter(f, 120, hostTheme("256color")).join("\n");
+	assert.doesNotMatch(indexed, /\x1b\[(38|48);2;/); assert.match(plain(renderFooter(f, 120, hostTheme("256color"))).join("\n"), /BG ◆ RUN×2   ✕ FAIL×1/);
+});
+
+test("Background tasks: sorted before Tatsu; exact layouts at 100, 48 and 30 columns break only between parts", () => {
+	const tatsu = tatsuFixture("current", "current");
+	const f: FooterSnapshot = { ...tatsu, statuses: new Map([["z-status", "last"], ["tatsu-status", "raw tatsu"], ["background-tasks", bgRaw(BG_FULL)], ["a-status", "first"]]) };
+	const ext = (width: number) => { const lines = rows(f, width); return lines.slice(lines.findIndex((line) => line.includes("05 EXT"))); };
+	assert.deepEqual(ext(100), [
+		"   05 EXT  first                                                                                    ",
+		"           BG ◆ RUN×2   ✕ FAIL×1   ■ STOP×1   • DONE×3   Shift↓ /bg-clear   ▲ v2.7.0 /bg-update     ",
+		"┃          TCLI • OK   AWKS • OK                                                                   ┃",
+		"┗━         last                                                                                   ━┛",
+	]);
+	assert.deepEqual(ext(48), [
+		"  05 EXT  first                                 ",
+		"          BG ◆ RUN×2   ✕ FAIL×1   ■ STOP×1      ",
+		"          • DONE×3   Shift↓ /bg-clear           ",
+		"          ▲ v2.7.0 /bg-update                   ",
+		"┃         TCLI • OK   AWKS • OK                ┃",
+		"┗         last                                 ┛",
+	]);
+	assert.deepEqual(ext(30), [
+		" 05 EXT  first                ",
+		"BG ◆ RUN×2   ✕ FAIL×1         ",
+		"■ STOP×1   • DONE×3           ",
+		"Shift↓ /bg-clear              ",
+		"▲ v2.7.0 /bg-update           ",
+		"TCLI • OK   AWKS • OK         ",
+		"last                          ",
+	]);
+	// Alone in EXT, the minimal layout puts the first parts beside the label, like Tatsu; a part wider than its line wraps.
+	const alone = rows(bgFixture(BG_FULL), 30), at = alone.findIndex((line) => line.includes("05 EXT"));
+	assert.deepEqual(alone.slice(at).map((line) => line.trimEnd()), [" 05 EXT  BG ◆ RUN×2   ✕ FAIL×1", "■ STOP×1   • DONE×3", "Shift↓ /bg-clear", "▲ v2.7.0 /bg-update"]);
+	assert.deepEqual(rows(bgFixture("bg 1 running · Shift↓ · ⬆ v2.7.0 /bg-update"), 12).slice(-4).map((line) => line.trimEnd()), ["BG ◆ RUN×1", "Shift↓", "▲ v2.7.0", "/bg-update"]);
+});
+
+test("Background tasks: unrecognized text keeps the raw EXT path byte for byte, styles included", () => {
+	for (const raw of [bgRaw("bg 1 running · Shift↓ · extra"), bgRaw("bg 0 running · Shift↓"), bgRaw("bg ⬆ vv2.7.0 /bg-update"), "background tasks: 2", `${BG_SGR}\x1b]0;x\x07 bg 1 running · Shift↓ \x1b[0m`]) {
+		const base = session(), as = (key: string) => renderFooter({ ...base, statuses: new Map([[key, raw]]) }, 100, theme);
+		assert.deepEqual(as("background-tasks"), as("other"), JSON.stringify(raw));
+		assert.doesNotMatch(plain(as("background-tasks")).join("\n"), /BG [◆✕■•▲]/);
+		assert.equal(startMotion({ ...base, statuses: new Map([["background-tasks", raw]]) }, 0, 1, false).backgroundRunning, false);
+	}
+	assert.match(renderFooter(bgFixture("bg 1 running · Shift↓ · extra"), 100, theme).join(""), /\x1b\[48;2;183;223;255m/, "the producer's chip survives in raw fallback");
+	// Recognized text under any other key is just another status.
+	assert.match(rows({ ...session(), statuses: new Map([["other", bgRaw("bg 1 running · Shift↓")]]) }).join("\n"), /bg 1 running · Shift↓/);
+});
+
+test("Background tasks: every line fits widths 1..280 for each label and frame, recognized or raw", () => {
+	const labels = [BG_FULL, "bg 1 running · focused", "bg ⬆ v2.7.0 /bg-update", `bg ${Number.MAX_SAFE_INTEGER} running · ${Number.MAX_SAFE_INTEGER} done · CtrlAltB · /bg-clear · ⬆ v999999999.999999999.999999999-${"r".repeat(40)} /bg-update`, "bg 1 running · Shift↓ · extra"];
+	const ghost: FooterFrame = { ...SETTLED_FRAME, pulse: 3, ghosts: { k: 0, items: [{ fam: "ghost", start: 0, at: { row: "ext", col: 8, colFrom: "plate" }, frames: [{ ch: "?", fg: "high" }] }] } };
+	const frames: FooterFrame[] = [SETTLED_FRAME, { ...SETTLED_FRAME, pulse: 0 }, { ...SETTLED_FRAME, pulse: 12 }, { ...SETTLED_FRAME, boot: 3, pulse: 3 }, ghost];
+	for (const label of labels) {
+		const f = bgFixture(label, { working: true, units: 2 }, [["tatsu-status", "raw"], ["a", "first"]]);
+		for (const frame of frames) for (const width of sweepWidths(1, 280)) {
+			const lines = renderFooter(f, width, theme, frame);
+			assert.ok(lines.length > 0);
+			assert.ok(lines.every((line: string) => visibleWidth(line) <= width), `${label} width ${width}`);
+		}
+	}
+});
+
+test("Background tasks: a running ◆ blinks in phase with ROOT's lamp, Idle too; text and width never change; motion off holds it lit", () => {
+	const settled = text(bgCells(bgFixture(BG_FULL)).cells);
+	for (const working of [true, false]) {
+		const f = bgFixture(BG_FULL, { working, units: 0 }), epoch = 1234, state = startMotion(f, epoch, 4, false);
+		assert.equal(state.backgroundRunning, true);
+		for (let k = 0; k < 48; k++) for (const offset of [0, 49]) {
+			const frame = motionFrame(state, epoch + k * 50 + offset), lit = k % 16 < 10, at = lampDiamond(f, frame);
+			assert.deepEqual(at, { lamp: working && lit ? "primary" : "surface", diamond: lit ? "text" : "graphic", bold: true }, `${working} tick ${k}`);
+			if (working) assert.equal(at.lamp === "primary", at.diamond === "text", "lamp and ◆ share one phase");
+			const cells = bgCells(f, 120, frame).cells;
+			assert.equal(text(cells), settled, "characters and width never change");
+			assert.ok(cells.filter((c) => c.ch !== "◆" && c.ch !== " ").every((c, i) => c.fg === bgCells(f).cells.filter((d) => d.ch !== "◆" && d.ch !== " ")[i].fg), "only the ◆ ink changes");
+		}
+		assert.deepEqual(lampDiamond(f), { lamp: working ? "primary" : "surface", diamond: "text", bold: true }, "motion off holds the ◆ lit");
+	}
+	// Without a RUN count nothing in the entry moves.
+	const done = bgFixture("bg 1 done · Shift↓ · /bg-clear");
+	for (const pulse of [0, 12]) assert.deepEqual(bgCells(done, 120, { ...SETTLED_FRAME, pulse }).cells, bgCells(done).cells);
+});
+
+test("Background tasks: the scheduler wakes for every ◆ edge while tasks run, even Idle; settled from boot; ambient never touches it", () => {
+	const idle = { working: false, units: 0 }, running = bgFixture("bg 1 running · Shift↓", idle), finished = bgFixture("bg 1 done · Shift↓ · /bg-clear", idle);
+	// Resumed and Idle: the ┼ nudge settles by 250 ms and the first ghost is due at 800 ms; only a running ◆ wakes between.
+	assert.equal(nextMotionDelay(startMotion(finished, 0, 6, false), 300), 500);
+	let state = startMotion(running, 0, 6, false);
+	assert.equal(nextMotionDelay(state, 300), 200, "wakes at the 500 ms lamp edge");
+	for (let now = 0; now < 8000; now += 25) {
+		state = advanceMotion(state, running, now);
+		const tick = Math.floor(now / 50);
+		let edge = tick + 1;
+		while ((edge % 16 < 10) === ((edge - 1) % 16 < 10)) edge++;
+		assert.ok(now + nextMotionDelay(state, now) <= edge * 50, `${now}: wakes by the next ◆ edge`);
+	}
+	// Memory follows the status: appearing starts the wakes, a finished-only label ends them.
+	let s = startMotion(finished, 0, 6, false);
+	assert.equal(s.backgroundRunning, false);
+	s = advanceMotion(s, running, 300); assert.equal(s.backgroundRunning, true); assert.equal(nextMotionDelay(s, 300), 200);
+	s = advanceMotion(s, finished, 400); assert.equal(s.backgroundRunning, false);
+	s = advanceMotion(s, { ...running, statuses: new Map() }, 450); assert.equal(s.backgroundRunning, false);
+	// Footer boot: drawn settled from the first frame (only the ◆ follows the lamp); ghosts and re-strikes never reach it.
+	const f = bgFixture(BG_FULL, { working: true, units: 0 }, [["a", "first"], ["z", "last"]]), boot = startMotion(f, 0, 9, true);
+	let booted = 0;
+	for (let now = 0; now <= 1600; now += 50) {
+		const frame = motionFrame(boot, now);
+		if (frame.boot !== Infinity) booted++;
+		assert.deepEqual(bgCells(f, 120, frame).cells, bgCells(f, 120, { ...SETTLED_FRAME, pulse: frame.pulse }).cells, `boot ${now}`);
+	}
+	assert.ok(booted > 20);
+	const ghost: FooterFrame = { ...SETTLED_FRAME, ghosts: { k: 0, items: [{ fam: "ghost", start: 0, at: { row: "ext", col: 9, colFrom: "plate" }, frames: [{ ch: "?", fg: "high" }] }] } };
+	assert.deepEqual(bgCells(f, 120, ghost).cells, bgCells(f).cells);
+	for (let seed = 0; seed < 40; seed++) {
+		const struck = strikeAt(f, seed), frame = motionFrame(struck, struck.strike!.at + 50);
+		assert.deepEqual(bgCells(f, 120, frame).cells, bgCells(f, 120, { ...SETTLED_FRAME, pulse: frame.pulse }).cells, `strike seed ${seed}`);
+	}
 });
 
 test("SGR inside a grapheme retains the host's fragment clipping in runs and serialized rows", () => {

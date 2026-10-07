@@ -87,3 +87,9 @@ The toolchain baseline above was recorded before the package moved into the mono
 - `npm test` (steps 1–3): **157 of 157 tests passed** in five runs. One further run failed in test 18's cleanup hook (`ENOTEMPTY` removing a `pi-footer-integration-*` temp folder, apparently a late write by the fake `git` racing the removal) with all assertions passing; no source or test changed in the move, so this is an intermittent fixture-cleanup failure inherited from the old repository.
 - Non-interactive Pi load check (step 4): **exit 0**. A throwing-extension control exited 1 in the same session.
 - Interactive Pi/Herdr check: **not run**.
+
+2026-10-07, background-tasks entry, on macOS with Node 22.23.0 and installed Pi 1.0.4:
+
+- `npm test` (steps 1–3): **170 of 170 tests passed**.
+- Non-interactive Pi load check (step 4): **exit 0**, with only the expected model-pattern warnings.
+- Interactive Pi/Herdr check and a live pi-background-tasks producer: **not run**.

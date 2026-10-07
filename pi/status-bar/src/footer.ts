@@ -35,8 +35,49 @@ const tatsuLook = (c: TatsuComponent): { shape: string; code: string; ink: Hue }
 		case "inactive": return { shape: "·", code: "OFF", ink: "graphic" };
 	}
 };
-// Plain text per component, `TCLI <shape> <code>` (single-width glyphs), three field cells apart.
-const TATSU_GAP = 3;
+// Pre-styled EXT parts (Tatsu components, background-task groups) sit three field cells apart.
+const PART_GAP = 3;
+/** pi-background-tasks 2.6.9's `background-tasks` footer status, parsed; absent fields were not in the label. */
+export type BackgroundTasks = Readonly<{
+	running?: number; failed?: number; stopped?: number; done?: number;
+	hint?: (typeof BG_HINTS)[number]; clear: boolean; update?: string;
+}>;
+const BG_COUNTS = [
+	{ key: "running", shape: "◆", code: "RUN", ink: "text" }, { key: "failed", shape: "✕", code: "FAIL", ink: "high" },
+	{ key: "stopped", shape: "■", code: "STOP", ink: "warn" }, { key: "done", shape: "•", code: "DONE", ink: "primary" },
+] as const;
+const BG_HINTS = ["focused", "Shift↓", "CtrlAltB", "/tasks"] as const;
+// The producer prints `v` before the registry's semver; anything else (a doubled `v`, spaces) is not recognized.
+const BG_UPDATE = /^⬆ v(\d{1,9}\.\d{1,9}\.\d{1,9}(?:-[0-9A-Za-z.-]{1,40})?(?:\+[0-9A-Za-z.-]{1,40})?) \/bg-update$/;
+/**
+ * The exact label grammar, bounded before stripping SGR: `bg ` then ` · `-joined segments. Counts (each at most once, in
+ * order) need one dock hint next; `/bg-clear` follows only finished counts with an unfocused hint; the update segment is
+ * optional last and is the only form without counts. Anything else is undefined: it stays raw in EXT.
+ */
+export function backgroundTasks(raw: unknown): BackgroundTasks | undefined {
+	if (typeof raw !== "string" || raw.length > 512) return undefined;
+	const text = raw.replace(/\x1b\[[0-9;:]*m/g, "").replace(/^ +| +$/g, "");
+	if (!text.startsWith("bg ")) return undefined;
+	const segments = text.slice(3).split(" · "), result: { -readonly [K in keyof BackgroundTasks]: BackgroundTasks[K] } = { clear: false };
+	let i = 0;
+	for (const { key } of BG_COUNTS) {
+		const match = /^([1-9]\d{0,15}) (\w+)$/.exec(segments[i] ?? ""), n = Number(match?.[1]);
+		if (match?.[2] === key && Number.isSafeInteger(n)) { result[key] = n; i++; }
+	}
+	if (i > 0) {
+		const hint = BG_HINTS.find((h) => h === segments[i]);
+		if (!hint) return undefined;
+		result.hint = hint; i++;
+		if (segments[i] === "/bg-clear") {
+			if (hint === "focused" || (result.failed ?? result.stopped ?? result.done) === undefined) return undefined;
+			result.clear = true; i++;
+		}
+	}
+	const update = BG_UPDATE.exec(segments[i] ?? "");
+	if (update) { result.update = update[1]; i++; }
+	return i > 0 && i === segments.length ? result : undefined;
+}
+const backgroundRunning = (snapshot: FooterSnapshot) => backgroundTasks(snapshot.statuses.get("background-tasks"))?.running !== undefined;
 export type FooterSnapshot = {
 	homePath: string;
 	launchPath: string;
@@ -445,6 +486,8 @@ export type MotionState = Readonly<{
 	strike?: MotionEvent;
 	strikeAt: number;
 	working: boolean;
+	/** A recognized background-tasks status reports running tasks; its ◆ blinks on the ROOT lamp cadence. */
+	backgroundRunning: boolean;
 	units: number;
 	ponytail?: PonytailState;
 	ponytailKnown?: PonytailMode;
@@ -549,6 +592,7 @@ export function startMotion(snapshot: FooterSnapshot, now: number, seed: number,
 		ghostAt: now + ghostDelay,
 		strikeAt: now + Math.max(ghostDelay, between(r, STRIKE_WAIT) * 0.5),
 		working: snapshot.activity?.working === true,
+		backgroundRunning: backgroundRunning(snapshot),
 		units: knownCount(snapshot.activity?.units) ?? 0,
 		ponytailActive: ponytailLit(snapshot),
 		usage: usageMemory(snapshot), usageBurns: {},
@@ -642,6 +686,7 @@ export function advanceMotion(state: MotionState, snapshot: FooterSnapshot, now:
 		set("percent", percent);
 	}
 	set("working", snapshot.activity?.working === true);
+	set("backgroundRunning", backgroundRunning(snapshot));
 	set("units", knownCount(snapshot.activity?.units) ?? 0);
 	set("ponytailActive", ponytailLit(snapshot));
 
@@ -772,7 +817,7 @@ export function motionFrame(state: MotionState, now: number): FooterFrame {
 	return frame;
 }
 
-// The lamp blinks 500 ms acid / 300 ms dim; each visible unit mark shuttles on its own period.
+// The lamp blinks 500 ms acid / 300 ms dim, as does a running background task's ◆; each visible unit mark shuttles on its own period.
 const lampOn = (pulse: number) => pulse % 16 < 10;
 // Ponytail's light toggles every 50 ms decoration tick: 10 blinks a second, the fastest the tick allows. One character
 // cell is well below WCAG's flash-area threshold, so this exceeds the three-a-second budget kept for the mode letters by choice.
@@ -807,9 +852,9 @@ export function nextMotionDelay(state: MotionState, now: number): number {
 		if (calAt(k) !== calAt(k - 1)) { due = Math.min(due, state.epoch + k * TICK); break; }
 	}
 	const marks = Math.min(PULSE_CAP, state.units);
-	if (state.working || marks || state.ponytailActive) {
+	if (state.working || state.backgroundRunning || marks || state.ponytailActive) {
 		for (let k = tick + 1; k <= tick + 32; k++) {
-			let moved = (state.working && lampOn(k) !== lampOn(k - 1)) || (state.ponytailActive && lightOn(k) !== lightOn(k - 1));
+			let moved = ((state.working || state.backgroundRunning) && lampOn(k) !== lampOn(k - 1)) || (state.ponytailActive && lightOn(k) !== lightOn(k - 1));
 			for (let q = 0; q < marks && !moved; q++) moved = markSide(k, q) !== markSide(k - 1, q);
 			if (moved) { due = Math.min(due, state.epoch + k * TICK); break; }
 		}
@@ -1164,17 +1209,18 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 		const settled = Math.max(0, front - USAGE_SWEEP_CELLS_PER_TICK - x);
 		return truncateToWidth(text, settled, "") + paint([...stripTerminalSequences(text)].slice(settled, Math.max(0, front - x)).join(""), LOCKED);
 	};
-	// Tatsu components break only between components, so one never splits while it fits a line; one wider than its line
-	// wraps like any other status. The first line holds `first` cells after any `lead` (the minimal layout's label).
-	const tatsuLines = (parts: string[], first: number, rest: number, lead: boolean) => {
+	// Pre-styled entries (Tatsu components, background-task groups) break only between parts, so one never splits while
+	// it fits a line; one wider than its line wraps like any other status. The first line holds `first` cells after any
+	// `lead` (the minimal layout's label).
+	const partLines = (parts: string[], first: number, rest: number, lead: boolean) => {
 		const lines = [""];
 		let used = 0, cap = first;
 		for (const part of parts) {
-			const w = visibleWidth(part), gapWidth = used ? TATSU_GAP : 0;
+			const w = visibleWidth(part), gapWidth = used ? PART_GAP : 0;
 			if (used + gapWidth + w > cap && (used || lead)) { lines.push(""); used = 0; cap = rest; lead = false; }
 			if (w > cap) { const pieces = wrap(part, cap); lines[lines.length - 1] = pieces[0]; lines.push(...pieces.slice(1)); used = cap; continue; }
-			lines[lines.length - 1] += (used ? paint(" ".repeat(TATSU_GAP)) : "") + part;
-			used += (used ? TATSU_GAP : 0) + w;
+			lines[lines.length - 1] += (used ? paint(" ".repeat(PART_GAP)) : "") + part;
+			used += (used ? PART_GAP : 0) + w;
 		}
 		return lines;
 	};
@@ -1202,6 +1248,20 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 				const tone = (style: Style, role: keyof typeof TATSU_WARM_ROLE): Style => warm === undefined ? style : { ...style, fg: tatsuWarmInk(style.fg ?? "text", warm, p, role) };
 				return paint(c.component === "tatsu-cli" ? "TCLI" : "AWKS", tone({ fg: "graphic" }, "label")) + paint(" ") + paint(shape, tone(shapeInk, "shape")) + paint(" ", ink) + paint(look.code, tone(codeInk, "code"));
 			});
+			return { parts, text: "" };
+		}
+		// Recognized background tasks are drawn settled from the first frame (no boot treatment); only a running ◆ blinks,
+		// in phase with ROOT's lamp, and motion off holds it lit. The grey `BG` label rides on the first part.
+		const tasks = key === "background-tasks" ? backgroundTasks(status) : undefined;
+		if (tasks) {
+			const parts: string[] = [];
+			for (const look of BG_COUNTS) {
+				const n = tasks[look.key], lit = look.key !== "running" || frame.pulse === null || lampOn(frame.pulse);
+				if (n !== undefined) parts.push(paint(look.shape, { fg: lit ? look.ink : "graphic", bold: true }) + paint(` ${look.code}×${n}`, { fg: look.ink, bold: true }));
+			}
+			if (tasks.hint) parts.push(paint(`${tasks.hint}${tasks.clear ? " /bg-clear" : ""}`, { fg: "graphic" }));
+			if (tasks.update) parts.push(paint(`▲ v${tasks.update}`, { fg: "warn", bold: true }) + paint(" ") + paint("/bg-update", { fg: "graphic" }));
+			parts[0] = paint("BG", { fg: "graphic" }) + paint(" ") + parts[0];
 			return { parts, text: "" };
 		}
 		return { parts: undefined, text: fg + bg + restoreBase(safeText(status, true), fg, bg) };
@@ -1367,12 +1427,12 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 		}
 		statuses.forEach((status, i) => {
 			let label = i === 0 ? paint(` ${LABEL.ext} `, GREY_PLATE) + gap() : "";
-			// At sub-plate widths the label cannot share a line with the first Tatsu part.
+			// At sub-plate widths the label cannot share a line with the first part.
 			if (status.parts && label && W < 9) {
 				for (const line of wrap(label, W)) lines.push(serialize(runPad(line, W)));
 				label = "";
 			}
-			const statusLines = status.parts ? tatsuLines(status.parts, label ? W - 9 : W, W, !!label).map((line, j) => (j === 0 ? label + line : line)) : wrap(label + status.text, W);
+			const statusLines = status.parts ? partLines(status.parts, label ? W - 9 : W, W, !!label).map((line, j) => (j === 0 ? label + line : line)) : wrap(label + status.text, W);
 			for (const line of statusLines) lines.push(serialize(runPad(line, W)));
 		});
 		return lines;
@@ -1585,7 +1645,7 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 	statuses.forEach((status, i) => {
 		if (i === 0) plateRows.set("ext", header.length + body.length);
 		if (!status.parts) { body.push(...fieldRows(i === 0 ? plate("ext", GREY_PLATE, bootWipe(4)) : undefined, status.text, FW)); return; }
-		tatsuLines(status.parts, FW, FW, false).forEach((line, j) => {
+		partLines(status.parts, FW, FW, false).forEach((line, j) => {
 			body.push([...(i === 0 && j === 0 ? plate("ext", GREY_PLATE, bootWipe(4)) : blanks(P)), ...blanks(1), ...runPad(line, FW, "field", false)]);
 		});
 	});
