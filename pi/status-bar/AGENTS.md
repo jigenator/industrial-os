@@ -8,7 +8,7 @@ Purpose: maintain a truthful, display-only Pi footer for sessions that move acro
 - Active is agent-reported display state only. Do not change cwd, wrap tools, reload instructions/resources, or infer switches from incidental reads. Rationale: [agent-reported active workspace](docs/decisions/agent-reported-active-workspace.md). Check: `test/extension.test.ts`.
 - Keep local/remote I/O out of render, sanitize untrusted terminal content, retain extension status information (recognized `ponytail` goes to PNYTL; valid active Tatsu v1 status replaces its raw entry in EXT; unrecognized text stays in EXT), and bound every rendered line. Decoration motion only repaints; displayed values are always current. Full flow: [architecture](docs/architecture.md). Check: `test/footer.test.ts` and `test/extension.test.ts`.
 - Do not install dependencies to run this project's checks. The tests use the globally installed Pi host for the declared peer packages by design; use the existing host prerequisite and commands in [CONTRIBUTING.md](CONTRIBUTING.md). The missing lockfile and development pin are [recorded gaps](docs/conventions.md#adoption-gaps).
-- Do not import design-system code. The footer palette, `C` in `src/footer.ts`, is authoritative for the shared Acid / Black roles; see [the decision](../../docs/decisions/extension-colors-take-precedence.md) and the [palette](docs/design.md#palette-and-context-semantics).
+- This extension does not import the design system yet; moving onto it is its own change, following the [migration requirements](../../docs/decisions/in-repo-design-system-package.md#migrating-an-extension). Until then, the footer palette, `C` in `src/footer.ts`, mirrors the design system's colors and must match `design-system/foundation/palette.mjs` and `signal-colors.mjs`; change the design system first. See [the decision](../../docs/decisions/in-repo-design-system-package.md) and the [palette](docs/design.md#palette-and-context-semantics).
 
 ## Read for the task
 
@@ -18,7 +18,7 @@ Start here and scan the supporting-documents map. Read every document whose `Rea
 | --- | --- |
 | Code or test change | Relevant flow in [architecture](docs/architecture.md) → applicable rule in [conventions](docs/conventions.md) → [validation sequence](CONTRIBUTING.md#full-validation-sequence) |
 | Human-facing footer change | Also [design](docs/design.md), [mission](docs/mission.md) and [root design](../../docs/design.md) |
-| Palette value | [Palette](docs/design.md#palette-and-context-semantics), [root design](../../docs/design.md#acid--black), then [the color decision](../../docs/decisions/extension-colors-take-precedence.md) |
+| Palette value | [Root design](../../docs/design.md#acid--black), [the color decision](../../docs/decisions/in-repo-design-system-package.md), the design-system change, then [palette](docs/design.md#palette-and-context-semantics) |
 | Active selection or persistence | Also [the active-workspace decision](docs/decisions/agent-reported-active-workspace.md) |
 | Packaging, Pi version or test-host wiring | [CONTRIBUTING.md](CONTRIBUTING.md), the package boundary in [architecture](docs/architecture.md#system-and-module-map), then the [Pi guide](../AGENTS.md) |
 | Product scope | [Mission](docs/mission.md) and [root mission](../../docs/mission.md) |
@@ -60,6 +60,6 @@ Keep one direct link, purpose and concrete reading condition for every project g
 | [Root conventions](../../docs/conventions.md) | Repository-wide engineering rules | Writing or reviewing code and technical guidance |
 | [Root mission](../../docs/mission.md) | Monorepo intent and constraints | Choosing scope or changing project placement |
 | [Root design](../../docs/design.md) | Shared terminal experience and visual language | Changing human-facing output or interaction |
-| [Color decision](../../docs/decisions/extension-colors-take-precedence.md) | Why the extensions own palette values and the design system mirrors them | Changing a palette value |
+| [Color and package decision](../../docs/decisions/in-repo-design-system-package.md) | Why the design system owns the colors that `C` mirrors, and what moving onto the package requires | Changing a palette value or importing the design system |
 | [Pi AGENTS](../AGENTS.md) | Pi project placement and shared constraints | Working under `pi/` |
 | [Pi CONTRIBUTING](../CONTRIBUTING.md) | Shared Pi toolchain facts and contribution routing | Changing project placement, packaging or contribution routes |
