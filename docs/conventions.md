@@ -4,7 +4,7 @@
 
 Industrial OS is a public monorepo of independent projects that share one product and one visual language: today the terminal design system in `design-system/` and the Pi extensions in `pi/claude-interrupt/` and `pi/status-bar/`. The projects use different toolchains, and future ones may use different languages, so these rules are written to hold in every language. Rules that depend on a toolchain live in the project: the design system's in [its conventions](../design-system/docs/conventions.md), the Pi extensions' shared rules in [the Pi guide](../pi/AGENTS.md), and each extension's in its own conventions: [claude-interrupt](../pi/claude-interrupt/docs/conventions.md) and [status-bar](../pi/status-bar/docs/conventions.md).
 
-Scope reviewed: the full source and test trees of both projects, every import statement in them, both projects' manifests and test commands, the Git history of the move of claude-interrupt, and the existing guides, at the revision that introduced this version of the guide. pi-status-bar was read in its own repository as the reference for the visual style, not audited; when it moved into `pi/status-bar/`, its manifest, test command, imports, and guides were reviewed, not its full source. Herdr was not inspected. Rules marked proposed are targets, not a claim that the code already conforms.
+Scope reviewed: the full source and test trees of the design system and claude-interrupt, every import statement in them, both of their manifests and test commands, the Git history of the move of claude-interrupt, and the existing guides, at the revision that introduced this version of the guide. pi-status-bar was read in its own repository as the reference for the visual style, not audited; when it moved into `pi/status-bar/`, its manifest, test command, imports, and guides were reviewed, not its full source. Herdr was not inspected. Rules marked proposed are targets, not a claim that the code already conforms.
 
 ## Engineering principles
 
@@ -49,7 +49,7 @@ Scope reviewed: the full source and test trees of both projects, every import st
 
 **Rule:** the host or adapter owns subscriptions, timers, writes, and disposal; it clears every timer on every exit path. Rendering consumes state and never persists it. No project has storage; define concurrency and migration rules only if one is introduced.
 
-**Example:** the storybook runs one 67 ms interval only while a preview plays and clears it on pause, completion, and every exit. claude-interrupt's marker timer is cleared on a new Escape, session shutdown, reload, and session switch, and saved markers render settled without replaying. **Reason:** nothing keeps running or half-written after the user leaves. **Check:** lifecycle tests in both projects.
+**Example:** the storybook runs one 67 ms interval only while a preview plays and clears it on pause, completion, and every exit. claude-interrupt's marker timer is cleared on a new Escape, session shutdown, reload, and session switch, and saved markers render settled without replaying. **Reason:** nothing keeps running or half-written after the user leaves. **Check:** lifecycle tests in each project.
 
 ## Tests
 
@@ -74,5 +74,5 @@ Scope reviewed: the full source and test trees of both projects, every import st
 - **Palette values are copied by hand** in three places: `pi/status-bar/src/footer.ts`, `pi/claude-interrupt/src/index.ts`, and `design-system/foundation/palette.mjs`. The authority is decided; the comparison is a manual review of each extension's constants against `palette.mjs`. Next change: when a value first changes, decide between a tested comparison and a generated file. Verify by the review comparison until then.
 - **No automated cross-project boundary check.** The import rule is reviewed by hand. Next change: a small test that walks each project's imports, if a violation ever appears. Verify by running it in each project's sequence.
 - **No continuous integration and no single repository command.** Each project's sequence is run by hand. Recorded in [the decision](decisions/standalone-packages.md). Next change: a root script calling each project's documented sequence, only when a CI gate is wanted.
-- **claude-interrupt has no interactive Pi or Herdr verification record** since its move; its automated suite and load check pass. Next change: run its interactive check and record it in its contributing guide.
+- **Neither Pi extension has an interactive Pi or Herdr verification record** since its move; each one's automated suite and load check pass. Next change: run each interactive check and record it in that extension's contributing guide.
 - **No project license** at the root; claude-interrupt carries MIT and status-bar has none. Open decision, recorded in architecture.
