@@ -19,7 +19,7 @@ Scan the supporting-documents map and read every document whose condition applie
 | Task | Route |
 | --- | --- |
 | Work in the design system | [The design-system guide](design-system/AGENTS.md) and its routes |
-| Work on a Pi extension | [The Pi guide](pi/AGENTS.md), then the extension's own guide, for example [claude-interrupt](pi/claude-interrupt/AGENTS.md) |
+| Work on a Pi extension | [The Pi guide](pi/AGENTS.md), then the extension's own guide, for example [claude-interrupt](pi/claude-interrupt/AGENTS.md) or [status-bar](pi/status-bar/AGENTS.md) |
 | Change the visual language or a palette value | [Design](docs/design.md), [the color decision](docs/decisions/extension-colors-take-precedence.md), then each affected project's guide |
 | Add or move in a project | [Architecture](docs/architecture.md#where-the-next-change-belongs), [contributing](CONTRIBUTING.md#adding-or-moving-in-a-project), then this map |
 | Change a repository-wide rule or check | [Conventions](docs/conventions.md), this map, then [contributing](CONTRIBUTING.md) |
@@ -30,6 +30,7 @@ Scan the supporting-documents map and read every document whose condition applie
 | --- | --- | --- |
 | An element, motion, storybook story, or terminal host | `design-system/`; placement in [its architecture](design-system/docs/architecture.md#where-the-next-change-belongs), rules in [its conventions](design-system/docs/conventions.md) | Standard library only; elements and motions never own I/O |
 | claude-interrupt behavior or marker | `pi/claude-interrupt/`; placement in [its architecture](pi/claude-interrupt/docs/architecture.md) | Pi peer packages only; never block streaming, input, or focus |
+| status-bar footer, Active selection, or integrations | `pi/status-bar/`; placement in [its architecture](pi/status-bar/docs/architecture.md) | Pi peer packages only; display-only; no I/O in render |
 | A new Pi extension | `pi/<name>/` with the [project document set](docs/architecture.md#contracts-between-the-root-and-a-project) | Its own manifest, checks, and license |
 | Shared experience or scope | `docs/design.md`, `docs/mission.md` | Then each project separately |
 | Herdr configuration | Planned `herdr/`; nothing exists | Do not create it before maintained content exists |
@@ -79,3 +80,12 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [pi/claude-interrupt/docs/conventions.md](pi/claude-interrupt/docs/conventions.md) | claude-interrupt's TypeScript and Pi-extension rules | Writing or reviewing claude-interrupt code |
 | [pi/claude-interrupt/docs/mission.md](pi/claude-interrupt/docs/mission.md) | claude-interrupt intent, goals, and non-goals | Choosing or changing what claude-interrupt does |
 | [pi/claude-interrupt/docs/design.md](pi/claude-interrupt/docs/design.md) | The interrupt experience and the exact marker specification | Changing anything a claude-interrupt user sees |
+| [pi/status-bar/README.md](pi/status-bar/README.md) | status-bar purpose, behavior, install, and limitations | Using status-bar |
+| [pi/status-bar/AGENTS.md](pi/status-bar/AGENTS.md) | status-bar rules, routes, and placement | Working anywhere in `pi/status-bar/` |
+| [pi/status-bar/CLAUDE.md](pi/status-bar/CLAUDE.md) | Runtime import of the status-bar guide | Checking agent entry points |
+| [pi/status-bar/CONTRIBUTING.md](pi/status-bar/CONTRIBUTING.md) | status-bar toolchain, host prerequisite, checks, and validation sequence | Making or verifying a status-bar change |
+| [pi/status-bar/docs/architecture.md](pi/status-bar/docs/architecture.md) | status-bar modules, flows, contracts, invariants, and limits | Changing status-bar behavior, state, I/O, or its Pi dependencies |
+| [pi/status-bar/docs/conventions.md](pi/status-bar/docs/conventions.md) | status-bar's TypeScript and Pi-extension rules and adoption gaps | Writing or reviewing status-bar code |
+| [pi/status-bar/docs/mission.md](pi/status-bar/docs/mission.md) | status-bar goals, non-goals, and constraints | Choosing or changing what status-bar does |
+| [pi/status-bar/docs/design.md](pi/status-bar/docs/design.md) | The footer experience, its palette, motion, and UI states | Changing anything a status-bar user sees or a status-bar color |
+| [pi/status-bar/docs/decisions/agent-reported-active-workspace.md](pi/status-bar/docs/decisions/agent-reported-active-workspace.md) | Why Active is explicit, agent-reported, and display-only | Changing status-bar's Active selection, persistence, or cwd relationship |

@@ -6,8 +6,9 @@ This guide covers the workflow for every change and the checks that apply to the
 | --- | --- | --- |
 | `design-system/` | Node.js 22, standard library, no install step | [design-system/CONTRIBUTING.md](design-system/CONTRIBUTING.md) |
 | `pi/claude-interrupt/` | Node.js 22, npm, TypeScript, an installed Pi for the load check | [pi/claude-interrupt/CONTRIBUTING.md](pi/claude-interrupt/CONTRIBUTING.md) |
+| `pi/status-bar/` | Node.js 22, npm, TypeScript run by type stripping, the globally installed Pi for its tests and the load check | [pi/status-bar/CONTRIBUTING.md](pi/status-bar/CONTRIBUTING.md) |
 
-There is no root manifest, install step, or test command. Running `node --test` from the root discovers the extension's TypeScript tests and fails until `npm ci` has run in that project; it is not a repository check. See [the decision](docs/decisions/standalone-packages.md).
+There is no root manifest, install step, or test command. Running `node --test` from the root discovers the extensions' TypeScript tests, which need each extension's own setup; it is not a repository check. See [the decision](docs/decisions/standalone-packages.md).
 
 ## Making a change
 

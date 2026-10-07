@@ -2,9 +2,9 @@
 
 ## Project profile
 
-Industrial OS is a public monorepo of independent projects that share one product and one visual language: today the terminal design system in `design-system/` and the Pi extension in `pi/claude-interrupt/`. The projects use different toolchains, and future ones may use different languages, so these rules are written to hold in every language. Rules that depend on a toolchain live in the project: the design system's in [its conventions](../design-system/docs/conventions.md), the Pi extensions' shared rules in [the Pi guide](../pi/AGENTS.md), and claude-interrupt's in [its conventions](../pi/claude-interrupt/docs/conventions.md).
+Industrial OS is a public monorepo of independent projects that share one product and one visual language: today the terminal design system in `design-system/` and the Pi extensions in `pi/claude-interrupt/` and `pi/status-bar/`. The projects use different toolchains, and future ones may use different languages, so these rules are written to hold in every language. Rules that depend on a toolchain live in the project: the design system's in [its conventions](../design-system/docs/conventions.md), the Pi extensions' shared rules in [the Pi guide](../pi/AGENTS.md), and each extension's in its own conventions: [claude-interrupt](../pi/claude-interrupt/docs/conventions.md) and [status-bar](../pi/status-bar/docs/conventions.md).
 
-Scope reviewed: the full source and test trees of both projects, every import statement in them, both projects' manifests and test commands, the Git history of the move of claude-interrupt, and the existing guides, at the revision that introduced this version of the guide. pi-status-bar was read in its own repository as the reference for the visual style, not audited. Herdr was not inspected. Rules marked proposed are targets, not a claim that the code already conforms.
+Scope reviewed: the full source and test trees of both projects, every import statement in them, both projects' manifests and test commands, the Git history of the move of claude-interrupt, and the existing guides, at the revision that introduced this version of the guide. pi-status-bar was read in its own repository as the reference for the visual style, not audited; when it moved into `pi/status-bar/`, its manifest, test command, imports, and guides were reviewed, not its full source. Herdr was not inspected. Rules marked proposed are targets, not a claim that the code already conforms.
 
 ## Engineering principles
 
@@ -61,7 +61,7 @@ Scope reviewed: the full source and test trees of both projects, every import st
 
 **Rule:** prefer the platform, the host, and already adopted dependencies. A Pi extension declares host-provided packages as `peerDependencies` with `*` and never bundles them. Commit each project's lockfile with its manifest. Verify a dependency's contract against documentation matching the version in use. Declare the source and regeneration command of any generated file; never edit one by hand.
 
-**Example:** the design system has no dependencies; claude-interrupt's `package.json` lists Pi's packages as peers and pins them only as development dependencies. **Reason:** avoid duplicate host classes, redistribution obligations, and silent drift. **Check:** review each manifest change for necessity, license, and version; the Pi load check catches a bundled host package.
+**Example:** the design system has no dependencies; claude-interrupt's `package.json` lists Pi's packages as peers and pins them only as development dependencies. status-bar lists its peers but has no development dependencies or lockfile, because its tests use the globally installed Pi; that exception is recorded in [its conventions](../pi/status-bar/docs/conventions.md#adoption-gaps). **Reason:** avoid duplicate host classes, redistribution obligations, and silent drift. **Check:** review each manifest change for necessity, license, and version; the Pi load check catches a bundled host package.
 
 ## Performance and growth
 
@@ -71,9 +71,8 @@ Scope reviewed: the full source and test trees of both projects, every import st
 
 ## Adoption gaps
 
-- **Palette values are copied by hand** in `pi/claude-interrupt/src/index.ts` and `design-system/foundation/palette.mjs`, and will be in a third place when pi-status-bar moves in. The authority is decided; the comparison is a manual review of each extension's constants against `palette.mjs`. Next change: when a value first changes, decide between a tested comparison and a generated file. Verify by the review comparison until then.
+- **Palette values are copied by hand** in three places: `pi/status-bar/src/footer.ts`, `pi/claude-interrupt/src/index.ts`, and `design-system/foundation/palette.mjs`. The authority is decided; the comparison is a manual review of each extension's constants against `palette.mjs`. Next change: when a value first changes, decide between a tested comparison and a generated file. Verify by the review comparison until then.
 - **No automated cross-project boundary check.** The import rule is reviewed by hand. Next change: a small test that walks each project's imports, if a violation ever appears. Verify by running it in each project's sequence.
 - **No continuous integration and no single repository command.** Each project's sequence is run by hand. Recorded in [the decision](decisions/standalone-packages.md). Next change: a root script calling each project's documented sequence, only when a CI gate is wanted.
 - **claude-interrupt has no interactive Pi or Herdr verification record** since its move; its automated suite and load check pass. Next change: run its interactive check and record it in its contributing guide.
-- **pi-status-bar, the reference implementation of the style, is still in its own repository.** Until it moves in, the design doc cites values that live outside this repository. Next change: move it in with its history and document set, per [the Pi contributing guide](../pi/CONTRIBUTING.md#moving-an-extension-in).
-- **No project license** at the root; claude-interrupt carries MIT. Open decision, recorded in architecture.
+- **No project license** at the root; claude-interrupt carries MIT and status-bar has none. Open decision, recorded in architecture.

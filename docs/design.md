@@ -1,6 +1,6 @@
 # Design
 
-This is the visual and interaction language of every project in the repository: the design system, the Pi extensions, and the planned Herdr tooling. It holds only what they share. Each project's own design doc describes that project's experience and must agree with this one: [the design system](../design-system/docs/design.md) and [claude-interrupt](../pi/claude-interrupt/docs/design.md).
+This is the visual and interaction language of every project in the repository: the design system, the Pi extensions, and the planned Herdr tooling. It holds only what they share. Each project's own design doc describes that project's experience and must agree with this one: [the design system](../design-system/docs/design.md), [claude-interrupt](../pi/claude-interrupt/docs/design.md), and [status-bar](../pi/status-bar/docs/design.md).
 
 ## Experience
 
@@ -16,7 +16,7 @@ Avoid simulated telemetry, decorative noise over content, unnecessary chrome, an
 
 ### Acid / Black
 
-This is the selected default palette. The Pi extensions are the authority for its values: pi-status-bar, the first implementation of the style, in its own repository until it moves in, and [claude-interrupt](../pi/claude-interrupt/docs/design.md), which declares acid, black, white, decorative grey, and structural grey as constants in its source. [foundation/palette.mjs](../design-system/foundation/palette.mjs) mirrors them for the design system and is where every role's value can be read. This table defines what each role is for. The palette is not a shipped theme API or a blanket contrast certification.
+This is the selected default palette. The Pi extensions are the authority for its values: [status-bar](../pi/status-bar/docs/design.md#palette-and-context-semantics), the first implementation of the style, which declares every role in the `C` palette of `pi/status-bar/src/footer.ts`, and [claude-interrupt](../pi/claude-interrupt/docs/design.md), which declares acid, black, white, decorative grey, and structural grey as constants in its source. [foundation/palette.mjs](../design-system/foundation/palette.mjs) mirrors them for the design system and is where every role's value can be read. This table defines what each role is for. The palette is not a shipped theme API or a blanket contrast certification.
 
 | Role (`palette.mjs` key) | Intended use |
 | --- | --- |
@@ -32,11 +32,11 @@ This is the selected default palette. The Pi extensions are the authority for it
 
 Do not use decorative greys for essential control boundaries or readable small text without checking the actual contrast. Accent is not a substitute for a label; warning and critical states must remain understandable without color.
 
-If a value differs between an extension's constants and `palette.mjs`, the extension's value is correct and `palette.mjs` changes to match in its own commit; see [the decision](decisions/extension-colors-take-precedence.md). The check is a direct comparison of each extension's constants against `palette.mjs`, using this table only to map a constant to its role. All nine roles currently match pi-status-bar, and claude-interrupt's five constants match them.
+If a value differs between an extension's constants and `palette.mjs`, the extension's value is correct and `palette.mjs` changes to match in its own commit; see [the decision](decisions/extension-colors-take-precedence.md). The check is a direct comparison of each extension's constants against `palette.mjs`, using this table only to map a constant to its role. All nine roles currently match status-bar's constants, and claude-interrupt's five constants match them.
 
 ### Pi extensions
 
-An extension renders inside Pi's transcript, footer, or widgets with Pi's own styling API, so it has no cell budget of its own and must stay within Pi's rendering rules: one row where Pi gives one row, clipped rather than wrapped, and never blocking streaming, input, or focus. claude-interrupt's **DIRECTIVE UPDATED** transcript marker is the first example here: an acid plate, a short ping of fixed bars, and a settled grey record, specified exactly in [its design](../pi/claude-interrupt/docs/design.md). pi-status-bar's framed footer with numbered plates and a context gauge is the reference the design system's elements model.
+An extension renders inside Pi's transcript, footer, or widgets with Pi's own styling API, so it has no cell budget of its own and must stay within Pi's rendering rules: one row where Pi gives one row, clipped rather than wrapped, and never blocking streaming, input, or focus. claude-interrupt's **DIRECTIVE UPDATED** transcript marker is the first example here: an acid plate, a short ping of fixed bars, and a settled grey record, specified exactly in [its design](../pi/claude-interrupt/docs/design.md). [status-bar](../pi/status-bar/docs/design.md)'s framed footer with numbered plates and a context gauge is the reference the design system's elements model.
 
 ### Shape and composition
 
