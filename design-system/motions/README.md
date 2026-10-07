@@ -298,7 +298,7 @@ A one-shot flash on the cells of `region`: the step `pattern[floor(time / step)]
 - **Rate:** as the presets show. The threshold preset exceeds three flashes a second; state that rate wherever it is used. No photosensitivity or WCAG flash compliance is claimed.
 - **State cells:** exempt by default. A threshold or alarm flash on state cells passes `stateCells: true`; every kind keeps the glyph readable.
 - **Motion-off:** the settled block.
-- **Differences from the extensions:** claude-interrupt follows its flash with a ping and a settling wipe; only the flash is here. Status-bar lights a lit cell white on white; here a full block keeps its background and turns its ink white, which looks the same, because an opted-in state cell may not take its background's color. Status-bar picks the lit cells and the mark cell itself; pass them as `region`. Status-bar's tag window lasts eight ticks, the last one settled, so its frames match the 350 ms here.
+- **Differences from the extensions:** claude-interrupt follows its flash with a ping and a settling wipe; only the flash is here. Status-bar lights a lit cell white on white; here a full block keeps its background and turns its ink white, which looks the same: a full block shows only its foreground, so the cue guard judges it against the field, not its background (see the state-cell rule above). Status-bar picks the lit cells and the mark cell itself; pass them as `region`. Status-bar's tag window lasts eight ticks, the last one settled, so its frames match the 350 ms here.
 
 ## `ping(lines, options)` and `pingDuration(lines, options)`
 

@@ -275,7 +275,7 @@ test('the key list names every binding and the playback rules', () => {
   for (const key of ['J K, DOWN UP', 'TAB, SHIFT-TAB', '1-3', 'L H, RIGHT LEFT', 'SPACE, PGDN', 'B, PGUP', 'P ', 'R ', 'O ', '? ', 'Q, ESC']) assert.ok(all.includes(key), key);
   assert.match(prose, /jump to a section: 1 COMPONENTS, 2 MOTIONS, 3 FOUNDATION/);
   assert.match(prose, /that motion's own step, shown as MS FRAMES \(40 to 400 ms here\); motions that change continuously redraw every 67 ms, at most 15 frames a second/);
-  assert.match(prose, /A completed preview shows the motion-off view/);
+  assert.match(prose, /A completed preview holds its last frame; for ping that is its bars gone/);
   assert.match(all, /\? OR ESC CLOSES KEYS/);
 });
 

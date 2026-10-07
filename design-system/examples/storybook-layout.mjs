@@ -268,7 +268,7 @@ const KEY_HELP = [
 // The redraw intervals the previews use, from the stories themselves.
 const RATES = STORIES.filter((s) => s.kind === 'motion').flatMap((s) => s.variants.map((v) => s.frameMs(v)));
 const PLAYBACK_HELP =
-  `Motion previews are demonstration playback over fixture lines and start with motion off. While one plays, a single redraw timer runs at that motion's own step, shown as MS FRAMES (${Math.min(...RATES)} to ${Math.max(...RATES)} ms here); motions that change continuously redraw every ${CONTINUOUS_FRAME_MS} ms, at most 15 frames a second. Pausing, completing, changing story or example, opening these keys, and quitting stop it. A completed preview shows the motion-off view. Without color, motions that change only color look the same as motion off, so they do not play.`;
+  `Motion previews are demonstration playback over fixture lines and start with motion off. While one plays, a single redraw timer runs at that motion's own step, shown as MS FRAMES (${Math.min(...RATES)} to ${Math.max(...RATES)} ms here); motions that change continuously redraw every ${CONTINUOUS_FRAME_MS} ms, at most 15 frames a second. Pausing, completing, changing story or example, opening these keys, and quitting stop it. A completed preview holds its last frame; for ping that is its bars gone. Without color, motions that change only color look the same as motion off, so they do not play.`;
 
 function helpLines(width) {
   const out = [blank(width), fitLine([text('KEYS', strong)], width)];
