@@ -65,6 +65,8 @@ Public compatibility currently consists of the package entry, tool name/schema/d
 
 **Rule:** Tatsu integration consumes only public v1 events and a validated minimal snapshot; no provider imports, formatter or polling. Only valid active data replaces raw `tatsu-status` in EXT; absent/invalid/inactive data preserve fallback text. Subscribe before synchronous discovery and dispose both listeners with session/component/UI ownership guards. **Check:** Tatsu real-loader/event-bus and renderer tests; contract in [architecture](architecture.md#tatsu-status-integration).
 
+**Rule:** background-tasks integration recognizes only the exact pinned label grammar on key `background-tasks`, in the pure `backgroundTasks` parser; any other text on that key, including a changed producer wording, stays raw in EXT. Never infer a count or state from absence or partial matches. **Check:** parser and raw-fallback renderer tests in `test/footer.test.ts` and the real-loader test in `test/extension.test.ts`; grammar in [design](design.md#background-tasks).
+
 Use TypeBox only at the Pi tool schema boundary. Do not serialize hidden credentials or raw command stderr into results.
 
 ## Errors and diagnostics
