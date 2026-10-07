@@ -20,7 +20,7 @@ All element and motion values are labeled demonstration fixtures, and motion pre
 
 ## Start here
 
-- [Design](docs/design.md): visual language, interaction rules, and the bar for a polished element.
+- [Design](../docs/design.md): visual language, interaction rules, and the bar for a polished element.
 - [Mission](../docs/mission.md): goals and scope.
 - [Architecture](docs/architecture.md): current contents, element placement, boundaries, and design-system engineering rules.
 - [Conventions](../docs/conventions.md): repository-wide engineering rules.

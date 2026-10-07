@@ -1,6 +1,6 @@
 # Architecture
 
-This is the design system's architecture. Paths are relative to `design-system/` unless they start with `../`. The repository layout, including the Pi extensions and the planned Herdr home, is in the [root README](../../README.md#layout).
+This is the design system's architecture. Paths are relative to `design-system/` unless they start with `../`. The project map, dependency direction between projects, and where new projects go are in the [root architecture](../../docs/architecture.md); the repository-wide mission, design, and conventions are at the root too.
 
 Status: native showcase and terminal storybook. The four selected elements, their shared foundation (including the IndustrialOS color data and shade ramps), three motion primitives, the all-at-once showcase, and the storybook are implemented as plain Node.js 22 ES modules with no dependencies. Nothing is released; module paths are not a stable public API.
 
@@ -12,15 +12,11 @@ Evidence: design-system inventory with canonical Markdown guidance, `foundation/
 
 | Path | Purpose | Public entry point | Dependencies |
 | --- | --- | --- | --- |
-| `../README.md`, `../AGENTS.md`, `../CLAUDE.md`, `../CONTRIBUTING.md` | Repository-wide orientation, agent rules and guidance map, and workflow | Repository landing page and root agent guide | Links to every package guide |
-| `../docs/mission.md` | Product boundaries | Goals and constraints | None |
-| `../docs/conventions.md` | Repository-wide engineering baseline | Rules, examples, and checks | Links to this architecture and contributing |
 | `README.md` | Design-system orientation and release status | Design-system landing page | Links to canonical guides |
 | `AGENTS.md`, `CLAUDE.md` | Design-system reading routes, supplementing the root guide | AGENTS; CLAUDE imports it | Root agent guide and its supporting-document map |
 | `CONTRIBUTING.md` | Setup, commands, and checks | Contributor workflow | Git, Node 22 |
-| `docs/design.md` | Visual and interaction specification | Design rules and acceptance criteria | Palette roles from `foundation/` |
 | `docs/architecture.md` | Placement, design-system engineering rules, and evolution | This guide | Current inventory |
-| `foundation/` | Acid / Black palette values, line model, text/glyph contract, role-or-RGB painting, IndustrialOS colors and derived shade ramps | `palette.mjs`, `cells.mjs`, `industrialos-colors.mjs`; [README](../foundation/README.md) | Node standard library |
+| `foundation/` | Acid / Black palette values mirrored from the Pi extensions, line model, text/glyph contract, role-or-RGB painting, IndustrialOS colors and derived shade ramps | `palette.mjs`, `cells.mjs`, `industrialos-colors.mjs`; [README](../foundation/README.md) | Node standard library |
 | `elements/label-plate/` | Informational label plate | `labelPlate()`; [README](../elements/label-plate/README.md) | `foundation/` |
 | `elements/numbered-panel/` | Numbered, bounded frame | `numberedPanel()`, `panelInnerWidth()`; [README](../elements/numbered-panel/README.md) | `foundation/`, label plate |
 | `elements/gauge/` | Calibrated value reading | `gauge()`, `gaugeScale()`, `gaugeReading()`; [README](../elements/gauge/README.md) | `foundation/` |
@@ -134,4 +130,4 @@ The stack is Markdown, Git, and plain Node.js 22 ES modules (`.mjs`), using only
 
 ## Technical decisions
 
-No technical decision records exist yet. The confirmed product direction is in [mission](../../docs/mission.md) and [design](design.md). Add a record under `docs/decisions/` only for a consequential choice with alternatives and a revisit condition; map each record directly in AGENTS.
+No technical decision records exist yet. The confirmed product direction is in [mission](../../docs/mission.md) and [design](../../docs/design.md). Add a record under `docs/decisions/` only for a consequential choice with alternatives and a revisit condition; map each record directly in AGENTS.
