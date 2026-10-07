@@ -6,9 +6,9 @@ Industrial OS turns the [Pi](https://github.com/earendil-works/pi) coding agent 
 
 ## Status
 
-Three projects are here, and they do not share code:
+Three projects are here. They share code only through the design-system package, and nothing imports it yet:
 
-- [design-system](design-system/README.md): the terminal design system, a reference kit of elements, motions, a storybook, and a showcase. Plain Node.js, no dependencies, nothing released.
+- [design-system](design-system/README.md): the terminal design system, a reference kit of elements, motions, a storybook, and a showcase. Plain Node.js, no dependencies. It is the private package `@industrial-os/design-system`, which the repository's projects can import by name; it is never published.
 - [pi/claude-interrupt](pi/claude-interrupt/README.md): a Pi extension that aborts the current response on Esc and continues with your queued text, marking the continuation with an animated plate.
 - [pi/status-bar](pi/status-bar/README.md): a Pi extension that replaces the footer with a framed Acid / Black instrument panel showing the agent-reported active project, where Pi's tools run, context use, model, and other extensions' statuses. It is the first implementation of the style.
 
@@ -34,12 +34,14 @@ industrial-os/
 ├── AGENTS.md                 repository-wide agent rules and the map of every guide
 ├── CLAUDE.md                 imports AGENTS.md
 ├── CONTRIBUTING.md           workflow, repository-wide checks, adding a project
-├── package.json              lists the Pi extensions for Pi's git install; nothing else
+├── package.json              lists the Pi extensions for Pi's git install and links the design-system package
 ├── package-lock.json         npm's lockfile for that manifest
 └── .gitignore
 ```
 
 Planned, not yet created: `herdr/` for Herdr configuration. It gets its folder and guides when its first maintained content moves in.
+
+In a checkout, run `npm install` once at the root to link the design-system package into `node_modules/`; see [contributing](CONTRIBUTING.md#setup).
 
 ## Start here
 

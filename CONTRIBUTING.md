@@ -4,17 +4,27 @@ This guide covers the workflow for every change and the checks that apply to the
 
 | Project | Toolchain | Contributing guide |
 | --- | --- | --- |
-| `design-system/` | Node.js 22, standard library, no install step | [design-system/CONTRIBUTING.md](design-system/CONTRIBUTING.md) |
+| `design-system/` | Node.js 22, standard library; its own checks need no install step | [design-system/CONTRIBUTING.md](design-system/CONTRIBUTING.md) |
 | `pi/claude-interrupt/` | Node.js 22, npm, TypeScript, an installed Pi for the load check | [pi/claude-interrupt/CONTRIBUTING.md](pi/claude-interrupt/CONTRIBUTING.md) |
 | `pi/status-bar/` | Node.js 22, npm, TypeScript run by type stripping, the globally installed Pi for its tests and the load check | [pi/status-bar/CONTRIBUTING.md](pi/status-bar/CONTRIBUTING.md) |
 
-There is no root install step, test command, or workspace. The root `package.json` only lists the Pi extensions' entry points for Pi's git install; see [installing the Pi extensions](pi/README.md#install). Running `node --test` from the root discovers the extensions' TypeScript tests, which need each extension's own setup; it is not a repository check. See [the decision](docs/decisions/standalone-packages.md).
+There is no root test command, script, or workspace. The root `package.json` lists the Pi extensions' entry points for Pi's git install, see [installing the Pi extensions](pi/README.md#install), and one `file:` dependency that links the design-system package. Running `node --test` from the root discovers the extensions' TypeScript tests, which need each extension's own setup; it is not a repository check. See [standalone packages](docs/decisions/standalone-packages.md) and [the in-repo design-system package](docs/decisions/in-repo-design-system-package.md).
+
+## Setup
+
+After cloning, run once from the repository root:
+
+```sh
+npm install
+```
+
+It links `node_modules/@industrial-os/design-system` to `design-system/`, so any project in the checkout can import the design system by name. It is the only shared setup step, and it is needed by any project that imports the package, including a Pi extension installed from this checkout. Pi's git install runs the equivalent itself. Run it again after a change to the root `package.json`. Each project's own setup is in its contributing guide.
 
 ## Making a change
 
 Read the applicable routes in [AGENTS.md](AGENTS.md) and in the guide of the project you change. Trace the relevant contract and callers, make the smallest correct change, and add a focused runnable check at the lowest useful layer for nontrivial behavior. Test host boundaries separately from appearance. Validate with the project's sequence, then the [repository-wide checks](#repository-wide-checks).
 
-A change that spans projects, such as a palette value, is several changes: the design doc, then each project in its own commit with its own checks. See [architecture](docs/architecture.md#representative-flows).
+A change that spans projects, such as a palette value, is several changes: the design doc where a role changes, the design system, then each extension that still mirrors the value, each in its own commit with its own checks. See [architecture](docs/architecture.md#representative-flows).
 
 ## Repository-wide checks
 
@@ -28,6 +38,7 @@ Run these from the repository root after the project's own sequence, for every c
 | 4 | `git diff --check` and `git diff --cached --check` | Whitespace errors in tracked changes |
 | 5 | Read the changed documents as a new contributor | Correct placement, actionable rules, honest current/proposed boundaries |
 | 6 | Review the exact files intended for publication | No private material, unlicensed copied assets, scratch reports, or generated clutter |
+| 7 | If a color changed, compare each extension's color constants with `design-system/foundation/palette.mjs` and `signal-colors.mjs` | Every extension that has not migrated still mirrors the design system; see [the decision](docs/decisions/in-repo-design-system-package.md) |
 
 Render Mermaid diagrams with an existing local or target documentation renderer when available. Report rendering as **not run** if none is available; do not install a renderer or upload private drafts solely for validation.
 
@@ -40,7 +51,8 @@ A project is a top-level folder, or a folder under `pi/` for a Pi extension, tha
 1. Give it the document set in [architecture](docs/architecture.md#contracts-between-the-root-and-a-project).
 2. Add every one of its guides to the [root map](AGENTS.md#supporting-documents) and the folder to the [root README layout](README.md#layout).
 3. If it is a Pi extension, follow [moving an extension in](pi/CONTRIBUTING.md#moving-an-extension-in) so its history survives and its install instructions point here.
-4. Record any consequential choice under `docs/decisions/` and map it.
+4. If it imports the design system, import it only by package name and add the root install to its setup; see [the package decision](docs/decisions/in-repo-design-system-package.md#migrating-an-extension).
+5. Record any consequential choice under `docs/decisions/` and map it.
 
 Do not create a folder, placeholder guides, or adapters for a project before its first maintained content exists.
 
@@ -51,7 +63,7 @@ Separate structural changes from behavior changes. Preserve contracts with check
 ## Review checks
 
 - Does the change stay inside one project, or is each project's part its own commit with its own checks?
-- Does any import cross a project root? Does any guide duplicate a rule that has a canonical home?
+- Does any import cross a project root, other than `@industrial-os/design-system` by package name through an exported subpath? Does any guide duplicate a rule that has a canonical home?
 - Are dependency direction, public behavior, failure paths, and focus/state handling clear?
 - Are width, glyph, color, motion, and host claims supported by the stated checks, with automated, load, and interactive evidence kept separate?
 - Does each abstraction, dependency, or root mechanism serve a current need? Is there a simpler correct choice?

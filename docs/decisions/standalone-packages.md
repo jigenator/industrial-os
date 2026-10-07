@@ -1,8 +1,8 @@
 # Standalone packages, no shared workspace
 
-Status: current.
+Status: current, superseded in part on 2026-10-07 by [the in-repo design-system package](in-repo-design-system-package.md): the root `package.json` also carries one `file:` dependency on `design-system/`, and the root `npm install` that links it is the one shared step. There is still no workspace, root script, or repository-wide command, and each project keeps its own checks.
 Date/evidence: 2026-10-07, decided by the maintainer when the first Pi extension moved in and the root `node --test` was found to fail in a fresh clone until that extension's `npm ci` had run. Amended 2026-10-07 by the maintainer after status-bar moved in: a manifest-only root `package.json` lets Pi install the extensions from git, as the rpiv-mono repository already does for an extension in a subfolder.
-Supersedes / superseded by: none.
+Supersedes / superseded by: superseded in part by [in-repo design-system package](in-repo-design-system-package.md).
 
 ## Problem
 
