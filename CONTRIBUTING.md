@@ -4,7 +4,9 @@ This guide covers the workflow for every change in the repository. Each package 
 
 - [Design system](design-system/CONTRIBUTING.md): Node.js 22 setup, the storybook and showcase hosts, the fast loop, the full validation sequence, and the native Herdr verification records.
 
-The planned Pi and Herdr packages will add their own when they move in. From the repository root, `node --test` runs every package's `*.test.mjs` checks.
+- [Pi extensions](pi/CONTRIBUTING.md): per-extension npm setup, type check and tests, the Pi load check, and verification records.
+
+The planned Herdr package will add its own when it moves in. From the repository root, `node --test` runs the design system's `*.test.mjs` checks and the Pi extensions' `*.test.ts` checks; the latter need [their setup](pi/CONTRIBUTING.md#setup) first.
 
 ## Making a change
 
@@ -18,7 +20,7 @@ Run these from the repository root after the package's own validation sequence, 
 | --- | --- | --- | --- |
 | 1 | Open every changed local Markdown link | Text/Markdown reader; read-only | Targets and relevant sections exist |
 | 2 | Compare guidance files with the root AGENTS supporting-documents table | Read-only | Direct link, purpose, and reading condition for every guide |
-| 3 | Verify the root and `design-system/` CLAUDE.md each contain exactly `@AGENTS.md` plus one newline | Read-only byte comparison | Single instruction source |
+| 3 | Verify the root, `design-system/`, and `pi/` CLAUDE.md each contain exactly `@AGENTS.md` plus one newline | Read-only byte comparison | Single instruction source |
 | 4 | Read the changed documents as a new contributor | Read-only | Correct placement, actionable rules, honest current/proposed boundaries |
 | 5 | Review the exact files intended for publication | Read-only | No private material, unlicensed copied assets, scratch reports, or generated clutter |
 

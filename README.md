@@ -6,15 +6,16 @@ Its foundation is a terminal-only design system optimized for Herdr. **Acid / Bl
 
 ## Status
 
-The design system is the only part here today. Pi extensions and Herdr tooling that currently live in separate repositories are planned to move in; none have yet, and nothing below covers them.
+The design system and the first Pi extension are here. Other Pi extensions and Herdr tooling that live in separate repositories are planned to move in; nothing below covers them.
 
-The design system's status, run commands, and verification scope are in its [README](design-system/README.md).
+The design system's status, run commands, and verification scope are in its [README](design-system/README.md); the Pi extensions' are in [theirs](pi/README.md).
 
 ## Layout
 
 ```text
 industrial-os/
 ├── design-system/    terminal design system: elements, foundation, motions, examples, and their guides
+├── pi/               Pi extensions, each its own Pi package, and their guides
 ├── docs/             repository-wide mission and engineering conventions
 ├── README.md         this overview
 ├── AGENTS.md         repository-wide agent rules and the map of every guide
@@ -23,11 +24,12 @@ industrial-os/
 └── .gitignore
 ```
 
-Planned, not yet created: `pi/` for Pi extensions and Pi configuration, and `herdr/` for Herdr configuration. Each gets its folder and guides when its first maintained content moves in.
+Planned, not yet created: `herdr/` for Herdr configuration. It gets its folder and guides when its first maintained content moves in.
 
 ## Start here
 
 - [Design system](design-system/README.md): status, run commands, and its guides.
+- [Pi extensions](pi/README.md): status, installation, and their guides.
 - [Mission](docs/mission.md): goals and scope.
 - [Conventions](docs/conventions.md): repository-wide engineering rules.
 - [Contributing](CONTRIBUTING.md): workflow, with links to each package's commands and checks.
@@ -35,4 +37,4 @@ Planned, not yet created: `pi/` for Pi extensions and Pi configuration, and `her
 
 ## Licensing
 
-A project license has not been selected. Public visibility alone does not grant a reuse license.
+A project license has not been selected. Public visibility alone does not grant a reuse license. The exception is [claude-interrupt](pi/claude-interrupt/README.md), which keeps the MIT license in its [LICENSE](pi/claude-interrupt/LICENSE) from before it moved here.

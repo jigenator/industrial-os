@@ -17,6 +17,7 @@ Scan the supporting-document map and read every document whose condition applies
 | Task | Route |
 | --- | --- |
 | Work in the design system | [The design-system agent guide](design-system/AGENTS.md) and its routes |
+| Work on a Pi extension | [The Pi agent guide](pi/AGENTS.md) and its routes |
 | Change product scope or the default visual language | Mission and the design-system design |
 | Change a repository-wide engineering rule | Conventions, this map, then contributing |
 | Change guidance or validation | The relevant canonical guide, this map, then contributing |
@@ -26,10 +27,10 @@ Scan the supporting-document map and read every document whose condition applies
 Canonical rules belong in the guides below. Repository-wide guidance lives at the root and in `docs/`; package-specific guidance lives in its package.
 
 - `design-system/`: the terminal design system—elements, foundation, motions, and examples—with its scoped guide, design, architecture, and contributing guide. Its placement rules are in [its agent guide](design-system/AGENTS.md#where-work-belongs).
-- `pi/` (planned): Pi extensions and Pi configuration.
+- `pi/`: Pi extensions, each a standalone Pi package, with their scoped guide and contributing guide. Their placement rules are in [their agent guide](pi/AGENTS.md#where-work-belongs).
 - `herdr/` (planned): Herdr configuration.
 
-The planned folders do not exist yet. Their rules, placement, and checks get written when their first maintained content moves in. Do not create empty packages or speculative adapters.
+The planned folder does not exist yet. Its rules, placement, and checks get written when its first maintained content moves in. Do not create empty packages or speculative adapters.
 
 ## Implement and verify
 
@@ -59,3 +60,8 @@ Keep one direct link, purpose, and concrete reading condition for every supporti
 | [design-system/elements/status-row/README.md](design-system/elements/status-row/README.md) | Status row contract and states | Using or changing status rows |
 | [design-system/motions/README.md](design-system/motions/README.md) | Motion contract, parameters, motion-off, host timing, and extension rules | Using, adding, or changing a motion |
 | [design-system/examples/README.md](design-system/examples/README.md) | Storybook keys, reuse examples, host seam, and how to add stories | Using the storybook or showcase, adding a story, or changing a host |
+| [pi/README.md](pi/README.md) | Pi extensions orientation and status | Using the Pi extensions or changing their onboarding |
+| [pi/AGENTS.md](pi/AGENTS.md) | Pi extension rules, task routes, and placement | Working anywhere in `pi/` |
+| [pi/CLAUDE.md](pi/CLAUDE.md) | Runtime import of the Pi guide | Checking agent entry points |
+| [pi/CONTRIBUTING.md](pi/CONTRIBUTING.md) | Pi extension setup, validation, moving extensions in, and verification records | Making or verifying a Pi extension change |
+| [pi/claude-interrupt/README.md](pi/claude-interrupt/README.md) | claude-interrupt behavior, marker animation, limits, and compatibility | Using or changing claude-interrupt |

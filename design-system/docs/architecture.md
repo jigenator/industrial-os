@@ -1,6 +1,6 @@
 # Architecture
 
-This is the design system's architecture. Paths are relative to `design-system/` unless they start with `../`. The repository layout, including the planned Pi and Herdr homes, is in the [root README](../../README.md#layout).
+This is the design system's architecture. Paths are relative to `design-system/` unless they start with `../`. The repository layout, including the Pi extensions and the planned Herdr home, is in the [root README](../../README.md#layout).
 
 Status: native showcase and terminal storybook. The four selected elements, their shared foundation (including the IndustrialOS color data and shade ramps), three motion primitives, the all-at-once showcase, and the storybook are implemented as plain Node.js 22 ES modules with no dependencies. Nothing is released; module paths are not a stable public API.
 
