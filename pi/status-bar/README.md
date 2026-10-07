@@ -20,7 +20,15 @@ The native v9 frame has corners and a standalone calibration cross, without a co
 
 Prerequisites are Node.js 22.19 or newer and an installed Pi host. Git, the `gh` CLI and the `codexbar` CLI are optional; missing or unavailable Git/GitHub integrations are shown explicitly, and without `codexbar` on PATH the USG row is simply absent.
 
-From this repository, load the package for one Pi invocation without installing it:
+This package lives in the [Industrial OS](../../README.md) monorepo. Pi's git sources load a repository's root package, and the monorepo has none, so install from a local checkout:
+
+```sh
+pi install <industrial-os checkout>/pi/status-bar
+```
+
+Pi loads a local package from that path without copying it or installing its dependencies; this package has no runtime dependencies. Pull the checkout to update it, then restart or reload Pi.
+
+To load it for one Pi invocation without installing it, from `pi/status-bar/`:
 
 ```sh
 pi -e .
@@ -51,7 +59,7 @@ PNYTL uses **Ponytail 4.13.0's existing status text** on key `ponytail`, tested 
 For reliable startup/restoration, when separately enabling this integration:
 
 1. Enable Ponytail's status emission: set `"hideStatus": false` in its configuration (`~/.config/ponytail/config.json`, or the configured XDG/platform location). `PONYTAIL_HIDE_STATUS=0` overrides a hidden setting. This package does **not** edit that configuration.
-2. Load **pi-status-bar before Ponytail**. With both in Pi's `packages` array, place pi-status-bar's entry earlier; other CLI/project extension sources can affect effective order. Start/reload Pi only when ready to activate the change.
+2. Load **pi-status-bar before Ponytail**. With both in Pi's `packages` array, place pi-status-bar's entry, its local `pi/status-bar` path, earlier; other CLI/project extension sources can affect effective order. Start/reload Pi only when ready to activate the change.
 3. Check idle `/ponytail lite`, `/ponytail ultra`, and `/ponytail off`: the dedicated plate updates, without a duplicate raw Ponytail status. `/ponytail default ...` changes the default, **not the current mode**. REVIEW is a legacy restored state, not an accepted review mode command.
 
 **Order matters for initial OFF.** Ponytail expresses OFF by deleting its status key. If Ponytail runs first, the footer can recover known labels from Pi's current map but cannot recover an earlier clear; it truthfully shows UNK until a later explicit emission, such as `/ponytail off`. It never treats an absent key as OFF. Runtime UI replacement must rebind the footer before a clear (normal session startup/reload does this with the order above).

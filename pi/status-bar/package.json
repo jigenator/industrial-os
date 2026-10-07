@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jigenator/industrial-os.git",
+    "directory": "pi/status-bar"
+  },
   "scripts": {
     "test": "node --experimental-strip-types --test test/*.test.ts"
   },
