@@ -71,8 +71,8 @@ Ponytail: ready
 
 | Width | Gutter `G` | Corner stubs | Plate column | Content column | Content width |
 | --- | --- | --- | --- | --- | --- |
-| 40–59 | 1 | `┏` `┓` `┗` `┛` | `G` to `G + 7` | `G + 9` = 10 | `width - 19` |
-| 60+ | 2 | `┏━` `━┓` `┗━` `━┛` | `G` to `G + 7` | `G + 9` = 11 | `width - 21` |
+| 40–59 | 1 | `┏` `┓` `┗` `┛` | `G` to `G + 7` | `G + 9` = 10 | `width - 11` |
+| 60+ | 2 | `┏━` `━┓` `┗━` `━┛` | `G` to `G + 7` | `G + 9` = 11 | `width - 13` |
 
 - **Stubs, not borders.** The header line carries the top corner stubs and the last row the bottom ones. `┃` side stubs appear only on the first and the next-to-last inner rows; other rows have blank gutters. There is no continuous top, bottom or side rule. Stubs are decorative grey and carry no meaning.
 - **Header line:** the plate on the plate column, the title's first line on the content column, the center `┼` at `floor(width / 2)` only when it is clear of the title and of the aside by at least two cells, and the aside right-aligned with one field cell of clearance before the corner.
