@@ -43,6 +43,7 @@ It reports only from Pi's interactive terminal mode inside a Herdr pane (`HERDR_
 ## Limitations
 
 - Pi panes without this extension show no Industrial OS rows. The configuration scopes layout B to Pi; other agents keep their configured/default rows.
+- Herdr renames a workspace without a custom name from its Git state without telling extensions, so that automatic SPACE name can lag by up to 20 seconds; custom names update at once.
 - Herdr keeps token values for 60 seconds after the last report. When Pi exits without its shutdown clear, for example after a crash, the rows remain until then.
 - A wall clock that steps backwards makes Herdr ignore the sidebar's reports until it catches up; see [architecture](docs/architecture.md#reporting-to-herdr).
 - A multi-request full report can be half-applied for up to one retry interval and self-heals with the next successful full report. Failure retries use exponential backoff with jitter from 5 to 60 seconds.

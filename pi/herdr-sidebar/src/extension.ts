@@ -67,7 +67,12 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 		const target = herdrTarget(process.env);
 		if (ctx.mode !== "tui" || !target) return;
 		let watch: ReturnType<typeof watchPaneState> | undefined;
-		const sender = createTokenSender({ paneId: target.paneId, request: (params, timeoutMs) => herdrRequest(target.socketPath, "pane.report_metadata", { ...params, pane_id: watch?.paneId ?? target.paneId }, timeoutMs) });
+		const sender = createTokenSender({
+			paneId: target.paneId,
+			request: (params, timeoutMs) => herdrRequest(target.socketPath, "pane.report_metadata", { ...params, pane_id: watch?.paneId ?? target.paneId }, timeoutMs),
+			// Herdr changes an automatic SPACE label without an event; re-read it with each renewal.
+			onRenew: () => watch?.refresh(),
+		});
 		const send = (tokens: ReturnType<typeof buildTokens>) => sender.update(tokens);
 		const unsubscribe: (() => void)[] = [];
 		const r: Runtime = {

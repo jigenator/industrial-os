@@ -82,7 +82,25 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 	let backoff = minBackoffMs;
 	let state: PaneState = { ...UNKNOWN };
 	let paneId = target.paneId, workspaceId: string | undefined, connection = 0;
+	// The connection whose subscription Herdr acknowledged, while it lasts.
+	let live: number | undefined;
 	let reading: { owner: number; stale: boolean } | undefined;
+	// A failed read is retried with the reconnect's bounded backoff, so a transient timeout does not leave the
+	// state unknown until the next event.
+	let readRetry: NodeJS.Timeout | undefined;
+	let readBackoff = minBackoffMs;
+
+	function cancelReadRetry() {
+		if (readRetry) clearTimeout(readRetry);
+		readRetry = undefined;
+	}
+
+	function scheduleReadRetry(owner: number) {
+		if (closed || readRetry || owner !== connection) return;
+		readRetry = setTimeout(() => { readRetry = undefined; if (owner === connection) void reconcile(owner); }, readBackoff);
+		readRetry.unref();
+		readBackoff = Math.min(maxBackoffMs, readBackoff * 2);
+	}
 
 	const report = (next: PaneState) => {
 		if (closed || (next.status === state.status && next.workspaceLabel === state.workspaceLabel && next.visible === state.visible)) return;
@@ -99,21 +117,25 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 				const reply = await herdrRequest(target.socketPath, "pane.get", { pane_id: paneId }, requestTimeoutMs);
 				if (closed || owner !== connection) return;
 				if (task.stale) continue;
-				if (!reply.ok || !record(reply.result) || !record(reply.result.pane)) { report({ ...UNKNOWN }); return; }
+				if (!reply.ok || !record(reply.result) || !record(reply.result.pane)) { report({ ...UNKNOWN }); scheduleReadRetry(owner); return; }
 				const pane = reply.result.pane;
 				if (typeof pane.pane_id === "string" && pane.pane_id) paneId = pane.pane_id;
 				workspaceId = typeof pane.workspace_id === "string" && pane.workspace_id ? pane.workspace_id : undefined;
 				const tabId = typeof pane.tab_id === "string" && pane.tab_id ? pane.tab_id : undefined;
-				let workspaceLabel: string | null = null, visible: boolean | null = null;
+				let workspaceLabel: string | null = null, visible: boolean | null = null, complete = true;
 				if (workspaceId) {
 					const read = await herdrRequest(target.socketPath, "workspace.get", { workspace_id: workspaceId }, requestTimeoutMs);
 					if (closed || owner !== connection) return;
 					if (task.stale) continue;
 					const workspace = read.ok && record(read.result) && record(read.result.workspace) && read.result.workspace.workspace_id === workspaceId ? read.result.workspace : undefined;
+					complete = workspace !== undefined;
 					if (typeof workspace?.label === "string") workspaceLabel = workspace.label.slice(0, 200);
 					if (tabId && typeof workspace?.focused === "boolean" && typeof workspace.active_tab_id === "string") visible = workspace.focused && workspace.active_tab_id === tabId;
 				}
 				report({ status: herdrStatus(pane.agent_status), workspaceLabel, visible });
+				if (!complete) { scheduleReadRetry(owner); return; }
+				cancelReadRetry();
+				readBackoff = minBackoffMs;
 			} while (task.stale);
 		} finally { if (reading === task) reading = undefined; }
 	}
@@ -136,7 +158,10 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 		const drop = () => {
 			if (socket !== current) return;
 			socket = undefined;
+			live = undefined;
 			++connection; // Fence reads still pending on this connection.
+			cancelReadRetry();
+			readBackoff = minBackoffMs;
 			current.destroy();
 			report({ ...UNKNOWN });
 			scheduleReconnect();
@@ -154,6 +179,7 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 				if (line.id !== id) return;
 				if (!record(line.result) || line.result.type !== "subscription_started") return drop();
 				started = true;
+				live = owner;
 				backoff = minBackoffMs;
 				void reconcile(owner);
 				return;
@@ -162,9 +188,10 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 			if (!record(line.data)) return;
 			const data = line.data;
 			if (line.event === "pane.moved" && data.previous_pane_id === paneId && record(data.pane) && typeof data.pane.pane_id === "string") {
+				if (data.pane.pane_id === paneId) { void reconcile(owner); return; } // Same id, possibly another tab: the subscription stays valid.
 				paneId = data.pane.pane_id;
 				workspaceId = undefined;
-				// Status subscriptions bind the canonical pane id; resubscribe after a move.
+				// Status subscriptions bind the canonical pane id; resubscribe after a move that changes it.
 				drop();
 			} else if (line.event === "pane.agent_status_changed" && data.pane_id === paneId) {
 				if (reading?.owner === owner) reading.stale = true;
@@ -184,8 +211,16 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 		get workspaceLabel() { return state.workspaceLabel; },
 		get visible() { return state.visible; },
 		get paneId() { return paneId; },
+		/**
+		 * Re-reads the pane and workspace on the live subscription. Herdr recomputes an automatic SPACE label from the
+		 * workspace's Git state without any workspace event; the caller refreshes on its report-renewal cycle.
+		 */
+		refresh() {
+			if (!closed && live === connection) void reconcile(live);
+		},
 		close() {
 			closed = true;
+			cancelReadRetry();
 			if (retry) clearTimeout(retry);
 			retry = undefined;
 			socket?.destroy();

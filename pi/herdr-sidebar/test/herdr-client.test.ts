@@ -144,3 +144,51 @@ test("visibility: the pane's tab is the focused workspace's active tab, re-resol
 	assert.equal(watch.status, "idle");
 	assert.deepEqual(seen.slice(0, 5), [true, false, true, false, true]);
 });
+
+test("refresh re-reads an automatic SPACE label Herdr changed without an event; only on a live subscription", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); herdr.setWorkspaceLabel("main", false);
+	const labels: (string | null)[] = [];
+	const watch = watchPaneState({ socketPath: herdr.socketPath, paneId: herdr.paneId }, (state: any) => labels.push(state.workspaceLabel), { minBackoffMs: 20, maxBackoffMs: 80 }); t.after(() => watch.close());
+	await until(() => watch.workspaceLabel === "main");
+	// Herdr's Git refresh recomputes the automatic label silently.
+	herdr.setWorkspaceLabel("feature", false); await new Promise((done) => setTimeout(done, 60));
+	assert.equal(watch.workspaceLabel, "main");
+	watch.refresh(); await until(() => watch.workspaceLabel === "feature", "refreshed");
+	// An unchanged refresh pushes nothing.
+	const reads = herdr.log.filter((r) => r.method === "workspace.get").length;
+	watch.refresh(); await until(() => herdr.log.filter((r) => r.method === "workspace.get").length > reads);
+	await new Promise((done) => setTimeout(done, 40));
+	assert.deepEqual(labels, ["main", "feature"]);
+	watch.close(); const count = herdr.log.length; watch.refresh(); await new Promise((done) => setTimeout(done, 40));
+	assert.equal(herdr.log.length, count, "nothing after close");
+});
+
+test("a same-workspace pane move keeps the subscription, never flashes unknown, and re-resolves visibility", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); herdr.setStatus("working", false);
+	const states: any[] = [];
+	const watch = watchPaneState({ socketPath: herdr.socketPath, paneId: herdr.paneId }, (state: any) => states.push(state), { minBackoffMs: 20 }); t.after(() => watch.close());
+	await until(() => watch.visible === true && watch.status === "working");
+	herdr.movePaneToTab("w1:t2"); await until(() => watch.visible === false, "the moved pane's tab is not active");
+	assert.equal(herdr.log.filter((r) => r.method === "events.subscribe").length, 1, "no resubscription");
+	assert.ok(states.every((state) => state.status === "working"), "never unknown");
+	assert.equal(watch.paneId, herdr.paneId);
+	herdr.setStatus("idle"); await until(() => watch.status === "idle", "the subscription still follows the pane");
+});
+
+test("a transient pane.get or workspace.get failure is retried with backoff, without waiting for an event", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); herdr.setStatus("done", false); herdr.setWorkspaceLabel("SPACE", false);
+	herdr.setPaneGetMode("silent");
+	const watch = watchPaneState({ socketPath: herdr.socketPath, paneId: herdr.paneId }, () => {}, { requestTimeoutMs: 80, minBackoffMs: 20, maxBackoffMs: 80 }); t.after(() => watch.close());
+	await until(() => herdr.log.filter((r) => r.method === "pane.get").length >= 3, "pane.get retried");
+	assert.equal(watch.status, null);
+	herdr.setPaneGetMode("ok"); await until(() => watch.status === "done" && watch.workspaceLabel === "SPACE", "recovered by the retry");
+	herdr.setWorkspaceGetMode("silent"); watch.refresh();
+	await until(() => watch.workspaceLabel === null && watch.visible === null, "workspace.get timed out");
+	const reads = herdr.log.filter((r) => r.method === "workspace.get").length;
+	await until(() => herdr.log.filter((r) => r.method === "workspace.get").length > reads, "workspace.get retried");
+	herdr.setWorkspaceGetMode("ok"); await until(() => watch.workspaceLabel === "SPACE" && watch.visible === true, "recovered");
+	// Success resets the retry: no further reads without a cause.
+	const settled = herdr.log.length; await new Promise((done) => setTimeout(done, 200));
+	assert.equal(herdr.log.length, settled);
+	assert.equal(herdr.log.filter((r) => r.method === "events.subscribe").length, 1);
+});

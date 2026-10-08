@@ -18,6 +18,8 @@ export type SenderOptions = {
 	retryMs?: number;
 	requestTimeoutMs?: number;
 	shutdownTimeoutMs?: number;
+	/** Called on each TTL renewal, so slow-changing inputs Herdr does not announce can be re-read on the same cycle. */
+	onRenew?: () => void;
 };
 
 // Herdr keeps a report only when its seq is above the last one accepted for the source. Microseconds of wall-clock
@@ -120,7 +122,7 @@ export function createTokenSender(options: SenderOptions) {
 	// A full report resets every set key's TTL; renewing at a third of it survives two failed attempts.
 	function scheduleRenew() {
 		if (renewTimer) clearTimeout(renewTimer);
-		renewTimer = setTimeout(() => { renewTimer = undefined; synced = false; flush(); }, renewMs);
+		renewTimer = setTimeout(() => { renewTimer = undefined; synced = false; flush(); options.onRenew?.(); }, renewMs);
 		renewTimer.unref();
 	}
 

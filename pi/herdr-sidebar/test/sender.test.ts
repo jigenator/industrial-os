@@ -79,6 +79,18 @@ test("the TTL is renewed with a full report well before it expires", async (t) =
 	assert.ok(reports[2].at - reports[0].at >= 100 && reports[2].at - reports[0].at < 600);
 });
 
+test("each TTL renewal calls onRenew, so unannounced inputs are re-read on the same cycle; none after shutdown", async (t) => {
+	let renewals = 0;
+	const { herdr, sender } = await setup(t, { ttlMs: 600, renewMs: 80, onRenew: () => { renewals++; } });
+	sender.update(FIRST);
+	await until(() => renewals >= 2, "two renewals");
+	// A full report is two requests (28 keys, 16 per request): the first, then one per renewal.
+	await until(() => herdr.reports().length >= 2 * (renewals + 1), "a full report per renewal");
+	await sender.shutdown(); const count = renewals;
+	await new Promise((done) => setTimeout(done, 200));
+	assert.equal(renewals, count);
+});
+
 test("a failed report is not success-shaped: unsynced with its cause, then retried in full", async (t) => {
 	const { herdr, sender } = await setup(t, { retryMs: 100, requestTimeoutMs: 150 });
 	herdr.setReportMode("error");

@@ -132,6 +132,12 @@ export async function startFakeHerdr(paneId = "w1:p1") {
 			currentPaneId = nextPaneId; workspaceId = nextWorkspaceId; tabId = `${nextWorkspaceId}:t1`; workspaceLabel = label; paneAliases.add(nextPaneId);
 			emit("pane.moved", { previous_pane_id, previous_workspace_id, previous_tab_id: "w1:t1", pane: { pane_id: currentPaneId, workspace_id: workspaceId, agent_status: status } });
 		},
+		/** Moves the pane to another tab of its workspace; Herdr keeps its id, as a same-workspace move does. */
+		movePaneToTab(nextTabId: string) {
+			const previous_tab_id = tabId;
+			tabId = nextTabId;
+			emit("pane.moved", { previous_pane_id: currentPaneId, previous_workspace_id: workspaceId, previous_tab_id, pane: { pane_id: currentPaneId, workspace_id: workspaceId, tab_id: tabId, agent_status: status } });
+		},
 		emit,
 		/**
 		 * Focuses a pane in a workspace's tab. Herdr emits workspace.focused, tab.focused and pane.focused together when
