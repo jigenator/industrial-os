@@ -82,6 +82,8 @@ export async function runDaemon(target, options = {}) {
       const plan = sortPlan(workspaces, history, time, signature, lastMove);
       // One block request moves all quiet units in their desired order, atomically. No focused id can appear.
       if (plan.moves.length) {
+        // Diagnostics/persistence can yield since the earlier fence. Abort a stale plan immediately before dispatch.
+        if (closed || !connected || owner !== epoch) return;
         lastMove = time;
         const reply = await send('workspace.move_block', { workspace_ids: plan.moves.flatMap((m) => m.workspace_ids) });
         if (reply.ok) { signature = plan.signature; metrics.moves++; }

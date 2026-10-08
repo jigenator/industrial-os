@@ -26,7 +26,9 @@ not a new Herdr status and does not fabricate a state icon.
 
 Sorting preserves current units' relative order and moves quiet units below
 them, oldest last, never the focused unit. Worktree families stay together;
-manual drags are not continually fought. Number keys follow position. Disable
+manual drags are not continually fought. A focus change between the final
+event-fence check and move application can still move that newly focused space
+to the bottom; focus stays on it, and the next read marks it active. Number keys follow position. Disable
 sort in plugin config if stable number targets matter more than quiet grouping.
 Keyboard and mouse navigation remain Herdr's; no new keys/focus capture,
 animation, notifications or attention writes.

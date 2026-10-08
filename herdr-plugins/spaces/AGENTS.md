@@ -10,7 +10,8 @@ Follow the [root](../../AGENTS.md) and [plugin group](../AGENTS.md) guides.
   `workspace.metadata_updated` is neither subscribed nor activity.
 - Never treat a failed report as accepted. Names have no TTL; counts and age
   have TTL. Use the one stable source and monotonic clock-based sequence.
-- Never move the focused unit; preserve non-quiet user order. Reorder only on
+- Never plan to move the focused unit in a current snapshot; recheck the event
+  epoch before dispatch (the unavoidable focus race is documented in architecture); preserve non-quiet user order. Reorder only on
   quiet-set/order changes and at most once a minute, in one atomic block move.
 - All tests use fake sockets/temp directories. Never install/link/enable a
   plugin, modify live config or mutate a live server during verification.

@@ -69,3 +69,8 @@ invocation. No renderer or third-party package is installed for checking.
 invocation in an installed plugin, real-session mutations/restart, Linux,
 other terminal/font widths, latency/load and power-loss durability. None are
 claimed from the fake-server or parser evidence.
+
+Final hardening: an immediate pre-dispatch epoch fence covers async diagnostic
+yields. The approved residual concurrent-focus race is documented: Herdr has
+no conditional-move focus guard, but preserves active workspace ID. Final
+`node --test` remains **20/20 passed**; no live validation added.

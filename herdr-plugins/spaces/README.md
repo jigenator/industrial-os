@@ -66,6 +66,10 @@ successful reporting; inspect health's timestamp and failure counters as well.
 - Counts/age expire within 120 seconds after the last successful renewal;
   names have no TTL and freeze if the daemon stops. Herdr does not persist
   workspace tokens across restarts; startup re-sends them.
+- A focus change can race with move dispatch: a newly focused quiet space may
+  still move to the bottom. Focus stays on it (Herdr preserves active workspace
+  ID); the next recompute marks it active. No undo/retry policy is added for
+  this race. Plans are snapshot/event-fenced, not server-side conditional moves.
 - Unicode width is an explicit stdlib approximation, not terminal/font detection;
   [the contract](docs/token-contract.md#text-and-width) states its limits.
 - A rejected/slow read publishes nothing new. Requests time out at one second;

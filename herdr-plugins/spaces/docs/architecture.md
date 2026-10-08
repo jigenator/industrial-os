@@ -87,7 +87,7 @@ members are quiet. Group age is its most recent member activity. Non-quiet
 units retain user order, quiet units sort least quiet first, quietest last;
 equal ages break ties by canonical member IDs. All quiet IDs are moved in one
 `workspace.move_block` request, omitting the anchor for end insertion. This
-operation is atomic in Herdr; the focused unit never appears in the block.
+operation is atomic in Herdr; the unit focused in the validated snapshot never appears in the block.
 
 Signature tracks quiet-unit membership and quiet order, not non-quiet order
 or age text. Store it across daemon restarts. Unchanged signatures do nothing,
@@ -95,6 +95,12 @@ even after a manual drag. Changed signatures are held until the minute rate
 limit permits a move. Failed moves do not accept the new signature; retry is
 rate-limited and reads current state again. A dropped reply can have applied
 on the server, but the next read avoids a duplicate move if already ordered.
+An immediate pre-dispatch epoch check aborts plans invalidated by events while
+diagnostics/persistence yielded. There is no server-side expected-focus/version
+precondition: if the user focuses a quiet space between that check and Herdr
+applying the move, it can still move to the bottom. Herdr preserves the active
+workspace by ID (`app/actions.rs` move_workspace_block), so focus stays on it;
+the next recompute marks it active. No undo or race-specific retry is added.
 Number shortcuts follow Herdr position.
 
 ## Shutdown and observability
