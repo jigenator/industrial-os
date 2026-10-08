@@ -45,7 +45,9 @@ export function parseUsageCache(raw: unknown): Cache | null {
 export function collectUsage(publish: (usage: UsageSnapshot) => void): { dispose(): void } {
 	const directory = join(process.env.XDG_CACHE_HOME || join(homedir(), ".cache"), "industrial-os", "signals-collector");
 	const file = join(directory, "usage.json"), lock = join(directory, "usage.lock");
-	let live = true, busy = false, lockRemoved = false, cache: Cache | null = null;
+	// `contending`: the last refresh found another collector's lock. Only a contender wakes on lock removal, so this
+	// collector's own release, whenever its event arrives, never cuts short the retry after a failed write.
+	let live = true, busy = false, contending = false, lockRemoved = false, cache: Cache | null = null;
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const controller = new AbortController();
 	const fresh = () => cache !== null && Date.now() - cache.fetchedAt < REFRESH_MS;
@@ -74,7 +76,7 @@ export function collectUsage(publish: (usage: UsageSnapshot) => void): { dispose
 			if (name === null || name.toString() === "usage.lock") {
 				// A disposed winner may release without writing. Wake contenders on removal,
 				// but not on creation/writes (which would reset stale-lock backoff).
-				try { statSync(lock); } catch (error: any) { if (error.code === "ENOENT") { lockRemoved = true; reload(); } }
+				try { statSync(lock); } catch (error: any) { if (error.code === "ENOENT" && contending) { lockRemoved = true; reload(); } }
 			}
 		});
 		watcher.unref();
@@ -85,7 +87,7 @@ export function collectUsage(publish: (usage: UsageSnapshot) => void): { dispose
 
 	async function refresh() {
 		if (!live || busy) return;
-		busy = true; lockRemoved = false;
+		busy = true; contending = false; lockRemoved = false;
 		let handle: Awaited<ReturnType<typeof open>> | undefined;
 		let temporary: string | undefined;
 		let retry = REFRESH_MS;
@@ -98,13 +100,13 @@ export function collectUsage(publish: (usage: UsageSnapshot) => void): { dispose
 				const old = await stat(lock);
 				let time = old.mtimeMs;
 				try { const data = JSON.parse(readFileSync(lock, "utf8")); if (record(data) && timestamp(data.time)) time = data.time; } catch { /* use mtime for malformed locks */ }
-				if (Date.now() - time <= LOCK_STALE_MS) { retry = Math.max(1, time + LOCK_STALE_MS - Date.now() + 1); return; }
+				if (Date.now() - time <= LOCK_STALE_MS) { contending = true; retry = Math.max(1, time + LOCK_STALE_MS - Date.now() + 1); return; }
 				// Recheck identity before unlink. Cross-process stat/unlink is not atomic;
 				// two stale takers can still cause one extra fetch (documented, atomic cache writes).
 				const checked = await stat(lock);
-				if (old.ino !== checked.ino || old.mtimeMs !== checked.mtimeMs) { retry = LOCK_STALE_MS; return; }
+				if (old.ino !== checked.ino || old.mtimeMs !== checked.mtimeMs) { contending = true; retry = LOCK_STALE_MS; return; }
 				await unlink(lock);
-				try { handle = await open(lock, "wx", 0o600); } catch { retry = LOCK_STALE_MS; return; }
+				try { handle = await open(lock, "wx", 0o600); } catch { contending = true; retry = LOCK_STALE_MS; return; }
 			}
 			await handle.writeFile(JSON.stringify({ pid: process.pid, time: Date.now() }));
 			reload(); // A preceding winner may have written between the first read and lock acquisition.

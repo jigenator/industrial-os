@@ -77,7 +77,7 @@ Out of scope for v1 (stay in status-bar): Ponytail, Tatsu and background-tasks s
 - Failures keep status-bar's existing semantics (last good sample kept per provider, `timeout`/`failed`,
   not-installed hides the row) and are recorded in the cache so other sessions do not retry immediately.
 
-A directory-watch notification that the lock was removed re-reads the cache and, if it is still stale, schedules an exclusive-lock attempt with the ordinary 0–249 ms jitter. This also wakes contenders when a disposed/aborted holder releases without writing. Missed notifications or watch failures still rely on the bounded timer/stale-lock recovery described below.
+A directory-watch notification that the lock was removed wakes only a contender, a collector whose last attempt found another collector's lock: it re-reads the cache and, if it is still stale, schedules an exclusive-lock attempt with the ordinary 0–249 ms jitter. This wakes contenders when a disposed/aborted holder releases without writing. A collector's own release never wakes it, however late its notification arrives, so a failed cache write keeps the five-minute retry. Missed notifications or watch failures still rely on the bounded timer/stale-lock recovery described below.
 
 ### Usage wire and file shape
 

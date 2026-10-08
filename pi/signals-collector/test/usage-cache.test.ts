@@ -138,3 +138,13 @@ test("a waiting collector retries promptly when a disposed lock holder releases 
 	assert.ok(Date.now() - released < 4000, "not the three-minute stale deadline");
 	assert.equal((await f.calls()).length, 6); assert.equal((await f.read()).installed, true);
 });
+
+test("a failed cache write keeps the five-minute retry: this collector's own lock release never wakes it", async (t) => {
+	const f = await fixture(t); await mkdir(f.file); // A directory in the cache's place makes the atomic rename fail.
+	const collector = collectUsage(() => {}); t.after(() => collector.dispose());
+	await until(async () => (await f.calls()).length === 3);
+	await until(async () => !(await readdir(f.directory)).includes("usage.lock"));
+	await sleep(1500);
+	assert.equal((await f.calls()).length, 3, "no immediate retry after releasing its own lock");
+	assert.deepEqual(await readdir(f.directory), ["usage.json"], "temporary file removed, lock released");
+});
