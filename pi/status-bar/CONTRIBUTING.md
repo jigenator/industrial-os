@@ -116,3 +116,11 @@ The toolchain baseline above was recorded before the package moved into the mono
 - `git diff --check`, staged diff check, new-file whitespace, local guide links/anchors, instruction entrypoints and exported-subpath/no-copied-color review passed; index empty. Pre-existing slice-1 changes preserved.
 - Bounded microbenchmark (one combined fixture, five widths, three rounds of 3,000 calls per renderer): original **234–249 µs/call**, port **322–333 µs/call**, same byte counts. The port adds about 35% by median (31–41% per round) in this case; no cache/worker or full-host repaint-performance claim.
 - Interactive Pi/Herdr, live providers/fleet/GitHub, subjective glyph/color fidelity, Windows and Mermaid rendering **not run**. Legacy host state-hiding effects remain documented compatibility exceptions, not new DS policy.
+
+### Context cap at 100%
+
+2026-10-08, macOS, Node 22.23.0 and installed Pi 1.0.4: the CTX numeral and tone now stop at 100.0 when context passes the compaction budget; the readout keeps the true tokens.
+
+- `npm test` (steps 1–3): **171/171 passed**, with the over-budget context assertions updated to the cap.
+- Non-interactive checkout RPC load (step 4): **exit 0**.
+- Interactive Pi/Herdr check: **not run**.

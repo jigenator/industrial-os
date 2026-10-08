@@ -654,9 +654,11 @@ test("context: true zero, real fill, >70 warning, >90 high, unknown, nonfinite, 
 	}
 	assert.match(plain(at(null, 100)).join("\n"), /▐ ▀▀█ +\n.*▐  ▀▀ +UNKNOWN/s);
 	assert.match(plain(at(150)).join("\n"), / 192k\/128k .*▲ HIGH/); assert.equal(lit(at(150)), cells, "graphical extent clamps; readout does not");
-	assert.match(plain(at(150, 100)).join("\n"), /▐ ▄█  █▀▀ █▀█   █▀█ %/, "wide numeral shows the truthful value");
+	assert.deepEqual(plain(at(150, 100)), plain(at(100, 100)).map((line) => line.replace(" 128k/128k ", " 192k/128k ")), "numeral and tone cap at 100.0; only the readout shows the overrun");
+	assert.deepEqual(plain(at(100.4, 100)), plain(at(100, 100)).map((line) => line.replace(" 128k/128k ", " 129k/128k ")), "a small overrun reads 100.0, not 100.4");
 	const huge = plain(at(1e21, 100)).join("\n");
-	assert.match(huge, /1\.28e\+21k\/128k/); assert.doesNotMatch(huge, /▐/, "no misleading numeral for values without glyphs");
+	assert.match(huge, /1\.28e\+21k\/128k/); const numeral = (lines: string[]) => lines.filter((line) => line.includes("▐")).map((line) => line.slice(line.indexOf("▐")));
+	assert.deepEqual(numeral(plain(at(1e21, 100))), numeral(plain(at(100, 100))), "an exponent-sized overrun still caps the numeral at 100.0");
 	assert.match(plain(at(-1)).join("\n"), / -1k\/128k/); assert.equal(lit(at(-1)), 0);
 	const f = fixture(); f.contextUsage = undefined; f.model = undefined;
 	assert.match(rows(f, 72).join("\n"), / \? .*\? UNKNOWN/); assert.match(rows(f, 72).join("\n"), /no-model · thinking high/);
@@ -686,7 +688,9 @@ test("context: compaction reserve rescales gauge, numeral, thresholds and readou
 	const wide = plain(renderFooter(f, 100, theme)).join("\n");
 	assert.match(wide, /▐ ▀▀█ █▀▀   █▀█ %/, "numeral is 75.0% of the budget"); assert.match(wide, /USED[^\n]*\n[^\n]*of 400k/, "caption names the budget");
 	f.contextUsage = { tokens: 120_000, contextWindow: 128_000, percent: 93.75 }; f.compactionReserve = 16_384;
-	assert.match(plain(renderFooter(f, 72, theme)).join("\n"), / 120k\/112k .*▲ HIGH/, "over the budget is shown as-is");
+	assert.match(plain(renderFooter(f, 72, theme)).join("\n"), / 120k\/112k .*▲ HIGH/, "the readout shows the overrun as-is");
+	const over = plain(renderFooter(f, 100, theme)).join("\n"), full = { ...f, contextUsage: { tokens: 128_000 - 16_384, contextWindow: 128_000, percent: 87.2 } };
+	assert.equal(over.replace(" 120k/112k ", " 112k/112k "), plain(renderFooter(full, 100, theme)).join("\n"), "the numeral caps at 100.0 of the budget");
 	assert.equal(lit(renderFooter(f, 72, theme)), cells, "graphical extent clamps");
 	f.contextUsage = { tokens: null, contextWindow: 128_000, percent: null };
 	assert.match(plain(renderFooter(f, 72, theme)).join("\n"), / \?\/112k .*\? UNKNOWN/, "unknown tokens stay unknown");
