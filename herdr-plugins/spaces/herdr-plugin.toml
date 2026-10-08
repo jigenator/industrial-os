@@ -1,0 +1,21 @@
+id = "industrial-os.spaces"
+name = "Industrial OS Spaces"
+version = "0.1.0"
+min_herdr_version = "0.9.3"
+platforms = ["linux", "macos"]
+
+[[startup]]
+command = ["node", "bin/spaces.mjs", "ensure"]
+
+[[events]]
+on = "pane.created"
+command = ["node", "bin/spaces.mjs", "ensure"]
+
+[[events]]
+on = "workspace.created"
+command = ["node", "bin/spaces.mjs", "ensure"]
+
+[[actions]]
+id = "status"
+title = "Spaces reporter status"
+command = ["node", "bin/spaces.mjs", "status"]
