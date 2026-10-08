@@ -75,3 +75,13 @@ Record each run with its date, Node, Pi and Herdr versions and results, keeping 
 - Isolated non-interactive checkout RPC load: **exit 0**, expected disabled-provider model-pattern warnings only. Herdr configuration tests: **5/5 passed**; parser on a temporary copy: **`config: ok`, exit 0**. These are not live Herdr rendering evidence.
 - Root local links/anchors, guide inventory, exact CLAUDE entrypoints, whitespace and publication/import reviews passed. Both touched architecture diagrams render with existing grok-mermaid 0.2.3, non-null art and no warnings.
 - Interactive Pi/Herdr, live providers, Windows and real git installation: **not run**. No push or live configuration change. Intermediate composition fixture failures (incomplete fake PR data and fitted finished-text expectation) and the old bar expectations were corrected before the passing full runs; Mermaid edge-label syntax was normalized for the existing renderer.
+
+### SUB state, subagents-finished DNE and watch fixes
+
+2026-10-08, macOS, Node 22.23.0 and installed Pi 1.0.4; Herdr 0.9.3 source (`v0.9.3`) and socket API documentation read for seen, focus events and automatic labels:
+
+- Host prerequisite and `npm test`: **70/70 passed** in three consecutive runs, no skipped/cancelled tests. New regressions cover the row-1 precedence (QNS, BLK, WRK, SUB, DNE, IDL/UNK), the flag's pure transition, the own-DNE `RDY · finished` age, and against the fake Herdr server: WRK beating SUB; SUB under idle, done, unknown and after reconnect; units 1→0 while unseen giving DNE, cleared by `tab.focused`, `workspace.focused` or `pane.focused`; 1→0 while seen going straight to IDL; work and rising units clearing the flag; question and blocked winning; reconnect re-resolving visibility; the renewal refresh of an unannounced label; same-id pane moves without resubscribing; and retried read timeouts. Mutation checks: removing the same-id move branch or the read retry made its regression fail.
+- Two earlier failures were expectation changes, not regressions: the composition tests expected `bar_idle` where idle Herdr with 3 units now shows SUB with the zone bar, and the 02AU row test relied on a fixture default of 2 units, now 0 so idle/done/unknown fixtures do not read as SUB.
+- Non-interactive Pi load check (step 4) with a temporary `PI_CODING_AGENT_DIR` and cache: **exit 0**.
+- status-bar `npm test` against the changed collector: **135/135 passed**.
+- Interactive Pi/Herdr: **not run** for this change; no live Herdr behavior of SUB, the seen approximation or the label refresh is claimed. No push or live configuration change.

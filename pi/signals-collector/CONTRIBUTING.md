@@ -39,3 +39,7 @@ Final budget check: **45/45 collector and 135/135 consumer tests passed** after 
 ### Final-review corrections
 
 2026-10-08, macOS, Node 22.23.0 and installed Pi 1.0.4: host prerequisite passed; `npm test` **48/48 passed**, no skipped/cancelled tests. New regressions cover non-TUI Active details/restoration, streaming-delta sampling suppression, and a second collector waking on an aborted holder's lock removal. Isolated checkout RPC load: **exit 0**, expected disabled-provider warnings only. Root links/anchors, guide inventory, exact CLAUDE entrypoints and whitespace checks passed. Interactive Pi/Herdr and live providers: **not run**.
+
+### Own lock release
+
+2026-10-08, macOS, Node 22.23.0 and installed Pi 1.0.4: host prerequisite passed; `npm test` **49/49 passed** in three consecutive runs, no skipped/cancelled tests. The new regression makes the cache rename fail and requires no further CodexBar round within 1.5 s of the collector releasing its own lock; before the fix it saw 24 and 27 calls instead of 3. Isolated RPC load with a temporary `PI_CODING_AGENT_DIR` and cache: **exit 0**. status-bar consumer suite: **135/135 passed**. Interactive Pi/Herdr and live providers: **not run**.
