@@ -51,6 +51,7 @@ Another piece of maintained Herdr configuration, such as Space rows or keybindin
 - `row_gap = 1` is a panel-wide setting: all agents receive that spacing, not only Pi.
 
 Spaces values and sorting belong to the separate plugin, not this config project.
-Its contract key list is consumed by `test/spaces.test.mjs`. Space names require
+Its `sp_`-prefixed contract key list is consumed by `test/spaces.test.mjs`;
+Herdr workspace keys share a namespace across sources. Space names require
 that plugin: no built-in workspace fallback is configured. Theme keys are global;
 see [the wider color effects](design.md#spaces-theme-scope).

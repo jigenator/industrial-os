@@ -46,7 +46,10 @@ Quiet spaces send only panes, stale name and age, so their second row drops
 unless Herdr has ahead/behind counts, when a second git-only row remains.
 Sorting defaults on; number keys follow position. The plugin owns configuration
 and state; its [README](../herdr-plugins/spaces/README.md) explains disabling
-sort, startup repair, health, deletion and TTL/name freeze behavior.
+sort (reloaded each tick), disable/stop, startup repair, health, deletion and
+TTL/name freeze behavior. Workspace custom keys use the `sp_` namespace because
+Herdr shares keys across reporters; update this fragment with the plugin. Old
+unprefixed frozen keys are not cleared automatically and are no longer rendered.
 
 ## Limitations
 

@@ -10,15 +10,15 @@ overlay0 = "#717171" # decorative: unknown, separators, header
 rows = [
   [
     "state_icon",
-    { token = "$panes", fg = "#cfcfcf", rules = [{ starts_with = "00", fg = "#717171" }] }, # secondary; decorative zero
-    { token = "$name_active", fg = "#ffffff", bold = true }, # primary
-    { token = "$name", fg = "#cfcfcf", bold = true }, # secondary
-    { token = "$name_stale", fg = "#717171" }, # decorative
-    { token = "$quiet", fg = "#717171" }, # decorative
+    { token = "$sp_panes", fg = "#cfcfcf", rules = [{ starts_with = "00", fg = "#717171" }] }, # secondary; decorative zero
+    { token = "$sp_name_active", fg = "#ffffff", bold = true }, # primary
+    { token = "$sp_name", fg = "#cfcfcf", bold = true }, # secondary
+    { token = "$sp_name_stale", fg = "#717171" }, # decorative
+    { token = "$sp_quiet", fg = "#717171" }, # decorative
   ],
   [
-    { token = "$agents", fg = "#cfcfcf", rules = [{ starts_with = "00", fg = "#717171" }] }, # secondary; decorative zero
-    { token = "$au", fg = "#c0fe04", bold = true, rules = [{ starts_with = "00", fg = "#717171", bold = false }] }, # accent; decorative zero
+    { token = "$sp_agents", fg = "#cfcfcf", rules = [{ starts_with = "00", fg = "#717171" }] }, # secondary; decorative zero
+    { token = "$sp_au", fg = "#c0fe04", bold = true, rules = [{ starts_with = "00", fg = "#717171", bold = false }] }, # accent; decorative zero
     { token = "git_status", fg = "#cfcfcf" }, # secondary
   ],
 ]

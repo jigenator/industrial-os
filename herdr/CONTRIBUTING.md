@@ -95,3 +95,20 @@ resolve the design-system package. Final required checks have no failures.
 rendering with/without scrollbar, native navigation/order and other color
 depths/fonts. The approved quiet-space git-only second-row exception and the
 five theme keys' wider effects were verified from source, not live rendering.
+
+### Spaces review fixes
+
+2026-10-08, macOS, Node 22.23.0, installed Herdr 0.9.3:
+
+- `cd herdr && node --test`: **10/10 passed**, zero failures/skipped/cancelled;
+  Spaces keys now require `sp_` prefixes as well as exact contract membership.
+- `cd herdr && node check-config.mjs`: runs only
+  `HERDR_CONFIG_PATH=<temporary-copy> herdr config check`:
+  Spaces alone, sidebar alone, and one-table merge each **`config: ok`, exit 0**;
+  invalid row copy **rejected, exit 1** expected.
+- Root links/anchors, guide inventory, exact CLAUDE entrypoints, whitespace and
+  manual publication review: **passed**. No live config or server was contacted.
+- Live/interactive Herdr and installation/reload: **not run**. Merge `$sp_` keys
+  with the updated reporter; old unprefixed frozen tokens are no longer read.
+  The plugin's [corrected protocol evidence](../herdr-plugins/spaces/CONTRIBUTING.md#review-fix-round)
+  replaces the initial fake-server compatibility assumption, not parser evidence.

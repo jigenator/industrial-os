@@ -78,8 +78,8 @@ Zero counts become decorative, zero AU also loses bold. Unknown AU remains
 `??AU`, never zero. Quiet names fit 15 cells with U+2800 padding; ages align
 right in six cells. No motion or new keyboard/mouse behavior.
 
-Quiet spaces (48 h or more, never focused) send only `$panes`, `$name_stale`
-and `$quiet`, so their second row drops **unless they are ahead or behind**.
+Quiet spaces (48 h or more, not focused) send only `$sp_panes`, `$sp_name_stale`
+and `$sp_quiet`, so their second row drops **unless they are ahead or behind**.
 Then Herdr's built-in git_status retains a second row with only those counts;
 indented worktree children suppress git details. Quiet worktree families move
 as units, oldest last. Other units keep user order, and unchanged quiet
