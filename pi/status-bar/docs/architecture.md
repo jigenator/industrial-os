@@ -18,22 +18,46 @@ flowchart LR
   Workspace -->|bounded read-only gh api| GitHub[GitHub via gh]
   Usage -->|bounded read-only execFile| CodexBar[CodexBar CLI]
   Footer -->|color conversion and width utilities| TUI[Pi TUI]
+  Footer -->|exported tokens, elements and scoped motions| DS[Design system package]
   Extension -->|installs footer and registers tool| Host
 ```
 
 | Module/path | Purpose | Public entry point | Dependencies |
 | --- | --- | --- | --- |
-| `package.json` | Pi package metadata and test wiring | `pi.extensions[0]` → `src/extension.ts` | Host-provided peer packages; nothing outside `pi/status-bar/` |
+| `package.json` | Pi package metadata and test wiring | `pi.extensions[0]` → `src/extension.ts` | Host-provided peer packages; design system resolved through the root install, not an extension-local manifest dependency |
 | `src/extension.ts` | Pi adapter: tool, motion command, session state, restoration, compaction count, refresh/cache, cancellation, footer and animation lifecycle | Default extension factory | Public Pi/TypeBox APIs, workspace functions, footer renderer |
 | `src/workspace.ts` | Path normalization and truthful local Git/GitHub/PR inspection | `resolveActivePath`, `inspectWorkspace`, `inspectPullRequest` and result types | Node filesystem/path/child-process only |
 | `src/usage.ts` | Explicit provider list, read-only CodexBar invocation and parsing into a discriminated usage-window result | `USAGE_PROVIDERS`, `fetchUsage` and result types | Node child-process only |
-| `src/footer.ts` | Pure, fixed-palette, width-safe, terminal-safe rendering and time-to-decoration frames | `renderFooter`, `safeText`, `backgroundTasks`, `FooterSnapshot`, motion functions, `usageRepaintDelay` | Node path helpers, Pi types/TUI color and width helpers, workspace and usage types only |
+| `src/footer.ts` | Pure, fixed-palette, width-safe, terminal-safe rendering and time-to-decoration frames | `renderFooter`, `safeText`, `backgroundTasks`, `FooterSnapshot`, motion functions, `usageRepaintDelay` | Node path helpers, Pi types/TUI color and width helpers, workspace and usage types only; exported design-system foundation/element/motion subpaths |
 | `test/workspace.test.ts` | Domain/contract coverage | Node test file | Disposable Git repositories and fake executables |
 | `test/usage.test.ts` | CodexBar contract coverage | Node test file | Fake `codexbar` executables on PATH |
 | `test/footer.test.ts` | Renderer coverage | Node test file, also run as process-parallel shards by the one-line `test/footer-shard-NN.test.ts` entries | Installed host TUI through Jiti |
 | `test/extension.test.ts` | Package/host/lifecycle integration | Node test file | Real installed Pi loader/runtime, disposable fixtures, fake `gh` and `codexbar` |
 
 The reusable domain modules never depend on UI/process-exit/session state. The adapter supplies the home directory in `FooterSnapshot` for display abbreviation, the wall-clock time for USG countdowns, and the monotonic time as a decoration frame; the renderer never reads the environment or a clock and performs no I/O. The Pi adapter owns all orchestration and does not duplicate Git/PR parsing or presentation rules.
+
+## Design-system rendering seam
+
+`src/footer.ts` imports only `@industrial-os/design-system/<group>/<name>` exported subpaths; it never imports another extension or `motions/frame`. The design system is pure, standard-library-only and I/O-free. The extension's manifest still declares only Pi peers; the repository root install supplies the linked package.
+
+| Footer piece | Design-system public functions |
+| --- | --- |
+| Numbered/USG/ROOT plates | `labelPlate` slabs and custom USG style |
+| CMP and AU | `countPlate` with `COUNT_PLATES`, after host count normalization |
+| Lamp and unit marks | `lamp` field/solid poses; `unitMarks` with projected shuttle sides |
+| Large numeral | `numeralGrid`, `numeralAt`, `numeralLines`; roles adapted to unchanged Hue memory |
+| PNYTL | `pnytlPlateParts`, one paint call per mode letter |
+| Tatsu/BG | `stateChipParts`, including generic BG count suffixes and explicit Tatsu `number-text` renderer compatibility; producer parser/hints stay host-owned |
+| USG | `providerColumnParts`, `litSegments`, `staleAge`, internal countdown formatting; normalized host data/explicit age policy |
+| CTX | `gaugeTrack`, `gaugeParts`, `gaugeScaleParts`, `gaugeTick`, `gaugeExtent`, `gaugeZone` |
+| Frame | `frameGeometry`, `frameStubs`, `frameCenter` |
+| Exact scoped decorations | `flash`, `blink`/`blinkOn`, `nudgeOffset`, `cycle`, `fade`, `latch`, `beacon`, `fillIn`, `edgePulse`, `burnOut` |
+
+`COLORS` is the explicit semantic alias map from `ACID_BLACK`/`SIGNAL_COLORS`, and `C` converts those values to Pi RGB. The adapter maps DS role styles to Hue-valued owned cells or existing Pi paint calls. It never globally merges opaque Runs: paths, repository/PR/model text, producer hints and raw statuses keep Pi sanitization, Unicode/grapheme measurement, wrapping, clipping and exact SGR/reset boundaries. Host layout retains admission, wrapping/anchors, zone/ghost/frame metadata and header/side-panel placement. No clock or I/O moves into an element.
+
+`stateChipParts` defaults to strict count validation. The footer opts into `countPolicy: "number-text"` to retain the renderer's typed-number contract for negative/fractional/NaN/Infinity/unsafe `commitsBehind` values. `src/extension.ts`'s `count` adapter admits only non-negative safe integers, so these are renderer-only edge cases, not producer admission. Complete DS `stateChip`/`stateChips` remain strict.
+
+All motion state, RNG draw order, plans and scheduling remain in the extension. Seeded foundation math replaces the duplicated generator with the old `seed | 0` boundary. Boot plans, plate wipes, re-strikes, registration ghosts, fill glitches, PNYTL bursts and unit shuttle retain their existing host implementations. Tatsu warm-up and USG row boot specifically remain host compatibility effects because they can hide warning/critical content, contrary to DS's unchanged cue guard. State colors passed to DS motions remain roles, never literal-color bypasses. Manual negative pre-roll/invalid phase projections remain host compatibility handling; DS time stays non-negative.
 
 ## Representative flows
 
@@ -180,7 +204,7 @@ A new workspace status field starts in the appropriate `WorkspaceInfo` union and
 
 The footer shows Active as `⑂ branch` and its colored status text when the workspace snapshot has a known branch and a GitHub repository name, which the header shows as `owner/repository`; otherwise it shows Active's parent/current path, with Git details wrapping on an unnumbered continuation after the complete path. Launch (Pi's working directory) appears as a grey `cwd` line in the header spacer row only when its stored path differs from Active's, a pure snapshot comparison with no path I/O. The header omits the full PR URL. The context readout renders host `ContextUsage.tokens` in the scale's unit. The adapter resolves `FooterSnapshot.compactionReserve` from `pi.getSettings()` and the current model on every snapshot, mirroring Pi 1.0.4 `SettingsManager.getCompactionSettings` (absent when auto-compaction is disabled or the setting is invalid); the renderer then scales tokens to `window − reserve` for the gauge, tone, numeral and readout. Without a usable reserve, host percent drives them against the full window. Primary-checkout metadata remains part of the workspace result contract and inspection flow, but is not rendered or targeted by footer motion.
 
-A new footer-only presentation state belongs in `src/footer.ts` and must use a supplied snapshot, never call Git or `gh`. A palette value changes first in the design system, which owns it, then in `C` in `src/footer.ts` in its own commit, as the [root architecture](../../../docs/architecture.md#representative-flows) describes; `C` mirrors the design system until this extension imports its colors ([decision](../../../docs/decisions/in-repo-design-system-package.md)). A new host lifecycle behavior belongs in `src/extension.ts` and must preserve disposal and stale-result guards. Do not expose private parsers or add a generic service layer merely to pass data across these existing seams.
+A new footer-only presentation state belongs in `src/footer.ts` and must use a supplied snapshot, never call Git or `gh`. A palette value changes first in the design system, which owns it; the imported `COLORS` aliases and Pi-converted `C` consume that value without a mirrored copy ([decision](../../../docs/decisions/in-repo-design-system-package.md)). A new host lifecycle behavior belongs in `src/extension.ts` and must preserve disposal and stale-result guards. Do not expose private parsers or add a generic service layer merely to pass data across these existing seams.
 
 ## Evolution and known limits
 

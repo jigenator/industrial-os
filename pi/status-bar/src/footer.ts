@@ -1,6 +1,30 @@
 import { basename, dirname, isAbsolute, relative, sep } from "node:path";
 import type { ContextUsage, Theme } from "@earendil-works/pi-coding-agent";
 import { backgroundAnsi, foregroundAnsi, rgbColor, stripTerminalSequences, sliceByColumn, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import { ACID_BLACK } from "@industrial-os/design-system/foundation/palette";
+import { SIGNAL_COLORS } from "@industrial-os/design-system/foundation/signal-colors";
+import { random as seededRandom, hash, between, pick, shuffle, seedFrom } from "@industrial-os/design-system/foundation/seeded";
+import type { Color, Span, Style as ElementStyle } from "@industrial-os/design-system/foundation/cells";
+import { labelPlate, PLATE_TONES } from "@industrial-os/design-system/elements/label-plate";
+import { countPlate, COUNT_PLATES } from "@industrial-os/design-system/elements/count-plate";
+import { lamp as activityLamp } from "@industrial-os/design-system/elements/lamp";
+import { frameGeometry, frameStubs, frameCenter } from "@industrial-os/design-system/elements/instrument-frame";
+import { gaugeTrack, gaugeParts, gaugeScaleParts, gaugeTick, gaugeExtent, gaugeZone } from "@industrial-os/design-system/elements/gauge";
+import { providerColumnParts, litSegments, staleAge as meterAge } from "@industrial-os/design-system/elements/segment-meter";
+import { pnytlPlateParts } from "@industrial-os/design-system/elements/mode-plate";
+import { stateChipParts } from "@industrial-os/design-system/elements/state-chip";
+import { numeralGrid as pixelGrid, numeralAt as reconstructNumeral, numeralLines, NUMERAL_TONES } from "@industrial-os/design-system/elements/pixel-numeral";
+import { unitMarks } from "@industrial-os/design-system/elements/thread-rail";
+import { flash, FLASH_PRESETS } from "@industrial-os/design-system/motions/flash";
+import { blink, blinkOn, BLINK_PRESETS } from "@industrial-os/design-system/motions/blink";
+import { nudgeOffset } from "@industrial-os/design-system/motions/nudge";
+import { cycle } from "@industrial-os/design-system/motions/cycle";
+import { fade } from "@industrial-os/design-system/motions/fade";
+import { latch as stateLatch } from "@industrial-os/design-system/motions/latch";
+import { beacon as attentionBeacon } from "@industrial-os/design-system/motions/beacon";
+import { fillIn } from "@industrial-os/design-system/motions/fill-in";
+import { edgePulse } from "@industrial-os/design-system/motions/edge-pulse";
+import { burnOut } from "@industrial-os/design-system/motions/burn-out";
 import type { UsageProviderId, UsageWindow, UsageWindows } from "./usage.ts";
 import type { CheckoutInfo, PullRequestInfo, WorkspaceInfo } from "./workspace.ts";
 
@@ -20,21 +44,6 @@ export type TatsuComponent = { component: "tatsu-cli" | "agent-workspace"; state
 export type TatsuSnapshot = { phase: "inactive" | "checking" | "completed"; components: readonly TatsuComponent[] };
 const activeTatsu = (snapshot: FooterSnapshot) => snapshot.tatsu && snapshot.tatsu.phase !== "inactive" ? snapshot.tatsu : undefined;
 const tatsuKey = (c: TatsuComponent) => `${c.state}/${c.commitsBehind ?? "?"}/${c.localChanges ?? "?"}`;
-// A component's state: shape and short code, bold in the state colour (`ink`). Behind/repair append local edits.
-const tatsuLook = (c: TatsuComponent): { shape: string; code: string; ink: Hue } => {
-	const edit = c.localChanges === true ? " ◆ EDIT" : "";
-	switch (c.state) {
-		case "current": return { shape: "•", code: "OK", ink: "primary" };
-		case "behind": return { shape: "▲", code: `UP${c.commitsBehind === undefined ? "" : `×${c.commitsBehind}`}${edit}`, ink: "warn" };
-		case "repair": return { shape: "▲", code: `FIX${edit}`, ink: "warn" };
-		case "local_changes": return { shape: "◆", code: "EDIT", ink: "warn" };
-		case "missing": return { shape: "✕", code: "MISS", ink: "high" };
-		case "not_runnable": return { shape: "✕", code: "NRUN", ink: "high" };
-		case "unavailable": return { shape: "✕", code: "UNAV", ink: "high" };
-		case "checking": return { shape: "·", code: "CHK", ink: "graphic" };
-		case "inactive": return { shape: "·", code: "OFF", ink: "graphic" };
-	}
-};
 // Pre-styled EXT parts (Tatsu components, background-task groups) sit three field cells apart.
 const PART_GAP = 3;
 /** pi-background-tasks 2.6.9's `background-tasks` footer status, parsed; absent fields were not in the label. */
@@ -140,51 +149,29 @@ export function safeText(input: string, allowStyles = false): string {
 	return result.trim();
 }
 
-// Checking's state-half background: a gentle triangle wave up from graphic grey; black text stays at least 4.3:1.
-export const TATSU_CHECK_FADE_LEVELS = ["#717171", "#7b7b7b", "#868686", "#919191", "#9c9c9c", "#919191", "#868686", "#7b7b7b"] as const;
-const tatsuFadeColors = TATSU_CHECK_FADE_LEVELS.map((hex) => {
-	const level = parseInt(hex.slice(1, 3), 16);
-	return rgbColor(level, level, level);
-});
-// Selected "01 — Acid / Black" palette. Fixed by design rather than taken from the host theme.
-const C = {
-	field: rgbColor(0x00, 0x00, 0x00),
-	primary: rgbColor(0xc0, 0xfe, 0x04),
-	text: rgbColor(0xff, 0xff, 0xff),
-	secondary: rgbColor(0xcf, 0xcf, 0xcf),
-	plate: rgbColor(0x55, 0x55, 0x55),
-	surface: rgbColor(0x1c, 0x1c, 0x1c),
-	warn: rgbColor(0xd7, 0x9e, 0x52),
-	high: rgbColor(0xf2, 0x47, 0x23),
-	graphic: rgbColor(0x71, 0x71, 0x71),
-	checkLow: tatsuFadeColors[1], checkMid: tatsuFadeColors[2], checkHigh: tatsuFadeColors[3], checkPeak: tatsuFadeColors[4],
-	warnDim: rgbColor(0x6c, 0x4f, 0x29), // Tatsu beacon, 50% amber over black
-	// Tatsu warm-up steps, 25/50/75% of each state colour over the field (warn 50% is warnDim; grey reuses surface, plate).
-	primary25: rgbColor(0x30, 0x40, 0x01), primary50: rgbColor(0x60, 0x7f, 0x02), primary75: rgbColor(0x90, 0xbe, 0x03),
-	warn25: rgbColor(0x36, 0x28, 0x14), warn75: rgbColor(0xa1, 0x76, 0x3e),
-	high25: rgbColor(0x3c, 0x12, 0x09), high50: rgbColor(0x79, 0x24, 0x12), high75: rgbColor(0xb6, 0x35, 0x1a),
-	graphic50: rgbColor(0x38, 0x38, 0x38),
-	cobalt: rgbColor(0x00, 0x4f, 0xe8), // PNYTL LTE
-	magenta: rgbColor(0xc0, 0x00, 0x92), // PNYTL ULT
-	teal: rgbColor(0x00, 0x6e, 0x70), // PNYTL REV
-	violet: rgbColor(0x52, 0x00, 0xff), // CMP 1–2
-	pink: rgbColor(0xff, 0x15, 0xbd), // CMP 3–4
-	wz: rgbColor(0x2b, 0x20, 0x10), // 20% warning over the field
-	hz: rgbColor(0x30, 0x0e, 0x07), // 20% high over the field
-	// USG providers, from the new Marathon (GPT its white foreground token, CLD its "Signal orange" token, KMI a key-art
-	// sample): lit, used (20% over the field) and burn-out mid (50%), for the pulse and burn-out frames.
-	codex: rgbColor(0xff, 0xff, 0xff), codexUsed: rgbColor(0x33, 0x33, 0x33), codexMid: rgbColor(0x80, 0x80, 0x80),
-	claude: rgbColor(0xff, 0x5c, 0x00), claudeUsed: rgbColor(0x33, 0x12, 0x00), claudeMid: rgbColor(0x80, 0x2e, 0x00),
-	kimi: rgbColor(0x25, 0x55, 0xfc), kimiUsed: rgbColor(0x07, 0x11, 0x32), kimiMid: rgbColor(0x13, 0x2b, 0x7e),
-	// A settled lost square, the same neutral grey for every provider.
-	usageGhost: rgbColor(0x33, 0x33, 0x33),
-};
+// Explicit footer aliases: Pi owns color-depth conversion; the design system owns every value.
+const COLORS = {
+	field: ACID_BLACK.field, primary: ACID_BLACK.accent, text: ACID_BLACK.primary,
+	secondary: ACID_BLACK.secondary, plate: ACID_BLACK.structural, surface: ACID_BLACK.surface,
+	warn: ACID_BLACK.warning, high: ACID_BLACK.critical, graphic: ACID_BLACK.decorative,
+	checkLow: SIGNAL_COLORS.checkLow, checkMid: SIGNAL_COLORS.checkMid, checkHigh: SIGNAL_COLORS.checkHigh, checkPeak: SIGNAL_COLORS.checkPeak,
+	warnDim: SIGNAL_COLORS.warning50,
+	primary25: SIGNAL_COLORS.accent25, primary50: SIGNAL_COLORS.accent50, primary75: SIGNAL_COLORS.accent75,
+	warn25: SIGNAL_COLORS.warning25, warn75: SIGNAL_COLORS.warning75,
+	high25: SIGNAL_COLORS.critical25, high50: SIGNAL_COLORS.critical50, high75: SIGNAL_COLORS.critical75,
+	graphic50: SIGNAL_COLORS.decorative50,
+	cobalt: SIGNAL_COLORS.cobalt, magenta: SIGNAL_COLORS.magenta, teal: SIGNAL_COLORS.teal,
+	violet: SIGNAL_COLORS.violet, pink: SIGNAL_COLORS.pink,
+	wz: SIGNAL_COLORS.warningZone, hz: SIGNAL_COLORS.criticalZone,
+	codex: SIGNAL_COLORS.gpt, codexUsed: SIGNAL_COLORS.gptUsed, codexMid: SIGNAL_COLORS.gptMid,
+	claude: SIGNAL_COLORS.cld, claudeUsed: SIGNAL_COLORS.cldUsed, claudeMid: SIGNAL_COLORS.cldMid,
+	kimi: SIGNAL_COLORS.kmi, kimiUsed: SIGNAL_COLORS.kmiUsed, kimiMid: SIGNAL_COLORS.kmiMid,
+	usageGhost: SIGNAL_COLORS.ghost,
+} as const;
+const piColor = (hex: string) => rgbColor(...[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number]);
+const C = Object.fromEntries(Object.entries(COLORS).map(([alias, hex]) => [alias, piColor(hex)])) as Record<keyof typeof COLORS, ReturnType<typeof rgbColor>>;
+export const TATSU_CHECK_FADE_LEVELS = [ACID_BLACK.decorative, SIGNAL_COLORS.checkLow, SIGNAL_COLORS.checkMid, SIGNAL_COLORS.checkHigh, SIGNAL_COLORS.checkPeak, SIGNAL_COLORS.checkHigh, SIGNAL_COLORS.checkMid, SIGNAL_COLORS.checkLow] as const;
 type Hue = keyof typeof C;
-const PONYTAIL: Record<PonytailState, { code: string; ink: Hue }> = {
-	lite: { code: "LTE", ink: "cobalt" }, full: { code: "FUL", ink: "violet" }, ultra: { code: "ULT", ink: "magenta" },
-	review: { code: "REV", ink: "teal" }, off: { code: "OFF", ink: "plate" },
-	checking: { code: "CHK", ink: "plate" }, unknown: { code: "UNK", ink: "plate" },
-};
 const confirmedPonytail = (value: PonytailState | undefined): PonytailMode | undefined =>
 	value === "checking" || value === "unknown" ? undefined : value;
 const ponytailLit = (snapshot: FooterSnapshot) => snapshot.ponytailActive === true && confirmedPonytail(snapshot.ponytail) !== undefined && snapshot.ponytail !== "off";
@@ -201,31 +188,33 @@ type Run = { run: string; width: number; scanWidth: number };
 type Part = Cell | Run;
 const isRun = (part: Part): part is Run => "run" in part;
 
+// Keep semantic roles (especially warning/critical) distinct from equal-valued signal aliases.
+const ROLES = { field: "field", surface: "surface", primary: "text", secondary: "secondary", accent: "primary", decorative: "graphic", structural: "plate", warning: "warn", critical: "high" } as const;
+// Literal colors map to the first COLORS alias with that value; equal-valued aliases (text/codex, codexUsed/usageGhost)
+// emit identical RGB, so the choice only names the cell. test/footer-colors.test.ts covers every design-system color.
+export const hueOf = (color: Color | undefined, fallback: Hue): Hue => {
+	if (color === undefined) return fallback;
+	if (Object.hasOwn(ROLES, color)) return ROLES[color as keyof typeof ROLES];
+	const alias = (Object.keys(COLORS) as Hue[]).find((key) => COLORS[key] === color);
+	if (!alias) throw new TypeError(`Unmapped design-system color: ${color}`);
+	return alias;
+};
+const elementStyle = (s: ElementStyle): Style => ({ fg: hueOf(s.fg, "text"), bg: hueOf(s.bg, "field"), ...(s.bold === undefined ? {} : { bold: s.bold }) });
+const elementCells = (spans: readonly Span[], zone?: Zone): Cell[] => spans.flatMap((s) => [...s.text].map((ch) => ({ ch, ...elementStyle(s.style), zone })));
+const dsStyle = (s: Style): ElementStyle => ({ fg: s.fg ? (Object.entries(ROLES).find(([, hue]) => hue === s.fg)?.[0] ?? COLORS[s.fg]) as Color : undefined, bg: s.bg ? (Object.entries(ROLES).find(([, hue]) => hue === s.bg)?.[0] ?? COLORS[s.bg]) as Color : undefined, bold: s.bold });
+
 const FILL: Record<Tone, Hue> = { ok: "primary", warn: "warn", high: "high", unknown: "graphic" };
 const TRACK: Record<Tone, Hue> = { ok: "surface", warn: "wz", high: "hz", unknown: "surface" };
-const NUM: Record<Tone, Hue> = { ok: "text", warn: "warn", high: "high", unknown: "graphic" };
-const PLATE: Record<Tone, Style> = {
-	ok: { fg: "field", bg: "primary", bold: true }, warn: { fg: "field", bg: "warn", bold: true },
-	high: { fg: "field", bg: "high", bold: true }, unknown: { fg: "text", bg: "plate", bold: true },
-};
-const READOUT_CHIP: Record<Tone, Style> = { ...PLATE, ok: { fg: "field", bg: "text", bold: true } };
-const TAG: Record<Tone, string> = { ok: "", warn: "▲ WARN", high: "▲ HIGH", unknown: "? UNKNOWN" };
-const GREY_PLATE: Style = { fg: "text", bg: "plate", bold: true };
+const NUM = Object.fromEntries(Object.entries(NUMERAL_TONES).map(([tone, ink]) => [tone, hueOf(ink, "text")])) as Record<Tone, Hue>;
+const PLATE = Object.fromEntries(([['ok', 'accent'], ['warn', 'warning'], ['high', 'critical'], ['unknown', 'neutral']] as const).map(([tone, plate]) => [tone, elementStyle({ ...PLATE_TONES[plate], bold: true })])) as Record<Tone, Style>;
+const GREY_PLATE = PLATE.unknown;
 const LABEL = { act: "01 ACT", ctx: "02 CTX", mdl: "03 MDL", usg: "04 USG", ext: "05 EXT" } as const;
 
 const finite = (value: unknown) => typeof value === "number" && Number.isFinite(value) ? value : undefined;
 const toneOf = (percent: number | undefined): Tone => percent === undefined ? "unknown" : percent > 90 ? "high" : percent > 70 ? "warn" : "ok";
 const levelOf = (percent: number | undefined) => percent === undefined || percent <= 0 ? 0 : percent > 90 ? 3 : percent > 70 ? 2 : 1;
 const knownCount = (count: unknown) => typeof count === "number" && Number.isSafeInteger(count) && count >= 0 ? count : undefined;
-// The badge text is the single source of the rendered and re-strike width; known counts keep at least two digits.
-const unitBadge = (units: number | undefined) => ` ${units === undefined ? " ?" : String(units).padStart(2, "0")} AU `;
-// Fixed eight-cell compaction plate: 00–99, then 99+ in the trailing pad cell; ?? when unknown.
-const cmpPlate = (count: number | undefined) => count === undefined ? " CMP×?? " : count > 99 ? " CMP×99+" : ` CMP×${String(count).padStart(2, "0")} `;
 const USG_PLATE: Style = { fg: "field", bg: "pink", bold: true };
-const cmpStyle = (count: number | undefined): Style => ({
-	...(count === undefined || count === 0 ? { fg: "text", bg: "plate" } : count <= 2 ? { fg: "text", bg: "violet" } : count <= 4 ? { fg: "field", bg: "pink" } : { fg: "field", bg: "high" }),
-	bold: true,
-});
 
 // `unit` selects the scale and precision, so tokens can share the window's (84k/200k, 0.1M/1.0M).
 function compact(count: number, unit = count): string {
@@ -266,37 +255,21 @@ const USAGE_SQUARES = 8, USAGE_SLICE = 100 / USAGE_SQUARES;
 // next column; with eight-square slots none needs to.
 const USAGE_GAP = 3, USAGE_SPILL = 2, USAGE_WORD = 7;
 const usageColumn = (n: number) => 3 + 1 + USAGE_SQUARES * n + (n - 1);
-// Shown windows: the declared slots plus any reported undeclared window, all in 5H/WK order. Only the latter
-// (a declaration that needs updating) widens a column.
-const usageSlots = (provider: UsageProviderId, windows: UsageWindows | undefined) =>
-	USAGE_WINDOWS.filter((key) => USAGE[provider].windows.includes(key) || windows?.[key]);
 // Remaining share, clamped for display; null is an unknown window.
 const remainingOf = (window: UsageWindow) => window.usedPercent === null || !Number.isFinite(window.usedPercent) ? null : Math.min(100, Math.max(0, 100 - window.usedPercent));
 // Squares of 12.5% each; the epsilon keeps float noise on a boundary (87.5000000001) from lighting another square,
 // but any positive remainder keeps one lit: only exhausted quota is all dim.
-const litOf = (remaining: number) => remaining <= 0 ? 0 : Math.min(USAGE_SQUARES, Math.max(1, Math.ceil(remaining / USAGE_SLICE - 1e-6)));
+const litOf = (remaining: number) => litSegments(remaining, USAGE_SQUARES);
 // The edge square pulses every 600–4000 ms, faster as its slice drains: at most 1.7 pulses a second.
 function edgePeriod(remaining: number): number | undefined {
 	const lit = litOf(remaining);
 	if (!lit || remaining >= 100) return undefined;
 	return 600 + 3400 * Math.min(1, Math.max(0, (remaining - USAGE_SLICE * (lit - 1)) / USAGE_SLICE));
 }
-// Whole minutes, rounded up so a positive span never reads 0m: 41m, 4h03m, 12h, 5d15h, 12d.
-function span(ms: number): string {
-	const m = Math.max(0, Math.ceil(ms / 60_000)), h = Math.floor(m / 60), d = Math.floor(m / 1440);
-	return m < 60 ? `${m}m` : m < 600 ? `${h}h${String(m % 60).padStart(2, "0")}m` : m < 1440 ? `${h}h` : m < 14_400 ? `${d}d${Math.floor((m % 1440) / 60)}h` : `${d}d`;
-}
-const countdown = (resetsAt: number | null, now: number | undefined) =>
-	resetsAt === null || now === undefined || !Number.isFinite(resetsAt) ? "?" : resetsAt <= now ? "reset" : span(resetsAt - now);
 const MINUTE = 60_000, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
 // At most three cells, to fit under the tag: minutes rounded up (a positive age never reads 0m), then floor hours
 // and days, then 99+.
-function ageText(ms: number): string {
-	if (!(ms > 0)) return "0m";
-	if (ms <= 59 * MINUTE) return `${Math.ceil(ms / MINUTE)}m`;
-	if (ms < DAY) return `${Math.max(1, Math.floor(ms / HOUR))}h`;
-	return ms < 100 * DAY ? `${Math.floor(ms / DAY)}d` : "99+";
-}
+const ageText = (ms: number) => meterAge(Math.max(0, ms));
 // Milliseconds until `ageText` next changes, consistent with its boundaries; undefined once it reads 99+.
 function ageStep(ms: number): number | undefined {
 	if (ms <= 0) return 1 - ms;
@@ -336,67 +309,24 @@ export function usageRepaintDelay(usage: FooterUsage | undefined): number | unde
 
 /* ---------- seeded randomness: plans are drawn once per event, never per render ---------- */
 
-type Random = { (): number; cursor: number };
-function random(seed: number): Random {
-	const next = (() => {
-		next.cursor = (next.cursor + 0x6d2b79f5) | 0;
-		let t = Math.imul(next.cursor ^ (next.cursor >>> 15), 1 | next.cursor);
-		t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-	}) as Random;
-	next.cursor = seed | 0;
-	return next;
-}
-const hash = (a: number, b: number, c: number) => {
-	let h = (Math.imul(a, 374761393) + Math.imul(b, 668265263) + Math.imul(c, 1013904223)) | 0;
-	h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
-	return (h >>> 0) / 4294967296;
-};
-const between = (r: Random, [a, b]: readonly [number, number]) => a + Math.floor(r() * (b - a + 1));
-const pick = <T>(r: Random, list: readonly T[]) => list[Math.floor(r() * list.length)];
-const shuffle = <T>(r: Random, list: readonly T[]) => {
-	const a = list.slice();
-	for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-	return a;
-};
-const seedFrom = (r: Random) => Math.floor(r() * 2 ** 31);
+type Random = ReturnType<typeof seededRandom>;
+// Preserve the host's original coercion before the foundation's integer-seed boundary.
+const random = (seed: number): Random => seededRandom(seed | 0);
 
 /* ---------- large numeral: 3×5 pixel digits as square half-block pixels ---------- */
 
-const FONT: Record<string, string[]> = {
-	0: ["111", "101", "101", "101", "111"], 1: ["010", "110", "010", "010", "111"], 2: ["111", "001", "111", "100", "111"],
-	3: ["111", "001", "111", "001", "111"], 4: ["101", "101", "111", "001", "001"], 5: ["111", "100", "111", "001", "111"],
-	6: ["111", "100", "111", "101", "111"], 7: ["111", "001", "001", "001", "001"], 8: ["111", "101", "111", "101", "111"],
-	9: ["111", "101", "111", "001", "111"], ".": ["0", "0", "0", "0", "1"], "-": ["000", "000", "111", "000", "000"],
-	"?": ["111", "001", "011", "000", "010"],
-};
 /** Six pixel rows of numeral colors (null is empty), at least 13 columns wide. */
 export type NumeralGrid = { w: number; g: (Hue | null)[][] };
 const emptyGrid = (w: number): NumeralGrid => ({ w, g: Array.from({ length: 6 }, () => Array<Hue | null>(w).fill(null)) });
-// Exponent forms such as 1e+21 have no glyphs; the readout still shows them.
+const gridFromElement = (grid: { w: number; g: (Color | null)[][] }): NumeralGrid => ({ w: grid.w, g: grid.g.map((row) => row.map((ink) => ink === null ? null : hueOf(ink, "text"))) });
+const gridToElement = (grid: NumeralGrid) => ({ w: grid.w, g: grid.g.map((row) => row.map((ink) => ink === null ? null : dsStyle({ fg: ink }).fg!)) });
 function numeralGrid(percent: number | undefined): NumeralGrid | undefined {
-	const text = percent === undefined ? "?" : percent.toFixed(1);
-	if (![...text].every((ch) => FONT[ch])) return undefined;
-	const color = NUM[toneOf(percent)], cols: boolean[][] = [];
-	[...text].forEach((ch, k) => {
-		const px = FONT[ch];
-		if (k) cols.push([false, false, false, false, false]);
-		for (let x = 0; x < px[0].length; x++) cols.push(px.map((row) => row[x] === "1"));
-	});
-	const w = Math.max(13, cols.length);
-	return { w, g: Array.from({ length: 6 }, (_, y) => Array.from({ length: w }, (_, x) => (cols[x]?.[y] ? color : null))) };
+	const grid = pixelGrid(percent);
+	return grid && gridFromElement(grid);
 }
-const NOISE_BAND = 0.25, BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-// Reconstruct only the CURRENT shape and width: old-only pixels disappear immediately.
-// Current pixels acquire their current color square by square from grey, never display stale digits.
+// The host retains its Hue-valued memory and accepted hand-frame coercion; the element owns reconstruction math.
 function numeralAt(target: NumeralGrid, from: NumeralGrid, progress: number, seed: number): NumeralGrid {
-	const w = target.w;
-	return { w, g: Array.from({ length: 6 }, (_, y) => Array.from({ length: w }, (_, x) => {
-		const old = from.g[y][x] ?? null, now = target.g[y][x] ?? null;
-		if (!now || old === now) return now;
-		const threshold = NOISE_BAND + ((BAYER[(y % 4) * 4 + (x % 4)] + hash(x + 1, y + 1, seed)) / 16) * (1 - NOISE_BAND);
-		return progress >= threshold ? now : now === "graphic" ? "secondary" : "graphic";
-	})) };
+	return gridFromElement(reconstructNumeral(gridToElement(target), gridToElement(from), Number.isNaN(progress) ? 0 : Math.max(0, Math.min(1, progress)), seed | 0));
 }
 
 /* ---------- decorative motion: pure functions of supplied time, seed and memory ---------- */
@@ -404,7 +334,6 @@ function numeralAt(target: NumeralGrid, from: NumeralGrid, progress: number, see
 export const MOTION_TICK_MS = 50;
 const TICK = MOTION_TICK_MS;
 const BOOT_TICKS = 30, WIPE_TICKS = 15, TAG_TICKS = 8, FLASH_TICKS = 6, CAL_PERIOD = 120;
-const CAL = [1, 1, 0, -1, -1, 0]; // the header's ┼ nudges ±1 cell once per 6 s
 const SCALE_T0 = 6, NUM_BOOT_T0 = 8, NUM_MS = 500, NUM_RETARGET_MS = 350;
 const BOOT_AT = { github: 1, launch: 3, active: 6, branch: 8, git: 10, gauge: 5, readout: 12, tag: 13, model: 12, ext: 14 };
 const GLITCH: Record<number, { wait: [number, number]; frames: [number, number]; runs: [number, number]; len: [number, number]; glyphs: string[] }> = {
@@ -428,8 +357,6 @@ const USAGE_ROW_CELLS = ` ${LABEL.usg} `.length + 1 - USAGE_GAP
 export const USAGE_BOOT_TICKS = Math.ceil(USAGE_ROW_CELLS / USAGE_SWEEP_CELLS_PER_TICK) + 1;
 
 export const TATSU_CHECK_STEP_MS = 150;
-const TATSU_CHECK_FADE_INKS: readonly Hue[] = ["graphic", "checkLow", "checkMid", "checkHigh", "checkPeak", "checkHigh", "checkMid", "checkLow"];
-export const TATSU_CHECK_GLYPHS = ["·", "•", "•", "•", "·"] as const;
 export const TATSU_LATCH_TICKS = 3;
 export const TATSU_BEACON_PERIOD_MS = 4000;
 export const TATSU_BEACON_STEP_MS = 50;
@@ -540,7 +467,7 @@ export type FooterFrame = Readonly<{
 export const SETTLED_FRAME: FooterFrame = Object.freeze({ boot: Infinity, bootSeed: 0, cal: 0, tagFlash: false, flash70: false, flash90: false, pulse: null });
 
 const ticksSince = (at: number, now: number) => Math.floor((now - at) / TICK);
-const calAt = (tick: number) => (tick >= 0 ? CAL[tick % CAL_PERIOD] ?? 0 : 0);
+const calAt = (tick: number) => (tick >= 0 ? nudgeOffset(tick * TICK) : 0);
 const numKey = (percent: number | undefined) => `${percent === undefined ? "?" : percent.toFixed(1)}${NUM[toneOf(percent)]}`;
 const booting = (s: MotionState, now: number) => s.boot !== undefined && ticksSince(s.boot.at, now) <= BOOT_TICKS;
 const settledNumeral = (s: MotionState, now: number) => !s.numeral || now - s.numeral.at >= s.numeral.dur;
@@ -818,10 +745,10 @@ export function motionFrame(state: MotionState, now: number): FooterFrame {
 }
 
 // The lamp blinks 500 ms acid / 300 ms dim, as does a running background task's ◆; each visible unit mark shuttles on its own period.
-const lampOn = (pulse: number) => pulse % 16 < 10;
+const lampOn = (pulse: number) => pulse < 0 ? true : Number.isFinite(pulse) && blinkOn(pulse * TICK);
 // Ponytail's light toggles every 50 ms decoration tick: 10 blinks a second, the fastest the tick allows. One character
 // cell is well below WCAG's flash-area threshold, so this exceeds the three-a-second budget kept for the mode letters by choice.
-const lightOn = (pulse: number) => pulse % 2 === 0;
+const lightOn = (pulse: number) => Number.isInteger(pulse) && blinkOn(Math.abs(pulse) * TICK, BLINK_PRESETS.activityLight);
 const markSide = (pulse: number, q: number) => Math.floor((pulse + q * 3) / (4 + ((q * 2) % 5))) % 2;
 // A USG edge square pulses for the last EDGE_PULSE_MS of each period, so a fresh start never opens on a pulse.
 function edgeStep(period: number, elapsed: number): number | undefined {
@@ -989,7 +916,7 @@ function planRestrike(r: Random, state: MotionState): MotionItem[] {
 	for (const unit of units) {
 		if (unit === "panel") panelPatches(r, start, items, state);
 		else if (unit === "root" || unit === "badge") {
-			const limit = unit === "root" ? 6 : unitBadge(state.units).length, patches = r() < 0.6 ? 1 : 2;
+			const limit = unit === "root" ? 6 : countPlate(state.units, COUNT_PLATES.units)[0].text.length, patches = r() < 0.6 ? 1 : 2;
 			for (let q = 0; q < patches; q++) {
 				const width = 1 + Math.floor(r() * limit), x0 = Math.floor(r() * (limit - width + 1));
 				strikePatch(r, Array.from({ length: width }, (_, k) => ({ k, place: (s: number, frames: (StrikeKind | null)[]) => ({ fam: "restrike" as const, zone: unit, x: x0 + k, start: s, frames }) })), start + Math.floor(r() * 3), items);
@@ -1072,11 +999,6 @@ function restoreBase(status: string, fg: string, bg: string): string {
 	});
 }
 
-// Gauge cells cover 0..100; a cell lights when any of its slice is used, so only true zero is empty.
-const fillCount = (percent: number, n: number) => Math.min(n, Math.max(0, Math.ceil((percent * n) / 100 - 1e-9)));
-const tickAt = (value: number, n: number) => Math.min(n - 1, Math.max(0, Math.floor((value * n) / 100 + 1e-9)));
-const zoneOf = (i: number, n: number): Tone => (i >= tickAt(90, n) ? "high" : i >= tickAt(70, n) ? "warn" : "ok");
-
 const cell = (ch: string, fg: Hue = "text", bg: Hue = "field", bold = false): Cell => ({ ch, fg, bg, bold });
 const blanks = (n: number, bg: Hue = "field", ghost = false): Cell[] => {
 	const out = new Array<Cell>(Math.max(0, Math.floor(n)));
@@ -1093,6 +1015,7 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 	const W = Math.floor(width);
 	const style = (s: Style) => ({ fg: C[s.fg ?? "text"], bg: C[s.bg ?? "field"], bold: s.bold, underline: s.underline });
 	const paint = (text: string, s: Style = {}) => (text ? theme.style(text, style(s)) : "");
+	const paintElement = (spans: readonly Span[]) => spans.map((s) => paint(s.text, elementStyle(s.style))).join("");
 	// A chip's trailing pad can wrap alone; blank wrapped rows carry no information.
 	const wrap = (text: string, w: number) => {
 		const lines = wrapTextWithAnsi(text, Math.max(1, w)).filter((line) => stripTerminalSequences(line).trim());
@@ -1150,7 +1073,7 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 	// Polarity latch: a chip shows inverted, then flips solid / inverted / solid.
 	const chip = (text: string, s: Style, at?: number) => {
 		const inverted = inBoot && at !== undefined && (k - at < 1 || k - at === 2);
-		return paint(` ${text} `, inverted ? (s.bg === "field" || !s.bg ? { fg: "field", bg: s.fg, bold: true } : { fg: s.bg, bg: "field", bold: true }) : s);
+		return paint(text, inverted ? (s.bg === "field" || !s.bg ? { fg: "field", bg: s.fg, bold: true } : { fg: s.bg, bg: "field", bold: true }) : s);
 	};
 	const gap = (bg: Hue = "field") => paint(" ", { bg });
 
@@ -1195,13 +1118,12 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 	const model = (snapshot.model ? word(safeText(snapshot.model.provider), { bold: true, bg: band }, 0) + word("/", { bold: true, bg: band }, -1) + word(safeText(snapshot.model.id), { bold: true, bg: band }, 1) : word("no-model", { bold: true, bg: band }, 0))
 		+ word(" · ", { fg: "secondary", bg: band }, -1) + word("thinking ", { fg: "secondary", bg: band }, 2) + word(safeText(snapshot.thinking), { fg: "primary", bold: true, bg: band }, 3);
 	// Pre-styled run: never eligible for ambient ghosts/re-strikes or boot restyling.
-	const ponytail = snapshot.ponytail && PONYTAIL[snapshot.ponytail];
-	// While Ponytail reports activity the icon alternates with a small pink light (the CMP pink); motion off holds it lit.
 	const lit = ponytailLit(snapshot) && (frame.pulse === null || lightOn(frame.pulse));
-	const ponytailPlate = ponytail ? gap() + paint(" ", { fg: "field", bg: "text", bold: true })
-		+ paint(lit ? "•" : "⌑", { fg: lit ? "pink" : "field", bg: "text", bold: true }) + paint(" PNYTL // ", { fg: "field", bg: "text", bold: true })
-		+ [...ponytail.code].map((ch, i) => paint(ch, { fg: confirmedPonytail(snapshot.ponytail) && snapshot.ponytail !== "off" && ((frame.ponytailMask ?? 0) & (1 << i)) ? "field" : ponytail.ink, bg: "text", bold: true })).join("")
-		+ paint(" ", { fg: "field", bg: "text", bold: true }) + gap() : "";
+	const ponytail = snapshot.ponytail ? pnytlPlateParts(snapshot.ponytail, { active: lit }) : undefined;
+	const ponytailPlate = ponytail ? paintElement(ponytail.leftGap) + paintElement(ponytail.leadingPad)
+		+ paintElement(ponytail.icon) + paintElement(ponytail.title)
+		+ ponytail.codeCells.map((part, i) => paint(part.text, { ...elementStyle(part.style), ...(confirmedPonytail(snapshot.ponytail) && snapshot.ponytail !== "off" && ((frame.ponytailMask ?? 0) & (1 << i)) ? { fg: "field" as const } : {}) })).join("")
+		+ paintElement(ponytail.trailingPad) + paintElement(ponytail.rightGap) : "";
 	// The same for pre-styled single-width text (single-width characters only) whose first cell is at x: its settled part, the
 	// front repainted from its characters, and nothing past the front; callers pad with blank field.
 	const drawInText = (text: string, x: number, front: number) => {
@@ -1236,17 +1158,21 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 		if (key === "tatsu-status" && tatsu) {
 			const warm = frame.tatsuWarm, held = inBoot || warm !== undefined;
 			const parts = tatsu.components.map((c, p) => {
-				const look = tatsuLook(c), latch = held ? undefined : frame.tatsuLatches?.[c.component], checking = c.state === "checking" && !held;
+				const pieces = stateChipParts({ label: c.component === "tatsu-cli" ? "TCLI" : "AWKS", ...c }, { countPolicy: "number-text" });
+				const latch = held ? undefined : frame.tatsuLatches?.[c.component], checking = c.state === "checking" && !held;
 				// Checking fades only the code's colour; the label and grey shape stay put.
-				const ink: Style = latch === 0 ? LOCKED : latch === 1 || latch === 2 ? { fg: "field", bg: look.ink, bold: true } : { fg: look.ink, bold: true };
-				const codeInk: Style = checking && latch === undefined && frame.tatsuCheck !== undefined ? { ...ink, fg: TATSU_CHECK_FADE_INKS[frame.tatsuCheck % TATSU_CHECK_FADE_INKS.length] } : ink;
+				const latchPieces = (part: Span[]) => latch === 0 || latch === 1 || latch === 2 ? stateLatch([part], { time: latch * TICK, stateCells: true })[0] : part;
+				const ink = elementStyle(latchPieces(pieces.stateGap)[0].style);
+				let codeInk: Style = checking && latch === undefined && frame.tatsuCheck !== undefined && Number.isInteger(frame.tatsuCheck) && frame.tatsuCheck >= 0 ? elementStyle(fade([pieces.code], { time: frame.tatsuCheck * TATSU_CHECK_STEP_MS })[0][0].style) : ink;
 				const beacon = held || latch !== undefined ? undefined : frame.tatsuBeacon;
 				const attention = c.state === "behind" || c.state === "repair";
-				const shape = checking ? TATSU_CHECK_GLYPHS[(frame.tatsuCheck ?? 0) % TATSU_CHECK_GLYPHS.length] : attention && beacon !== undefined && beacon < 2 ? "▴" : look.shape;
-				const shapeInk = attention && beacon !== undefined && beacon > 0 ? { ...ink, fg: "warnDim" as const } : ink;
+				const shapePart = checking && (frame.tatsuCheck === undefined || Number.isInteger(frame.tatsuCheck)) ? cycle([latchPieces(pieces.shape)], { time: Math.max(0, frame.tatsuCheck ?? 0) * TATSU_CHECK_STEP_MS })[0]
+					: attention && beacon !== undefined ? attentionBeacon([pieces.shape], { time: TATSU_BEACON_PERIOD_MS - TATSU_BEACON_MS + Math.max(0, Math.min(2, beacon)) * TICK, stateCells: true })[0] : latchPieces(pieces.shape);
+				if (checking && latch === undefined && frame.tatsuCheck !== undefined && (frame.tatsuCheck < 0 || !Number.isInteger(frame.tatsuCheck))) codeInk = { ...ink, fg: undefined };
+				const shape = checking && frame.tatsuCheck !== undefined && (frame.tatsuCheck < 0 || !Number.isInteger(frame.tatsuCheck)) ? "" : shapePart[0].text, shapeInk = elementStyle(shapePart[0].style);
 				// The dim label leaves the coloured state to carry the reading. The warm-up replaces EXT's boot treatment.
 				const tone = (style: Style, role: keyof typeof TATSU_WARM_ROLE): Style => warm === undefined ? style : { ...style, fg: tatsuWarmInk(style.fg ?? "text", warm, p, role) };
-				return paint(c.component === "tatsu-cli" ? "TCLI" : "AWKS", tone({ fg: "graphic" }, "label")) + paint(" ") + paint(shape, tone(shapeInk, "shape")) + paint(" ", ink) + paint(look.code, tone(codeInk, "code"));
+				return paint(pieces.label[0].text, tone(elementStyle(pieces.label[0].style), "label")) + paintElement(pieces.labelGap) + paint(shape, tone(shapeInk, "shape")) + paint(pieces.stateGap[0].text, ink) + paint(pieces.code[0].text, tone(codeInk, "code"));
 			});
 			return { parts, text: "" };
 		}
@@ -1257,11 +1183,18 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 			const parts: string[] = [];
 			for (const look of BG_COUNTS) {
 				const n = tasks[look.key], lit = look.key !== "running" || frame.pulse === null || lampOn(frame.pulse);
-				if (n !== undefined) parts.push(paint(look.shape, { fg: lit ? look.ink : "graphic", bold: true }) + paint(` ${look.code}×${n}`, { fg: look.ink, bold: true }));
+				if (n !== undefined) {
+					const pieces = stateChipParts({ label: "BG", state: look.key }, { preset: { [look.key]: { shape: look.shape, code: look.code, tone: dsStyle({ fg: look.ink }).fg! } }, count: n });
+					parts.push(paintElement(look.key === "running" && !lit ? blink([pieces.shape], { time: 500, offStyle: { fg: "decorative" } })[0] : pieces.shape) + paint(pieces.stateGap[0].text + pieces.code[0].text, elementStyle(pieces.code[0].style)));
+				}
 			}
 			if (tasks.hint) parts.push(paint(`${tasks.hint}${tasks.clear ? " /bg-clear" : ""}`, { fg: "graphic" }));
-			if (tasks.update) parts.push(paint(`▲ v${tasks.update}`, { fg: "warn", bold: true }) + paint(" ") + paint("/bg-update", { fg: "graphic" }));
-			parts[0] = paint("BG", { fg: "graphic" }) + paint(" ") + parts[0];
+			if (tasks.update) {
+				const pieces = stateChipParts({ label: "BG", state: "update" }, { preset: { update: { shape: "▲", code: `v${tasks.update}`, tone: "warning" } } });
+				parts.push(paint(pieces.shape[0].text + pieces.stateGap[0].text + pieces.code[0].text, elementStyle(pieces.code[0].style)) + paintElement(pieces.labelGap) + paint("/bg-update", { fg: "graphic" }));
+			}
+			const label = stateChipParts({ label: "BG", state: "checking" });
+			parts[0] = paintElement(label.label) + paintElement(label.labelGap) + parts[0];
 			return { parts, text: "" };
 		}
 		return { parts: undefined, text: fg + bg + restoreBase(safeText(status, true), fg, bg) };
@@ -1281,51 +1214,44 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 		});
 		return { top, bottom, width: x, bottomWidth: end };
 	};
-	const usagePart = (top: string, topWidth: number, width: number, bottom = "", bottomWidth = 0): UsagePart =>
-		({ top: top + paint(" ".repeat(Math.max(0, width - topWidth))), bottom, width, bottomWidth });
 	// A column's room on a line includes the spill its state word could need, so wrap points never depend on state.
 	const footprint = (group: UsageGroup) => Math.max(group.width + group.reserve, group.bottomWidth);
 	const usageNow = finite(snapshot.usage?.now), lastLatch = USAGE_FILL_TICKS - 1;
 	const usageGroups = usageRow(snapshot).map((provider): UsageGroup => {
-		const look = USAGE[provider.provider], age = staleAge(provider, usageNow), data = provider.data, fill = frame.usageFill?.[provider.provider];
-		// Fill-in: each cell shows its current glyph in graphic grey, white on its tick, then its settled ink.
-		const cells = (glyphs: string, settled: (j: number) => Style) =>
-			[...glyphs].map((ch, j) => paint(ch, fill === undefined || fill > j ? settled(j) : fill === j ? { fg: "text" } : { fg: "graphic" })).join("");
-		// Text waits in graphic grey until the last cell above it latches.
-		const ink = (s: Style): Style => (fill !== undefined && fill < lastLatch ? { fg: "graphic" } : s);
-		const grey = () => ({ fg: "graphic" }) as Style;
-		const declared = look.windows.length, width = usageColumn(declared);
-		// Stale dims the tag to the unknown grey: CLD's and KMI's 50% mixes are under 3:1 on black, too faint for text,
-		// so every stale tag uses the one grey.
-		const tagStyle: Style = age === undefined ? { fg: look.lit, bold: true } : { fg: "graphic" };
-		const parts = [usagePart(paint(look.tag, tagStyle), 3, 3, age ? paint(age, ink({ fg: "warn" })) : "", age?.length ?? 0)];
-		if (!data) {
-			// One grey cell group per declared slot; the state word sits under the first.
-			const word = provider.failure ?? "pending", glyphs = (provider.failure ? "?" : "·").repeat(USAGE_SQUARES);
-			for (let n = 0; n < declared; n++) {
-				parts.push(n ? usagePart(cells(glyphs, grey), USAGE_SQUARES, USAGE_SQUARES)
-					: usagePart(cells(glyphs, grey), USAGE_SQUARES, USAGE_SQUARES, paint(word, ink({ fg: provider.failure ? "warn" : "secondary" })), word.length));
+		const look = USAGE[provider.provider], age = staleAge(provider, usageNow), fill = frame.usageFill?.[provider.provider];
+		// Normalize permissive host values before entering the element's strict boundary; preserve displayed clock age.
+		const windows = provider.data && Object.fromEntries(USAGE_WINDOWS.filter((key) => provider.data!.windows[key]).map((key) => {
+			const w = provider.data!.windows[key]!, remaining = remainingOf(w);
+			return [key, { usedPercent: remaining === null ? null : 100 - remaining, resetsAt: finite(w.resetsAt) ?? null }];
+		}));
+		const natural = providerColumnParts({ provider: provider.provider, failure: provider.failure, ...(windows ? { data: { windows } } : {}) }, { now: usageNow, age: age ?? null, countdownOverflow: "text" });
+		const ink = (s: Style): Style => fill !== undefined && fill < lastLatch ? { fg: "graphic" } : s;
+		const parts = natural.map((part): UsagePart => {
+			let top = "", drawn = 0;
+			for (const span of part.top) {
+				if (part.kind === "tag") { top += paint(span.text, elementStyle(span.style)); drawn += span.text.length; continue; }
+				for (const glyph of span.text) {
+					const i = drawn++, key = part.window as UsageWindowKey | undefined, window = key && provider.data?.windows[key];
+					const remaining = window ? remainingOf(window) : null, effect = key ? frame.usage?.[`${provider.provider}/${key}`] : undefined;
+					const lit = remaining === null ? 0 : litOf(remaining), burn = effect?.burn, pulse = effect?.edge === undefined ? undefined : EDGE_PULSE[effect.edge];
+					let ch = glyph, s = elementStyle(span.style);
+					if (remaining !== null && glyph === "■") {
+						if (pulse && i === lit - 1) { const part = edgePulse([[{ text: glyph, style: { fg: COLORS[look.lit] } }]], { time: 3850 + effect!.edge! * TICK, lit: COLORS[look.lit], used: COLORS[look.used] })[0][0]; ch = part.text; s = elementStyle(part.style); }
+						else if (i < lit) s = { fg: look.lit };
+						else if (burn && i < burn.from) { s = elementStyle(burnOut([[{ text: glyph, style: span.style }]], { time: Math.max(0, Math.min(599, burn.elapsed)), lit: COLORS[look.lit], mid: COLORS[look.mid], used: COLORS[look.used] })[0][0].style); }
+					}
+					if (fill !== undefined && fill <= i) {
+						if (fill < 0) s = { fg: "graphic" }; // compatible hand-frame pre-roll; DS time is non-negative
+						else { const filled = fillIn([[{ text: " ".repeat(i) + ch, style: dsStyle(s) }]], { time: fill * TICK })[0]; s = elementStyle(filled[filled.length - 1].style); }
+					}
+					top += paint(ch, s);
+				}
 			}
-		} else if (!USAGE_WINDOWS.some((key) => data.windows[key])) parts.push(usagePart(cells("none", () => ({ fg: "secondary" })), 4, width - 4));
-		else for (const key of usageSlots(provider.provider, data.windows)) {
-			const window = data.windows[key];
-			if (!window) { parts.push(usagePart("", 0, USAGE_SQUARES)); continue; } // a declared window the sample lacks stays blank
-			const remaining = remainingOf(window), effect = frame.usage?.[`${provider.provider}/${key}`];
-			if (remaining === null) { parts.push(usagePart(cells("?".repeat(USAGE_SQUARES), grey), USAGE_SQUARES, USAGE_SQUARES, paint("?", ink({ fg: "secondary" })), 1)); continue; }
-			const lit = litOf(remaining), burn = effect?.burn, pulse = effect?.edge === undefined ? undefined : EDGE_PULSE[effect.edge];
-			const text = countdown(window.resetsAt, usageNow);
-			// Every square is `■`; lit and lost differ by style, and a settled lost square is the shared ghost grey. The pulse
-			// only resizes and dims the lit edge square; a burn only restyles the lost squares until it settles.
-			const glyphs = Array.from({ length: USAGE_SQUARES }, (_, i) => (pulse && i === lit - 1 ? pulse.glyph : "■")).join("");
-			const squares = cells(glyphs, (i): Style => {
-				if (i < lit) return { fg: pulse?.dim && i === lit - 1 ? look.used : look.lit };
-				if (!burn || i >= burn.from) return { fg: "usageGhost" };
-				const e = burn.elapsed;
-				return { fg: e < BURN_STEPS[0] ? "text" : e < BURN_STEPS[1] ? look.lit : e < BURN_STEPS[2] ? look.mid : look.used };
-			});
-			// Countdowns fit their slot; only a pathological one (beyond 9999999d) widens it rather than overlap.
-			parts.push(usagePart(squares, USAGE_SQUARES, Math.max(USAGE_SQUARES, text.length), paint(text, ink({ fg: "secondary" })), text.length));
-		}
+			// Natural parts exclude absent slots and none's trailing padding from the cell latch.
+			top += paint(" ".repeat(Math.max(0, part.width - drawn)));
+			return { top, bottom: part.bottom.map((s) => paint(s.text, ink(elementStyle(s.style)))).join(""), width: part.width, bottomWidth: part.bottomWidth };
+		});
+		const width = usageColumn(look.windows.length);
 		return { ...joinParts(parts, 1), parts, reserve: Math.min(USAGE_SPILL, Math.max(0, 4 + USAGE_WORD - width)) };
 	});
 	// Below 40 columns a group wider than the line splits between its tag and window slots, and a slot wider still
@@ -1372,51 +1298,49 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 	const topFront = usageTick === undefined ? Infinity : (usageTick + 1) * sweep, textFront = usageTick === undefined ? Infinity : usageTick * sweep;
 	const drawIn = (x: number, c: Cell, front: number): Cell => (x >= front ? { ch: " ", bg: "field" } : x >= front - sweep ? { ch: c.ch, ...LOCKED } : c);
 	// The USG plate is the Marathon pink (the CMP 3–4 plate pair), black bold lettering at 6.1:1.
-	const usgPlate = letters(` ${LABEL.usg}`.padEnd(8), USG_PLATE);
+	const usgPlate = elementCells(labelPlate(LABEL.usg, { form: "slab", style: dsStyle(USG_PLATE) }));
 
 	const { percent, tone, windowText, tokensText } = contextOf(snapshot);
 	const readoutText = `${tokensText}${windowText ? `/${windowText}` : ""}`;
-	const tagText = TAG[tone];
-	const tagStyle: Style = frame.tagFlash ? { fg: "field", bg: tone === "unknown" ? "text" : FILL[tone], bold: true } : { fg: tone === "unknown" ? "secondary" : FILL[tone], bold: true };
-	const tag = tagText ? chip(tagText, tagStyle, BOOT_AT.tag) : "";
+	const ctxParts = gaugeParts(readoutText, tone), tagText = ctxParts.tag[0]?.text.trim() ?? "";
+	const tagStyle: Style = ctxParts.tag[0] ? elementStyle((frame.tagFlash ? flash([ctxParts.tag], { ...FLASH_PRESETS.tag, time: TICK, stateCells: true, ...(tone === "unknown" ? { invertStyle: { fg: "field", bg: "primary", bold: true } } : {}) })[0] : ctxParts.tag)[0].style) : {};
+	const tag = tagText ? chip(ctxParts.tag[0].text, tagStyle, BOOT_AT.tag) : "";
 
 	/* ---------- activity: lamp, ROOT and the exact AU count ---------- */
 	const activity = snapshot.activity, units = knownCount(activity?.units), pulse = frame.pulse;
 	// CMP is always shown. Boot swaps the approved pair for two ticks, which keeps its contrast.
-	const compactions = knownCount(snapshot.compactions), cmpText = cmpPlate(compactions), cmpBase = cmpStyle(compactions);
-	const cmp = inBoot && k < 2 ? { ...cmpBase, fg: cmpBase.bg, bg: cmpBase.fg } : cmpBase;
-	const lamp: Cell = !activity ? cell("╱", "graphic", "surface")
-		: cell(" ", "text", activity.working && (pulse === null || lampOn(pulse)) ? "primary" : "surface");
-	const badgeStyle: Style = units === undefined ? GREY_PLATE : units === 0 ? { fg: "secondary", bg: "surface" } : { fg: "field", bg: "text", bold: true };
-	const badge = letters(unitBadge(units), badgeStyle, "badge");
-	const root = letters(" ROOT ", { fg: "field", bg: "primary", bold: true }, "root");
-	const rail: Cell[] = [];
-	for (let q = 0; q < PULSE_CAP; q++) {
-		if (q >= Math.min(PULSE_CAP, units ?? 0)) { rail.push(cell("·", "graphic"), cell("·", "graphic")); continue; }
-		const side = pulse === null ? 0 : markSide(pulse, q);
-		rail.push(side ? cell("·", "graphic") : cell("█", "primary"), side ? cell("█", "primary") : cell("·", "graphic"));
-	}
+	const compactions = knownCount(snapshot.compactions), cmpPiece = countPlate(compactions), cmpText = cmpPiece[0].text, cmpBase = elementStyle(cmpPiece[0].style);
+	const cmp = inBoot && k < 2 ? elementStyle(flash([cmpPiece], { ...FLASH_PRESETS.polarity, time: Math.max(0, k) * TICK, stateCells: true })[0][0].style) : cmpBase;
+	const lampState = !activity ? "unknown" : activity.working ? "working" : "idle";
+	const lampLit = pulse === null || lampOn(pulse);
+	const lamp = elementCells(activityLamp(lampState, { appearance: "field", lit: lampLit }))[0];
+	const badgePiece = countPlate(units, COUNT_PLATES.units), badgeStyle = elementStyle(badgePiece[0].style);
+	// Pi distinguishes absent bold from false on opaque Runs; retain the original zero-badge boundary.
+	if (units === 0) delete badgeStyle.bold;
+	const badge = letters(badgePiece[0].text, badgeStyle, "badge");
+	const root = elementCells(labelPlate("ROOT", { form: "slab", tone: "accent" }), "root");
+	const rail = elementCells(unitMarks(units, { sides: Array.from({ length: PULSE_CAP }, (_, q) => pulse === null || !markSide(pulse, q) ? 0 : 1) }));
 
 	/* ---------- minimal fallback where the frame and plates cannot fit ---------- */
 	if (W < 40) {
 		const lines: string[] = [];
 		const add = (label: string, s: Style, value: string) => {
-			for (const line of wrap(paint(` ${label} `, s) + gap() + value, W)) lines.push(serialize(runPad(line, W)));
+			for (const line of wrap(paintElement(labelPlate(label, { form: "slab", style: dsStyle(s) })) + gap() + value, W)) lines.push(serialize(runPad(line, W)));
 		};
 		for (const line of wrap(paint(cmpText, cmp) + (title ? gap() + title : ""), W)) lines.push(serialize(runPad(line, W)));
 		// The lamp is a solid glyph here so wrapping never drops it as blank.
-		const lampText = paint(lamp.ch === " " ? "█" : lamp.ch, lamp.ch === " " ? { fg: lamp.bg, bg: lamp.bg } : lamp);
+		const lampText = paintElement(activityLamp(lampState, { appearance: "solid", lit: lampLit }));
 		for (const line of wrap(lampText + gap() + paint(" ROOT ", root[0]) + gap() + paint(badge.map((c) => c.ch).join(""), badgeStyle), W)) lines.push(serialize(runPad(line, W)));
 		if (cwd) for (const line of wrap(cwd, W)) lines.push(serialize(runPad(line, W)));
 		add(LABEL.act, PLATE.ok, active);
 		if (gitDetails) for (const line of wrap(gitDetails, W)) lines.push(serialize(runPad(line, W)));
-		add(LABEL.ctx, PLATE[tone], chip(readoutText, READOUT_CHIP[tone]) + (tag ? gap() + tag : ""));
+		add(LABEL.ctx, PLATE[tone], chip(ctxParts.readout[0].text, elementStyle(ctxParts.readout[0].style)) + (tag ? gap() + tag : ""));
 		add(LABEL.mdl, { fg: "field", bg: "text", bold: true }, model);
 		if (ponytailPlate) for (const line of wrap(ponytailPlate, W)) lines.push(serialize(runPad(line, W)));
 		if (usageGroups.length) {
 			// Inline label, then the first group beside it when it fits; text rows stay under their squares.
 			const fitted = usageGroups.flatMap((group) => splitGroup(group, W));
-			const label = paint(` ${LABEL.usg} `, USG_PLATE) + gap(), inline = footprint(fitted[0]) <= W - 9;
+			const label = paintElement(labelPlate(LABEL.usg, { form: "slab", style: dsStyle(USG_PLATE) })) + gap(), inline = footprint(fitted[0]) <= W - 9;
 			if (!inline) lines.push(serialize(runPad(drawInText(label, 0, topFront), W)));
 			// The row boot sweeps every line from its own left edge; the blank label column stays blank.
 			usageLines(fitted, inline ? W - 9 : W, W).forEach((line, i) => {
@@ -1426,7 +1350,7 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 			});
 		}
 		statuses.forEach((status, i) => {
-			let label = i === 0 ? paint(` ${LABEL.ext} `, GREY_PLATE) + gap() : "";
+			let label = i === 0 ? paintElement(labelPlate(LABEL.ext, { form: "slab" })) + gap() : "";
 			// At sub-plate widths the label cannot share a line with the first part.
 			if (status.parts && label && W < 9) {
 				for (const line of wrap(label, W)) lines.push(serialize(runPad(line, W)));
@@ -1439,11 +1363,11 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 	}
 
 	/* ---------- framed plate layout ---------- */
-	const G = W >= 60 ? 2 : 1, P = 8, M = W - 2 * G, FW = M - P - 1, MID = Math.floor(W / 2);
+	const geometry = frameGeometry(W, { maxWidth: Infinity }), G = geometry.gutter, P = geometry.plateWidth, M = W - 2 * G, FW = geometry.contentWidth, MID = Math.floor(W / 2);
 	const bootWipe = (order: number) => Math.max(0, Math.min(P, (k - order * 2) * 3));
 	const plate = (key: PlateKey, s: Style, wipe: number, previous?: Style): Cell[] => {
 		const outline: Style = { fg: s.bg === "plate" ? "secondary" : s.bg, bold: true };
-		return [...` ${LABEL[key]}`.padEnd(P)].map((ch, x) => ({ ch, ...(x < wipe ? s : previous ?? outline), bold: true, zone: "plate" }));
+		return elementCells(labelPlate(LABEL[key], { form: "slab", style: dsStyle(s) })).map(({ ch }, x) => ({ ch, ...(x < wipe ? s : previous ?? outline), bold: true, zone: "plate" }));
 	};
 	const plateRows = new Map<PlateKey, number>();
 	// Continuation rows leave the plate column as plain field: no tabs below plates.
@@ -1468,27 +1392,21 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 	plateRows.set("act", block.length); block.push(...actRows);
 	if (gitDetails) block.push(...fieldRows(undefined, gitDetails, BW));
 	{
-		let n = Math.min(60, BW - 12), inline = n >= 12 && readoutText.length + 2 <= tickAt(70, n);
+		let n = Math.min(60, BW - 12), inline = n >= 12 && readoutText.length + 2 <= gaugeTick(70, n);
 		if (!inline) n = Math.min(60, BW);
-		const lit = percent === undefined ? 0 : fillCount(percent, n), m70 = tickAt(70, n), m90 = tickAt(90, n);
+		const lit = percent === undefined ? 0 : gaugeExtent(percent, n), m70 = gaugeTick(70, n), m90 = gaugeTick(90, n);
 		const span = inline ? readoutText.length + 2 : 0;
-		const gauge: Cell[] = [];
+		const gauge = elementCells(gaugeTrack({ percent, readout: inline ? readoutText : undefined }, { cells: n, fill: "cell-ceil", fillInk: "zone", trackGlyph: " ", marks: true, filledBackground: "ink" }));
 		for (let i = 0; i < n; i++) {
-			const z = zoneOf(i, n), mark = i === m70 || i === m90, flash = (i === m70 && frame.flash70) || (i === m90 && frame.flash90);
-			let c: Cell;
+			const z = gaugeZone(i, n), flashing = (i === m70 && frame.flash70) || (i === m90 && frame.flash90);
+			let c = gauge[i];
 			if (i < span) {
-				const j = i - 1, ch = j < 0 || j >= readoutText.length ? " " : readoutText[j];
-				c = i < lit ? cell(ch, "field", FILL[z], true) : cell(ch, "text", percent === undefined ? "surface" : TRACK[z], true);
-				if (inBoot && ch !== " " && k < BOOT_AT.readout + Math.floor(j / 2)) c = { ...c, bold: false, underline: true };
-				gauge.push(c);
-				continue;
+				const j = i - 1;
+				if (inBoot && c.ch !== " " && k < BOOT_AT.readout + Math.floor(j / 2)) c = { ...c, bold: false, underline: true };
+				gauge[i] = c; continue;
 			}
-			if (percent === undefined) c = cell("╱", "graphic", "surface");
-			else if (i < lit) c = cell("█", flash ? "text" : FILL[z], flash ? "text" : FILL[z]);
-			else if (flash) c = cell("┃", "field", "text", true);
-			else if (mark) c = cell("┃", i === m90 ? "high" : "warn", TRACK[z], true);
-			else c = cell(" ", "text", TRACK[z]);
-			// Texture acquisition at the true extent: lit cells show ░ → ▒ → solid; the track powers up behind.
+			if (percent !== undefined && flashing) c = elementCells(flash([[{ text: c.ch, style: dsStyle(c) }]], { pattern: ["white"], time: 0, stateCells: true, solidBackground: true })[0])[0];
+			// Host boot and fill glitches retain their exact texture/state compatibility treatments.
 			if (inBoot) {
 				const start = BOOT_AT.gauge + Math.floor(hash(i + 1, 3, frame.bootSeed) * 9);
 				if (k < start + (i < lit ? 2 : 0)) {
@@ -1496,7 +1414,7 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 					else c = { ...c, bg: "field" };
 				}
 			}
-			gauge.push(c);
+			gauge[i] = c;
 		}
 		// Fill-only bar glitch: lit cells outside the padded readout, never the fill-edge cell.
 		if (frame.glitch && lit > 0) {
@@ -1508,28 +1426,23 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 				for (let q = 0; q < runs; q++) {
 					const length = between(r, cfg.len), start = Math.floor(r() * eligible.length);
 					for (let j = 0; j < length && start + j < eligible.length; j++) {
-						const i = eligible[start + j], z = zoneOf(i, n), ch = lit === 1 ? "▓" : cfg.glyphs[Math.floor(r() * cfg.glyphs.length)];
+						const i = eligible[start + j], z = gaugeZone(i, n), ch = lit === 1 ? "▓" : cfg.glyphs[Math.floor(r() * cfg.glyphs.length)];
 						gauge[i] = cell(ch, level === 3 && r() < 0.12 ? "text" : FILL[z], TRACK[z]);
 					}
 				}
 			}
 		}
-		const ctxValue = chip(readoutText, READOUT_CHIP[tone]) + (tag ? gap() + tag : "");
+		const ctxValue = chip(ctxParts.readout[0].text, elementStyle(ctxParts.readout[0].style)) + (tag ? gap() + tag : "");
 		const ctxPlate = plate("ctx", PLATE[tone], Math.min(frame.wipe?.cells ?? P, bootWipe(1)), frame.wipe ? PLATE[frame.wipe.from] : undefined);
 		const after: Part[] = inline && tag ? [cell(" "), runOf(tag, BW - n - 1)] : [];
 		plateRows.set("ctx", block.length);
 		block.push([...ctxPlate, ...blanks(1, "field", true), ...gauge, ...after, ...blanks(BW - n - widthOf(after))]);
 		if (!inline) for (const line of wrap(ctxValue, BW)) block.push([...blanks(P), cell(" "), ...runPad(line, BW, "field", false)]);
 		// Calibration scale under the gauge, as width permits; 0/100/70/90/50 win label collisions; no tick glyphs.
-		const limit = Math.min(n + 3, BW), scale = blanks(limit), used = new Array<boolean>(limit).fill(false);
-		for (const value of n >= 50 ? [0, 100, 70, 90, 50, 10, 20, 30, 40, 60, 80] : [0, 100, 70, 90, 50]) {
-			const text = String(value), start = tickAt(value, n), end = start + text.length, at = SCALE_T0 + value / 10;
-			if (end > limit || used.slice(Math.max(0, start - 1), end + 1).some(Boolean)) continue;
-			[...text].forEach((ch, j) => {
-				used[start + j] = true;
-				scale[start + j] = k < at ? cell(" ") : k === at ? cell(ch, "primary", "field", true)
-					: cell(ch, value === 70 ? "warn" : value === 90 ? "high" : "secondary", "field", value === 70 || value === 90);
-			});
+		const limit = Math.min(n + 3, BW), scale = blanks(limit);
+		for (const label of gaugeScaleParts({ cells: n }, { width: limit, decilesMinCells: 50 })) {
+			const at = SCALE_T0 + label.percent / 10;
+			elementCells(label.spans).forEach((c, j) => { scale[label.start + j] = k < at ? cell(" ") : k === at ? cell(c.ch, "primary", "field", true) : c; });
 		}
 		block.push([...blanks(P), cell(" "), ...scale, ...blanks(BW - limit)]);
 	}
@@ -1540,11 +1453,7 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 	const sideCells = (ri: number): Cell[] => {
 		if (!numeral) return [];
 		if (ri < 0 || ri > 2) return blanks(side);
-		const big: Cell[] = Array.from({ length: numeral.w }, (_, x) => {
-			const top = numeral.g[2 * ri][x], bottom = numeral.g[2 * ri + 1][x];
-			const c = !top && !bottom ? cell(" ") : top && !bottom ? cell("▀", top) : !top ? cell("▄", bottom!) : top === bottom ? cell("█", top) : cell("▀", top, bottom!);
-			return { ...c, zone: "digits" };
-		});
+		const big = elementCells(numeralLines(gridToElement(numeral), { width: numeral.w })[ri], "digits");
 		const caption = letters(labels[ri].padEnd(labelWidth), ri === 0 ? { fg: tone === "unknown" ? "secondary" : FILL[tone], bold: true } : { fg: "secondary" }, "labels");
 		return [...blanks(2), cell("▐", spine), cell(" "), ...big, cell(" "), ...caption, cell(" ")];
 	};
@@ -1595,8 +1504,9 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 	{
 		const items: { x: number; parts: Part[] }[] = [];
 		const corner = (x: number, ch: string): Cell => ({ ...shown(x, cell(ch, "graphic")), ghost: true, frame: x < drawn });
-		items.push({ x: 0, parts: [...(G === 2 ? "┏━" : "┏")].map((ch, i) => corner(i, ch)) });
-		items.push({ x: W - G, parts: [...(G === 2 ? "━┓" : "┓")].map((ch, i) => corner(W - G + i, ch)) });
+		const stubs = frameStubs({ gutter: G, row: 0, innerRows: 1 });
+		items.push({ x: 0, parts: elementCells(stubs.left).map((c, i) => corner(i, c.ch)) });
+		items.push({ x: W - G, parts: elementCells(stubs.right).map((c, i) => corner(W - G + i, c.ch)) });
 		items.push({ x: G, parts: letters(cmpText, cmp) });
 		let titleEnd = G + P;
 		if (titleLines.length) {
@@ -1605,10 +1515,8 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 			titleEnd = titleStart + run.width;
 		}
 		const groupStart = ownRow ? W - G - 1 : place.x - 1;
-		if (MID - 2 > titleEnd && MID + 2 < groupStart) {
-			const mid = MID + frame.cal;
-			items.push({ x: MID - 2, parts: Array.from({ length: 5 }, (_, i) => MID - 2 + i === mid ? shown(mid, frame.cal ? cell("┼", "primary", "field", true) : cell("┼", "graphic")) : { ch: " ", bg: "field" as Hue }) });
-		}
+		const center = frameCenter({ width: W, titleEnd, asideStart: groupStart, offset: Number.isInteger(frame.cal) && Math.abs(frame.cal) <= 2 ? frame.cal : 3 });
+		if (center) items.push({ x: center.start, parts: elementCells(center.spans).map((c, i) => c.ch === " " ? { ch: " ", bg: "field" as Hue } : shown(center.start + i, c)) });
 		if (!ownRow) items.push(activityItem(place));
 		header.push(placeRow(items));
 		for (const line of titleLines.slice(1)) header.push([...blanks(P + 1, "field", true), ...runPad(line, M - P - 1)]);
@@ -1653,11 +1561,9 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 	const rows: Part[][] = [header[0]];
 	const inner = [...header.slice(1), ...body], last = inner.length;
 	inner.forEach((row, j) => {
-		const i = j + 1, edge = i === 1 || i === last - 1;
-		const frameCells = (text: string): Cell[] => [...text].map((ch) => (ch === " " ? { ch, bg: "field", ghost: true } : { ...cell(ch, "graphic"), ghost: true, frame: true }));
-		const left = i === last ? (G === 2 ? "┗━" : "┗") : edge ? "┃".padEnd(G) : " ".repeat(G);
-		const right = i === last ? (G === 2 ? "━┛" : "┛") : edge ? "┃".padStart(G) : " ".repeat(G);
-		rows.push([...frameCells(left), ...row, ...frameCells(right)]);
+		const stubs = frameStubs({ gutter: G, row: j + 1, innerRows: last });
+		const ownedStubs = (spans: readonly Span[]) => elementCells(spans).map((c): Cell => c.ch === " " ? { ch: " ", bg: "field", ghost: true } : { ...c, ghost: true, frame: true });
+		rows.push([...ownedStubs(stubs.left), ...row, ...ownedStubs(stubs.right)]);
 	});
 
 	/* ---------- ambient overlay: renderer-owned cells only, resolved against this layout ---------- */

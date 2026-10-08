@@ -33,7 +33,7 @@ Success is represented by deterministic coverage of the workspace, renderer, and
 
 ## Constraints
 
-- The runtime uses Node.js standard library plus host-provided Pi, Pi TUI, and TypeBox peers; no bundled runtime dependencies.
+- The runtime uses Node.js standard library plus host-provided Pi, Pi TUI, and TypeBox peers and the root-linked in-repo design-system package; no bundled Pi or extension-local runtime dependencies.
 - Local Git, `gh` and `codexbar` operations are read-only, bounded, cancellable, and outside render. Decoration timers only advance pure motion memory and request repaints; optional public fleet requests are independently bounded and disposed.
 - Active selection is session-local and follows the selected session branch; it must not leak to a new session.
 - Missing tools, auth, network, active-checkout metadata, or malformed external responses remain visible as unavailable states; primary-checkout failures remain in workspace inspection data, not the footer. A missing CodexBar CLI hides the USG row rather than showing a failure, because it is an optional integration.
