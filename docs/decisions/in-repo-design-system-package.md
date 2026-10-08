@@ -33,10 +33,10 @@ Pi 1.0.4's git install, as read in its source, clones the repository and runs `n
 ## Consequences and verification
 
 - The root `package.json` lists the extensions in `pi.extensions` and has the one `file:` dependency. It still has no workspaces and no scripts, and there is still no repository-wide command. Each project keeps its own checks; see [standalone packages](standalone-packages.md). The root install is the only shared step.
-- The design system stays standard-library-only and imports nothing from another project. Its elements and motions own no I/O. It remains a reference kit, now installable by name; nothing imports it yet.
+- The design system stays standard-library-only and imports nothing from another project. Its elements and motions own no I/O. It is installable by name; both extensions now import it, as recorded under [current adoption](#current-adoption).
 - A new foundation module, element, or motion primitive needs an `exports` entry. `design-system/package.test.mjs` fails until it has one, and fails if an export names a test, an example, or `motions/frame.mjs`.
 - Each Pi extension's manifest still declares only the host's peer packages. It reaches the design system through the root install, not through its own dependencies.
-- Color check: compare each extension's constants with `design-system/foundation/palette.mjs` and `signal-colors.mjs`, using [design](../design.md#acid--black) to map a constant to its role. No automated comparison exists.
+- Color check: an extension that has not migrated compares its constants with `design-system/foundation/palette.mjs` and `signal-colors.mjs`, using [design](../design.md#acid--black) to map a constant to its role. No automated comparison exists. Both current extensions import their colors, so neither needs it.
 - Automated and Pi-load verification are recorded in [the design-system contributing guide](../../design-system/CONTRIBUTING.md#package-verification). No interactive Pi or Herdr check has run against the package.
 
 ## Migrating an extension
@@ -46,10 +46,16 @@ Moving an extension onto the package is a separate change for each extension. It
 - imports of `@industrial-os/design-system/<group>/<name>` subpaths only, never a relative path into `design-system/` and never an unexported module;
 - its color constants replaced by imports from `foundation/palette` and `foundation/signal-colors`, and its row in the review comparison retired;
 - its own tests and load check run from a checkout where the root `npm install` has run, with that setup step added to its contributing guide;
-- for claude-interrupt, a way for `tsc --noEmit` to type the imported `.mjs` modules, such as type declarations or `allowJs` with `checkJs`, because the design system ships no types;
+- for a TypeScript-checked extension such as claude-interrupt, types for the imported `.mjs` modules; the design system now ships colocated `.d.mts` declarations for its consumed subpaths, to be extended as new modules gain TypeScript consumers;
 - for status-bar, whose guide says not to install dependencies for its checks, an exception for the root install;
 - an isolated git install check, as in [the Pi contributing guide](../../pi/CONTRIBUTING.md#shared-toolchain-facts), showing that the installed extension loads with the linked package.
 
+## Current adoption
+
+The package-only decision above records the original change. Both extensions now consume the package: claude-interrupt uses marker/tokens/motions; status-bar uses footer elements/tokens/scoped motions. Their copied palette comparison rows are retired. Consumed subpaths ship colocated `.d.mts` declarations; claude-interrupt retains its strict project check, while status-bar checks a compile-only public-contract specimen using the existing compiler, not a new standalone project toolchain. A local checkout requires the root install before either extension loads. Their project guides separate automated, golden, RPC and copied-state install evidence from real `pi install git:` and interactive checks, which remain unrun for the current port. Neither migration adds an extension-local design-system dependency.
+
+status-bar's exact-parity migration retains legacy Tatsu warm-up and USG row boot as host compatibility effects because they can hide warning/critical content. They do not weaken the design-system state-cue guard or imply a new state-hiding policy. See [status-bar architecture](../../pi/status-bar/docs/architecture.md#design-system-rendering-seam).
+
 ## Revisit when
 
-An extension migrates and the review comparison no longer covers it, a project outside Node needs the design system, or a consumer outside this repository is proposed. A Pi release that stops installing root dependencies on a git install would also need a revisit.
+A new extension mirrors design-system values instead of importing them, a project outside Node needs the design system, or a consumer outside this repository is proposed. A Pi release that stops installing root dependencies on a git install would also need a revisit.
