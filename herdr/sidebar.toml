@@ -21,9 +21,9 @@ row_gap = 1
 [ui.sidebar.agents.rows_by_agent]
 # Override only Pi; leave global rows and all other agents unchanged.
 pi = [
-  # Row 1: state (decorative; WRK accent, BLK and QNS critical, DNE primary), SPACE name, goal time.
+  # Row 1: state (decorative; WRK and SUB accent, BLK and QNS critical, DNE primary), SPACE name, goal time.
   [
-    { token = "$g1", fg = "#717171", bold = true, rules = [{ contains = "WRK", fg = "#c0fe04" }, { contains = "BLK", fg = "#f24723" }, { contains = "QNS", fg = "#f24723" }, { contains = "DNE", fg = "#ffffff" }] },
+    { token = "$g1", fg = "#717171", bold = true, rules = [{ contains = "WRK", fg = "#c0fe04" }, { contains = "SUB", fg = "#c0fe04" }, { contains = "BLK", fg = "#f24723" }, { contains = "QNS", fg = "#f24723" }, { contains = "DNE", fg = "#ffffff" }] },
     { token = "$proj", fg = "#ffffff", bold = true },      # primary
     { token = "$proj_idle", fg = "#cfcfcf", bold = true }, # secondary
     { token = "$gt", fg = "#cfcfcf" },                     # secondary

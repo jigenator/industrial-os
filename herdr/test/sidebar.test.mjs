@@ -80,3 +80,17 @@ test('bar_idle is decorative grey without bold or zone rules', () => {
   assert.match(entry[1], new RegExp(`fg\\s*=\\s*"${ACID_BLACK.decorative}"`));
   assert.doesNotMatch(entry[1], /bold\s*=\s*true|rules\s*=/);
 });
+
+test('g1 colors every contract state code: WRK and SUB accent, BLK and QNS critical, DNE primary, IDL and UNK decorative', () => {
+  const states = /^- `g1`:[\s\S]*?(?=^- )/m.exec(contract);
+  assert.ok(states, 'the token contract lists the g1 states');
+  const codes = [...states[0].matchAll(/`[^`\s]+ ([A-Z]{3})`/g)].map((match) => match[1]);
+  assert.deepEqual(codes, ['QNS', 'BLK', 'WRK', 'SUB', 'DNE', 'IDL', 'UNK']);
+  const entry = /\{\s*token\s*=\s*"\$g1"(.+)\}\s*,?\s*$/m.exec(piRows());
+  assert.ok(entry);
+  assert.match(entry[1], new RegExp(`^\\s*,\\s*fg\\s*=\\s*"${ACID_BLACK.decorative}"`), 'decorative by default');
+  const rules = Object.fromEntries([...entry[1].matchAll(/\{\s*contains\s*=\s*"([A-Z]+)"\s*,\s*fg\s*=\s*"(#[0-9a-f]{6})"\s*\}/g)].map((match) => [match[1], match[2]]));
+  const expected = { WRK: ACID_BLACK.accent, SUB: ACID_BLACK.accent, BLK: ACID_BLACK.critical, QNS: ACID_BLACK.critical, DNE: ACID_BLACK.primary };
+  assert.deepEqual(rules, expected);
+  for (const code of codes) assert.ok(code in rules || code === 'IDL' || code === 'UNK', `${code} has a color role`);
+});
