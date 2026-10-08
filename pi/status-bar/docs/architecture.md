@@ -154,7 +154,7 @@ A new footer-only presentation state belongs in `src/footer.ts` and must use a s
 - USG depends on CodexBar's JSON shape (verified against 0.60.3 samples) and treats a provider without 5H/WK windows as `none`. Codex and Claude fetches take about 20 seconds; the five-minute poll is not tuned from measurements. A new provider means a new entry in the collector provider list plus a renderer tag/palette/declared-window entry, not a registry. A provider that starts reporting an undeclared window widens its column until its declaration is updated.
 - Static typecheck/lint/build/CI, live authenticated GitHub, live CodexBar, live fleet-owner activity, Windows, and manual interactive-terminal/motion validation are not established. See the adoption gaps in `docs/conventions.md`.
 
-The diagrams use standard Mermaid flowchart/sequence syntax. The pre-v9 diagrams rendered without warnings in Pi's installed `grok-mermaid` 0.2.3 on 2026-10-04. The added optional-fleet and USG edges have not been separately rendered; no current diagram-rendering gate is claimed.
+The current module/event diagram rendered with the existing `grok-mermaid` 0.2.3 on 2026-10-08: non-null art, no warnings. This is automated documentation-render evidence, not interactive Pi/Herdr verification.
 
 ## Technical decisions
 

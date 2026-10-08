@@ -123,4 +123,6 @@ The toolchain baseline above was recorded before the package moved into the mono
 - `src/footer.ts` differs only in two type-import paths; all renderer/motion arithmetic and behavior are unchanged. Collector owns settings/reserve, with the documented pure live-host arithmetic exception.
 - Isolated non-interactive CLI load: **exit 0**; actual collector/display combined RPC load also **exit 0**. Neither non-TUI component collects data.
 - Collector tests: **44/44 passed**, separately recorded in its contributing guide. Root checks passed; index is empty after the scoped local commits.
-- Interactive Pi/Herdr, live producers/providers, Windows, Mermaid rendering and a real git install: **not run**. No push/live configuration change. Iteration failures were fixture setup/assertion errors corrected before these complete passing runs.
+- Interactive Pi/Herdr, live producers/providers, Windows and a real git install: **not run**. No push/live configuration change. Iteration failures were fixture setup/assertion errors corrected before these complete passing runs.
+
+Final consumer re-run on the same toolchain: **135/135 passed**; collector follow-up **45/45 passed**. The current module/event diagram rendered with existing grok-mermaid 0.2.3 without warnings (automated documentation rendering only); the root manifest CLI RPC load exited 0 in an isolated temporary agent/cache directory.
