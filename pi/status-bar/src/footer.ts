@@ -25,8 +25,8 @@ import { beacon as attentionBeacon } from "@industrial-os/design-system/motions/
 import { fillIn } from "@industrial-os/design-system/motions/fill-in";
 import { edgePulse } from "@industrial-os/design-system/motions/edge-pulse";
 import { burnOut } from "@industrial-os/design-system/motions/burn-out";
-import type { UsageProviderId, UsageWindow, UsageWindows } from "./usage.ts";
-import type { CheckoutInfo, PullRequestInfo, WorkspaceInfo } from "./workspace.ts";
+import type { UsageProviderId, UsageWindow, UsageWindows } from "./signals.ts";
+import type { CheckoutInfo, PullRequestInfo, WorkspaceInfo } from "./signals.ts";
 
 /** Confirmed producer modes, distinct from checking/unavailable display state. */
 export type PonytailMode = "off" | "lite" | "full" | "ultra" | "review";
