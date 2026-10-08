@@ -14,7 +14,7 @@ This package lives in the [Industrial OS](../../README.md) monorepo. Install it 
 { "source": "git:github.com/jigenator/industrial-os", "extensions": ["pi/claude-interrupt/src/index.ts"] }
 ```
 
-This package has no runtime dependencies. To install it from a local checkout instead: `pi install <industrial-os checkout>/pi/claude-interrupt`.
+The marker uses the in-repo `@industrial-os/design-system` package, linked by Pi's git install at the repository root. For a local checkout, first run `npm install` at its root, then `pi install <industrial-os checkout>/pi/claude-interrupt`. The extension manifest itself declares only Pi's host peers.
 
 For local development without changing Pi's settings:
 

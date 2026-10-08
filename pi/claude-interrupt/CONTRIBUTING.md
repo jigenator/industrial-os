@@ -4,9 +4,9 @@ Follow the [repository workflow](../../CONTRIBUTING.md) as well as this package'
 
 ## Toolchain and setup
 
-Use Node.js 22.19 or newer (checked on v22.23.0), npm, and an installed Pi for the load check. This is an ESM TypeScript package: Node strips types for tests, and `tsc --noEmit` is the only static type check. Pi development dependencies are pinned to 0.99.1 in [package.json](package.json); runtime APIs come from the host's peer packages. There is no build, formatter or linter command.
+Use Node.js 22.19 or newer (checked on v22.23.0), npm, and an installed Pi for the load check. This is an ESM TypeScript package: Node strips types for tests, and `tsc --noEmit` is the only static type check. Imported design-system `.mjs` subpaths have colocated `.d.mts` declarations; the compile-only positive/negative contract in `test/design-system-types.ts` also runs through this command. Pi development dependencies are pinned to 0.99.1 in [package.json](package.json); runtime APIs come from the host's peer packages. There is no build, formatter or linter command.
 
-From `pi/claude-interrupt/`:
+First run `npm install` from the repository root to link `@industrial-os/design-system`. This is required for tests, strict type checking and local-path Pi loading; Pi's git install runs the root installation itself. Then, from `pi/claude-interrupt/`:
 
 ```sh
 npm ci
@@ -72,3 +72,16 @@ On **2026-10-07**, after the move into the monorepo, using **Node v22.23.0** and
 - Interactive Pi/Herdr check: **not run**.
 
 The same suite was also run against installed Pi 1.0.4 earlier in the old repository. That is historical compatibility evidence, not a claim that this package's current locked test run uses 1.0.4.
+
+
+### Design-system port verification
+
+On **2026-10-07**, using **Node v22.23.0**, locked **Pi 0.99.1** development dependencies and installed **Pi 1.0.4**:
+
+- `npm run check`: strict type check (including positive/negative declaration contracts) passed; **34/34 existing tests passed with their assertions unchanged**.
+- Design-system `node --test`, before the later status-bar additions: **368/368 passed**, including 14 added default-color, element, motion and numeric-rejection tests; existing defaults/storybook checks still pass.
+- Scratch golden comparison against `git show origin/main:pi/claude-interrupt/src/index.ts`, using the same pinned Pi dependencies: **604,072 byte-identical strings**, zero failures. It covers 469 elapsed samples (every 10 ms from -50 to 3100, every 40 ms grid boundary and adjacent millisecond, plus `undefined`), widths 0–160, both output pads, dark/light appearances and truecolor/256-color modes. The harness and original snapshot live outside the repository, not as shipped code.
+- Checkout RPC load: **exit 0**, expected disabled-provider model-pattern warnings only.
+- Simulated git installation: copied tracked working-state files plus new untracked source/declarations to a disposable directory outside the repository (without git/node_modules), ran root `npm install --omit=dev --legacy-peer-deps`, then loaded its `pi/claude-interrupt/src/index.ts` with installed Pi RPC: **install exit 0, load exit 0**, no extension load error. The disposable directory was removed.
+- `git diff --check` and staged diff check: passed; no staged files.
+- Real `pi install git:`, interactive Pi/Herdr, provider continuation, and Mermaid rendering: **not run**. No branch publication or native visual verification is implied by the simulated install or golden strings.

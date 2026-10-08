@@ -8,6 +8,13 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { isKeyRelease, isKeyRepeat, matchesKey, parseColor, truncateToWidth } from "@earendil-works/pi-tui";
 
+import { lineWidth, resolveStyle, span, type Line, type Style } from "@industrial-os/design-system/foundation/cells";
+import { ACID_BLACK } from "@industrial-os/design-system/foundation/palette";
+import { markerBars, markerPlate, MARKER_PLATES, MARKER_TIMELINE } from "@industrial-os/design-system/elements/transcript-marker";
+import { flash, FLASH_PRESETS } from "@industrial-os/design-system/motions/flash";
+import { ping } from "@industrial-os/design-system/motions/ping";
+import { wipe } from "@industrial-os/design-system/motions/wipe";
+
 type Delivery = "steer" | "followUp";
 
 type PendingText = {
@@ -49,79 +56,43 @@ function prependEditorText(ctx: ExtensionContext, texts: string[]): void {
 	ctx.ui.setEditorText([...texts, current].filter((text) => text.trim()).join("\n\n"));
 }
 
-// Marker timeline in ms after continuation start. The plate changes on an 80 ms
-// grid (STEP); the ping bars change on a 40 ms grid (FRAME), so the clock redraws
-// every FRAME and two bars can never share a frame.
-const STEP = 80;
-const FRAME = 40;
-const FLASH_OFF = 80;
-const FLASH_ON = 160;
-const SETTLE_WIPE = 2800;
-const WINDOW = 3000;
+const { barFrame: FRAME, window: WINDOW } = MARKER_TIMELINE;
+const transparent: Style = { fg: "default", bg: "default" };
 
-// Seven stationary bars in a 16-cell span one cell after the plate. Each bar
-// appears acid every PING_STAGGER from PING_LAUNCH, turns grey in its own cell
-// at GHOST_AT + i * PING_STAGGER, and disappears GHOST_FOR later.
-const BAR_OFFSETS = [0, 1, 3, 5, 8, 11, 15];
-const SPAN = 16;
-const PING_LAUNCH = 160;
-const PING_STAGGER = 40;
-const GHOST_AT = 440;
-const GHOST_FOR = 120;
-const PING_REPEAT_AFTER = 720; // Repeat once: 640ms ping + 80ms blank gap.
+/** Pi owns color-mode conversion. Explicit terminal defaults become absent Pi channels;
+ * only transparent acid ink uses the host accent on light themes. Coalesce equivalent
+ * concrete styles before styling so motion span boundaries do not add SGR runs.
+ */
+function markerLine(theme: Theme, line: Line): string {
+	const runs: { text: string; style: ThemeStyle; key: string }[] = [];
+	for (const piece of line) {
+		if (!piece.text) continue;
+		const { fg, bg, bold } = resolveStyle(piece.style);
+		const foreground = fg === "default" ? undefined
+			: bg === "default" && fg.toLowerCase() === ACID_BLACK.accent && theme.appearance === "light" ? "accent" : parseColor(fg);
+		const background = bg === "default" ? undefined : parseColor(bg);
+		const style: ThemeStyle = { fg: foreground, bg: background, bold };
+		const key = `${fg.toLowerCase()}|${bg.toLowerCase()}|${bold}`;
+		const last = runs[runs.length - 1];
+		if (last?.key === key) last.text += piece.text;
+		else runs.push({ text: piece.text, style, key });
+	}
+	return runs.map(({ text, style }) => theme.style(text, style)).join("");
+}
 
-// Filled plates use the Acid/Black palette. Everything else keeps the terminal's
-// default background, including transparency; Pi handles color-mode conversion.
-const acid = parseColor("#c0fe04");
-const black = parseColor("#000000");
-const bone = parseColor("#ffffff");
-const grey = parseColor("#717171");
-const darkGrey = parseColor("#555555");
-const livePlate: ThemeStyle = { fg: black, bg: acid, bold: true };
-const recordPlate: ThemeStyle = { fg: bone, bg: darkGrey, bold: true };
-const ghost: ThemeStyle = { fg: grey, bold: true };
-const blank: ThemeStyle = {};
-
-/**
- * One marker row at `elapsed` ms, or settled when undefined. The label starts
- * at the native outputPad column; the row is clipped to the right padding.
+/** One marker row at explicit elapsed ms, or settled when undefined. Pi clips the
+ * styled row to width - outputPad, without wrapping or filling the terminal background.
  */
 export function renderMarker(theme: Theme, width: number, outputPad: 0 | 1, elapsed?: number): string {
-	// Acid needs a readable replacement when its background is no longer black.
-	const outline: ThemeStyle = { fg: theme.appearance === "light" ? "accent" : acid, bold: true };
-	const label = `${outputPad ? " " : ""}DIRECTIVE UPDATED `;
-	const plate = label.length;
-	const contentWidth = Math.max(0, width - outputPad);
 	const m = elapsed === undefined ? WINDOW : Math.max(0, elapsed);
-	const runs: [string, ThemeStyle][] = [];
-	const add = (text: string, style: ThemeStyle): void => {
-		const last = runs[runs.length - 1];
-		if (last?.[1] === style) last[0] += text;
-		else runs.push([text, style]);
-	};
-
-	// Two abrupt whole-plate flashes (on, off, on), then a right-to-left wipe to
-	// the record plate. Unfilled cells keep their letters so the label stays readable.
-	const recorded = m >= WINDOW ? plate
-		: m < SETTLE_WIPE ? 0
-		: Math.min(plate, Math.ceil(((Math.floor(m / STEP) * STEP - SETTLE_WIPE + STEP) * plate) / (WINDOW - SETTLE_WIPE)));
-	const flashed = m >= FLASH_OFF && m < FLASH_ON ? outline : livePlate;
-	add(label.slice(0, plate - recorded), flashed);
-	add(label.slice(plate - recorded), recordPlate);
-	add(" ", blank);
-
-	const pingTime = m >= PING_LAUNCH + PING_REPEAT_AFTER ? m - PING_REPEAT_AFTER : m;
-	const t = Math.floor(pingTime / FRAME) * FRAME;
-	for (let x = 0; x < SPAN; x++) {
-		const bar = BAR_OFFSETS.indexOf(x);
-		const ghostAt = GHOST_AT + bar * PING_STAGGER;
-		if (bar < 0 || t < PING_LAUNCH + bar * PING_STAGGER || t >= ghostAt + GHOST_FOR) add(" ", blank);
-		else add("│", t < ghostAt ? outline : ghost);
-	}
-	add(" ".repeat(Math.max(0, contentWidth - (plate + 1 + SPAN))), blank);
-
-	const line = runs.filter(([text]) => text).map(([text, style]) => theme.style(text, style)).join("");
-	return truncateToWidth(line, contentWidth, "");
+	const contentWidth = Math.max(0, width - outputPad);
+	const plate = m < MARKER_TIMELINE.settleWipe
+		? flash([markerPlate("live", { outputPad })], { ...FLASH_PRESETS.interrupt, time: m, outlineBackground: "default" })[0]
+		: wipe([markerPlate("record", { outputPad })], { time: m, fromStyle: MARKER_PLATES.live })[0];
+	const bars = ping([markerBars("lit", { background: "default" })], { time: m, offStyle: transparent })[0];
+	const row = [...plate, span(" ", transparent), ...bars];
+	row.push(span(" ".repeat(Math.max(0, contentWidth - lineWidth(row))), transparent));
+	return truncateToWidth(markerLine(theme, row), contentWidth, "");
 }
 
 /** Exported for the regression harness; Pi uses the default export. */
