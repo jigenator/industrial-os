@@ -55,3 +55,63 @@ Every state is readable without color: the state code and shape in row 1 (`× QN
 - Pi panes without herdr-sidebar show no Industrial OS rows; other agents retain their configured/default layouts.
 - The collapsed and mobile sidebars keep Herdr's compact layouts.
 - Checked: Herdr's parser accepts the file. Not checked: this file in a running Herdr, other color depths, or ambiguous-width glyph settings.
+
+## Spaces
+
+[spaces.toml](../spaces.toml) renders the
+[plugin tokens](../../herdr-plugins/spaces/docs/token-contract.md):
+
+```text
+ ◐ 05PN · industrial-os
+   03AG · 07AU ↓7
+ × 01PN · tooling
+   01AG · 02AU ↑2
+ ○ 01PN · harness-engine… ·     2d
+ ○ 02PN · general-purpose ·     3d
+```
+
+The same 36-column lock/34-cell scrollbar geometry applies. Row 1 uses Herdr's
+state icon, pane-count gutter and name. Focused name is primary white/bold,
+current names secondary/bold, quiet names and ages decorative grey. Row 2 uses
+agent-count gutter, bold accent AU and built-in git_status (no branch name).
+Zero counts become decorative, zero AU also loses bold. Unknown AU remains
+`??AU`, never zero. Quiet names fit 15 cells with U+2800 padding; ages align
+right in six cells. No motion or new keyboard/mouse behavior.
+
+Quiet spaces (48 h or more, never focused) send only `$panes`, `$name_stale`
+and `$quiet`, so their second row drops **unless they are ahead or behind**.
+Then Herdr's built-in git_status retains a second row with only those counts;
+indented worktree children suppress git details. Quiet worktree families move
+as units, oldest last. Other units keep user order, and unchanged quiet
+membership/order does not undo a manual drag. Number keys follow position.
+If the reporter stops, TTL counts/ages expire; names have no TTL and freeze.
+No native rendering, scrollbar/glyph or interactive ordering check was run.
+
+### Spaces theme scope
+
+`state_icon` has no per-state style; `[theme.custom]` maps yellow to accent
+working, red to critical blocked, teal to primary done, green to decorative
+idle and overlay0 to decorative unknown/separators/header. These are **global**
+theme keys, not Spaces-only colors. Source grep against Herdr 0.9.3
+`palette.yellow/red/teal/green/overlay0` found these concrete wider effects:
+
+- `client/shell.rs`: agent and workspace state icons across shell panels.
+- `client/shell/endpoints.rs`: connecting/reconnecting yellow, online green,
+  attention red and disabled overlay0 endpoint indicators.
+- `client/shell/settings_overlay.rs`: installed green, update-available yellow
+  and not-found overlay0 integration status markers.
+- `client/shell/notifications.rs`, `endpoint_notices.rs`: needs-attention red,
+  endpoint warning yellow, notification separators/borders/dim text overlay0.
+- `client/shell/sidebar.rs`, `agent_sidebar.rs`, `endpoint_sidebar.rs`,
+  `endpoint_agents.rs`, `tabs.rs`, `composition.rs`, `render.rs`, `mobile.rs`,
+  `scroll.rs`: panel headings, separators, empty/secondary text, tabs, mobile
+  presentation and chrome/scroll detail use overlay0; mobile close control red.
+- `ui/sidebar.rs`: built-in git ahead green and behind red unless a token fg
+  overrides them (Spaces overrides both with secondary).
+- `ui/status.rs`: status border/online dot green and status indicator background
+  yellow; `ui/scrollbar.rs`: scrollbar track/thumb detail overlay0;
+  `ui/panes.rs`: inactive border/title detail overlay0.
+
+Teal's direct state-color use is done state via `client/shell.rs`. Configured
+custom token styles still override defaults. These consequences are intentional
+for the approved palette mapping, not a claim of panel-local theming.
