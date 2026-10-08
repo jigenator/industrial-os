@@ -1,4 +1,5 @@
 import { isAbsolute } from "node:path";
+import { performance } from "node:perf_hooks";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { collectActivity } from "./activity.ts";
@@ -47,17 +48,18 @@ export default function (pi: ExtensionAPI) {
 		if (JSON.stringify(next) !== JSON.stringify(s.snapshot)) { next.seq = ++seq; s.snapshot = next; return true; }
 		return false;
 	}
+	// The push budget is monotonic; every timestamp in the wire DTO remains epoch time.
 	function changed(s: SessionState) {
 		if (!current(s)) return;
 		sample(s);
 		if (s.pushTimer) return;
-		const delay = Math.max(0, lastPush + 100 - Date.now());
+		const delay = Math.max(0, lastPush + 100 - performance.now());
 		s.pushTimer = setTimeout(() => {
 			s.pushTimer = undefined;
 			if (!current(s)) return;
 			sample(s); // after other lifecycle handlers have persisted branch state
 			if (s.publishedSeq === s.snapshot.seq) return;
-			s.publishedSeq = s.snapshot.seq; lastPush = Date.now();
+			s.publishedSeq = s.snapshot.seq; lastPush = performance.now();
 			pi.events.emit(SNAPSHOT, structuredClone(s.snapshot));
 		}, delay);
 		s.pushTimer.unref();

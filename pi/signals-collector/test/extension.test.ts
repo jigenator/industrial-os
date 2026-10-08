@@ -253,3 +253,14 @@ test("fleet v1 validates session/capabilities/counts, retains while pending, tim
 	h.reply(delayed, pingData(manager)); assert.equal(h.read().units, null);
 	await h.stop(); const requests = h.requests.length; h.events.emit("subagents:rpc:v1:ready", pingData(manager)); await sleep(300); assert.equal(h.requests.length, requests); assert.deepEqual(h.errors, []);
 });
+
+test("snapshot rate budget is monotonic while wire timestamps use the wall clock", async (t) => {
+	const f = await fixtures(t), h = await harness(f, host.SessionManager.inMemory(f.launch)); t.after(() => h.stop());
+	await h.start(); await until(() => h.read().workspace !== null && h.read().usage.installed === false); await sleep(150);
+	const pushes: number[] = []; h.events.on("signals-collector:v1:snapshot", () => pushes.push(performance.now()));
+	h.model({ provider: "fixture", id: "before", contextWindow: 128000 }); await h.runner.emit({ type: "model_select" }); await until(() => pushes.length === 1);
+	const wall = Date.now(); t.mock.method(Date, "now", () => wall + 60000);
+	h.model({ provider: "fixture", id: "after", contextWindow: 128000 }); await h.runner.emit({ type: "model_select" }); await sleep(30);
+	assert.equal(pushes.length, 1, "a wall-clock jump must not bypass the 100ms push budget"); await until(() => pushes.length === 2);
+	assert.ok(pushes[1] - pushes[0] >= 99); assert.deepEqual(h.errors, []);
+});
