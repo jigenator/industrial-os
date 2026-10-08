@@ -38,8 +38,9 @@ use them rather than mutable labels or positions for history.
 This is trusted local code with reorder authority, not a sandbox. Counts/ages
 expire on failure while no-TTL names freeze. Local logs/health and tests own
 lifecycle, locks, retries and shutdown; operators explicitly install and merge
-configuration. Atomic rename does not guarantee power-loss durability; PID
-reuse can conservatively prevent startup. Revisit if Herdr supplies managed
+configuration. Atomic rename does not guarantee power-loss durability. Unique
+owner control sockets prove daemon liveness independently of PID reuse; malformed
+locks or uncertain probes still fail closed. Revisit if Herdr supplies managed
 plugin daemons/locks, a session-generation identity, or conditional row gating.
 Full behavior/limits live in the [plugin architecture](../../herdr-plugins/spaces/docs/architecture.md)
 and [token contract](../../herdr-plugins/spaces/docs/token-contract.md).
