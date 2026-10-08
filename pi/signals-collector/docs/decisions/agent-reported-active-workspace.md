@@ -1,7 +1,7 @@
 # Agent-reported active workspace
 
 Status: current.
-Date/evidence: 2026-10-04 product requirements; implemented in `src/extension.ts` and covered by `test/extension.test.ts`.
+Date/evidence: 2026-10-04 product requirements; ownership moved unchanged from status-bar on 2026-10-08; implemented in `src/extension.ts` and covered by `test/extension.test.ts`.
 Supersedes / superseded by: none.
 
 ## Problem

@@ -1,12 +1,12 @@
 {
-  "name": "pi-status-bar",
+  "name": "pi-signals-collector",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jigenator/industrial-os.git",
-    "directory": "pi/status-bar"
+    "directory": "pi/signals-collector"
   },
   "scripts": {
     "test": "node --experimental-strip-types --test test/*.test.ts"
@@ -18,7 +18,7 @@
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",
-    "@earendil-works/pi-tui": "*"
+    "typebox": "*"
   },
   "engines": {
     "node": ">=22.19.0"

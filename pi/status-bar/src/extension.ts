@@ -1,41 +1,15 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { homedir } from "node:os";
-import { isAbsolute } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { Type } from "typebox";
-import { advanceMotion, motionFrame, nextMotionDelay, renderFooter, safeText, startMotion, usageRepaintDelay } from "./footer.ts";
-import type { FooterSnapshot, MotionState, PonytailMode, PonytailState, TatsuSnapshot, TatsuComponent, UsageProviderState } from "./footer.ts";
-import { USAGE_PROVIDERS, fetchUsage } from "./usage.ts";
-import type { UsageProviderId, UsageResult } from "./usage.ts";
-import { inspectPullRequest, inspectWorkspace, resolveActivePath } from "./workspace.ts";
-import type { PullRequestInfo, WorkspaceInfo } from "./workspace.ts";
+import { advanceMotion, motionFrame, nextMotionDelay, renderFooter, startMotion, usageRepaintDelay } from "./footer.ts";
+import type { FooterSnapshot, MotionState, PonytailMode, PonytailState, TatsuSnapshot, TatsuComponent } from "./footer.ts";
+import { observeSignals } from "./signals.ts";
+import type { SignalsSnapshot } from "./signals.ts";
 
-const LOCAL_REFRESH_MS = 15_000;
-const PR_TTL_MS = 60_000;
-const ACTIVITY_REFRESH_MS = 5_000;
-const ACTIVITY_MIN_MS = 1_000;
-const RPC_TIMEOUT_MS = 2_000;
-const USAGE_REFRESH_MS = 5 * 60_000;
-const RPC_REQUEST = "subagents:rpc:v1:request";
-const RPC_READY = "subagents:rpc:v1:ready";
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 const count = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 const motionSeed = () => randomBytes(4).readInt32LE();
-// Persisted successful compactions on the selected branch only: failed/cancelled
-// attempts append nothing, and branch_summary entries and abandoned siblings are excluded.
-const countCompactions = (ctx: ExtensionContext) => ctx.sessionManager.getBranch().filter((entry) => entry.type === "compaction").length;
-// Mirrors Pi 1.0.4 SettingsManager.getCompactionSettings: a `provider/id` override, then
-// compaction.reserveTokens, then 16384. Disabled auto-compaction, or settings Pi would
-// reject, leave the gauge on the full window.
-function compactionReserve(settings: unknown, model: ExtensionContext["model"]): number | undefined {
-	const raw = record(settings) ? settings.compaction ?? {} : {};
-	if (!record(raw) || !(raw.enabled ?? true)) return undefined;
-	const overrides = raw.modelOverrides, entry = model && record(overrides) ? overrides[`${model.provider}/${model.id}`] ?? {} : {};
-	if (!record(entry)) return undefined;
-	const reserve = entry.reserveTokens ?? raw.reserveTokens ?? 16_384;
-	return [raw.reserveTokens, entry.reserveTokens].every((value) => value === undefined || count(value)) && count(reserve) ? reserve : undefined;
-}
 // Ponytail 4.13.0's exact status output; bounded before stripping SGR. Other
 // controls/warnings/format changes are not a mode and remain visible in EXT.
 // The leading ●/○ is Ponytail's own activity dot: ● while the agent runs a turn.
@@ -62,41 +36,15 @@ function tatsuSnapshot(raw: unknown): TatsuSnapshot | undefined {
 }
 type TatsuObserver = { read(): TatsuSnapshot | undefined; dispose(): void };
 type PonytailObserver = { read(): { mode: PonytailState; active: boolean; statuses: ReadonlyMap<string, string> }; dispose(): void };
-type Selection = { version: 1; path: string };
 // Decoration only: owned by one installed TUI footer and never triggers inspection.
 type Animation = { state: MotionState; timer?: ReturnType<typeof setTimeout>; due?: number; schedule(now: number): void; resume(): void };
-type ActivityCollector = { refresh(): void; dispose(): void };
-// `installed` stays undefined until a CodexBar call resolves; only true shows the USG row.
-type UsageCache = { installed?: boolean; providers: Map<UsageProviderId, UsageProviderState> };
 type SessionState = {
-	ctx: ExtensionContext;
-	id: string;
-	disposed: boolean;
-	units: number | null;
-	compactions: number;
-	activity?: ActivityCollector;
-	usage: UsageCache;
-	usageCollector?: { dispose(): void };
-	usageTimer?: ReturnType<typeof setTimeout>;
-	usageDue?: number;
-	tatsuObserver?: TatsuObserver;
-	ponytail: PonytailState;
-	ponytailObserver?: PonytailObserver;
+	ctx: ExtensionContext; id: string; disposed: boolean;
+	signals?: SignalsSnapshot; signalObserver?: { dispose(): void };
+	usageTimer?: ReturnType<typeof setTimeout>; usageDue?: number;
+	tatsuObserver?: TatsuObserver; ponytail: PonytailState; ponytailObserver?: PonytailObserver;
 	ponytailClearUI?: ExtensionContext["ui"];
-	launch: string;
-	active: string;
-	selection: number;
-	workspace?: WorkspaceInfo;
-	pr: PullRequestInfo;
-	prKey?: string;
-	prCache: Map<string, { at: number; value: PullRequestInfo }>;
-	localAbort?: AbortController;
-	prAbort?: AbortController;
-	refreshPending: boolean;
-	timer?: ReturnType<typeof setInterval>;
-	requestRender?: () => void;
-	motion: boolean;
-	animation?: Animation;
+	requestRender?: () => void; motion: boolean; animation?: Animation;
 };
 
 export default function (pi: ExtensionAPI) {
@@ -107,22 +55,13 @@ export default function (pi: ExtensionAPI) {
 	const current = (s: SessionState) => session === s && !s.disposed;
 	const stopWork = (s: SessionState) => {
 		s.disposed = true;
-		s.activity?.dispose();
-		s.activity = undefined;
-		s.usageCollector?.dispose();
-		s.usageCollector = undefined;
+		s.signalObserver?.dispose(); s.signalObserver = undefined;
 		if (s.usageTimer) clearTimeout(s.usageTimer);
 		s.usageTimer = s.usageDue = undefined;
 		s.tatsuObserver?.dispose();
 		s.tatsuObserver = undefined;
 		s.ponytailObserver?.dispose();
 		s.ponytailObserver = undefined;
-		if (s.timer) clearInterval(s.timer);
-		s.timer = undefined;
-		s.localAbort?.abort();
-		s.prAbort?.abort();
-		s.localAbort = s.prAbort = undefined;
-		s.refreshPending = false;
 		s.requestRender = undefined;
 		stopAnimation(s);
 		s.animation = undefined;
@@ -133,123 +72,6 @@ export default function (pi: ExtensionAPI) {
 		if (s.animation) s.animation.timer = s.animation.due = undefined;
 	};
 
-	// Public process-local RPC only. The optional owner is not a Node dependency.
-	// Pi emit() does not await async handlers: subscribe and arm timeout BEFORE emit.
-	function collectActivity(s: SessionState): ActivityCollector {
-		let live = true, busy = false, pending = false, lastStart = -Infinity;
-		let timer: ReturnType<typeof setTimeout> | undefined, due = Infinity;
-		let cancelReply: (() => void) | undefined;
-		const owned = () => live && current(s) && s.ctx.sessionManager.getSessionId() === s.id;
-		const publish = (units: number | null) => {
-			if (owned() && s.units !== units) { s.units = units; s.requestRender?.(); }
-		};
-		const schedule = (delay: number) => {
-			if (!owned()) return;
-			const now = performance.now(), next = Math.max(now + delay, lastStart + ACTIVITY_MIN_MS);
-			if (timer && due <= next) return;
-			if (timer) clearTimeout(timer);
-			due = next;
-			timer = setTimeout(() => { timer = undefined; due = Infinity; poll(); }, next - now);
-			timer.unref();
-		};
-		const request = (method: "ping" | "status", receive: (data: Record<string, unknown> | null) => void) => {
-			const requestId = randomUUID();
-			let done = false;
-			const finish = (data: Record<string, unknown> | null) => {
-				if (done) return;
-				done = true; unsubscribe(); clearTimeout(timeout); cancelReply = undefined;
-				if (owned()) receive(data);
-			};
-			const unsubscribe = pi.events.on(`subagents:rpc:v1:reply:${requestId}`, (reply) => {
-				finish(record(reply) && reply.version === 1 && reply.requestId === requestId
-					&& (reply.method === undefined || reply.method === method) && reply.success === true
-					&& record(reply.data) && reply.data.isError !== true ? reply.data : null);
-			});
-			const timeout = setTimeout(() => finish(null), RPC_TIMEOUT_MS); timeout.unref();
-			cancelReply = () => { done = true; unsubscribe(); clearTimeout(timeout); };
-			try { pi.events.emit(RPC_REQUEST, { version: 1, requestId, method, source: { extension: "pi-status-bar" } }); }
-			catch { finish(null); }
-		};
-		const finishPoll = (units: number | null) => {
-			busy = false; publish(units);
-			const delay = pending ? 250 : ACTIVITY_REFRESH_MS;
-			pending = false; schedule(delay);
-		};
-		function poll() {
-			if (!owned() || busy) return;
-			busy = true; lastStart = performance.now();
-			request("ping", (data) => {
-				if (!data || data.version !== 1 || !record(data.session) || data.session.sessionId !== s.id
-					|| !record(data.capabilities) || !record(data.capabilities.fleetStatus) || data.capabilities.fleetStatus.version !== 1) {
-					finishPoll(null); return;
-				}
-				request("status", (status) => {
-					const fleet = status?.fleet;
-					finishPoll(record(fleet) && fleet.version === 1 && count(fleet.totalActive)
-						&& Array.isArray(fleet.entries) && count(fleet.omitted)
-						&& fleet.omitted === fleet.totalActive - fleet.entries.length ? fleet.totalActive : null);
-				});
-			});
-		}
-		const refresh = () => { if (busy) pending = true; else schedule(250); };
-		const unsubscribeReady = pi.events.on(RPC_READY, (data) => {
-			if (!owned() || !record(data) || data.version !== 1 || !record(data.session) || data.session.sessionId !== s.id) return;
-			// A replacement owner invalidates its predecessor's in-flight response.
-			cancelReply?.(); cancelReply = undefined; busy = pending = false;
-			publish(null); refresh();
-		});
-		schedule(250); // let all session_start handlers finish restoring their owner
-		return { refresh, dispose() {
-			live = false;
-			if (timer) clearTimeout(timer);
-			cancelReply?.(); unsubscribeReady();
-		} };
-	}
-
-	// Read-only CodexBar polling, outside render: every provider at start, then 5 min after
-	// each round completes. One call per provider in flight; disposal aborts them all.
-	function collectUsage(s: SessionState): { dispose(): void } {
-		let live = true, timer: ReturnType<typeof setTimeout> | undefined;
-		const controllers = new Map<UsageProviderId, AbortController>();
-		const owned = () => live && current(s) && s.ctx.sessionManager.getSessionId() === s.id;
-		const fetchOne = async (provider: UsageProviderId) => {
-			if (controllers.has(provider)) return;
-			const controller = new AbortController();
-			controllers.set(provider, controller);
-			let result: UsageResult;
-			try { result = await fetchUsage(provider, { signal: controller.signal }); }
-			catch { result = { kind: "unavailable", reason: "failed" }; }
-			finally { if (controllers.get(provider) === controller) controllers.delete(provider); }
-			if (!owned() || controller.signal.aborted) return;
-			if (result.kind === "not-installed") {
-				// Hide the row; a later round retries, so installing CodexBar shows it again.
-				s.usage.installed = false;
-				s.usage.providers.clear();
-			} else {
-				s.usage.installed = true;
-				// A failure keeps the last good sample, which the renderer then marks stale.
-				s.usage.providers.set(provider, result.kind === "usage"
-					? { provider, data: { windows: result.windows, updatedAt: result.updatedAt, fetchedAt: Date.now() } }
-					: { provider, data: s.usage.providers.get(provider)?.data, failure: result.reason === "timeout" ? "timeout" : "failed" });
-			}
-			s.requestRender?.();
-		};
-		const round = async () => {
-			timer = undefined;
-			if (!owned()) return;
-			await Promise.all(USAGE_PROVIDERS.map(fetchOne));
-			if (!owned()) return;
-			timer = setTimeout(() => { void round(); }, USAGE_REFRESH_MS);
-			timer.unref();
-		};
-		void round();
-		return { dispose() {
-			live = false;
-			if (timer) clearTimeout(timer);
-			for (const controller of controllers.values()) controller.abort();
-			controllers.clear();
-		} };
-	}
 	// Countdowns are live values: repaint when one can change, with or without motion.
 	const scheduleUsageRepaint = (s: SessionState, delay: number | undefined) => {
 		if (delay === undefined || !current(s)) return;
@@ -363,82 +185,11 @@ export default function (pi: ExtensionAPI) {
 		return observer;
 	}
 
-	async function refreshPR(s: SessionState, workspace: WorkspaceInfo) {
-		if (!current(s)) return;
-		if (workspace.github.kind !== "repository" || workspace.git.kind !== "repository") {
-			s.prAbort?.abort(); s.prAbort = undefined; s.prKey = undefined;
-			s.pr = workspace.git.kind === "unknown"
-				? { kind: "unavailable", reason: workspace.git.reason }
-				: { kind: "not-applicable" };
-			return;
-		}
-		const repository = workspace.github;
-		const branch = workspace.git.active.branch;
-		const key = JSON.stringify([repository.name, repository.url, branch]);
-		if (s.prKey !== key) {
-			s.prAbort?.abort(); s.prAbort = undefined;
-			s.prKey = key;
-			s.pr = { kind: "unavailable", reason: "lookup pending" };
-		}
-		const cached = s.prCache.get(key);
-		if (cached && Date.now() - cached.at < PR_TTL_MS) { s.pr = cached.value; return; }
-		if (s.prAbort) return;
-		const controller = new AbortController();
-		s.prAbort = controller;
-		try {
-			let value: PullRequestInfo;
-			try { value = await inspectPullRequest(repository, branch, { signal: controller.signal }); }
-			catch (error) { value = { kind: "unavailable", reason: error instanceof Error ? error.message : "lookup failed" }; }
-			if (!current(s) || controller.signal.aborted || s.prAbort !== controller || s.prKey !== key) return;
-			s.prCache.set(key, { at: Date.now(), value });
-			s.pr = value;
-			s.requestRender?.();
-		} finally {
-			if (s.prAbort === controller) s.prAbort = undefined;
-		}
-	}
-
-	async function refreshLocal(s: SessionState): Promise<void> {
-		if (!current(s)) return;
-		if (s.localAbort) { s.refreshPending = true; return; }
-		const controller = new AbortController();
-		s.localAbort = controller;
-		const path = s.active;
-		try {
-			let workspace: WorkspaceInfo;
-			try { workspace = await inspectWorkspace(path, { signal: controller.signal }); }
-			catch (error) {
-				const reason = error instanceof Error ? error.message : "inspection failed";
-				workspace = { path, git: { kind: "unknown", reason }, github: { kind: "unknown", reason } };
-			}
-			if (!current(s) || controller.signal.aborted || s.localAbort !== controller || s.active !== path) return;
-			s.workspace = workspace;
-			void refreshPR(s, workspace);
-			s.requestRender?.();
-		} finally {
-			if (s.localAbort === controller) {
-				s.localAbort = undefined;
-				if (s.refreshPending && current(s)) { s.refreshPending = false; void refreshLocal(s); }
-			}
-		}
-	}
-
 	function restore(ctx: ExtensionContext) {
 		const id = ctx.sessionManager.getSessionId();
-		const prCache = session?.id === id ? session.prCache : new Map<string, { at: number; value: PullRequestInfo }>();
 		const motion = session?.id === id ? session.motion : true;
-		const usage: UsageCache = session?.id === id ? session.usage : { providers: new Map() };
 		if (session) stopWork(session);
-		const launch = ctx.sessionManager.getHeader()?.cwd ?? ctx.sessionManager.getCwd();
-		let active = launch;
-		// Tool details follow the selected branch; scanning all entries leaks
-		// abandoned choices into tree navigation and forks.
-		for (const entry of ctx.sessionManager.getBranch()) {
-			if (entry.type !== "message" || entry.message.role !== "toolResult" || entry.message.toolName !== "set_active_project" || entry.message.isError) continue;
-			const data = entry.message.details as Partial<Selection> | undefined;
-			if (data?.version === 1 && typeof data.path === "string" && isAbsolute(data.path)) active = data.path;
-		}
-		const s: SessionState = { ctx, id, disposed: false, units: null, ponytail: "checking", compactions: countCompactions(ctx), launch, active, selection: 0, pr: { kind: "unavailable", reason: "lookup pending" }, prCache, refreshPending: false, motion, usage };
+		const s: SessionState = { ctx, id, disposed: false, ponytail: "checking", motion };
 		session = s;
 		if (ctx.mode === "tui") {
 			ctx.ui.setFooter((tui, theme, footerData) => {
@@ -449,19 +200,21 @@ export default function (pi: ExtensionAPI) {
 				const ponytailObserver = observePonytail(s, () => footerData.getExtensionStatuses());
 				s.ponytailObserver = ponytailObserver;
 				const tatsuObserver = observeTatsu(s);
+				s.signalObserver = observeSignals(pi, () => current(s) && s.ctx.sessionManager.getSessionId() === s.id ? s.id : undefined, (signals) => { s.signals = signals; s.requestRender?.(); });
 				const snapshot = (): FooterSnapshot => {
 					const ponytail = ponytailObserver.read(), tatsu = tatsuObserver.read();
 					const statuses = new Map(ponytail.statuses);
 					if (tatsu && tatsu.phase !== "inactive") statuses.delete("tatsu-status");
+					const signals = s.ctx.sessionManager.getSessionId() === s.id ? s.signals : undefined;
+					const launch = s.ctx.sessionManager.getHeader()?.cwd ?? s.ctx.sessionManager.getCwd();
 					return {
-						homePath, launchPath: s.launch, activePath: s.active, workspace: s.workspace, pullRequest: s.pr,
+						homePath, launchPath: signals?.launch ?? launch, activePath: signals?.active ?? "unknown", workspace: signals?.workspace ?? undefined, pullRequest: signals?.pr ?? { kind: "unavailable", reason: "lookup pending" },
 						contextUsage: s.ctx.getContextUsage(), model: s.ctx.model, thinking: pi.getThinkingLevel(),
-						statuses, tatsu, activity: { working: !s.ctx.isIdle(), units: s.units }, compactions: s.compactions, ponytail: ponytail.mode, ponytailActive: ponytail.active,
-						compactionReserve: compactionReserve(pi.getSettings(), s.ctx.model),
-						usage: s.usage.installed ? { now: Date.now(), providers: USAGE_PROVIDERS.map((provider) => s.usage.providers.get(provider) ?? { provider }) } : undefined,
+						statuses, tatsu, activity: { working: !s.ctx.isIdle(), units: signals?.units ?? null }, compactions: signals?.compactions ?? null, ponytail: ponytail.mode, ponytailActive: ponytail.active,
+						compactionReserve: signals?.context?.reserve ?? undefined,
+						usage: signals?.usage.installed ? { now: Date.now(), providers: signals.usage.providers } : undefined,
 					};
 				};
-				s.units = null;
 				let latest = snapshot();
 				const animation: Animation = {
 					state: startMotion(latest, performance.now(), motionSeed(), true, ponytailGuardUntil),
@@ -492,11 +245,6 @@ export default function (pi: ExtensionAPI) {
 				};
 				s.animation = animation;
 				animation.schedule(performance.now());
-				s.activity = collectActivity(s);
-				s.usageCollector = collectUsage(s);
-				s.timer = setInterval(() => { void refreshLocal(s); }, LOCAL_REFRESH_MS);
-				s.timer.unref();
-				void refreshLocal(s);
 				return {
 					invalidate() {},
 					render(width) {
@@ -514,7 +262,6 @@ export default function (pi: ExtensionAPI) {
 				};
 			});
 		}
-		if (ctx.mode !== "tui") void refreshLocal(s);
 	}
 
 	pi.on("session_start", (_event, ctx) => restore(ctx));
@@ -524,30 +271,9 @@ export default function (pi: ExtensionAPI) {
 		session = undefined;
 		if (ctx.mode === "tui") ctx.ui.setFooter(undefined);
 	});
-	pi.on("tool_execution_end", () => { if (session) { void refreshLocal(session); session.activity?.refresh(); } });
-	// Recount, never increment, so duplicate events cannot double-count. session_compact
-	// follows persistence; extension turn_end/agent_before_settle compaction drafts emit
-	// no session_compact but are committed before the next turn_start or agent_end/settled.
-	const recount = (ctx: ExtensionContext) => {
-		const s = session;
-		if (!s || !current(s) || ctx.sessionManager.getSessionId() !== s.id) return undefined;
-		s.ctx = ctx;
-		const compactions = countCompactions(ctx), changed = s.compactions !== compactions;
-		s.compactions = compactions;
-		return { s, changed };
-	};
-	for (const event of ["session_compact", "turn_start"] as const) {
-		pi.on(event, (_event, ctx) => { const result = recount(ctx); if (result?.changed) result.s.requestRender?.(); });
-	}
-	// agent_end precedes retries/continuations; only isIdle(), not the event name,
-	// determines ROOT. Pi clears run-active before delivering agent_settled.
-	for (const event of ["agent_start", "agent_end", "agent_settled"] as const) {
-		pi.on(event, (_event, ctx) => {
-			const s = recount(ctx)?.s;
-			if (!s) return;
-			s.requestRender?.();
-			s.activity?.refresh();
-		});
+	// ROOT/context/model/thinking stay live at render; no data collection here.
+	for (const event of ["agent_start", "agent_end", "agent_settled", "model_select", "thinking_level_select", "session_compact"] as const) {
+		pi.on(event, (_e, ctx) => { if (session && current(session) && ctx.sessionManager.getSessionId() === session.id) { session.ctx = ctx; session.requestRender?.(); } });
 	}
 
 	pi.registerCommand("footer-motion", {
@@ -568,29 +294,4 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
-	pi.registerTool({
-		name: "set_active_project",
-		label: "Set active project",
-		description: "Declare the project or worktree shown in the footer. Display only: does not change cwd, tool behavior, instructions, or loaded resources. Relative paths resolve from Launch. The display is agent-reported, not automatic tracking.",
-		promptSnippet: "Declare the workspace displayed in the status footer",
-		promptGuidelines: ["Before deliberately starting work in a different project or worktree (including an unrelated repository), call set_active_project with its path; call it again when switching back. Do not switch for incidental reads. This signal changes only the display; use explicit tool paths/cwd for actual work."],
-		parameters: Type.Object({ path: Type.String({ minLength: 1, description: "Existing project/worktree directory; relative to the original session Launch directory" }) }),
-		executionMode: "sequential",
-		annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-		async execute(_id, params, signal, _update, _ctx) {
-			const s = session;
-			if (!s) throw new Error("No active session");
-			const selection = ++s.selection;
-			const path = await resolveActivePath(params.path, s.launch);
-			if (session !== s || s.selection !== selection || signal?.aborted) throw new Error("Workspace selection cancelled or session changed");
-			s.localAbort?.abort(); s.prAbort?.abort();
-			s.localAbort = s.prAbort = undefined;
-			s.refreshPending = false;
-			s.active = path; s.workspace = undefined; s.prKey = undefined;
-			s.pr = { kind: "unavailable", reason: "lookup pending" };
-			s.requestRender?.();
-			void refreshLocal(s);
-			return { content: [{ type: "text", text: `Active display: ${safeText(path)}. Cwd, tools, instructions and resources are unchanged.` }], details: { version: 1, path } satisfies Selection };
-		},
-	});
 }

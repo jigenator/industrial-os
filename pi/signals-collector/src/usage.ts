@@ -89,3 +89,9 @@ export function fetchUsage(provider: UsageProviderId, options: Options = {}): Pr
     signal?.addEventListener('abort', abort, { once: true });
   });
 }
+
+/** Last good sample; receipt timestamp identifies the sample for display motion. */
+export type UsageSample = { windows: UsageWindows; updatedAt: number | null; fetchedAt: number };
+export type UsageProviderState = { provider: UsageProviderId; data?: UsageSample; failure?: "timeout" | "failed" };
+export type UsageSnapshot = { installed: boolean | null; providers: UsageProviderState[] };
+export const emptyUsage = (): UsageSnapshot => ({ installed: null, providers: USAGE_PROVIDERS.map((provider) => ({ provider })) });

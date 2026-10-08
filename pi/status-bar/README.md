@@ -1,6 +1,6 @@
 # Pi Status Bar
 
-A Pi extension that replaces the default footer with an explicit view of which project and branch the agent says is active, and of where Pi actually runs tools when that differs.
+A display-only Pi extension that consumes [signals-collector](../signals-collector/README.md) snapshots and replaces the default footer with an explicit view of which project and branch the agent says is active, and of where Pi actually runs tools when that differs.
 
 It shows, in a framed Marathon-inspired “Acid / Black” instrument panel with numbered plates:
 
@@ -23,7 +23,7 @@ Prerequisites are Node.js 22.19 or newer and an installed Pi host. Git, the `gh`
 This package lives in the [Industrial OS](../../README.md) monorepo. Install it from git with this entry in the `packages` array of Pi's `settings.json`; see [installing the Pi extensions](../README.md#install) for the source, filter and updates:
 
 ```json
-{ "source": "git:github.com/jigenator/industrial-os", "extensions": ["pi/status-bar/src/extension.ts"] }
+{ "source": "git:github.com/jigenator/industrial-os", "extensions": ["pi/signals-collector/src/extension.ts", "pi/status-bar/src/extension.ts"] }
 ```
 
 The footer uses the in-repo `@industrial-os/design-system` package for elements, tokens and scoped motions, preserving its existing visuals. Pi supplies the peer packages; the extension manifest adds no local dependency. For a local checkout, run `npm install` once at the repository root before `pi install <industrial-os checkout>/pi/status-bar` or loading by path. Pi's git install performs that root install itself.
@@ -31,18 +31,18 @@ The footer uses the in-repo `@industrial-os/design-system` package for elements,
 To load it for one Pi invocation without installing it, from `pi/status-bar/`:
 
 ```sh
-pi -e .
+pi -e ../signals-collector -e .
 ```
 
-The extension gives the agent a `set_active_project({ path })` tool. It should call the tool before deliberately moving work to another project or worktree and call it again when switching back. Incidental reads should not change Active.
+The collector gives the agent the unchanged `set_active_project({ path })` tool. Either load order works through subscribe/request/ready; without a collector, Active/Git/AU/CMP are unknown, not zero or clean, and USG is hidden. ROOT/context/model/thinking and other statuses still come live from Pi. It should call the tool before deliberately moving work to another project or worktree and call it again when switching back. Incidental reads should not change Active.
 
 ## Limitations
 
 Active is an agent declaration, not automatic cwd tracking, so the footer can be stale if the agent forgets to signal a switch. Paths show only their parent/current directories, so checkouts whose last two directory names match look alike; the `set_active_project` result reports the full Active path. GitHub repository detection is local; PR lookup requires a recognizable public GitHub remote plus a working, authenticated `gh` command. It checks the selected remote repository, not outbound PRs from a fork to an upstream repository. Failures are reported as unavailable rather than as clean or no-PR states.
 
-AU is native active work, **not an exact running-agent count**: pi-subagents includes queued/pending work and counts an active workflow container as one. Known counts show at least two digits (`00 AU`, `03 AU`, `123 AU`); up to six rail marks accompany the exact uncapped total. Without a compatible owner, or on malformed/error/timeout replies, the badge shows `? AU`, never a fabricated zero. The integration was verified against Pi 1.0.2 and pi-subagents 0.76.0; it uses public in-process events, not an imported dependency or status-text parsing. Samples refresh independently of decoration, normally five seconds after the prior collection finishes, with coalesced turn/tool/ready updates. Motion off does not stop collection. ROOT comes from Pi's `isIdle()` independently of AU, including the post-`agent_end` retry/continuation period.
+AU is native active work, **not an exact running-agent count**: pi-subagents includes queued/pending work and counts an active workflow container as one. Known counts show at least two digits (`00 AU`, `03 AU`, `123 AU`); up to six rail marks accompany the exact uncapped total. Without a compatible owner, or on malformed/error/timeout replies, the badge shows `? AU`, never a fabricated zero. The integration was verified against Pi 1.0.2 and pi-subagents 0.76.0; it uses public in-process events, not an imported dependency or status-text parsing. The collector refreshes samples independently of decoration, normally five seconds after the prior collection finishes, with coalesced turn/tool/ready updates. Motion off does not stop collection. ROOT comes from Pi's `isIdle()` independently of AU, including the post-`agent_end` retry/continuation period.
 
-USG requires the CodexBar CLI (`codexbar`, verified against 0.60.3) on PATH with the providers already signed in; it runs only the read-only `codexbar usage --provider <id> --format json --json-only` and never prompts. Codex and Claude fetches take about 20 seconds each, so those providers show `pending` after startup; all three refresh five minutes after each round completes. A failed fetch keeps the last good squares, grey-tagged with their age (`16m`, `5h`, `2d`, `99+`); data older than 15 minutes is marked the same way, and a failure without earlier data shows `????????` with `timeout` or `failed`, never CodexBar's raw message. A provider that reports no 5-hour or weekly window shows `none`. Only 5-hour and weekly windows are shown; other windows are ignored. The row draws in left to right from its plate when it first appears, each provider's squares fill in when its data first arrives after that, the edge square of each draining window briefly shrinks to `▪` and dims, and lost squares burn out when quota drops. `/footer-motion off` holds them all steady; countdowns keep updating every minute either way. `■`/`▪` are ambiguous-width characters: terminals set to render ambiguous characters wide will misalign the row, and live-terminal rendering has not been verified.
+USG requires the CodexBar CLI (`codexbar`, verified against 0.60.3) on PATH with the providers already signed in; the collector runs only the read-only `codexbar usage --provider <id> --format json --json-only` and never prompts. Codex and Claude fetches take about 20 seconds each, so those providers show `pending` after startup; all three refresh from the machine-wide parsed cache five minutes after each round completes, coordinated by an exclusive lock; consumers receive pushes from directory-watch reloads. Cache privacy/locking are canonical in [the collector contract](../signals-collector/docs/contract.md). A failed fetch keeps the last good squares, grey-tagged with their age (`16m`, `5h`, `2d`, `99+`); data older than 15 minutes is marked the same way, and a failure without earlier data shows `????????` with `timeout` or `failed`, never CodexBar's raw message. A provider that reports no 5-hour or weekly window shows `none`. Only 5-hour and weekly windows are shown; other windows are ignored. The row draws in left to right from its plate when it first appears, each provider's squares fill in when its data first arrives after that, the edge square of each draining window briefly shrinks to `▪` and dims, and lost squares burn out when quota drops. `/footer-motion off` holds them all steady; countdowns keep updating every minute either way. `■`/`▪` are ambiguous-width characters: terminals set to render ambiguous characters wide will misalign the row, and live-terminal rendering has not been verified.
 
 CMP counts successful compactions persisted on the currently selected session branch, including ones inherited from earlier on that branch; abandoned sibling branches, branch summaries and failed or cancelled compaction attempts are not counted. It is not a context-usage reading. Unknown is `CMP×??`, never a fabricated zero, and counts above 99 deliberately show `CMP×99+` to keep the plate eight cells wide.
 
@@ -72,7 +72,7 @@ Recognized Ponytail status is represented by the plate instead of duplicated in 
 
 The white plate and black title/slashes stay static. While Ponytail reports the agent is running a turn (its own `●` dot), the `⌑` icon alternates with a small pink `•` light (the CMP pink), 50 ms each (10 blinks a second); `/footer-motion off` holds the light on instead. On a mode change, only the three current mode letters can flash two seeded random subsets black, then recover; no sweep or scrambling. First discovery, OFF/CHK/UNK and motion off settle immediately. Activity-dot changes drive only the light and do not restart mode flashes; resuming motion does not replay off-time changes.
 
-No live interactive-terminal/motion, live CodexBar or live fleet-owner smoke test is claimed; automated tests use the installed Pi loader and public bus with offline replies and a fake `codexbar`.
+No live interactive-terminal/motion, CodexBar or fleet-owner smoke is claimed. Display tests use actual Pi loading and public snapshot fixtures; collection/parser/cache tests belong to the collector.
 
 ## Project guides
 

@@ -14,7 +14,7 @@ Purpose: the Pi extensions that bring the Industrial OS visual and interaction l
 
 | Task | Route |
 | --- | --- |
-| Change an extension | Its `AGENTS.md` and its routes, for example [claude-interrupt](claude-interrupt/AGENTS.md) |
+| Change an extension | Its `AGENTS.md` and its routes, for example [claude-interrupt](claude-interrupt/AGENTS.md) or [signals-collector](signals-collector/AGENTS.md) |
 | Change a Pi dependency or supported Pi version | The extension's architecture and `package.json`, the rules above, then its contributing guide |
 | Import the design system into an extension | [Where work belongs](#where-work-belongs), [the package decision](../docs/decisions/in-repo-design-system-package.md#migrating-an-extension), then the extension's architecture and contributing guide |
 | Add or move in an extension | [Contributing](CONTRIBUTING.md), the [project document set](../docs/architecture.md#contracts-between-the-root-and-a-project), then the root README layout and map |
@@ -23,7 +23,7 @@ Purpose: the Pi extensions that bring the Industrial OS visual and interaction l
 
 Each extension owns `pi/<name>/`, named without the `pi-` prefix; its package keeps its published name. It holds `src/`, its checks in `test/`, its manifest and lockfile, `LICENSE` if it has one, `README.md`, `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, and `docs/` with its architecture, and its conventions, mission, and design where it has rules, scope, or an experience of its own.
 
-Extensions never import each other. An extension may import the design system only as `@industrial-os/design-system/<group>/<name>`, an exported subpath resolved through the root install, never by a relative path into `design-system/`; the full rule is in [conventions](../docs/conventions.md#module-and-dependency-rules). claude-interrupt and status-bar import it through exported subpaths and host adapters; herdr-sidebar renders no colors and does not import it. A new migration is its own change, with the requirements in [the decision](../docs/decisions/in-repo-design-system-package.md#migrating-an-extension).
+Extensions never import each other. An extension may import the design system only as `@industrial-os/design-system/<group>/<name>`, an exported subpath resolved through the root install, never by a relative path into `design-system/`; the full rule is in [conventions](../docs/conventions.md#module-and-dependency-rules). Both rendering extensions, claude-interrupt and status-bar, import it through exported subpaths and host adapters; signals-collector and herdr-sidebar render no colors and do not import it. A new migration is its own change, with the requirements in [the decision](../docs/decisions/in-repo-design-system-package.md#migrating-an-extension).
 
 ## Implement and verify
 
