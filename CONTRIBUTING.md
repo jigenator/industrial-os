@@ -9,6 +9,7 @@ This guide covers the workflow for every change and the checks that apply to the
 | `pi/signals-collector/` | Node.js 22 type stripping, installed Pi; offline cache/contract tests | [pi/signals-collector/CONTRIBUTING.md](pi/signals-collector/CONTRIBUTING.md) |
 | `pi/status-bar/` | Node.js 22, npm, TypeScript run by type stripping, the globally installed Pi for its tests and the load check | [pi/status-bar/CONTRIBUTING.md](pi/status-bar/CONTRIBUTING.md) |
 | `pi/herdr-sidebar/` | Node.js 22, npm, TypeScript run by type stripping, the globally installed Pi for its tests and the load check | [pi/herdr-sidebar/CONTRIBUTING.md](pi/herdr-sidebar/CONTRIBUTING.md) |
+| `herdr-plugins/spaces/` | Node.js 22 standard library; fake Unix socket tests | [herdr-plugins/spaces/CONTRIBUTING.md](herdr-plugins/spaces/CONTRIBUTING.md) |
 | `herdr/` | TOML; Node.js 22 for its check; an installed Herdr for the parser check | [herdr/CONTRIBUTING.md](herdr/CONTRIBUTING.md) |
 
 There is no root test command, script, or workspace. The root `package.json` lists the Pi extensions' entry points for Pi's git install, see [installing the Pi extensions](pi/README.md#install), and one `file:` dependency that links the design-system package. Running `node --test` from the root discovers the extensions' TypeScript tests, which need each extension's own setup; it is not a repository check. See [standalone packages](docs/decisions/standalone-packages.md) and [the in-repo design-system package](docs/decisions/in-repo-design-system-package.md).
@@ -49,7 +50,7 @@ A required check that is skipped does not count as a pass.
 
 ## Adding or moving in a project
 
-A project is a top-level folder, or a folder under `pi/` for a Pi extension, that owns its language, manifest, dependencies, checks, guides, and license. Before it lands:
+A project is a top-level folder, or a folder under `pi/` for a Pi extension or `herdr-plugins/` for a Herdr plugin, that owns its language, manifest, dependencies, checks, guides, and license. Before it lands:
 
 1. Give it the document set in [architecture](docs/architecture.md#contracts-between-the-root-and-a-project).
 2. Add every one of its guides to the [root map](AGENTS.md#supporting-documents) and the folder to the [root README layout](README.md#layout).

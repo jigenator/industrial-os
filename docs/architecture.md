@@ -2,12 +2,12 @@
 
 This is the architecture of the monorepo: which projects it holds, how they relate, and where the next one goes. Each project has its own architecture guide for its internals; this guide does not repeat them.
 
-Status: current repository at the revision that added `pi/signals-collector/`, `pi/herdr-sidebar/` and `herdr/`.
-Evidence: the full source tree of `design-system/` and `pi/claude-interrupt/`, every import statement across the projects, their manifests and test commands, the root `package.json` and lockfile, `design-system/package.test.mjs`, the guides of `pi/status-bar/`, and the Git history of the moves of claude-interrupt and status-bar. The signals-collector, herdr-sidebar and Herdr configuration rows add their full source, tests and imports. No dependency graph was inferred from folder names.
+Status: current repository with the Spaces plugin and Herdr Spaces configuration.
+Evidence: the full source tree of `design-system/` and `pi/claude-interrupt/`, every import statement across the projects, their manifests and test commands, the root `package.json` and lockfile, `design-system/package.test.mjs`, the guides of `pi/status-bar/`, and the Git history of the moves of claude-interrupt and status-bar. The signals-collector, herdr-sidebar, Herdr configuration and Spaces plugin rows add their full source, tests and imports. No dependency graph was inferred from folder names.
 
 ## Projects
 
-Industrial OS is one repository holding several independent projects. A project is a folder that owns its language, toolchain, dependencies, checks, and guides. Today there are six. They share code only through the design-system package. claude-interrupt and status-bar consume exported subpaths through their own Pi adapters, and the Herdr configuration's check imports its colors. Displays receive session data from signals-collector through in-process events, never imports.
+Industrial OS is one repository holding several independent projects. A project is a folder that owns its language, toolchain, dependencies, checks, and guides. Today there are seven. They share code only through the design-system package. claude-interrupt and status-bar consume exported subpaths through their own Pi adapters, and the Herdr configuration's check imports its colors. Displays receive session data from signals-collector through in-process events, never imports.
 
 | Project | Language and runtime | Public entry point | Dependencies | Guides |
 | --- | --- | --- | --- | --- |
@@ -16,9 +16,10 @@ Industrial OS is one repository holding several independent projects. A project 
 | `pi/status-bar/` | TypeScript ES modules run by Node 22 type stripping; npm scripts; no type check | `package.json` `pi.extensions` → `src/extension.ts`, loaded by the Pi host | Host-provided Pi/TUI packages as peer dependencies; no development dependencies, tests use the globally installed Pi. Imports exported design-system footer element/token/scoped-motion subpaths through a Pi adapter; consumed-subpath declarations have a compile-only specimen, not a standalone project typecheck | [README](../pi/status-bar/README.md), [AGENTS](../pi/status-bar/AGENTS.md), [architecture](../pi/status-bar/docs/architecture.md), [contributing](../pi/status-bar/CONTRIBUTING.md) |
 | `pi/signals-collector/` | TypeScript ES modules, Node 22 type stripping, existing global Pi tests | Explicit Pi entry `src/extension.ts`; v1 in-process snapshot events and Active tool | Host Pi/TypeBox peers; Node standard library, no renderer or extension imports | [README](../pi/signals-collector/README.md), [AGENTS](../pi/signals-collector/AGENTS.md), [architecture](../pi/signals-collector/docs/architecture.md), [contributing](../pi/signals-collector/CONTRIBUTING.md) |
 | `pi/herdr-sidebar/` | TypeScript ES modules run by Node 22 type stripping; npm scripts; no type check | `package.json` `pi.extensions` → `src/extension.ts`, loaded by the Pi host; its token contract in `docs/token-contract.md` | Host-provided Pi packages as peer dependencies; no development dependencies, tests use the globally installed Pi. Talks to Herdr over its local socket; does not import the design system | [README](../pi/herdr-sidebar/README.md), [AGENTS](../pi/herdr-sidebar/AGENTS.md), [architecture](../pi/herdr-sidebar/docs/architecture.md), [contributing](../pi/herdr-sidebar/CONTRIBUTING.md) |
-| `herdr/` | TOML read by Herdr; a Node 22 check | `sidebar.toml`, merged by hand into Herdr's `config.toml` | Herdr's config schema; its check imports design-system palette and signal colors by package name and reads herdr-sidebar's token contract document | [README](../herdr/README.md), [AGENTS](../herdr/AGENTS.md), [architecture](../herdr/docs/architecture.md), [contributing](../herdr/CONTRIBUTING.md) |
+| `herdr-plugins/spaces/` | Plain Node 22 ES modules, standard library only, no build/dependencies | `herdr-plugin.toml`; `bin/spaces.mjs ensure/run/status` | Node; Herdr 0.9.3 Unix socket; consumes Pi AU tokens over the protocol, no imports from Pi | [README](../herdr-plugins/spaces/README.md), [AGENTS](../herdr-plugins/spaces/AGENTS.md), [architecture](../herdr-plugins/spaces/docs/architecture.md), [contract](../herdr-plugins/spaces/docs/token-contract.md), [contributing](../herdr-plugins/spaces/CONTRIBUTING.md) |
+| `herdr/` | TOML read by Herdr; a Node 22 check | `sidebar.toml` and `spaces.toml`, merged by hand into Herdr's `config.toml` | Herdr's config schema; its check imports design-system palette and signal colors by package name and reads herdr-sidebar's and Spaces' token contract documents | [README](../herdr/README.md), [AGENTS](../herdr/AGENTS.md), [architecture](../herdr/docs/architecture.md), [contributing](../herdr/CONTRIBUTING.md) |
 
-`pi/` groups the Pi extensions and holds the rules they share: [its guide](../pi/AGENTS.md). `herdr/` holds Herdr configuration.
+`pi/` groups the Pi extensions and holds the rules they share: [its guide](../pi/AGENTS.md). `herdr/` holds Herdr configuration. `herdr-plugins/` groups independently installable Herdr plugins with [shared rules](../herdr-plugins/AGENTS.md).
 
 ### Dependency direction
 
@@ -30,7 +31,8 @@ flowchart LR
         SC["pi/signals-collector/<br/>session producer + shared quota cache"]
         SB["pi/status-bar/<br/>src/extension.ts, footer.ts<br/>reference implementation"]
         HS["pi/herdr-sidebar/<br/>src/extension.ts, tokens.ts"]
-        HC["herdr/<br/>sidebar.toml, test/"]
+        HC["herdr/<br/>sidebar.toml, spaces.toml, test/"]
+        SP["herdr-plugins/spaces/<br/>socket-keyed daemon"]
         Design["docs/design.md<br/>visual language"]
         Root["package.json<br/>file: dependency"]
     end
@@ -50,6 +52,10 @@ flowchart LR
     HS -->|imports, peer| PiHost
     HS -->|imports| Node
     HS ==>|pane tokens over the socket| Herdr
+    SP -->|imports| Node
+    SP ==>|workspace tokens, quiet block moves| Herdr
+    Herdr -.->|Pi AU pane tokens| SP
+    HC -.->|check reads Spaces contract| SP
     HC ==>|rows merged into config| Herdr
     HC -->|check imports colors| DS
     HC -.->|check reads token contract| HS
@@ -124,6 +130,8 @@ Every project's guides must appear in the [root supporting-documents map](../AGE
 
 **A new design-system element** stays entirely inside `design-system/`, with an entry in its `exports` map; its placement is in [the design-system architecture](../design-system/docs/architecture.md#where-the-next-change-belongs). Its README is mapped from the root.
 
+**A new Herdr plugin** gets `herdr-plugins/<name>/` with its own manifest, Node 22 standard-library implementation, tests and the full project document set; follow [the group guide](../herdr-plugins/AGENTS.md). The [Spaces daemon decision](decisions/spaces-plugin-daemon.md) explains detach/lock ownership. Plugins never import Pi source; values cross host protocols.
+
 **Herdr configuration** goes in `herdr/`, one TOML file per piece with a check beside it; placement is in [its architecture](../herdr/docs/architecture.md#where-the-next-change-belongs). Its language and toolchain are its own; nothing at the root presumes Node.
 
 **A change that spans projects**, such as a new palette role, is several changes: the design doc, the design system, then each extension that mirrors it, each in its own commit with its own checks.
@@ -140,6 +148,7 @@ The collector is the only owner of TUI session signals and shared CodexBar cache
 
 ## Technical decisions
 
+- [Spaces has one plugin daemon per socket](decisions/spaces-plugin-daemon.md)
 - [Session signals have one collection owner](decisions/session-signals-collection.md)
 - [The design system is an in-repo package and owns the colors](decisions/in-repo-design-system-package.md)
 - [Standalone packages, no shared workspace](decisions/standalone-packages.md), superseded in part by the package decision
