@@ -1,0 +1,128 @@
+// A fake Herdr server on a temporary Unix socket, never the live Herdr. It models the parts of Herdr 0.9.3 this
+// extension depends on, as read in its source (src/metadata_tokens.rs, src/app/api/panes.rs,
+// src/terminal/metadata.rs, src/api/subscriptions.rs): one token map per pane that any source can patch, per-source
+// sequence freshness, at most 32 sequenced token sources per pane, 16 keys per report and 32 keys per pane.
+import { mkdtemp, rm } from "node:fs/promises";
+import { createServer, type Socket } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+export type Logged = { method: string; params: any; at: number };
+type Mode = "ok" | "error" | "silent";
+
+export async function startFakeHerdr(paneId = "w1:p1") {
+	// macOS limits socket paths to 104 bytes; mkdtemp under the OS temp directory stays well inside that.
+	const dir = await mkdtemp(join(tmpdir(), "hs-"));
+	const socketPath = join(dir, "h.sock");
+	const tokens = new Map<string, string>();
+	const sequences = new Map<string, number>();
+	const tokenSources = new Set<string>();
+	const log: Logged[] = [];
+	const subscribers = new Set<{ socket: Socket; id: string }>();
+	const sockets = new Set<Socket>();
+	let status = "idle";
+	let reportMode: Mode = "ok";
+	let paneGetMode: Mode = "ok";
+	let subscribeMode: Mode = "ok";
+	let reportDelayMs = 0;
+
+	const reply = (socket: Socket, id: string, body: object) => { if (!socket.destroyed) socket.write(`${JSON.stringify({ id, ...body })}\n`); };
+	const error = (socket: Socket, id: string, code: string) => reply(socket, id, { error: { code, message: code } });
+
+	function report(params: any): string | undefined {
+		if (params.pane_id !== paneId) return "pane_not_found";
+		const patch: Record<string, string | null> = params.tokens ?? {};
+		if (Object.keys(patch).length > 16) return "invalid_metadata_token";
+		if (params.ttl_ms !== undefined && !(params.ttl_ms >= 1 && params.ttl_ms <= 86_400_000)) return "invalid_metadata_ttl";
+		const source = params.source, seq = params.seq;
+		if (typeof seq === "number") {
+			const last = sequences.get(source);
+			if (last !== undefined && seq <= last) return undefined; // accepted but ignored, exactly like success
+			if (!tokenSources.has(source) && tokenSources.size >= 32) return "metadata_sequence_source_limit";
+		}
+		const after = new Set(tokens.keys());
+		for (const [key, value] of Object.entries(patch)) value === null ? after.delete(key) : after.add(key);
+		if (after.size > 32) return "metadata_token_limit";
+		if (typeof seq === "number") { sequences.set(source, seq); tokenSources.add(source); }
+		for (const [key, value] of Object.entries(patch)) {
+			const normalized = value === null ? "" : value.replace(/[\u0000-\u001f\u007f-\u009f]/g, "").trim().slice(0, 80);
+			if (normalized) tokens.set(key, normalized); else tokens.delete(key);
+		}
+		return undefined;
+	}
+
+	function handle(socket: Socket, request: any) {
+		const { id, method, params } = request;
+		log.push({ method, params, at: Date.now() });
+		if (method === "pane.report_metadata") {
+			if (reportMode === "silent") return;
+			if (reportMode === "error") return error(socket, id, "internal_error");
+			const respond = () => { const code = report(params); code ? error(socket, id, code) : reply(socket, id, { result: { type: "ok" } }); };
+			if (reportDelayMs) setTimeout(respond, reportDelayMs); else respond();
+		} else if (method === "pane.get") {
+			if (paneGetMode === "silent") return;
+			if (paneGetMode === "error" || params?.pane_id !== paneId) return error(socket, id, "pane_not_found");
+			reply(socket, id, { result: { type: "pane_info", pane: { pane_id: paneId, workspace_id: "w1", agent_status: status } } });
+		} else if (method === "events.subscribe") {
+			const entry = params?.subscriptions?.[0];
+			if (subscribeMode === "silent") return;
+			if (subscribeMode === "error" || entry?.type !== "pane.agent_status_changed" || entry.pane_id !== paneId) { error(socket, id, "pane_not_found"); socket.end(); return; }
+			reply(socket, id, { result: { type: "subscription_started" } });
+			subscribers.add({ socket, id });
+		} else error(socket, id, "unknown_method");
+	}
+
+	const server = createServer((socket) => {
+		sockets.add(socket);
+		socket.on("close", () => { sockets.delete(socket); for (const s of subscribers) if (s.socket === socket) subscribers.delete(s); });
+		socket.on("error", () => {});
+		let buffer = "";
+		socket.setEncoding("utf8");
+		socket.on("data", (chunk: string) => {
+			buffer += chunk;
+			let newline: number;
+			while ((newline = buffer.indexOf("\n")) >= 0) {
+				const line = buffer.slice(0, newline);
+				buffer = buffer.slice(newline + 1);
+				try { handle(socket, JSON.parse(line)); } catch { error(socket, "", "invalid_request"); }
+			}
+		});
+	});
+	await new Promise<void>((resolve) => server.listen(socketPath, resolve));
+
+	return {
+		socketPath, paneId, log, tokens,
+		reports: () => log.filter((entry) => entry.method === "pane.report_metadata"),
+		get subscriberCount() { return subscribers.size; },
+		get sources() { return new Set(log.filter((entry) => entry.method === "pane.report_metadata").map((entry) => entry.params.source)); },
+		setStatus(next: string, push = true) {
+			status = next;
+			if (push) for (const { socket } of subscribers) socket.write(`${JSON.stringify({ event: "pane.agent_status_changed", data: { pane_id: paneId, workspace_id: "w1", agent_status: next } })}\n`);
+		},
+		/** Herdr drops every subscription, as on events_lost or a server restart. */
+		dropSubscribers(lost = false) {
+			for (const { socket, id } of subscribers) { if (lost) error(socket, id, "events_lost"); socket.destroy(); }
+			subscribers.clear();
+		},
+		setReportMode(mode: Mode) { reportMode = mode; },
+		setPaneGetMode(mode: Mode) { paneGetMode = mode; },
+		setSubscribeMode(mode: Mode) { subscribeMode = mode; },
+		setReportDelay(ms: number) { reportDelayMs = ms; },
+		/** Applies a report directly, as another runtime's late request would arrive. */
+		apply(params: any) { log.push({ method: "pane.report_metadata", params, at: Date.now() }); return report(params); },
+		async close() {
+			for (const socket of sockets) socket.destroy();
+			await new Promise<void>((resolve) => server.close(() => resolve()));
+			await rm(dir, { recursive: true, force: true });
+		},
+	};
+}
+export type FakeHerdr = Awaited<ReturnType<typeof startFakeHerdr>>;
+
+export async function until(check: () => boolean, label = "condition", timeoutMs = 4000) {
+	const end = Date.now() + timeoutMs;
+	while (!check()) {
+		if (Date.now() > end) throw new Error(`Timed out waiting for ${label}`);
+		await new Promise((resolve) => setTimeout(resolve, 10));
+	}
+}
