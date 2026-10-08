@@ -262,5 +262,5 @@ test("snapshot rate budget is monotonic while wire timestamps use the wall clock
 	const wall = Date.now(); t.mock.method(Date, "now", () => wall + 60000);
 	h.model({ provider: "fixture", id: "after", contextWindow: 128000 }); await h.runner.emit({ type: "model_select" }); await sleep(30);
 	assert.equal(pushes.length, 1, "a wall-clock jump must not bypass the 100ms push budget"); await until(() => pushes.length === 2);
-	assert.ok(pushes[1] - pushes[0] >= 99); assert.deepEqual(h.errors, []);
+	assert.ok(pushes[1] - pushes[0] >= 100); assert.deepEqual(h.errors, []);
 });

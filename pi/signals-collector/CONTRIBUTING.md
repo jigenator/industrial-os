@@ -33,3 +33,5 @@ Record date, installed Node/Pi versions, test counts and exact command results. 
 - Interactive Pi/Herdr, live GitHub/CodexBar/fleet/pi-goal producers, Windows and a real git install: **not run**. No push or live configuration change.
 
 Follow-up on the same toolchain: **45/45 passed** after adding a wall-clock-jump regression and using a monotonic 100ms push budget (wire timestamps remain Date.now epoch values). Status-bar re-run: **135/135 passed**. Both changed architecture diagrams rendered with existing grok-mermaid 0.2.3, non-null art and no warnings; the root manifest CLI RPC load exited 0 in an isolated temporary agent/cache directory.
+
+Final budget check: **45/45 collector and 135/135 consumer tests passed** after rounding timer deadlines up and rechecking early wakes before publishing; the wall-clock-jump regression now asserts at least 100ms between pushes. This does not claim a hard real-time event-loop latency guarantee.

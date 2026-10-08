@@ -53,15 +53,21 @@ export default function (pi: ExtensionAPI) {
 		if (!current(s)) return;
 		sample(s);
 		if (s.pushTimer) return;
-		const delay = Math.max(0, lastPush + 100 - performance.now());
-		s.pushTimer = setTimeout(() => {
+		const delay = Math.max(0, Math.ceil(lastPush + 100 - performance.now()));
+		const flush = () => {
 			s.pushTimer = undefined;
 			if (!current(s)) return;
+			const remaining = lastPush + 100 - performance.now();
+			if (remaining > 0) {
+				s.pushTimer = setTimeout(flush, Math.ceil(remaining)); s.pushTimer.unref(); return;
+			}
 			sample(s); // after other lifecycle handlers have persisted branch state
 			if (s.publishedSeq === s.snapshot.seq) return;
-			s.publishedSeq = s.snapshot.seq; lastPush = performance.now();
-			pi.events.emit(SNAPSHOT, structuredClone(s.snapshot));
-		}, delay);
+			const snapshot = structuredClone(s.snapshot);
+			s.publishedSeq = snapshot.seq; lastPush = performance.now();
+			pi.events.emit(SNAPSHOT, snapshot);
+		};
+		s.pushTimer = setTimeout(flush, delay);
 		s.pushTimer.unref();
 	}
 	function stopWork(s: SessionState) {
