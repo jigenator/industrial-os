@@ -86,6 +86,62 @@ test("an event during the reconciling read wins over the read's older answer", a
 	assert.equal(watch.status, "working");
 });
 
+// No refresh() or sender renewal participates: every real-wire event must update the watch directly.
+for (const kind of ["renamed", "updated"] as const) {
+	test(`snake_case workspace_${kind} updates SPACE without a periodic refresh`, async (t) => {
+		const herdr = await startFakeHerdr(); t.after(() => herdr.close()); herdr.setWorkspaceLabel("Before", false);
+		const watch = watchPaneState({ socketPath: herdr.socketPath, paneId: herdr.paneId }, () => {}); t.after(() => watch.close());
+		await until(() => watch.workspaceLabel === "Before");
+		herdr.setWorkspaceLabel("After", kind);
+		await until(() => watch.workspaceLabel === "After", `workspace_${kind}`, 1000);
+		const reads = herdr.log.filter((r) => r.method === "workspace.get").length;
+		herdr.emit(kind === "renamed" ? "workspace_renamed" : "workspace_updated", kind === "renamed" ? { workspace_id: "other" } : { workspace: { workspace_id: "other" } });
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		assert.equal(herdr.log.filter((r) => r.method === "workspace.get").length, reads, "unrelated workspace ignored");
+	});
+}
+
+for (const event of ["workspace_focused", "tab_focused", "pane_focused"]) {
+	test(`snake_case ${event} updates visibility without a periodic refresh`, async (t) => {
+		const herdr = await startFakeHerdr(); t.after(() => herdr.close());
+		const watch = watchPaneState({ socketPath: herdr.socketPath, paneId: herdr.paneId }, () => {}); t.after(() => watch.close());
+		await until(() => watch.visible === true);
+		herdr.focus("w1", "w1:t2", "w1:p2", [event]);
+		await until(() => watch.visible === false, event, 1000);
+		herdr.focus("w1", "w1:t1", herdr.paneId, [event]);
+		await until(() => watch.visible === true, `${event} returns`, 1000);
+	});
+}
+
+for (const move of ["same-ID", "cross-workspace"]) {
+	test(`snake_case pane_moved handles a ${move} move without a periodic refresh`, async (t) => {
+		const herdr = await startFakeHerdr(); t.after(() => herdr.close());
+		const watch = watchPaneState({ socketPath: herdr.socketPath, paneId: herdr.paneId }, () => {}); t.after(() => watch.close());
+		await until(() => watch.visible === true);
+		if (move === "same-ID") {
+			herdr.movePaneToTab("w1:t2");
+			await until(() => watch.visible === false, "same-ID pane_moved", 1000);
+			assert.equal(herdr.log.filter((r) => r.method === "events.subscribe").length, 1);
+		} else {
+			herdr.movePane("w2", "w2:p2", "Moved");
+			await until(() => watch.paneId === "w2:p2" && watch.workspaceLabel === "Moved", "cross-workspace pane_moved", 1000);
+			assert.equal(herdr.log.filter((r) => r.method === "events.subscribe").at(-1)!.params.subscriptions[0].pane_id, "w2:p2");
+		}
+		// Special SubscriptionEventKind remains dotted, including after a move/resubscription.
+		const reads = herdr.log.filter((r) => r.method === "pane.get").length;
+		herdr.setStatus("working");
+		await until(() => watch.status === "working", "dotted pane.agent_status_changed", 1000);
+		assert.equal(herdr.log.filter((r) => r.method === "pane.get").length, reads, "status push needs no read");
+	});
+}
+
+test("fake Herdr rejects dotted lifecycle wire events", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close());
+	for (const event of ["workspace.renamed", "workspace.updated", "pane.moved", "workspace.focused", "tab.focused", "pane.focused"]) {
+		assert.throws(() => herdr.emit(event, {}), /Lifecycle wire event must be snake_case/);
+	}
+});
+
 test("workspace label resolves via workspace.get, follows rename/update/move, and re-resolves after reconnect", async (t) => {
 	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); herdr.setWorkspaceLabel("Initial SPACE", false);
 	const watch = watchPaneState({ socketPath: herdr.socketPath, paneId: herdr.paneId }, () => {}, { minBackoffMs: 20, maxBackoffMs: 80 }); t.after(() => watch.close());
@@ -95,7 +151,7 @@ test("workspace label resolves via workspace.get, follows rename/update/move, an
 	herdr.setWorkspaceLabel("Renamed SPACE"); await until(() => watch.workspaceLabel === "Renamed SPACE");
 	herdr.setWorkspaceLabel("Updated SPACE", "updated"); await until(() => watch.workspaceLabel === "Updated SPACE");
 	const reads = herdr.log.filter((r) => r.method === "workspace.get").length;
-	herdr.emit("workspace.renamed", { workspace_id: "other", label: "wrong" }); await new Promise((done) => setTimeout(done, 50));
+	herdr.emit("workspace_renamed", { workspace_id: "other", label: "wrong" }); await new Promise((done) => setTimeout(done, 50));
 	assert.equal(herdr.log.filter((r) => r.method === "workspace.get").length, reads);
 	herdr.dropSubscribers(); await until(() => watch.workspaceLabel === null);
 	herdr.setWorkspaceLabel("Reconnect SPACE", false); await until(() => watch.workspaceLabel === "Reconnect SPACE");
@@ -127,7 +183,7 @@ test("visibility: the pane's tab is the focused workspace's active tab, re-resol
 	herdr.focus("w1", "w1:t1", "w1:p1"); await until(() => watch.visible === true, "back");
 	herdr.focus("w3", "w3:t1", "w3:p1"); await until(() => watch.visible === false, "another workspace");
 	// Each focus event alone re-resolves through pane.get and workspace.get; the payload is not trusted.
-	for (const event of ["workspace.focused", "tab.focused", "pane.focused"]) {
+	for (const event of ["workspace_focused", "tab_focused", "pane_focused"]) {
 		const reads = herdr.log.filter((r) => r.method === "workspace.get").length;
 		herdr.focus("w1", "w1:t1", "w1:p9", [event]); await until(() => watch.visible === true, `${event} shows`);
 		assert.ok(herdr.log.filter((r) => r.method === "workspace.get").length > reads, event);

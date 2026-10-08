@@ -3,6 +3,7 @@
 // src/terminal/metadata.rs, src/api/subscriptions.rs, src/api/schema/events.rs, src/api/schema/workspaces.rs): one token map per pane that any source can patch, per-source
 // sequence freshness, at most 32 sequenced token sources per pane, 16 keys per report and 32 keys per pane. Focus follows
 // src/app/creation.rs (`workspace_info`: `focused`, `active_tab_id`) and src/app/api.rs (`emit_focus_api_events`).
+import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer, type Socket } from "node:net";
 import { tmpdir } from "node:os";
@@ -10,6 +11,14 @@ import { join } from "node:path";
 
 export type Logged = { method: string; params: any; at: number };
 type Mode = "ok" | "error" | "silent";
+// Independent wire model from Herdr v0.9.3 src/api/schema/events.rs: Subscription uses dotted request types;
+// EventEnvelope/EventKind uses snake_case, while SubscriptionEventKind keeps the status event dotted.
+const SUBSCRIPTION_WIRE_EVENTS = new Map([
+	["workspace.renamed", "workspace_renamed"], ["workspace.updated", "workspace_updated"],
+	["pane.moved", "pane_moved"], ["workspace.focused", "workspace_focused"],
+	["tab.focused", "tab_focused"], ["pane.focused", "pane_focused"],
+	["pane.agent_status_changed", "pane.agent_status_changed"],
+]);
 
 export async function startFakeHerdr(paneId = "w1:p1") {
 	// macOS limits socket paths to 104 bytes; mkdtemp under the OS temp directory stays well inside that.
@@ -89,10 +98,11 @@ export async function startFakeHerdr(paneId = "w1:p1") {
 	}
 
 	function assertSubscriptions(subscriptions: any[]) {
-		for (const s of subscriptions) if (!["pane.agent_status_changed", "workspace.renamed", "workspace.updated", "pane.moved", "workspace.focused", "tab.focused", "pane.focused"].includes(s.type)) throw new Error("Unknown subscription");
+		for (const s of subscriptions) if (!SUBSCRIPTION_WIRE_EVENTS.has(s.type)) throw new Error("Unknown subscription");
 	}
 	function emit(event: string, data: any) {
-		for (const { socket, subscriptions } of subscribers) if (subscriptions.some((s) => s.type === event && (event !== "pane.agent_status_changed" || s.pane_id === data.pane_id))) socket.write(`${JSON.stringify({ event, data })}\n`);
+		assert.ok(!SUBSCRIPTION_WIRE_EVENTS.has(event) || event === "pane.agent_status_changed", "Lifecycle wire event must be snake_case, not a dotted subscription type");
+		for (const { socket, subscriptions } of subscribers) if (subscriptions.some((s) => SUBSCRIPTION_WIRE_EVENTS.get(s.type) === event && (event !== "pane.agent_status_changed" || s.pane_id === data.pane_id))) socket.write(`${JSON.stringify({ event, data })}\n`);
 	}
 
 	const server = createServer((socket) => {
@@ -124,30 +134,30 @@ export async function startFakeHerdr(paneId = "w1:p1") {
 		},
 		setWorkspaceLabel(label: string | null, push: "renamed" | "updated" | false = "renamed") {
 			workspaceLabel = label;
-			if (push === "renamed") emit("workspace.renamed", { workspace_id: workspaceId, label });
-			if (push === "updated") emit("workspace.updated", { workspace: { workspace_id: workspaceId, label } });
+			if (push === "renamed") emit("workspace_renamed", { workspace_id: workspaceId, label });
+			if (push === "updated") emit("workspace_updated", { workspace: { workspace_id: workspaceId, label } });
 		},
 		movePane(nextWorkspaceId: string, nextPaneId: string, label: string) {
 			const previous_pane_id = currentPaneId, previous_workspace_id = workspaceId;
 			currentPaneId = nextPaneId; workspaceId = nextWorkspaceId; tabId = `${nextWorkspaceId}:t1`; workspaceLabel = label; paneAliases.add(nextPaneId);
-			emit("pane.moved", { previous_pane_id, previous_workspace_id, previous_tab_id: "w1:t1", pane: { pane_id: currentPaneId, workspace_id: workspaceId, agent_status: status } });
+			emit("pane_moved", { previous_pane_id, previous_workspace_id, previous_tab_id: "w1:t1", pane: { pane_id: currentPaneId, workspace_id: workspaceId, agent_status: status } });
 		},
 		/** Moves the pane to another tab of its workspace; Herdr keeps its id, as a same-workspace move does. */
 		movePaneToTab(nextTabId: string) {
 			const previous_tab_id = tabId;
 			tabId = nextTabId;
-			emit("pane.moved", { previous_pane_id: currentPaneId, previous_workspace_id: workspaceId, previous_tab_id, pane: { pane_id: currentPaneId, workspace_id: workspaceId, tab_id: tabId, agent_status: status } });
+			emit("pane_moved", { previous_pane_id: currentPaneId, previous_workspace_id: workspaceId, previous_tab_id, pane: { pane_id: currentPaneId, workspace_id: workspaceId, tab_id: tabId, agent_status: status } });
 		},
 		emit,
 		/**
-		 * Focuses a pane in a workspace's tab. Herdr emits workspace.focused, tab.focused and pane.focused together when
+		 * Focuses a pane in a workspace's tab. Herdr emits workspace_focused, tab_focused and pane_focused together when
 		 * the focused pane changes; `push` limits the events sent, or sends none, as while disconnected.
 		 */
-		focus(nextWorkspaceId: string | null, nextTabId: string, focusedPaneId: string, push: string[] | false = ["workspace.focused", "tab.focused", "pane.focused"]) {
+		focus(nextWorkspaceId: string | null, nextTabId: string, focusedPaneId: string, push: string[] | false = ["workspace_focused", "tab_focused", "pane_focused"]) {
 			focusedWorkspaceId = nextWorkspaceId;
 			if (nextWorkspaceId) activeTabs.set(nextWorkspaceId, nextTabId);
 			if (!push || !nextWorkspaceId) return;
-			const events: [string, object][] = [["workspace.focused", { workspace_id: nextWorkspaceId }], ["tab.focused", { tab_id: nextTabId, workspace_id: nextWorkspaceId }], ["pane.focused", { pane_id: focusedPaneId, workspace_id: nextWorkspaceId }]];
+			const events: [string, object][] = [["workspace_focused", { workspace_id: nextWorkspaceId }], ["tab_focused", { tab_id: nextTabId, workspace_id: nextWorkspaceId }], ["pane_focused", { pane_id: focusedPaneId, workspace_id: nextWorkspaceId }]];
 			for (const [event, data] of events) if (push.includes(event)) emit(event, data);
 		},
 		setWorkspaceGetMode(mode: Mode) { workspaceGetMode = mode; },
