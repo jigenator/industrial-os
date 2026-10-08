@@ -13,11 +13,21 @@ export async function runDaemon(target, options = {}) {
     const saved = await readHistoryState(target.history); history = saved.entries;
     signature = saved.sorting?.signature; lastMove = saved.sorting?.lastMove ?? -Infinity;
   } catch { await log(target, 'history_invalid'); }
-  try { config = await readConfig(target.configDir); } catch { await log(target, 'config_defaulted'); }
+  const configErrors = new Set();
+  async function loadConfig() {
+    try { config = await readConfig(target.configDir); }
+    catch (error) {
+      if (error.code === 'ENOENT') { config = { sort: true }; return; }
+      // Keep the last valid setting. Only bounded error categories enter diagnostics/deduplication.
+      const category = error instanceof SyntaxError ? 'parse' : ['EACCES', 'EPERM', 'EIO', 'ENOTDIR'].includes(error.code) ? error.code : 'invalid';
+      if (!configErrors.has(category)) { configErrors.add(category); await log(target, 'config_invalid'); }
+    }
+  }
+  await loadConfig();
   const now = options.now ?? Date.now;
   const send = (method, params) => request(target.socket, method, params, options.requestTimeoutMs ?? 1000);
   const reporter = new Reporter(send, { now, ...options.reporter });
-  let closed = false, connected = false, epoch = 0, reading, dirty = false;
+  let closed = false, connected = false, epoch = 0, connectionEpoch = 0, reading, dirty = false, fencedReads = 0;
   let debounce, retry, subscription, periodic, settingsRead, settingsValid = false;
   const labels = new Map(); let previousPresent = new Set();
   let healthWrites = Promise.resolve();
@@ -57,11 +67,12 @@ export async function runDaemon(target, options = {}) {
       const entries = plugins.result?.plugins;
       if (closed) return false;
       if (!plugins.ok || !Array.isArray(entries) || entries.length > 4096 || entries.some((p) => !p || typeof p.plugin_id !== 'string' || typeof p.enabled !== 'boolean')) {
-        metrics.readFailures++; await log(target, 'plugin_read_failed'); await health('connected');
+        metrics.readFailures++; await log(target, 'plugin_read_failed');
+        if (!closed && connected) await health('connected');
         scheduleRetry(readDelay); readDelay = Math.min(30_000, readDelay * 2); return false;
       }
       if (!entries.some((p) => p.plugin_id === 'industrial-os.spaces' && p.enabled)) { signal(); return false; }
-      try { config = await readConfig(target.configDir); } catch { config = { sort: true }; await log(target, 'config_defaulted'); }
+      await loadConfig();
       settingsValid = !closed; return settingsValid;
     })().finally(() => { settingsRead = undefined; });
     return settingsRead;
@@ -70,7 +81,7 @@ export async function runDaemon(target, options = {}) {
     dirty = false;
     if (!settingsValid && !await checkSettings()) return;
     if (closed || !connected) return;
-    const owner = epoch;
+    const owner = epoch, connectionOwner = connectionEpoch;
     let [ws, ps] = await Promise.all([send('workspace.list', {}), send('pane.list', {})]);
     const valid = () => ws.ok && ps.ok && validateLists(ws.result?.workspaces, ps.result?.panes, { allowCountMismatch: true });
     const mismatches = () => {
@@ -79,8 +90,10 @@ export async function runDaemon(target, options = {}) {
       return new Set(ws.result.workspaces.filter((w) => w.pane_count !== (counts.get(w.workspace_id) ?? 0)).map((w) => w.workspace_id));
     };
     if (valid() && mismatches().size) [ws, ps] = await Promise.all([send('workspace.list', {}), send('pane.list', {})]);
-    // Fence once after all reads, not between reports: events request a corrective dirty rerun.
-    if (closed || !connected || owner !== epoch) return;
+    // Never accept disconnected reads. Bound event fences so continuous focus events cannot starve TTL reports.
+    if (closed || !connected || connectionOwner !== connectionEpoch) return;
+    if (owner !== epoch && ++fencedReads <= 3) { dirty = true; return; }
+    fencedReads = 0;
     if (!valid()) {
       metrics.readFailures++; await log(target, 'read_failed');
       if (!closed && connected && owner === epoch) await health('connected');
@@ -102,7 +115,7 @@ export async function runDaemon(target, options = {}) {
     const nextHistory = advanceHistory(history, allWorkspaces, ps.result.panes, activity, time);
     if (Object.keys(nextHistory).length > 16_384 || Buffer.byteLength(JSON.stringify(nextHistory)) > 1024 * 1024) throw new Error('history_limit');
     history = nextHistory;
-    for (const w of workspaces) activity.delete(w.workspace_id);
+    for (const id of activity) if (!skipped.has(id)) activity.delete(id);
     for (const id of labels.keys()) if (!history[id] && !previousPresent.has(id)) labels.delete(id);
     await persist();
     if (closed || !connected) return;
@@ -132,7 +145,7 @@ export async function runDaemon(target, options = {}) {
         }
       } else signature = plan.signature;
     }
-    if (!closed) { await persist(); await health('connected'); }
+    if (!closed) { await persist(); if (connected) await health('connected'); }
   }
   async function stop() {
     if (closed) return done;
@@ -149,16 +162,17 @@ export async function runDaemon(target, options = {}) {
   try {
     subscription = subscribe(target.socket, {
       started() {
-        connected = true; settingsValid = false; ++epoch; metrics.reconnects++; reporter.invalidate(); refresh();
+        connected = true; settingsValid = false; ++epoch; ++connectionEpoch; fencedReads = 0; metrics.reconnects++; reporter.invalidate(); refresh();
         void log(target, 'connected');
       },
       event(event) {
-        ++epoch;
+        // Token/title updates request a debounced read but do not invalidate focus/order fences.
+        if (event.event !== 'pane.updated') ++epoch;
         const id = activityWorkspace(event); if (typeof id === 'string' && activity.size < 16_384) activity.add(id);
         // A bounded debounce: an event stream cannot postpone reconciliation forever.
         if (!debounce) debounce = setTimeout(() => { debounce = undefined; refresh(); }, options.debounceMs ?? 500);
       },
-      offline() { connected = false; ++epoch; clearTimeout(retry); retry = undefined; void log(target, 'disconnected'); void health('disconnected').catch(() => {}); },
+      offline() { connected = false; ++epoch; ++connectionEpoch; fencedReads = 0; clearTimeout(retry); retry = undefined; void log(target, 'disconnected'); void health('disconnected').catch(() => {}); },
       exhausted() { void log(target, 'connection_exhausted'); signal(); },
     }, options.subscription);
     // Force renewal on the tick; comparing exactly 30 s since an asynchronous
@@ -166,7 +180,9 @@ export async function runDaemon(target, options = {}) {
     periodic = setInterval(() => {
       // Independent of the report loop: disabling cannot wait behind thousands of reports.
       if (!connected || closed) return;
-      void checkSettings().then((ok) => { if (ok) { reporter.invalidate(); refresh(); } }).catch(signal);
+      void checkSettings().then((ok) => { if (ok) { reporter.invalidate(); refresh(); } }).catch(async () => {
+        await log(target, 'settings_failed'); scheduleRetry(readDelay);
+      });
     }, options.tickMs ?? 30_000);
     await health('connecting'); await log(target, 'started');
     if (stopRequested) signal();

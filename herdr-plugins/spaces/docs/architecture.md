@@ -43,12 +43,17 @@ panes come from `pane.list`; agent changes invalidate through `pane.updated`.
 After `subscription_started`, and after a bounded 500 ms event coalescing window,
 read `workspace.list` and `pane.list` concurrently. One reconciliation at a time;
 each request opens its own socket and waits at most one second. Events are
-invalidation, not an unconditional snapshot patch: an epoch fences reads from
-before an event/disconnection. Validate list shapes; a pane-count mismatch
-retries both reads once, then skips only inconsistent workspaces with a distinct
+invalidation, not an unconditional snapshot patch. `pane.updated` requests a
+debounced reread without advancing the event epoch; other events advance it.
+Discard at most three consecutive event-fenced reads, then publish the latest
+validated snapshot with a dirty rerun to prevent TTL starvation. A separate
+connection epoch always rejects reads across disconnect/reconnect. The move
+fence still requires the original unchanged event epoch. Validate list shapes;
+a pane-count mismatch retries both reads once, then skips only inconsistent
+workspaces with a distinct
 `pane_count_mismatch` diagnostic and leaves their accepted tokens alone. Skip
-ordering on any partial read. Check the epoch once after reads, then let all
-workspace reports complete despite events; dirty reruns correct intermediate
+ordering on any partial read. Apply the bounded event fence once after reads,
+then let all workspace reports complete despite events; dirty reruns correct intermediate
 values. Advance/persist history, report, and consider ordering. Pane metadata
 from any reporter can arrive through `pane.updated` but never counts as activity.
 
@@ -58,9 +63,13 @@ entry stops the daemon on the next tick (plus in-flight bounded requests).
 Registry checks run independently of report passes, so later workspaces cannot
 delay disable detection. Failed/invalid registry reads log `plugin_read_failed`
 and retry; no new report pass or ordering starts until registry validation
-succeeds, though in-flight reports can finish. Config failures default and log
-a fixed code. A failed list read publishes nothing; retry reads from 250 ms up to 30 seconds. Report failures
-have their separate 5–60 second deadlines. New events/ticks cannot bypass report
+succeeds, though in-flight reports can finish. Config errors retain the last
+valid setting; absent files restore defaults silently. Invalid errors log `config_invalid` once per bounded error category
+(parse, validation, or recognized filesystem errors) per daemon run. Startup
+uses defaults until the first valid file. A failed list read publishes nothing;
+retry reads from 250 ms up to 30 seconds. Report failures have their separate
+5–60 second deadlines, but only future deadlines schedule reconciliation;
+past-due skipped workspaces wait for an event/tick. New events/ticks cannot bypass report
 backoff. Reads are never attempted on a disconnected subscription. Reconnect
 from 250 ms to 30 seconds, with a one-second handshake timeout; exit after two
 minutes without a successful subscription. A responsive subscription with
@@ -80,8 +89,10 @@ reading. No latency/load benchmark is claimed.
 State is partitioned by the first 32 hex characters of SHA-256(socket path).
 Single instance uses atomic rename of a populated, unique staging directory
 into the socket lock directory. Contenders cannot observe a half-written empty
-new lock. A dead owner is recovered by unlinking only its unique PID marker
-then nonrecursive rmdir: a competing reaper cannot remove a new populated
+new lock. The lock primitive requires an explicit liveness predicate; production
+supplies only the unique control-endpoint probe, never a PID fallback. A dead
+owner is recovered by unlinking only its unique PID marker then nonrecursive
+rmdir: a competing reaper cannot remove a new populated
 owner directory. Malformed lock contents fail closed. Each contender listens
 on a unique
 owner control Unix socket before publishing its lock marker. Probe/stop requests
@@ -95,8 +106,9 @@ Endpoints use a 24-hex hashed name under the state directory. Paths above 100
 bytes fall back to `/tmp/ios-sp-<uid>/`, a verified uid-owned mode-0700 directory;
 no configurable TMPDIR length can exceed Darwin's 104-byte sun_path. Local
 state parents may be owner-writable 0755, but never group/other-writable. Socket
-files are 0600, removed on shutdown; a crash may leave a harmless uniquely named
-socket inode for operator cleanup after verifying the daemon is stopped. Local
+files are 0600, removed on shutdown; stale recovery also unlinks only the exact
+owner endpoint after ENOENT/ECONNREFUSED. A crash may leave a harmless uniquely
+named socket inode until recovery or verified operator cleanup. Local
 control sockets bound command size, connections and idle time. This is trusted
 same-user IPC, not authentication against another process under that uid.
 
@@ -104,11 +116,13 @@ Atomic files use unique temporary files then rename; mode 0600. This prevents
 partial JSON on ordinary interruption but is not fsync/power-loss durability.
 History version 1 holds timestamps and persisted sorting signature/last move;
 malformed history resets to first-seen now and logs a code. Creation events
-refresh known IDs; memory-only labels detect differently named ID reappearance
+refresh known IDs; consumed activity entries and IDs absent from the validated
+read are removed from the bounded pending activity set (skipped IDs stay).
+Memory-only labels detect differently named ID reappearance
 after an absent read. Missed creation across restarts or same-label reuse can
 still inherit age; see [identity limits](token-contract.md#activity-and-identity).
-Config is read at startup and on every tick; invalid/missing config defaults and
-logs a code. Storage paths are
+Config is read at startup and on every tick using the retention/default policy
+above. Storage paths are
 operator-owned; leaf symlinks for readable state/config/locks/logs are rejected.
 Parents are assumed trusted. No shared store or cross-project code import.
 Privacy and deletion are in the [README](../README.md#operations-and-privacy).
@@ -146,4 +160,8 @@ close the subscription and fence work. Await the current bounded request path,
 write final health/log codes, release only our lock marker. No token clears:
 TTL keys expire, names freeze. Local health has aggregate reads, failures,
 moves, reconnects, accepted report counts and timestamp. No resource names,
-workspace IDs or payloads enter diagnostics. No external metrics server.
+workspace IDs or payloads enter diagnostics. Connected health writes are guarded
+by subscription state, including late registry responses and completed move passes.
+Tick/reconciliation health-write failures log at their boundary and retry without
+stopping the daemon; health can remain stale during storage failure. Startup
+storage failure still aborts startup. No external metrics server.

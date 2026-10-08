@@ -130,3 +130,66 @@ diagram changes in this round; no local renderer found). Focus dispatch remains 
 missed creation with same-label/restart ID reuse can still inherit age. Older
 PID-only daemons must be stopped before upgrade; update the `$sp_` fragment with
 the reporter. No upgrade or live-state deletion was performed.
+
+### Second review fix round
+
+2026-10-08, macOS, Node 22.23.0; Herdr 0.9.3 source authority unchanged.
+Changes are confined to Spaces; no token keys, geometry, TTL, host protocol or
+Herdr configuration changed.
+
+**Fixes and regression evidence**
+
+| Finding | Fix | Regression test name |
+| --- | --- | --- |
+| H1 | Schedule only future report deadlines; skipped past-due IDs wait for events/ticks | `past-due report retries for skipped workspaces do not spin reconciliation` |
+| Fence starvation | `pane.updated` does not advance epochs; after three discarded event-fenced passes, report a validated snapshot and rerun. Connection and move fences stay strict | `delayed reads still report under a continuous pane_updated stream`; `delayed reads still report under a continuous workspace_focused stream` |
+| Disconnected health | Guard late registry and completed-pass connected writes | `late registry failure cannot overwrite disconnected health`; `pass ending after a disconnected move cannot overwrite disconnected health` |
+| Config failure | Keep last valid config on parse/read failures; ENOENT silently restores defaults; log once per bounded error category per run | `invalid config preserves sort false, deduplicates diagnostics and deletion restores defaults` |
+| Stale socket | Unlink only the exact stale owner's control endpoint | `refused stale owner recovery unlinks only its exact control socket` |
+| Activity cap | Drop absent pending IDs and consumed consistent IDs; retain skipped IDs | `absent activity IDs are pruned so the cap cannot suppress new workspace activity` |
+| Tick health failure | Log and retry without shutdown; recover when storage becomes writable | `tick health write failure logs and continues rather than stopping the daemon` |
+| Test cleanup | Remove fallback directory only when this test created it | `fallback fixture cleanup removes only the directory this test created` |
+| Lock liveness | Require an explicit predicate; production uses only control probes | `generic lock requires an explicit liveness rule, never a disk PID fallback` |
+
+**Passed**
+
+- `cd herdr-plugins/spaces && node --test`: **41/41 passed** on each of three
+  consecutive final runs; zero failures, skipped, cancelled or todo. Durations:
+  **4076.694833 ms**, **4058.633916 ms**, **3991.547083 ms**. The hot-loop
+  regression observes 300 ms and permits at most eight workspace list calls.
+  Stream regressions delay list replies 50 ms with events every 5 ms; reports
+  land under both streams and sorting dispatches while pane updates continue.
+  The health-storage regression uses a directory at the health file path so
+  writes fail even for a privileged test user; it verifies subsequent recovery.
+- Temporary-copy mutation checks: **11/11** targeted reversions failed with
+  **exit 1**, then restoring each exact fix passed with **exit 0**. Runs used
+  `node --test --test-name-pattern=<targeted-name> test/socket.test.mjs` or
+  `test/state.test.mjs` in isolated plugin copies. Reversions cover H1, pane
+  epoch advancement, unbounded read fencing, both connected-health writes,
+  config default-on-error, stale endpoint unlink, absent activity cleanup,
+  tick shutdown-on-error, PID liveness fallback, and fixture cleanup registration.
+- `cd herdr && node --test`: **10/10 passed**, zero failures/skipped/cancelled,
+  **45.673042 ms**. No Herdr files changed, so the conditional temporary-copy
+  `herdr config check` rerun was not required and was **not run** this round.
+- Repository read-only walkthrough: **982 local Markdown links/anchors passed**;
+  **93 guidance documents** directly mapped by the root guide (**94** including
+  that root map itself); **10 CLAUDE entrypoints byte-exact**.
+- `git diff --check` and `git diff --cached --check`: **passed**. Manual review
+  of contributor guidance, source imports and the full intended publication
+  diff: **passed**; no cross-project source imports, private data, credentials,
+  copied assets, scratch/generated output or out-of-scope changes.
+
+**Failed (expected regression evidence only):** the eleven targeted temporary
+reversions above. No unresolved failing check.
+
+**Skipped:** none of the authorized required checks.
+
+**Not run:** live Herdr/socket access; plugin/server/workspace/pane commands;
+installation, interactive alignment/navigation, real-session restart/mutations,
+Linux, load/latency benchmarks and power-loss durability. Mermaid re-rendering
+was not run (diagram unchanged). Automated fake-server tests do not establish
+live compatibility. After bounded event-fence exhaustion, a reported snapshot
+can briefly lag events; moves remain fenced and dirty reruns correct reports.
+Storage failure can leave health stale. Existing concurrent-focus move race,
+Unicode-width approximation, same-label/restart ID reuse and PID-only upgrade
+limitations remain as documented; no live upgrade or state deletion occurred.

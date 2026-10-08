@@ -6,9 +6,11 @@ Follow the [root](../../AGENTS.md) and [plugin group](../AGENTS.md) guides.
 
 - [Token contract](docs/token-contract.md) is canonical. Change it first and
   trace `src/model.mjs`, `src/reporter.mjs` and `herdr/spaces.toml` together.
-- Only shape-validated, read-epoch-current workspace/pane reads may publish;
-  count mismatches retry once, then only consistent workspaces publish. Reports
-  finish despite later events, with a dirty rerun; ordering needs a complete read.
+- Only shape-validated workspace/pane reads from the current connection may publish;
+  event fences discard at most three consecutive reads before reporting a snapshot
+  with a dirty rerun. `pane.updated` only requests rereads, not epoch changes.
+  Count mismatches retry once, then only consistent workspaces publish. Reports
+  finish despite later events; ordering needs a complete, event-epoch-current read.
   `workspace.metadata_updated` is neither subscribed nor activity.
 - Never treat a failed report as accepted. Names have no TTL; counts and age
   have TTL. Use the one stable source and monotonic clock-based sequence.

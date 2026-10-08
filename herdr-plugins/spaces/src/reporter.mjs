@@ -34,7 +34,8 @@ export class Reporter {
     if (full) state.renewed = this.now();
   }
   retryIn() {
-    const times = [...this.states.values()].filter((s) => s.retryAt > 0).map((s) => s.retryAt - this.now());
+    const now = this.now();
+    const times = [...this.states.values()].filter((s) => s.retryAt > now).map((s) => s.retryAt - now);
     return times.length ? Math.max(1, Math.min(...times)) : null;
   }
 }

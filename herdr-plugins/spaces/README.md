@@ -22,10 +22,12 @@ Optional `config.json` in `HERDR_PLUGIN_CONFIG_DIR`:
 {"sort": true}
 ```
 
-`sort` defaults to true. Missing, invalid, oversized or unknown config fields
-use defaults with a sanitized diagnostic. Config is re-read on every 30-second
-tick, so changes apply without restarting. Set `sort: false` to retain the user's
-order entirely. Number keys follow Herdr position, so enabling sort changes their targets when quiet units move.
+`sort` defaults to true when the file is absent. Invalid, oversized, unknown-field
+or unreadable config retains the last valid setting (startup uses true until a
+valid setting is read). A sanitized `config_invalid` diagnostic is logged once
+per error category per daemon run; normal absence is silent. Config is re-read
+on every 30-second tick, so changes apply without restarting. Set `sort: false`
+to retain the user's order entirely. Number keys follow Herdr position, so enabling sort changes their targets when quiet units move.
 
 Manifest hooks run `node bin/spaces.mjs ensure`. It exits quickly, starting a
 detached `run` if needed; hooks on `pane.created` and `workspace.created` also
@@ -61,10 +63,14 @@ Health is a local snapshot, not an HTTP service: `connecting`, `connected`,
 `disconnected` or `stopped`, updated after reconciliation. PID plus socket hash
 correlates local logs and health. `status` is a liveness hint, not proof of
 successful reporting; inspect health's timestamp and failure counters as well.
+A tick/reconciliation health-write failure logs a sanitized code and retries
+without stopping the daemon; the last readable health file may remain stale
+while storage is unavailable.
 Control sockets use short hashed names under state. For paths longer than 100
 bytes (macOS sun_path limit), they live in private `/tmp/ios-sp-<uid>/` instead;
-normal shutdown removes the owner socket, while a crash can leave an inert
-unique inode. Inspect before removing it; never remove a live endpoint/lock.
+normal shutdown removes the owner socket; recovery removes only the exact stale
+owner socket after a missing/refused probe. A crash can leave an inert unique
+inode until recovery. Inspect before manual removal; never remove a live endpoint/lock.
 
 ## Limits
 
@@ -83,11 +89,15 @@ unique inode. Inspect before removing it; never remove a live endpoint/lock.
   this race. Plans are snapshot/event-fenced, not server-side conditional moves.
 - Unicode width is an explicit stdlib approximation, not terminal/font detection;
   [the contract](docs/token-contract.md#text-and-width) states its limits.
-- A rejected/slow read publishes nothing new. Torn pane counts retry once,
+- A rejected/timed-out read publishes nothing new. Torn pane counts retry once,
   then only inconsistent spaces are skipped, leaving their previous tokens
   until TTL expiry; consistent spaces still report. Sorting waits for a complete
-  consistent read. Event invalidations during reporting cannot starve later
-  spaces: the pass finishes, and a dirty rerun corrects values. Requests time out at one second;
+  consistent read. `pane.updated` requests rereads without invalidating read/move
+  fences. Other event-invalidated reads discard at most three consecutive passes,
+  then report the latest validated snapshot and rerun; moves still require an
+  unchanged event epoch. Disconnect/reconnect fences are never relaxed. Events
+  during reporting cannot starve later spaces: the pass finishes, and a dirty
+  rerun corrects values. Requests time out at one second;
   persistent failures can let TTL values expire. Names/count batches are not
   transactional across requests. A backwards wall clock can make Herdr ignore
   reports until the previous sequence is passed.

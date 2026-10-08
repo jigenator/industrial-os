@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:net';
-import { mkdtemp, rm, readFile, writeFile, readdir } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
@@ -52,14 +52,17 @@ async function fixture(t) {
         if (msg.method === 'events.subscribe') {
           if (!Array.isArray(msg.params?.subscriptions) || !msg.params.subscriptions.every(validSubscription)) { reject('invalid_request'); continue; }
           subscriptions.add(socket); reply({ type: 'subscription_started' });
-        } else if (msg.method === 'plugin.list') reply({ plugins: control.plugins });
+        } else if (msg.method === 'plugin.list') {
+          const result = structuredClone({ plugins: control.plugins });
+          if (control.pluginDelay) setTimeout(() => reply(result), control.pluginDelay); else reply(result);
+        }
         else if (msg.method === 'workspace.list' || msg.method === 'pane.list') {
           const result = structuredClone(msg.method === 'workspace.list' ? { workspaces } : { panes });
           if (control.mismatchOnce && msg.method === 'workspace.list') { result.workspaces[0].pane_count++; control.mismatchOnce = false; }
           readSnapshots.push({ method: msg.method, result });
           if (control.rejectRead) reject(); else if (control.readDelay) setTimeout(() => reply(result), control.readDelay); else reply(result);
         } else if (msg.method === 'workspace.report_metadata') {
-          if (control.rejectReport) { reject(); continue; }
+          if (control.rejectReport === true || control.rejectReport === msg.params.workspace_id) { reject(); continue; }
           const p = msg.params, identity = p.workspace_id + ':' + p.source;
           if (p.seq > (sequences.get(identity) ?? 0)) {
             sequences.set(identity, p.seq);
@@ -72,7 +75,9 @@ async function fixture(t) {
             metadata.set(p.workspace_id, data);
           }
           if (control.reportDelay) setTimeout(() => reply({}), control.reportDelay); else reply({});
-        } else if (msg.method === 'workspace.move_block') reply({ workspaces }); else reply({});
+        } else if (msg.method === 'workspace.move_block') {
+          if (control.moveDelay) setTimeout(() => reply({ workspaces }), control.moveDelay); else reply({ workspaces });
+        } else reply({});
       }
     });
   });
@@ -267,7 +272,7 @@ test('steady pane.updated during reporting does not starve any workspace or late
     await until(() => ws.every((w) => f.metadata.get(w.workspace_id)?.sp_panes));
     await until(async () => JSON.parse(await readFile(f.dest.health, 'utf8')).reads > 0);
   } finally { clearInterval(interval); }
-  // Moving during an epoch-invalidated pass is intentionally fenced; a clean rerun must still sort.
+  // pane.updated does not fence moves; sorting must run even when report passes receive updates.
   await until(() => f.calls.some((m) => m.method === 'workspace.move_block'));
 });
 
@@ -360,4 +365,103 @@ test('disable tick interrupts a long report pass rather than waiting behind ever
   f.control.plugins = [];
   await until(async () => !(await lockOwner(f.dest.lock)), 500); await daemon.done;
   assert.ok(f.metadata.size < 12);
+});
+
+test('past-due report retries for skipped workspaces do not spin reconciliation', async (t) => {
+  const f = await fixture(t);
+  const ws = ['w1', 'w2'].map((id) => ({ workspace_id: id, label: id, pane_count: 0, focused: id === 'w1', agent_status: 'idle' }));
+  f.setWorkspace(ws); f.setPanes([]); f.control.rejectReport = 'w2';
+  const daemon = await runDaemon(f.dest, { ...fast, tickMs: 60_000, reporter: { retryMs: 80 } }); f.cleanup.push(() => daemon.stop());
+  await until(() => f.calls.some((m) => m.method === 'workspace.report_metadata' && m.params.workspace_id === 'w2'));
+  f.setWorkspace([ws[0], { ...ws[1], pane_count: 1 }]); f.emit('workspace_updated', {});
+  await wait(300);
+  assert.ok(f.calls.filter((m) => m.method === 'workspace.list').length <= 8, 'skipped past-due state must wait for an event/tick');
+});
+
+for (const event of ['pane_updated', 'workspace_focused']) test(`delayed reads still report under a continuous ${event} stream`, async (t) => {
+  const f = await fixture(t), now = 10 * DAY_MS;
+  f.setWorkspace(['old', 'active'].map((id) => ({ workspace_id: id, label: id, pane_count: 0, focused: id === 'active', agent_status: 'idle' }))); f.setPanes([]);
+  await writeFile(join(f.dest.configDir, 'config.json'), '{"sort":true}');
+  await atomicWrite(f.dest.history, { version: 1, entries: { old: { last: 0, seen: now } } });
+  f.control.readDelay = 50;
+  const daemon = await runDaemon(f.dest, { ...fast, tickMs: 60_000, now: () => now }); f.cleanup.push(() => daemon.stop());
+  await until(() => f.calls.some((m) => m.method === 'workspace.list'));
+  const interval = setInterval(() => f.emit(event, { workspace_id: 'active', pane: { workspace_id: 'active' } }), 5);
+  try {
+    await until(() => f.metadata.get('old')?.sp_panes, 1000);
+    if (event === 'pane_updated') await until(() => f.calls.some((m) => m.method === 'workspace.move_block'), 1000);
+    else assert.equal(f.calls.some((m) => m.method === 'workspace.move_block'), false, 'focus-invalidated snapshots report but must not move');
+  } finally { clearInterval(interval); }
+});
+
+test('late registry failure cannot overwrite disconnected health', async (t) => {
+  const f = await fixture(t);
+  const daemon = await runDaemon(f.dest, { ...fast, tickMs: 40, requestTimeoutMs: 200, subscription: { minBackoffMs: 1000, failureMs: 3000 } }); f.cleanup.push(() => daemon.stop());
+  await until(() => f.metadata.get('w1')?.sp_panes);
+  f.control.plugins = null; f.control.pluginDelay = 80;
+  const before = f.calls.filter((m) => m.method === 'plugin.list').length;
+  await until(() => f.calls.filter((m) => m.method === 'plugin.list').length > before);
+  f.disconnect(); await wait(150);
+  assert.equal(JSON.parse(await readFile(f.dest.health, 'utf8')).state, 'disconnected');
+  assert.match(await readFile(f.dest.log, 'utf8'), /plugin_read_failed/);
+});
+
+test('pass ending after a disconnected move cannot overwrite disconnected health', async (t) => {
+  const f = await fixture(t), now = 10 * DAY_MS;
+  f.setWorkspace(['old', 'active'].map((id) => ({ workspace_id: id, label: id, pane_count: 0, focused: id === 'active', agent_status: 'idle' }))); f.setPanes([]);
+  await writeFile(join(f.dest.configDir, 'config.json'), '{"sort":true}');
+  await atomicWrite(f.dest.history, { version: 1, entries: { old: { last: 0, seen: now } } }); f.control.moveDelay = 80;
+  const daemon = await runDaemon(f.dest, { ...fast, tickMs: 60_000, requestTimeoutMs: 200, now: () => now, subscription: { minBackoffMs: 1000, failureMs: 3000 } }); f.cleanup.push(() => daemon.stop());
+  await until(() => f.calls.some((m) => m.method === 'workspace.move_block'));
+  f.disconnect(); await wait(150);
+  assert.equal(JSON.parse(await readFile(f.dest.health, 'utf8')).state, 'disconnected');
+});
+
+test('invalid config preserves sort false, deduplicates diagnostics and deletion restores defaults', async (t) => {
+  const f = await fixture(t), now = 10 * DAY_MS;
+  f.setWorkspace(['old', 'active'].map((id) => ({ workspace_id: id, label: id, pane_count: 0, focused: id === 'active', agent_status: 'idle' }))); f.setPanes([]);
+  await atomicWrite(f.dest.history, { version: 1, entries: { old: { last: 0, seen: now } } });
+  const daemon = await runDaemon(f.dest, { ...fast, now: () => now }); f.cleanup.push(() => daemon.stop());
+  await until(() => f.metadata.get('old')?.sp_quiet);
+  await writeFile(join(f.dest.configDir, 'config.json'), 'not json');
+  await wait(180);
+  assert.equal(f.calls.some((m) => m.method === 'workspace.move_block'), false);
+  const configLogs = () => readFile(f.dest.log, 'utf8').then((s) => s.trim().split('\n').map(JSON.parse).filter((e) => e.event === 'config_invalid'));
+  assert.equal((await configLogs()).length, 1);
+  await writeFile(join(f.dest.configDir, 'config.json'), '{"sort":"no"}');
+  await until(async () => (await configLogs()).length === 2);
+  await rm(join(f.dest.configDir, 'config.json')); await mkdir(join(f.dest.configDir, 'config.json'));
+  await wait(120); // readFile fails on a directory: retain sort:false on read errors too.
+  assert.equal(f.calls.some((m) => m.method === 'workspace.move_block'), false);
+  assert.equal((await configLogs()).length, 2);
+  await rm(join(f.dest.configDir, 'config.json'), { recursive: true });
+  await until(() => f.calls.some((m) => m.method === 'workspace.move_block'));
+  assert.equal((await configLogs()).length, 2, 'normal absence is not an error');
+  assert.doesNotMatch(await readFile(f.dest.log, 'utf8'), /config_defaulted/);
+});
+
+test('absent activity IDs are pruned so the cap cannot suppress new workspace activity', async (t) => {
+  const f = await fixture(t), now = 10 * DAY_MS;
+  f.setWorkspace([{ workspace_id: 'w1', label: 'space', pane_count: 0, focused: false, agent_status: 'idle' }]); f.setPanes([]);
+  await atomicWrite(f.dest.history, { version: 1, entries: { w1: { last: 0, seen: now } } });
+  const daemon = await runDaemon(f.dest, { ...fast, tickMs: 60_000, debounceMs: 100, now: () => now }); f.cleanup.push(() => daemon.stop());
+  await until(() => f.metadata.get('w1')?.sp_quiet);
+  const reads = daemon.metrics.reads;
+  for (let i = 0; i < 16_384; i++) f.emit('workspace_created', { workspace_id: `absent-${i}` });
+  await until(() => daemon.metrics.reads > reads);
+  f.emit('workspace_created', { workspace_id: 'w1' });
+  await until(() => f.metadata.get('w1')?.sp_name === 'space', 1000);
+});
+
+test('tick health write failure logs and continues rather than stopping the daemon', async (t) => {
+  const f = await fixture(t);
+  const daemon = await runDaemon(f.dest, fast); f.cleanup.push(() => daemon.stop());
+  await until(() => f.metadata.get('w1')?.sp_panes);
+  await rm(f.dest.health); await mkdir(f.dest.health); // Rename onto a directory fails even when the test user is privileged.
+  f.control.plugins = null;
+  await until(async () => /settings_failed/.test(await readFile(f.dest.log, 'utf8')));
+  assert.ok(await lockOwner(f.dest.lock));
+  await rm(f.dest.health, { recursive: true }); f.control.plugins = [{ plugin_id: 'industrial-os.spaces', enabled: true }];
+  await until(async () => JSON.parse(await readFile(f.dest.health, 'utf8').catch(() => '{}')).state === 'connected');
+  assert.ok(await lockOwner(f.dest.lock));
 });

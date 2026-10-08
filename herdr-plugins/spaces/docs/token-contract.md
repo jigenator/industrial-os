@@ -95,7 +95,9 @@ limits (`app/api_helpers.rs`, `metadata_tokens.rs`, `app/api/workspaces.rs`).
 One source consumes one of Herdr's 32 sequence-source slots.
 
 Failures force a full retry with 5-second exponential backoff capped at 60
-seconds; updates/ticks do not bypass it. An errored/timed-out report is never
+seconds; updates/ticks do not bypass it. Only future report deadlines schedule
+reconciliation: a past-due skipped workspace waits for the next event/tick, not
+a millisecond retry loop. An errored/timed-out report is never
 accepted locally, even if Herdr may have applied it. The two batches are not a
 transaction: the next accepted full report self-heals a partial application.
 A backwards wall clock can make Herdr silently ignore reports until the old
@@ -104,7 +106,11 @@ sequence is passed; its stale-sequence success reply is indistinguishable.
 Failed/invalid reads publish nothing new. Pane-count mismatches retry both lists
 once; if still inconsistent, consistent workspaces publish while inconsistent
 ones keep their previous tokens (TTL governs expiry). Ordering is skipped on a
-partial read. An epoch change during reads discards them; after that fence, the
-report loop completes even if events arrive, then a dirty rerun corrects values.
+partial read. `pane.updated` only requests debounced rereads, never epoch changes.
+Other events discard at most three consecutive epoch-invalidated reads; the
+next validated snapshot reports even if invalidated, then a dirty rerun corrects
+values. Ordering still requires the original event epoch; disconnected/reconnected
+reads are always discarded. After the read fence, the report loop completes
+even if events arrive.
 If stopped, count/age keys expire and no-TTL names freeze. Herdr does not persist workspace tokens across server
 restart; the startup hook re-sends them. Shutdown intentionally sends no clear.

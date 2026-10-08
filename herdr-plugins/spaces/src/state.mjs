@@ -33,7 +33,8 @@ export async function lockOwner(path) {
     return { pid, name: names[0] };
   } catch (error) { if (error.code === 'ENOENT') return null; throw error; }
 }
-export async function acquireLock(path, { name = `${process.pid}-${randomUUID()}.json`, isLive = (owner) => alive(owner.pid) } = {}) {
+export async function acquireLock(path, { name = `${process.pid}-${randomUUID()}.json`, isLive } = {}) {
+  if (typeof isLive !== 'function') throw new Error('liveness_required');
   const stage = `${path}.${randomUUID()}.claim`;
   // Rename a populated directory atomically. Unlike mkdir + pid write, a contender never sees an empty new lock.
   await mkdir(stage, { mode: 0o700 });
@@ -149,6 +150,7 @@ export async function acquireDaemonLock(path, stop) {
     await chmod(endpoint, 0o600);
     const release = await acquireLock(path, { name, isLive: async (owner) => {
       const result = await daemonCommand(path, owner);
+      if (result.stale) await unlink(controlPath(path, owner.name)).catch((e) => { if (e.code !== 'ENOENT') throw e; });
       return result.running ? true : result.stale ? false : null; // uncertain/hung endpoint fails closed
     } });
     if (!release) { await close(); return null; }
