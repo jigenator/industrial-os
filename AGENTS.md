@@ -20,6 +20,7 @@ Scan the supporting-documents map and read every document whose condition applie
 | --- | --- |
 | Work in the design system | [The design-system guide](design-system/AGENTS.md) and its routes |
 | Work on a Pi extension | [The Pi guide](pi/AGENTS.md), then the extension's own guide, for example [claude-interrupt](pi/claude-interrupt/AGENTS.md), [signals-collector](pi/signals-collector/AGENTS.md), [status-bar](pi/status-bar/AGENTS.md) or [herdr-sidebar](pi/herdr-sidebar/AGENTS.md) |
+| Work on a Herdr plugin | [Plugin group guide](herdr-plugins/AGENTS.md), then [Spaces guide](herdr-plugins/spaces/AGENTS.md) and its routes |
 | Work on the Herdr configuration | [The Herdr guide](herdr/AGENTS.md) and its routes |
 | Change the visual language or a palette value | [Design](docs/design.md), [the package decision](docs/decisions/in-repo-design-system-package.md), the design-system guide, then each extension that mirrors the value |
 | Import the design system from another project | [Conventions](docs/conventions.md#module-and-dependency-rules), [the package decision](docs/decisions/in-repo-design-system-package.md#migrating-an-extension), then the importing project's guide |
@@ -37,7 +38,8 @@ Scan the supporting-documents map and read every document whose condition applie
 | Herdr sidebar token values, reporting, or `herdr:blocked` | `pi/herdr-sidebar/`; the [token contract](pi/herdr-sidebar/docs/token-contract.md), placement in [its architecture](pi/herdr-sidebar/docs/architecture.md) | Pi peer packages only; display-only; reports only in TUI mode inside Herdr |
 | A new Pi extension | `pi/<name>/` with the [project document set](docs/architecture.md#contracts-between-the-root-and-a-project) | Its own manifest, checks, and license; the design system only by package name |
 | Shared experience or scope | `docs/design.md`, `docs/mission.md` | Then each project separately |
-| Herdr configuration, such as the agents-sidebar rows | `herdr/`; placement in [its architecture](herdr/docs/architecture.md) | Valid Herdr TOML merged by hand; design-system colors; tokens from herdr-sidebar's contract |
+| Spaces reporting, activity history or quiet sorting | `herdr-plugins/spaces/`; [Spaces contract](herdr-plugins/spaces/docs/token-contract.md) | Node 22 stdlib only; one detached daemon per socket; tests never touch live Herdr |
+| Herdr configuration, such as the agents-sidebar rows | `herdr/`; placement in [its architecture](herdr/docs/architecture.md) | Valid Herdr TOML merged by hand; design-system colors; tokens from the owning reporter's contract |
 
 ## Implement and verify
 
@@ -128,4 +130,17 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [herdr/CONTRIBUTING.md](herdr/CONTRIBUTING.md) | Herdr configuration checks, validation sequence, and verification records | Making or verifying a Herdr configuration change |
 | [herdr/docs/architecture.md](herdr/docs/architecture.md) | Herdr configuration files, dependencies, invariants, and where the next file goes | Adding a Herdr configuration file or changing what it depends on |
 | [herdr/docs/conventions.md](herdr/docs/conventions.md) | Rules for Herdr configuration files and their checks | Writing or reviewing Herdr configuration |
-| [herdr/docs/design.md](herdr/docs/design.md) | The agents sidebar: layout B, width, colors, and states | Changing anything a user sees in the Herdr sidebar |
+| [herdr/docs/design.md](herdr/docs/design.md) | Agents layout B and Spaces rows, width, colors, and states | Changing anything a user sees in the Herdr sidebar |
+| [herdr-plugins/README.md](herdr-plugins/README.md) | Plugin index and operator install procedure | Using or adding a Herdr plugin |
+| [herdr-plugins/AGENTS.md](herdr-plugins/AGENTS.md) | Shared plugin rules and detach/lock boundaries | Working anywhere in herdr-plugins |
+| [herdr-plugins/CLAUDE.md](herdr-plugins/CLAUDE.md) | Runtime import of the group guide | Checking agent entry points |
+| [herdr-plugins/spaces/README.md](herdr-plugins/spaces/README.md) | Spaces setup, privacy, operations and limits | Using Spaces or changing its public surface |
+| [herdr-plugins/spaces/AGENTS.md](herdr-plugins/spaces/AGENTS.md) | Spaces task routes and critical invariants | Working anywhere in herdr-plugins/spaces |
+| [herdr-plugins/spaces/CLAUDE.md](herdr-plugins/spaces/CLAUDE.md) | Runtime import of the Spaces guide | Checking agent entry points |
+| [herdr-plugins/spaces/CONTRIBUTING.md](herdr-plugins/spaces/CONTRIBUTING.md) | Spaces validation sequence and evidence | Making or verifying a Spaces change |
+| [herdr-plugins/spaces/docs/architecture.md](herdr-plugins/spaces/docs/architecture.md) | Daemon modules, protocol, history, locks and sorting | Changing Spaces behavior, lifecycle or persistence |
+| [herdr-plugins/spaces/docs/conventions.md](herdr-plugins/spaces/docs/conventions.md) | Spaces engineering rules and gaps | Writing or reviewing Spaces code |
+| [herdr-plugins/spaces/docs/design.md](herdr-plugins/spaces/docs/design.md) | Spaces geometry, truthfulness and quiet behavior | Changing anything a Spaces user sees |
+| [herdr-plugins/spaces/docs/mission.md](herdr-plugins/spaces/docs/mission.md) | Spaces goals and non-goals | Choosing Spaces scope |
+| [herdr-plugins/spaces/docs/token-contract.md](herdr-plugins/spaces/docs/token-contract.md) | Canonical Spaces key list, values, width and TTL | Changing Spaces values or Herdr rows |
+| [docs/decisions/spaces-plugin-daemon.md](docs/decisions/spaces-plugin-daemon.md) | Why Spaces has one socket-keyed plugin daemon | Changing plugin ownership or daemon design |

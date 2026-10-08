@@ -46,3 +46,79 @@ Record each run with its date, Herdr version and results.
 - `node --test`: **6/6 passed**. The new check reads the g1 state codes from the token contract and requires WRK and SUB accent, BLK and QNS critical, DNE primary and IDL/UNK decorative; removing the SUB rule made it fail.
 - `HERDR_CONFIG_PATH=<temporary copy of sidebar.toml> herdr config check`: **`config: ok`, exit 0**. The same on a temporary copy of `herdr --default-config` with the fragment merged by hand: **`config: ok`, exit 0**. Read-only; no server contact or live configuration change.
 - Interactive rendering: **not run** for this change.
+
+## Spaces validation
+
+From `herdr/`, run `node --test` for both fragments. The Spaces check reads the
+plugin contract's one full-key-list line, tests every custom key exactly once,
+every color against design-system exports and global state-icon theme roles.
+
+Then run `node check-config.mjs` from `herdr/`. It invokes installed Herdr 0.9.3's read-only parser, only on temporary copies:
+
+1. `HERDR_CONFIG_PATH=<spaces-copy> herdr config check`.
+2. `HERDR_CONFIG_PATH=<sidebar-copy> herdr config check`.
+3. `HERDR_CONFIG_PATH=<merged-copy> herdr config check`: merge Spaces color keys
+   into sidebar's existing theme.custom, then append ui.sidebar.spaces once.
+4. `HERDR_CONFIG_PATH=<invalid-copy> herdr config check`: a malformed row entry
+   must be rejected, not treated as a valid merge.
+
+The [README](README.md#spaces) explains installation order and the global theme
+scope. Interactive/live Herdr validation is not authorized and is not run.
+
+### Spaces fragment
+
+2026-10-08, macOS, Node 22.23.0, installed Herdr 0.9.3:
+
+**Passed**
+
+- Root `npm install`: linked the existing design-system package; no tracked
+  manifest/lockfile change. This resolved an initial missing-package test run.
+- `cd herdr && node --test`: **10/10 passed**, zero skipped/cancelled; six
+  existing agents checks and four Spaces palette/key/role/zero-state checks.
+- `cd herdr && node check-config.mjs`: invokes exactly
+  `HERDR_CONFIG_PATH=<temporary-copy> herdr config check` on each case:
+  - `spaces.toml` alone: **`config: ok`, exit 0**.
+  - `sidebar.toml` alone: **`config: ok`, exit 0**.
+  - Both merged into one theme.custom table: **`config: ok`, exit 0**.
+  - Invalid built-in row token: **rejected, exit 1**, expected; diagnostic
+    `unknown sidebar token`. This is a successful negative check, not a failure.
+- Root links/anchors, guidance inventory, exact CLAUDE imports, whitespace and
+  publication review passed. Existing grok-mermaid 0.2.3 rendered changed root,
+  Herdr and Spaces diagrams with non-null art and no warnings.
+
+**Failed (resolved):** initial `node --test` before the root install could not
+resolve the design-system package. Final required checks have no failures.
+
+**Skipped:** none of the authorized required checks.
+
+**Not run:** interactive/live Herdr, installed plugin invocation, reload,
+rendering with/without scrollbar, native navigation/order and other color
+depths/fonts. The approved quiet-space git-only second-row exception and the
+five theme keys' wider effects were verified from source, not live rendering.
+
+### Spaces review fixes
+
+2026-10-08, macOS, Node 22.23.0, installed Herdr 0.9.3:
+
+- `cd herdr && node --test`: **10/10 passed**, zero failures/skipped/cancelled;
+  Spaces keys now require `sp_` prefixes as well as exact contract membership.
+- `cd herdr && node check-config.mjs`: runs only
+  `HERDR_CONFIG_PATH=<temporary-copy> herdr config check`:
+  Spaces alone, sidebar alone, and one-table merge each **`config: ok`, exit 0**;
+  invalid row copy **rejected, exit 1** expected.
+- Root links/anchors, guide inventory, exact CLAUDE entrypoints, whitespace and
+  manual publication review: **passed**. No live config or server was contacted.
+- Live/interactive Herdr and installation/reload: **not run**. Merge `$sp_` keys
+  with the updated reporter; old unprefixed frozen tokens are no longer read.
+  The plugin's [corrected protocol evidence](../herdr-plugins/spaces/CONTRIBUTING.md#review-fix-round)
+  replaces the initial fake-server compatibility assumption, not parser evidence.
+
+### Spaces isolated rendering
+
+2026-10-08: merged agents and Spaces fragments passed `herdr config check` and
+ran in an isolated Herdr 0.9.3 server with the Spaces plugin linked; a client
+capture replayed in xterm.js matched the design, including quiet rows with the
+Spaces scrollbar shown. The run found quiet rows one cell too wide; the plugin
+now sizes them for 31 cells (see the
+[plugin record](../herdr-plugins/spaces/CONTRIBUTING.md#isolated-herdr-check)).
+Live session merge and reload: **not run**.

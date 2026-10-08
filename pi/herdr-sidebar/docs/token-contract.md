@@ -29,6 +29,11 @@ Herdr trims ASCII whitespace but keeps U+2800, so every padding cell is U+2800. 
 - `bar` / `bar_warn` / `bar_crit` / `bar_idle` / `bar_unk`: 11-cell bar of context used, `━` lit and `─` unlit, lit = ceil(used × 11 / 100), then one space, then the used percent as two digits and `%`. used = max(0, min(99, floor(usedPercent))), so `99%` means 99% or more. Warning from 70% used and critical from 90% used. At the compaction budget the collector holds `usedPercent` at 100, giving a fully lit critical bar. IDL and UNK use `bar_idle` instead of a zone token, with identical text/shape in decorative grey (#717171), not bold. WRK, SUB, QNS, BLK and DNE keep the zone tokens. Unknown context: `bar_unk` = 11 × `─` + space + `--%`.
 - `cmpx`: `CMP×NN`, two digits, capped at `CMP×99`; unknown `CMP×??`.
 
+The [Spaces plugin](../../../herdr-plugins/spaces/docs/token-contract.md) consumes
+`g2_au`/`g2_au0` from Pi pane tokens through Herdr’s socket API to aggregate
+workspace AU. This is a read-only consumer; it changes neither this reporter
+nor the collector contract.
+
 ## Row 3
 
 - `g3`: `ACT` + U+2800.

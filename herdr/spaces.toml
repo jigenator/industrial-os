@@ -1,0 +1,24 @@
+# Industrial OS Spaces rows. Merge by table; requires industrial-os.spaces.
+[theme.custom]
+yellow   = "#c0fe04" # accent: working
+red      = "#f24723" # critical: blocked
+teal     = "#ffffff" # primary: done
+green    = "#717171" # decorative: idle
+overlay0 = "#717171" # decorative: unknown, separators, header
+
+[ui.sidebar.spaces]
+rows = [
+  [
+    "state_icon",
+    { token = "$sp_panes", fg = "#cfcfcf", rules = [{ starts_with = "00", fg = "#717171" }] }, # secondary; decorative zero
+    { token = "$sp_name_active", fg = "#ffffff", bold = true }, # primary
+    { token = "$sp_name", fg = "#cfcfcf", bold = true }, # secondary
+    { token = "$sp_name_stale", fg = "#717171" }, # decorative
+    { token = "$sp_quiet", fg = "#717171" }, # decorative
+  ],
+  [
+    { token = "$sp_agents", fg = "#cfcfcf", rules = [{ starts_with = "00", fg = "#717171" }] }, # secondary; decorative zero
+    { token = "$sp_au", fg = "#c0fe04", bold = true, rules = [{ starts_with = "00", fg = "#717171", bold = false }] }, # accent; decorative zero
+    { token = "git_status", fg = "#cfcfcf" }, # secondary
+  ],
+]

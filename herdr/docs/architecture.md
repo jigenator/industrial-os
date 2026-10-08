@@ -8,6 +8,9 @@ Evidence: `sidebar.toml`, `test/sidebar.test.mjs`, Herdr 0.9.3's configuration r
 | File | Owns | Depends on |
 | --- | --- | --- |
 | `sidebar.toml` | The Pi agents-sidebar row override, their colors and rules, the theme colors the layout needs, and the 36-column width lock | Herdr's config schema; the token names in [the token contract](../../pi/herdr-sidebar/docs/token-contract.md); design-system colors, restated as values because TOML cannot import |
+| `spaces.toml` | Spaces rows and global state-icon theme keys | Herdr schema; [Spaces contract](../../herdr-plugins/spaces/docs/token-contract.md); design-system colors |
+| `check-config.mjs` | Isolated native parser checks for each fragment, merge and expected invalid rejection | Node stdlib; installed Herdr, only config check |
+| `test/spaces.test.mjs` | Spaces color/key/role checks | Design-system exported palette; reads Spaces contract |
 | `test/sidebar.test.mjs` | The checks that keep the fragment true to its two sources | `@industrial-os/design-system/foundation/palette` and `/signal-colors` by package name; reads the token contract document |
 
 ```mermaid
@@ -16,6 +19,8 @@ flowchart LR
     Contract["pi/herdr-sidebar<br/>docs/token-contract.md"] -->|key list read by the check| Test
     Test -->|checks| Fragment["herdr/sidebar.toml"]
     Fragment -.->|merged by hand into config.toml| Herdr["Herdr client"]
+    Spaces["herdr-plugins/spaces"] -->|workspace tokens| Herdr
+    SpacesFragment["herdr/spaces.toml"] -.->|manual merge| Herdr
     Ext["pi/herdr-sidebar extension"] -->|pane tokens over the socket| Herdr
 ```
 
@@ -44,3 +49,9 @@ Another piece of maintained Herdr configuration, such as Space rows or keybindin
 - Herdr has no config includes, so the fragment is merged by hand and drifts from the user's copy until merged again.
 - Pi panes without the extension show no Industrial OS rows. Other agents retain their configured/default layouts.
 - `row_gap = 1` is a panel-wide setting: all agents receive that spacing, not only Pi.
+
+Spaces values and sorting belong to the separate plugin, not this config project.
+Its `sp_`-prefixed contract key list is consumed by `test/spaces.test.mjs`;
+Herdr workspace keys share a namespace across sources. Space names require
+that plugin: no built-in workspace fallback is configured. Theme keys are global;
+see [the wider color effects](design.md#spaces-theme-scope).

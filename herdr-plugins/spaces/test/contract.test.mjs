@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { KEYS } from '../src/model.mjs';
+test('model keys match the canonical contract and Herdr manifest stays within the frozen hook surface', async () => {
+  const contract = await readFile(new URL('../docs/token-contract.md', import.meta.url), 'utf8');
+  const list = [...contract.matchAll(/^Full key list: `([^`]+)` \((\d+) keys\)\.$/gm)];
+  assert.equal(list.length, 1); assert.deepEqual(list[0][1].split(' '), KEYS); assert.equal(Number(list[0][2]), KEYS.length);
+  assert.ok(KEYS.every((key) => key.startsWith('sp_')), 'workspace keys share a namespace across reporters');
+  const manifest = await readFile(new URL('../herdr-plugin.toml', import.meta.url), 'utf8');
+  for (const [key, value] of Object.entries({ id: 'industrial-os.spaces', name: 'Industrial OS Spaces', version: '0.1.0', min_herdr_version: '0.9.3' })) assert.match(manifest, new RegExp(`^${key} = "${value}"$`, 'm'));
+  assert.match(manifest, /^platforms = \["linux", "macos"\]$/m);
+  assert.equal([...manifest.matchAll(/\[\[startup\]\]/g)].length, 1);
+  assert.deepEqual([...manifest.matchAll(/^on = "([^"]+)"$/gm)].map((m) => m[1]), ['pane.created', 'workspace.created']);
+  assert.equal([...manifest.matchAll(/^command = \["node", "bin\/spaces.mjs", "ensure"\]$/gm)].length, 3);
+  const actions = manifest.split('[[actions]]').slice(1); assert.equal(actions.length, 2);
+  assert.deepEqual(actions.map((action) => /^id = "([^"]+)"$/m.exec(action)?.[1]), ['status', 'stop']);
+  for (const action of actions) assert.match(action, /^id = "(?:status|stop)"$/m);
+  assert.doesNotMatch(manifest, /\[\[(?:build|panes|link_handlers)\]\]/);
+});
