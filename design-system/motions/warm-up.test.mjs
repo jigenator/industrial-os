@@ -143,3 +143,16 @@ test('warmUp rejects invalid options and lines', () => {
   for (const lines of [null, 'abc', [null], [[{ text: 5 }]]]) assert.throws(() => warmUp(lines, { time: 0 }), TypeError);
   assert.deepEqual(warmUp([], { time: 0 }), []);
 });
+
+test('warmUp rejects terminal-default foreground when an RGB mix is needed', () => {
+  const lines = [[span('A', { fg: 'default', bg: 'default' })]];
+  assert.throws(() => warmUp(lines, { time: 0 }), TypeError);
+  assert.deepEqual(warmUp(lines, { animate: false }), lines);
+  const transparent = [[span('A', { fg: 'accent', bg: 'default' })]];
+  assert.equal(warmUp(transparent, { time: 0 })[0][0].style.bg, 'default');
+});
+
+test('warmUp preserves opted-in state cues on an unknown terminal-default background', () => {
+  const lines = [[span('▲ WARN', { fg: 'warning', bg: 'default' })]];
+  for (const time of [0, 100, 200]) assert.doesNotThrow(() => warmUp(lines, { time, stateCells: true }));
+});

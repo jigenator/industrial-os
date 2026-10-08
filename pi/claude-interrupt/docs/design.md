@@ -4,7 +4,7 @@
 
 For Pi users redirecting an active response, the interaction is submit queued text, then press `Esc`. Normal submits queue steering text; `Alt+Enter` queues follow-ups. The active response aborts and the captured text continues in steering-before-follow-up order. An unsent draft stays in the editor. This is feedback about a confirmed continuation, not a progress display or a new input mode.
 
-The extension's palette values in [src/index.ts](../src/index.ts) mirror the design system's Acid / Black roles in the [repository-wide design](../../../docs/design.md#acid--black), which owns them ([decision](../../../docs/decisions/in-repo-design-system-package.md)); a color changes there first. This package does not import design-system code yet or change the user's theme.
+The marker consumes the design system's transcript-marker pieces, motion primitives and Acid / Black roles through `@industrial-os/design-system`. Pi's adapter preserves terminal transparency, light-theme accent ink and color-mode conversion without changing the user's theme. The [repository-wide design](../../../docs/design.md#acid--black) defines the roles; the [package decision](../../../docs/decisions/in-repo-design-system-package.md) records their ownership.
 
 ## Interaction and visual language
 

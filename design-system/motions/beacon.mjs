@@ -1,4 +1,4 @@
-import { resolveColor } from '../foundation/cells.mjs';
+import { isTerminalDefault, resolveColor } from '../foundation/cells.mjs';
 import { mixOver } from '../foundation/signal-colors.mjs';
 import { MIN_PERIOD_MS, assertLines, assertMs, assertTime, copyLines, inRegion, resolveOptions, resolveRegion, restyleCells } from './frame.mjs';
 
@@ -35,7 +35,7 @@ export function beacon(lines, options = {}) {
     if (step === 0) return { char };
     const dim = mixOver(style.fg ?? 'secondary', 0.5);
     // Never give a glyph its background's color: only resize it then.
-    const hidden = dim.toLowerCase() === resolveColor(style.bg ?? 'field').toLowerCase();
+    const hidden = !isTerminalDefault(style.bg) && dim.toLowerCase() === resolveColor(style.bg ?? 'field').toLowerCase();
     return { style: hidden ? style : { ...style, fg: dim }, char };
   }, { stateCells: o.stateCells });
 }

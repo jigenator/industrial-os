@@ -59,7 +59,7 @@ export function assertCells(n, name) {
 
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(';');
 
-// The #RRGGBB value of an Acid / Black role name or an exact #RRGGBB string; anything else throws.
+// The #RRGGBB value of an Acid / Black role or literal RGB; unknown terminal colors cannot resolve.
 export function resolveColor(value) {
   if (typeof value === 'string') {
     if (Object.hasOwn(ACID_BLACK, value)) return ACID_BLACK[value];
@@ -68,8 +68,18 @@ export function resolveColor(value) {
   throw new TypeError('paint color must be an Acid / Black role or exact #RRGGBB string');
 }
 
-function sgr({ fg = 'secondary', bg = 'field', bold = false }) {
-  return `\x1b[0;${bold ? '1;' : ''}38;2;${rgb(resolveColor(fg))};48;2;${rgb(resolveColor(bg))}m`;
+export const isTerminalDefault = (value) => value === 'default';
+
+// Concrete, host-independent style. Omission retains the historical secondary/field defaults.
+export function resolveStyle({ fg = 'secondary', bg = 'field', bold = false } = {}) {
+  return { fg: isTerminalDefault(fg) ? 'default' : resolveColor(fg), bg: isTerminalDefault(bg) ? 'default' : resolveColor(bg), bold };
+}
+
+function sgr(style) {
+  const { fg, bg, bold } = resolveStyle(style);
+  const foreground = fg === 'default' ? '39' : `38;2;${rgb(fg)}`;
+  const background = bg === 'default' ? '49' : `48;2;${rgb(bg)}`;
+  return `\x1b[0;${bold ? '1;' : ''}${foreground};${background}m`;
 }
 
 // Truecolor validates named roles or literal RGB; 'none' emits text without inspecting styles.

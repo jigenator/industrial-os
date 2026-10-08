@@ -44,3 +44,13 @@ test('unknown is not idle- or working-shaped', () => {
 test('invalid states throw', () => {
   for (const state of ['busy', 'toString', '__proto__', '', undefined, null, true]) assert.throws(() => lamp(state), RangeError, String(state));
 });
+
+test('lamp field/solid appearances preserve known and unknown footer cells', () => {
+  assert.deepEqual(lamp('working', { appearance: 'field' }), [{ text: ' ', style: { fg: 'primary', bg: 'accent' } }]);
+  assert.deepEqual(lamp('working', { appearance: 'field', lit: false }), [{ text: ' ', style: { fg: 'primary', bg: 'surface' } }]);
+  assert.deepEqual(lamp('idle', { appearance: 'solid' }), [{ text: '█', style: { fg: 'surface', bg: 'surface' } }]);
+  for (const appearance of ['field', 'solid', 'glyph']) assert.deepEqual(lamp('unknown', { appearance, lit: false }), lamp('unknown'));
+  assert.deepEqual(lamp('working', { lit: false }), [{ text: '█', style: LAMP_DIM_STYLE }]);
+  assert.throws(() => lamp('working', { appearance: 'bad' }), RangeError);
+  assert.throws(() => lamp('working', { lit: 1 }), TypeError);
+});

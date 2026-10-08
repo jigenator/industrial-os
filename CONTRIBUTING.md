@@ -38,7 +38,7 @@ Run these from the repository root after the project's own sequence, for every c
 | 4 | `git diff --check` and `git diff --cached --check` | Whitespace errors in tracked changes |
 | 5 | Read the changed documents as a new contributor | Correct placement, actionable rules, honest current/proposed boundaries |
 | 6 | Review the exact files intended for publication | No private material, unlicensed copied assets, scratch reports, or generated clutter |
-| 7 | If a color changed, compare each extension's color constants with `design-system/foundation/palette.mjs` and `signal-colors.mjs` | Every extension that has not migrated still mirrors the design system; see [the decision](docs/decisions/in-repo-design-system-package.md) |
+| 7 | If a color changed, confirm the migrated extensions still import it rather than copy it, and compare any extension that has not migrated with `design-system/foundation/palette.mjs` and `signal-colors.mjs` | No extension holds a stale copy of a design-system color; see [the decision](docs/decisions/in-repo-design-system-package.md) |
 
 Render Mermaid diagrams with an existing local or target documentation renderer when available. Report rendering as **not run** if none is available; do not install a renderer or upload private drafts solely for validation.
 

@@ -1,4 +1,4 @@
-import { resolveColor } from '../foundation/cells.mjs';
+import { isTerminalDefault, resolveColor } from '../foundation/cells.mjs';
 import { ACID_BLACK } from '../foundation/palette.mjs';
 import { SIGNAL_COLORS } from '../foundation/signal-colors.mjs';
 import { MIN_PERIOD_MS, assertLines, assertMs, assertTime, copyLines, inRegion, resolveOptions, resolveRegion, restyleCells } from './frame.mjs';
@@ -16,6 +16,7 @@ const MAX_LEVELS = 1000;
 // Warning and critical are excluded so a fault never fades.
 const FADE_ROLES = Object.keys(ACID_BLACK).filter((r) => r !== 'warning' && r !== 'critical');
 const isColor = (c) => {
+  if (isTerminalDefault(c)) throw new TypeError('fade requires a concrete color, not terminal default');
   try { resolveColor(c); return true; } catch { return false; }
 };
 

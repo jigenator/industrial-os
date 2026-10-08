@@ -58,3 +58,38 @@ test('invalid states, count, flags, widths, preset and text throw', () => {
   assert.throws(() => stateChips({}, { width: 20 }), TypeError);
   for (const shape of ['界', 'xx', '\x1b']) assert.throws(() => stateChip({ label: 'X', state: 'x' }, { preset: { x: { shape, code: 'X', tone: 'warning' } } }), TypeError);
 });
+
+import { stateChipParts } from './state-chip.mjs';
+test('stateChipParts exposes label/shape/gaps/code, with structural count suffixes', () => {
+  for (const state of Object.keys(TATSU_STATES)) {
+    const input = { label: 'TCLI', state, commitsBehind: 3, localChanges: true }, p = stateChipParts(input);
+    assert.equal(paint([...p.label, ...p.labelGap, ...p.shape, ...p.stateGap, ...p.code], 'truecolor'), paint(stateChip(input), 'truecolor'));
+    assert.equal(p.stateGap[0].text, ' ');
+  }
+  const p = stateChipParts({ label: 'BG', state: 'running' }, { preset: { running: { shape: '◆', code: 'RUN', tone: 'primary' } }, count: 2 });
+  assert.equal(p.code[0].text, 'RUN×2');
+  assert.equal(p.shape[0].text, '◆');
+  assert.throws(() => stateChipParts({ label: 'X', state: 'current' }, { count: -1 }), RangeError);
+});
+
+test('stateChipParts number-text opt-in preserves arbitrary number display; complete chips and defaults stay strict', () => {
+  for (const n of [-1, 0.5, NaN, Infinity, 1e308]) {
+    const input = { label: 'TCLI', state: 'behind', commitsBehind: n, localChanges: true };
+    assert.throws(() => stateChip(input), RangeError);
+    assert.throws(() => stateChips([input], { width: 80 }), RangeError);
+    assert.throws(() => stateChipParts(input), RangeError);
+    assert.throws(() => stateChipParts(input, { countPolicy: 'safe-integer' }), RangeError);
+    const parts = stateChipParts(input, { countPolicy: 'number-text' });
+    assert.equal(paint(parts.code, 'none'), `UP×${String(n)} ◆ EDIT`);
+    assert.equal(parts.code[0].style.fg, 'warning');
+  }
+  const input = { label: 'TCLI', state: 'behind', commitsBehind: 1 };
+  assert.deepEqual(stateChipParts(input), stateChipParts(input, { countPolicy: 'number-text' }));
+});
+
+test('stateChipParts validates opt-in count policy without relaxing generic count suffixes', () => {
+  const input = { label: 'TCLI', state: 'behind', commitsBehind: '1' };
+  assert.throws(() => stateChipParts(input, { countPolicy: 'number-text' }), TypeError);
+  assert.throws(() => stateChipParts({ label: 'TCLI', state: 'behind' }, { countPolicy: 'coerce' }), RangeError);
+  assert.throws(() => stateChipParts({ label: 'BG', state: 'current' }, { countPolicy: 'number-text', count: -1 }), RangeError);
+});

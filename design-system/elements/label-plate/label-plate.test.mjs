@@ -86,3 +86,10 @@ test('slab text cannot inject controls, and plain equals stripped color', () => 
 test('invalid forms are rejected', () => {
   for (const form of ['round', 'toString', '', null]) assert.throws(() => labelPlate('X', { form }), RangeError);
 });
+
+test('labelPlate custom style keeps slab geometry and validates concrete channels', () => {
+  const style = { fg: 'field', bg: '#ff15bd' };
+  assert.deepEqual(labelPlate('04 USG', { form: 'slab', style }), [{ text: ' 04 USG ', style: { ...style, bold: true } }]);
+  assert.throws(() => labelPlate('X', { style: { fg: 'invalid' } }), TypeError);
+  for (const form of ['capped', 'slab']) assert.deepEqual(labelPlate('X', { form, style: PLATE_TONES.warning }), labelPlate('X', { form, tone: 'warning' }));
+});

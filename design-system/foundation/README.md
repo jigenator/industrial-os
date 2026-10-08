@@ -1,16 +1,22 @@
 # Foundation: cells and palette
 
-The small seam every element shares. [palette.mjs](palette.mjs) is the source of the Acid / Black values, as [design](../../docs/design.md#acid--black) and [the decision](../../docs/decisions/in-repo-design-system-package.md) record; the Pi extensions mirror them until they import them, and the check is a comparison of each extension's constants against this file. [cells.mjs](cells.mjs) defines the line model, the text and glyph contract, and painting. Element behavior does not belong here.
+The small seam every element shares. [palette.mjs](palette.mjs) is the source of the Acid / Black values, as [design](../../docs/design.md#acid--black) and [the decision](../../docs/decisions/in-repo-design-system-package.md) record; the Pi extensions consume them through exported package subpaths and host adapters. [cells.mjs](cells.mjs) defines the line model, the text and glyph contract, and painting. Element behavior does not belong here.
 
 ## Line model
 
-A rendered line is an array of spans `{ text, style }`. `style` is `{ fg, bg, bold }`: each color is an Acid / Black role or a literal `#RRGGBB` string. Omitted or `undefined` colors default to secondary text on the black field; bold defaults to false. Renderers finish each line with `fitLine(line, width)`, so it is exactly `width` cells: clipped or padded, never wider.
+A rendered line is an array of spans `{ text, style }`. `style` is `{ fg, bg, bold }`: each color is an Acid / Black role, a literal `#RRGGBB` string, or the reserved value `'default'`. Omitted or `undefined` colors default to secondary text on the black field; bold defaults to false. Renderers finish each line with `fitLine(line, width)`, so it is exactly `width` cells: clipped or padded, never wider.
+
+An explicit `'default'` foreground or background preserves that terminal channel (transparent background); it is not the black field, and is not the same as omission. Foreground and background defaults are independent unknown host colors, so no RGB or contrast is inferred from them. Existing omitted-channel behavior is unchanged.
 
 Low-level `span()` and `fitLine()` store styles without validation. They and `paint()` consume already-conforming text; they do not sanitize arbitrary spans. Use `safeText()` when constructing spans from external text. Caller-rendered panel bodies must follow this same contract.
 
-`resolveColor(value)` returns the `#RRGGBB` of a role name or an exact `#RRGGBB` string and throws `TypeError` otherwise; `paint` uses it, and motions that compute colors (such as mixes) use it to read a role's value.
+`isTerminalDefault(value)` returns true only for the primitive string `'default'`.
 
-`paint(line, 'truecolor')` validates foreground/background and emits 24-bit SGR codes plus a final reset (including for an empty line). It accepts only own role names from `ACID_BLACK` or primitive strings of exactly seven characters: `#` plus six hexadecimal digits, case-insensitive. Unknown/prototype names, nonstrings, shorthand, alpha, whitespace and control suffixes throw `TypeError`, without coercion. Adjacent equivalent RGB/bold styles share one SGR sequence. The two supported modes are `truecolor` and `none`; other mode values retain the existing color-output behavior.
+`resolveStyle(style = {})` returns `{ fg, bg, bold }` with roles resolved to `#RRGGBB`, explicit defaults retained as `'default'`, and omitted fields normalized to secondary/field/false. This pure helper is for host adapters: translate the sentinel to the host's default-channel mechanism, and let the host convert RGB to its terminal color mode. It validates concrete colors without host imports or I/O.
+
+`resolveColor(value)` returns the `#RRGGBB` of a role name or an exact `#RRGGBB` string and throws `TypeError` otherwise, **including for `'default'`**, whose RGB is unknown; motions that compute colors (such as mixes) use it to read a role's value. Numeric color operations must reject terminal defaults rather than guess RGB.
+
+`paint(line, 'truecolor')` validates foreground/background and emits 24-bit SGR codes plus a final reset (including for an empty line). Explicit defaults emit SGR `39` (foreground) and `49` (background). Concrete channels accept only own role names from `ACID_BLACK` or primitive strings of exactly seven characters: `#` plus six hexadecimal digits, case-insensitive. Unknown/prototype names, nonstrings, shorthand, alpha, whitespace and control suffixes throw `TypeError`, without coercion. Adjacent equivalent RGB/bold styles share one SGR sequence. The two supported modes are `truecolor` and `none`; other mode values retain the existing color-output behavior.
 
 `paint(line, 'none')` emits the text only and **does not inspect or validate styles**, preserving the existing plain-output contract. Both modes produce the same cells for valid styles; tests check that stripping the escapes from color output gives the plain output.
 
@@ -57,17 +63,21 @@ These are deterministic mixes of encoded 8-bit sRGB channels toward black/white,
 
 ## Signal colors
 
-[signal-colors.mjs](signal-colors.mjs) is the source of the product colors the Pi extensions use beside the nine Acid / Black roles: count tiers and mode inks, gauge zone tracks, the ghost grey of a lost segment, the checking fade, warm-up steps, and the usage providers' lit, used and burn-out colors. Status-bar's `C` palette in `pi/status-bar/src/footer.ts` mirrors them until it migrates, under [the same decision](../../docs/decisions/in-repo-design-system-package.md) as the roles; agreement is a review comparison, not an import or test. They are literal `#rrggbb` values that `paint()` accepts directly, not new role names, and not part of Acid / Black.
+[signal-colors.mjs](signal-colors.mjs) is the source of the product colors the Pi extensions use beside the nine Acid / Black roles: count tiers and mode inks, gauge zone tracks, the ghost grey of a lost segment, the checking fade, warm-up steps, and the usage providers' lit, used and burn-out colors. Status-bar's `COLORS` alias map in `pi/status-bar/src/footer.ts` imports these tokens under [the same decision](../../docs/decisions/in-repo-design-system-package.md) as the roles; `C` converts them with Pi's `rgbColor`. They are literal `#rrggbb` values that `paint()` accepts directly, not new role names, and not part of Acid / Black.
 
 `SIGNAL_COLORS` is a frozen object of lowercase `#rrggbb` strings. Each entry's comment names its `C` constant.
 
-`mixOver(color, proportion)` returns `proportion` (0–1) of a role or `#RRGGBB` color over the black field: each 8-bit sRGB channel times `proportion`, rounded to nearest with ties up, as lowercase `#rrggbb`. Where status-bar declares a mix, the declared signal color is returned exactly, matching status-bar's current computed value, because the extension rounded some of its mixes differently (accent at 75% is `#90be03`, where ties up would give `#90bf03`). Out-of-range proportions throw `RangeError`; invalid colors throw `TypeError`. It is pure, like `shadeRamp`, and differs from it: `shadeRamp` derives a fixed five-step ramp toward black and white for the reference collection.
+`mixOver(color, proportion)` returns `proportion` (0–1) of a role or `#RRGGBB` color over the black field: each 8-bit sRGB channel times `proportion`, rounded to nearest with ties up, as lowercase `#rrggbb`. Where status-bar declares a mix, the declared signal color is returned exactly, matching status-bar's current computed value, because the extension rounded some of its mixes differently (accent at 75% is `#90be03`, where ties up would give `#90bf03`). Out-of-range proportions throw `RangeError`; invalid colors, including `'default'` (unknown RGB), throw `TypeError`. It is pure, like `shadeRamp`, and differs from it: `shadeRamp` derives a fixed five-step ramp toward black and white for the reference collection.
 
 The IndustrialOS reference collection is separate data. Where one of its colors is also a signal color, it has the same value: its `Magenta` is `#FF15BD`, the signal colors' `pink`.
 
 ## Seeded randomness
 
-[seeded.mjs](seeded.mjs) gives decorations that vary a repeatable source of chance: `random(seed)` returns a generator of numbers in [0, 1) (mulberry32, ported from status-bar's footer), `hash(a, b, c)` a stateless number in [0, 1) for three integers, and `between`, `pick`, `shuffle`, and `seedFrom` draw from a generator. The same seed always gives the same plan. A non-integer seed throws `RangeError`. Nothing here reads a clock or calls `Math.random`.
+[seeded.mjs](seeded.mjs) gives decorations that vary a repeatable source of chance: `random(seed)` returns a generator of numbers in [0, 1) (mulberry32, ported from status-bar's footer), `hash(a, b, c)` a stateless number in [0, 1) for three integers, and `between`, `pick`, `shuffle`, and `seedFrom` draw from a generator. The same seed always gives the same plan. A non-integer seed throws `RangeError`; status-bar preserves its previous seed coercion by passing `seed | 0` before this boundary, and keeps the original draw order/cursor memory. Nothing here reads a clock or calls `Math.random`.
+
+## TypeScript hosts
+
+Status-bar's consumed element, token, seeded and motion subpaths also have declarations, checked by its compile-only public-contract specimen using the existing claude-interrupt TypeScript compiler (no new toolchain dependency). Typed modules ship a colocated `.d.mts` (for example `cells.d.mts` beside `cells.mjs`); NodeNext consumers find it through the existing exported `.mjs` subpath without exports-map conditions or emitted code. Extend this pattern as modules gain TypeScript consumers, and keep declarations aligned with their runtime contracts. `Color` includes roles, `#${string}` and `'default'`; exact hex validity is still checked at runtime. `ResolvedColor` is RGB or the explicit default sentinel, while `resolveColor` returns RGB only. `Style`, `Span` and `Line` describe the shared line model. Strict compile-only positive/negative checks live in each consuming extension's `test/design-system-types.ts`.
 
 ## Checks
 

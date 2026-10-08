@@ -92,6 +92,15 @@ No stubs, gutters, plate column or spacer row. The header is the plate, one fiel
 
 `┏ ┓ ┗ ┛ ━ ┃ ┼` from the curated set, in the decorative role. Everything else comes from the caller's spans.
 
+## Host-composed frame pieces
+
+`frameGeometry(width, { maxWidth = 1000 })` adds an explicit width bound; `Infinity` permits a host-validated uncapped positive integer width. Omission keeps the original 1–1000 contract and output.
+
+`frameStubs({ gutter, row, innerRows })` returns `{ left, right }` span arrays. Gutter is 1 or 2; row 0 is top corners, row `innerRows` bottom corners, row 1 and `innerRows - 1` the side stubs, otherwise blank field. Geometry must be integer and valid. It has no boot or ownership metadata.
+
+`frameCenter({ width, titleEnd, asideStart, offset = 0 })` returns `{ start, spans }` for a reserved five-cell center window, or undefined unless `mid - 2 > titleEnd` and `mid + 2 < asideStart`. Mid is floor(width/2). Integer offset moves the mark inside that window; nonzero offsets are bold accent. An offset outside the window leaves it blank. Width is host-validated/uncapped. This helper owns neither occupancy nor time.
+
+status-bar consumes geometry, stubs and center pieces, retaining specialized title/aside/numeral anchors, owned-cell metadata and opaque Pi text Runs. The complete `instrumentFrame` API/default output and ASCII wrapping are unchanged.
 ## Differences from status-bar
 
 - **No anchors to a context numeral.** status-bar aligns ROOT and the AU badge to its large numeral's divider and captions when they fit; the frame right-aligns the aside. A caller can reproduce an anchored spacing by adding cells to a piece (the 100-column test does this).

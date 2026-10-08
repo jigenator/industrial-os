@@ -1,4 +1,4 @@
-import { resolveColor } from '../foundation/cells.mjs';
+import { isTerminalDefault, resolveColor } from '../foundation/cells.mjs';
 import { mixOver } from '../foundation/signal-colors.mjs';
 import { MIN_PERIOD_MS, assertLines, assertMs, assertTime, copyLines, inRegion, resolveOptions, resolveRegion, restyleCells } from './frame.mjs';
 
@@ -47,7 +47,7 @@ export function warmUp(lines, options = {}) {
     const fg = style.fg ?? 'secondary';
     const ink = step >= 0 ? mixOver(fg, STEPS[step]) : state ? mixOver(fg, STEPS[0]) : 'field';
     // A state cell must never take its background's color; keep it settled instead.
-    if (state && resolveColor(ink).toLowerCase() === resolveColor(style.bg ?? 'field').toLowerCase()) return undefined;
+    if (state && !isTerminalDefault(style.bg) && resolveColor(ink).toLowerCase() === resolveColor(style.bg ?? 'field').toLowerCase()) return undefined;
     return { style: { ...style, fg: ink } };
   }, { stateCells: o.stateCells });
 }

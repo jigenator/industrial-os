@@ -35,6 +35,16 @@ To blink it, apply the [blink motion](../../motions/README.md#blinklines-options
 
 Always one cell. Uses `█` and `╱` from the curated glyph set and the `accent`, `primary`, `surface` and `decorative` roles.
 
+## Host appearances
+
+`lamp(state, { appearance = 'glyph', lit = true })` adds explicit display poses without time or state inference:
+
+- `glyph` retains the original output; working with `lit: false` uses `LAMP_DIM_STYLE`.
+- `field`: a known lamp is a space with primary-white foreground and accent/surface background (the framed footer's exact bytes).
+- `solid`: a known lamp is `█` with foreground equal to that background (the minimal footer's exact bytes).
+- Working takes accent only while `lit`; idle is always surface. Unknown always retains its hatch/style.
+
+Invalid appearances throw `RangeError`; nonboolean `lit` throws `TypeError`. Defaults are unchanged. status-bar now consumes the field/solid appearances; the default plain-text shape differences below apply only to `glyph`.
 ## Differences from status-bar
 
 - The framed footer draws a working lamp as a space on acid, so its plain text is a space for both working and idle. Here a working lamp is `█` in acid on acid: the same color cell, and a distinct plain-text shape. (status-bar's minimal layout already uses `█` for a lit lamp.)

@@ -203,7 +203,7 @@ const SIGNAL_INDEX = STORIES.findIndex((s) => s.id === 'signal-colors');
 const SIGNAL = STORIES[SIGNAL_INDEX];
 const signalAt = (extra = {}) => ({ ...initialState(), story: SIGNAL_INDEX, ...extra });
 
-test('SIGNAL COLORS groups every mirrored value by use, exactly once, read from SIGNAL_COLORS', () => {
+test('SIGNAL COLORS groups every value by use, exactly once, read from SIGNAL_COLORS', () => {
   assert.deepEqual([SIGNAL.kind, SIGNAL.title, SIGNAL.module, SIGNAL.variants.map((v) => v.name)], ['foundation', 'SIGNAL COLORS', 'foundation/signal-colors.mjs', ['BY USE']]);
   assert.deepEqual(SIGNAL_GROUPS.map((g) => g.title), ['COUNT TIERS AND MODE INKS', 'GAUGE ZONE TRACKS', 'LOST SEGMENT', 'CHECKING FADE', 'WARM-UP STEPS', 'USAGE PROVIDERS']);
   const names = SIGNAL_GROUPS.flatMap((g) => g.names);
@@ -220,7 +220,7 @@ test('SIGNAL COLORS groups every mirrored value by use, exactly once, read from 
       assert.deepEqual(view.lines[i].filter(isSwatch).map((s) => s.style), [{ fg: hex, bg: hex }]);
     }
     const prose = text.join(' ').replace(/[│\s]+/g, ' ');
-    assert.match(prose, /The design system owns these; status-bar's C palette mirrors them/);
+    assert.match(prose, /The design system owns these; status-bar imports them for its C palette/);
     assert.match(prose, /not Acid \/ Black roles, and separate from the IndustrialOS reference collection/);
     assert.match(prose, new RegExp(`${Object.keys(SIGNAL_COLORS).length} SIGNAL COLORS IN ${SIGNAL_GROUPS.length} GROUPS\\.`));
   }

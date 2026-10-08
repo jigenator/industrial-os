@@ -6,7 +6,7 @@ Industrial OS turns the [Pi](https://github.com/earendil-works/pi) coding agent 
 
 ## Status
 
-Three projects are here. They share code only through the design-system package, and nothing imports it yet:
+Three projects are here. They share code only through the private design-system package, which both Pi extensions import by name: claude-interrupt for its transcript marker, and status-bar for its footer elements:
 
 - [design-system](design-system/README.md): the terminal design system, a reference kit of elements, motions, a storybook, and a showcase. Plain Node.js, no dependencies. It is the private package `@industrial-os/design-system`, which the repository's projects can import by name; it is never published.
 - [pi/claude-interrupt](pi/claude-interrupt/README.md): a Pi extension that aborts the current response on Esc and continues with your queued text, marking the continuation with an animated plate.

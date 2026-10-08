@@ -152,3 +152,24 @@ test('flash keeps opted-in full-block state cells visible, on the field and on w
   // A white flash on a block over a white background is allowed: the block shows white against the field.
   assert.deepEqual(cellsOf(flash([[span('█', { fg: 'warning', bg: 'primary' })]], { time: 0, pattern: ['white'], stateCells: true })[0])[0], { ch: '█', fg: 'primary', bg: 'primary' });
 });
+
+test('flash supports explicit transparent outline backgrounds without changing existing defaults', () => {
+  const out = flash(PLATE, { time: 80, outlineBackground: 'default' });
+  assert.deepEqual(out[0][0].style, { fg: 'accent', bg: 'default', bold: true });
+  assert.equal(paint(out[0], 'none'), paint(PLATE[0], 'none'));
+  assert.deepEqual(flash([[span('INK', { fg: 'accent', bg: 'default' })]], { time: 80 }), [[span('INK', { fg: 'accent', bg: 'default' })]]);
+  assert.deepEqual(flash(PLATE, { animate: false, outlineBackground: 'default' }), PLATE);
+  for (const outlineBackground of ['invalid', null, 1]) assert.throws(() => flashDuration({ outlineBackground }), TypeError);
+});
+
+test('flash solidBackground and invertStyle opt-ins preserve bytes without weakening the cue guard', () => {
+  const block = [[{ text: '█', style: { fg: 'warning', bg: 'warning' } }]];
+  assert.equal(flash(block, { time: 0, pattern: ['white'], stateCells: true })[0][0].style.bg, 'warning');
+  assert.equal(flash(block, { time: 0, pattern: ['white'], stateCells: true, solidBackground: true })[0][0].style.bg, 'primary');
+  const tag = [[{ text: '? UNKNOWN', style: { fg: 'secondary', bold: true } }]];
+  assert.deepEqual(flash(tag, { time: 0, pattern: ['invert'], invertStyle: { fg: 'field', bg: 'primary', bold: true } })[0][0].style, { fg: 'field', bg: 'primary', bold: true });
+  const state = [[{ text: 'WARN', style: { fg: 'warning' } }]];
+  assert.throws(() => flash(state, { time: 0, pattern: ['invert'], stateCells: true, invertStyle: { fg: 'field', bg: 'field' } }), /must not hide/);
+  assert.throws(() => flash(tag, { time: 0, invertStyle: { fg: 'bad' } }), TypeError);
+  assert.throws(() => flash(tag, { time: 0, solidBackground: 1 }), TypeError);
+});

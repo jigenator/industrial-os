@@ -24,12 +24,12 @@ flowchart LR
 
 | Module/path | Purpose | Public entry point | Dependencies |
 | --- | --- | --- | --- |
-| `src/index.ts` | The only source module: queue observer, Escape/replay lifecycle and marker | Default `createClaudeInterrupt`; named `createClaudeInterrupt` and `renderMarker` for tests | Node `randomUUID`, Pi extension types, Pi TUI key/color/width helpers |
+| `src/index.ts` | The only source module: queue observer, Escape/replay lifecycle and marker | Default `createClaudeInterrupt`; named `createClaudeInterrupt` and `renderMarker` for tests | Node `randomUUID`, Pi extension types, Pi TUI key/color/width helpers; design-system exported cells/palette, transcript-marker, flash/ping/wipe subpaths |
 | `package.json` | Standalone package discovery and checks | `pi.extensions` points to `./src/index.ts` | Host peer packages; pinned development packages |
 | `test/extension.test.ts` | Queue harness, renderer and timer contracts | Node test runner | Named source exports, real Pi Theme and TUI helpers |
 | `test/extension-runner.test.ts` | Loader, asynchronous events, terminal routing and session persistence | Node test runner | Real Pi loader, ExtensionRunner, TuiMainScreen and in-memory SessionManager |
 
-There are no design-system imports yet, and no runtime dependencies, database or custom storage layer. The runtime entry receives Pi's API; `renderMarker` receives explicit display inputs and does no I/O or clock reads.
+The marker imports the in-repo design-system package through the root install; there is no extension-local runtime dependency, database or custom storage layer. The runtime entry receives Pi's API; `renderMarker` receives explicit display inputs and does no I/O or clock reads.
 
 ## Representative flows
 
@@ -64,6 +64,14 @@ sequenceDiagram
     Ext->>Pi: abort and restore captured text to editor
   end
 ```
+
+### Marker rendering
+
+`renderMarker` composes `markerPlate` and `markerBars` with the `flash` interrupt preset, `ping`, and `wipe`. The design system owns roles, piece styles, offsets and motion timing; the lifecycle takes its frame interval and completion window from `MARKER_TIMELINE`. No extension hex constants or duplicated timeline remain.
+
+The private `markerLine(theme, line)` adapter resolves role/RGB styles with `resolveStyle`, maps explicit terminal defaults to absent Pi foreground/background channels, and maps only transparent accent ink to Pi's accent on light themes. Equivalent concrete styles coalesce into Pi `theme.style` runs. Pi still owns truecolor/256-color conversion and final `truncateToWidth` clipping to `width - outputPad`; styling before clipping preserves the original narrow-width SGR bytes. The adapter is pure, does not read session state, and is host-specific rather than a design-system Pi dependency.
+
+Colocated design-system `.d.mts` files type these imported subpaths under strict NodeNext without changing TypeScript settings or the exports map. Compile-only contracts are in `test/design-system-types.ts`.
 
 ### Marker animation lifecycle
 
@@ -105,7 +113,7 @@ Tests are in [test/extension.test.ts](../test/extension.test.ts) and [test/exten
 
 ## Where the next change belongs
 
-An Escape race fix belongs in the existing input/settlement state machine, with a harness regression and a real-runner ordering check. Keep the renderer unchanged. A marker appearance change belongs in `renderMarker` and its constants, with cell/frame tests and design updates; it must not change queue semantics. A lifecycle change belongs in `createClaudeInterrupt`, preserving entry identity and disposal and adding real-loader coverage where the host boundary changes.
+An Escape race fix belongs in the existing input/settlement state machine, with a harness regression and a real-runner ordering check. Keep the renderer unchanged. A marker appearance change belongs in the design-system pieces/motions and the Pi adapter in `renderMarker`, with cell/frame tests and design updates; it must not change queue semantics. A lifecycle change belongs in `createClaudeInterrupt`, preserving entry identity and disposal and adding real-loader coverage where the host boundary changes.
 
 Keep one source module while these behaviors remain cohesive. Extract a module only for a real independently changing responsibility, not a hypothetical shared UI package. Any marker data change must keep existing saved entries renderable in a settled state and test reload/session replacement; no schema migration exists today.
 

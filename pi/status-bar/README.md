@@ -26,7 +26,7 @@ This package lives in the [Industrial OS](../../README.md) monorepo. Install it 
 { "source": "git:github.com/jigenator/industrial-os", "extensions": ["pi/status-bar/src/extension.ts"] }
 ```
 
-This package has no runtime dependencies. For development, install it from a local checkout instead with `pi install <industrial-os checkout>/pi/status-bar`.
+The footer uses the in-repo `@industrial-os/design-system` package for elements, tokens and scoped motions, preserving its existing visuals. Pi supplies the peer packages; the extension manifest adds no local dependency. For a local checkout, run `npm install` once at the repository root before `pi install <industrial-os checkout>/pi/status-bar` or loading by path. Pi's git install performs that root install itself.
 
 To load it for one Pi invocation without installing it, from `pi/status-bar/`:
 

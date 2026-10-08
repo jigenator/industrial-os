@@ -72,3 +72,17 @@ test('truecolor paint rejects invalid colors without coercion or prototype looku
     }
   }
 });
+
+test('explicit terminal defaults paint as 39/49 without changing omitted-channel defaults', async () => {
+  const { isTerminalDefault, resolveColor, resolveStyle } = await import('./cells.mjs');
+  assert.equal(isTerminalDefault('default'), true);
+  for (const value of [undefined, null, 'DEFAULT', 'field', new String('default')]) assert.equal(isTerminalDefault(value), false);
+  assert.throws(() => resolveColor('default'), TypeError, 'a terminal channel has no known RGB');
+  assert.deepEqual(resolveStyle(), { fg: ACID_BLACK.secondary, bg: ACID_BLACK.field, bold: false });
+  assert.deepEqual(resolveStyle({ fg: 'accent', bg: 'default', bold: true }), { fg: ACID_BLACK.accent, bg: 'default', bold: true });
+  assert.deepEqual(resolveStyle({ fg: 'default', bg: 'default' }), { fg: 'default', bg: 'default', bold: false });
+  assert.throws(() => resolveStyle({ fg: 'unknown' }), TypeError);
+  assert.equal(paint([span('AB', { fg: 'default', bg: 'default' }), span('C', { fg: 'default', bg: 'default' })], 'truecolor'), '\x1b[0;39;49mABC\x1b[0m');
+  assert.equal(paint([span('X', { fg: 'accent', bg: 'default', bold: true })], 'truecolor'), '\x1b[0;1;38;2;192;254;4;49mX\x1b[0m');
+  assert.equal(paint([span('X', { fg: 'default' })], 'truecolor'), '\x1b[0;39;48;2;0;0;0mX\x1b[0m');
+});

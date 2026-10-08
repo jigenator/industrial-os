@@ -330,3 +330,14 @@ test('the state cue guard knows a full block shows only its foreground', () => {
   assert.equal(invertCell({ fg: 'warning', bg: 'field' }, '█'), undefined);
   assert.equal(invertCell({ fg: 'accent', bg: 'accent' }, 'x'), undefined);
 });
+
+test('frame comparisons never equate unknown terminal channels or treat them as RGB', () => {
+  const style = { fg: 'default', bg: 'default' };
+  assert.equal(glyphVisible(style, 'A'), true, 'terminal foreground and background are independent');
+  assert.equal(glyphVisible(style, '█'), true);
+  assert.equal(glyphVisible({ fg: 'warning', bg: 'default' }, '▲'), true);
+  assert.deepEqual(invertCell({ fg: 'accent', bg: 'default' }, 'A'), { fg: 'default', bg: 'accent' });
+  assert.deepEqual(invertCell({ fg: 'accent', bg: 'default' }, '█'), { fg: 'default', bg: 'default' });
+  assert.doesNotThrow(() => restyleCells([[span('▲ WARN', { fg: 'warning', bg: 'default' })]],
+    () => ({ style: { fg: 'warning', bg: 'default' } }), { stateCells: true }));
+});

@@ -62,12 +62,15 @@ Re-strikes and ghosts on ROOT and the badge are status-bar's ambient motion; the
 
 This element imports the public functions of [lamp](../lamp/README.md) (`lamp`), [label plate](../label-plate/README.md) (`labelPlate`) and [count plate](../count-plate/README.md) (`countPlate`, `COUNT_PLATES`).
 
+## Projected marks
+
+`unitMarks(units, { sides = [] })` returns the twelve mark cells, with the same validated count contract as the rail. `sides` contains at most six `0 | 1` poses; omitted entries use 0. Each active mark is `█·` at 0 or `·█` at 1; unused marks stay `··`. Invalid poses throw `RangeError`. The default rail now calls this helper and its output is unchanged. status-bar consumes it with host-projected shuttle poses and consumes the lamp, ROOT slab and AU count pieces separately, retaining its anchors and wrapping.
 ## Differences from status-bar
 
 - **No anchors.** status-bar aligns ROOT's right edge to its context numeral's divider and the badge to its captions when those fit, which can widen the gap before the badge. The rail has no neighbors, so it left- or right-aligns as a unit; a frame can add the extra field cell to a piece (the [instrument frame](../instrument-frame/README.md) tests show how).
 - **Narrow wrapping is by piece.** status-bar's minimal layout word-wraps the rail as text, which can split a plate's padding or `03 AU` across lines; here pieces stay whole until a single piece is wider than the line.
 - **Marks in narrow layouts.** status-bar's minimal layout never draws marks; the standalone rail keeps them whenever the full rail fits.
-- **Lamp shape.** A working lamp is `█` in acid on acid instead of a space on acid; see the [lamp](../lamp/README.md#differences-from-status-bar).
+- **Default lamp shape.** A working lamp is `█` in acid on acid instead of a space on acid; see the [lamp](../lamp/README.md#differences-from-status-bar).
 - **Invalid units throw** (`RangeError`) instead of reading as unknown, and a non-boolean `working` throws `TypeError`.
 
 ## Checks

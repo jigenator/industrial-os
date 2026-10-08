@@ -94,6 +94,15 @@ Countdowns round positive spans **up** to whole minutes first; formats use those
 
 [Foundation](../../foundation/README.md) owns curated one-cell glyphs, roles/signal colors and truecolor/plain painting. All structural glyphs are allowlisted. Failure/stale inks are `warning` roles for motion protection. Lit versus lost is a color/luminance-only distinction inherited from USG; KMI has the weakest contrast, and plain output has no lit-count cue. No additional compliance claim is made.
 
+## Natural provider pieces
+
+`providerColumnParts(input, { segments = 8, now, age, countdownOverflow = 'throw' })` returns natural `{ top, bottom, width, bottomWidth, kind, window? }` parts. `kind` is `tag` or `slot`; ordinary slots identify their window. `top` and `bottom` are spans without trailing padding; absent slots have empty top spans, and `none` contains only its four real letters. `width` reserves the natural slot area (including long countdowns), while `bottomWidth` is the actual text extent, zero for no text. The established `providerColumn` remains paired/padded and unchanged.
+
+`age` optionally supplies an already-formatted clock-correction display: `null` means current, a compact `0m`–`59m`/hour/day/`99+`/`?` string means stale. Invalid display text throws `RangeError`; omission retains the original timestamp validation/stale computation. status-bar normalizes its permissive percentages/timestamps and supplies its existing age policy here, including future failed samples reading `0m`.
+
+`countdown(resetsAt, now, { overflow = 'throw' })` retains strict default subtraction-overflow rejection. The explicit `text` option preserves the extreme finite-clock display `Infinityd`; natural provider parts select it with `countdownOverflow: 'text'`. This is a compatibility display, not a finite duration. Invalid choices throw `RangeError`; ordinary countdowns are unchanged.
+
+status-bar consumes these parts and the time/segment helpers, retaining per-glyph Pi emission, multi-provider admission, text spill, whole-part breaks and oversized top-then-bottom wrapping. Its motion scheduler remains outside this element.
 ## Differences from status-bar
 
 The default slot semantics, provider declarations, glyphs/inks, fixed widths and time formats model `footer.ts:211–267,1230–1268`. This kit rejects invalid/out-of-range input instead of clamping used percentages. Callers explicitly supply unknown. It has no CodexBar detection/poller, row label, multi-provider layout, pulse, burn-out or timer. Pair rows are always returned, even when the text row is blank. Custom N and generic three-cell tags are supported; short-N provider slots reserve state-word space. Renderers reject invalid reset timestamps rather than silently treating them as missing; use null for unknown. The caller owns clock corrections (a sample later than now is invalid here).

@@ -23,7 +23,7 @@ Purpose: the Pi extensions that bring the Industrial OS visual and interaction l
 
 Each extension owns `pi/<name>/`, named without the `pi-` prefix; its package keeps its published name. It holds `src/`, its checks in `test/`, its manifest and lockfile, `LICENSE` if it has one, `README.md`, `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, and `docs/` with its architecture, and its conventions, mission, and design where it has rules, scope, or an experience of its own.
 
-Extensions never import each other. An extension may import the design system only as `@industrial-os/design-system/<group>/<name>`, an exported subpath resolved through the root install, never by a relative path into `design-system/`; the full rule is in [conventions](../docs/conventions.md#module-and-dependency-rules). Neither extension imports it yet. Moving one onto it is its own change, with the requirements in [the decision](../docs/decisions/in-repo-design-system-package.md#migrating-an-extension).
+Extensions never import each other. An extension may import the design system only as `@industrial-os/design-system/<group>/<name>`, an exported subpath resolved through the root install, never by a relative path into `design-system/`; the full rule is in [conventions](../docs/conventions.md#module-and-dependency-rules). Both extensions import it through exported subpaths and host adapters. A new migration is its own change, with the requirements in [the decision](../docs/decisions/in-repo-design-system-package.md#migrating-an-extension).
 
 ## Implement and verify
 

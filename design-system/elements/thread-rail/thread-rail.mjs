@@ -18,10 +18,12 @@ function readActivity(activity) {
 }
 
 // Settled marks: one `█·` pair per active unit up to six, then `··` pairs. The shuttle is a host's motion.
-function marks(units) {
+export function unitMarks(units, { sides = [] } = {}) {
+  readActivity({ working: false, units });
+  if (!Array.isArray(sides) || sides.length > RAIL_MARKS || sides.some((s) => s !== 0 && s !== 1)) throw new RangeError('sides must contain at most six 0/1 poses');
   const out = [];
   for (let q = 0; q < RAIL_MARKS; q++) {
-    if (q < Math.min(RAIL_MARKS, units ?? 0)) out.push(span('█', { fg: 'accent' }), span('·', { fg: 'decorative' }));
+    if (q < Math.min(RAIL_MARKS, units ?? 0)) out.push(...(sides[q] === 1 ? [span('·', { fg: 'decorative' }), span('█', { fg: 'accent' })] : [span('█', { fg: 'accent' }), span('·', { fg: 'decorative' })]));
     else out.push(span('··', { fg: 'decorative' }));
   }
   return out;
@@ -33,7 +35,7 @@ export function threadRailPieces(activity, { marks: withMarks = true } = {}) {
   if (typeof withMarks !== 'boolean') throw new TypeError('marks must be a boolean');
   const { state, units } = readActivity(activity);
   const pieces = [lamp(state), labelPlate('ROOT', { tone: 'accent', form: 'slab' })];
-  if (withMarks) pieces.push(marks(units));
+  if (withMarks) pieces.push(unitMarks(units));
   pieces.push(countPlate(units, COUNT_PLATES.units));
   return pieces;
 }

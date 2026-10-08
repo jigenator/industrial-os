@@ -9,10 +9,13 @@ export const TATSU_STATES = Object.freeze(Object.fromEntries(Object.entries({
   inactive: { shape: '·', code: 'OFF', tone: 'decorative' },
 }).map(([key, value]) => [key, Object.freeze(value)])));
 
-export function stateChip({ label, state, commitsBehind, localChanges = false }, { preset = TATSU_STATES, maxWidth = Infinity } = {}) {
+function renderChip({ label, state, commitsBehind, localChanges = false }, { preset = TATSU_STATES, maxWidth = Infinity } = {}, countPolicy = 'safe-integer') {
   if (!preset || !Object.hasOwn(preset, state)) throw new RangeError('unknown chip state');
   if (maxWidth !== Infinity && (!Number.isInteger(maxWidth) || maxWidth < 0 || maxWidth > 1000)) throw new RangeError('maxWidth must be 0–1000 or Infinity');
-  if (commitsBehind !== undefined && (!Number.isSafeInteger(commitsBehind) || commitsBehind < 0)) throw new RangeError('commitsBehind must be a non-negative safe integer');
+  if (commitsBehind !== undefined) {
+    if (countPolicy === 'safe-integer' && (!Number.isSafeInteger(commitsBehind) || commitsBehind < 0)) throw new RangeError('commitsBehind must be a non-negative safe integer');
+    if (countPolicy === 'number-text' && typeof commitsBehind !== 'number') throw new TypeError('commitsBehind must be a number');
+  }
   if (typeof localChanges !== 'boolean') throw new TypeError('localChanges must be boolean');
   const look = preset[state];
   if (typeof look?.shape !== 'string' || [...look.shape].length !== 1 || !(GLYPHS.includes(look.shape) || /^[\x20-\x7e]$/.test(look.shape))) throw new TypeError('shape must be one curated glyph or ASCII cell');
@@ -24,6 +27,9 @@ export function stateChip({ label, state, commitsBehind, localChanges = false },
   const line = [span(safeText(label), { fg: 'decorative' }), span(' '), span(`${look.shape} ${code}`, { fg: look.tone, bold: true })];
   return fitLine(line, Math.min(maxWidth, lineWidth(line)));
 }
+
+// Complete chips retain strict count validation; compatibility display is opt-in on natural parts only.
+export function stateChip(input, options = {}) { return renderChip(input, options); }
 
 // footer.ts:1167-1180: three-cell gaps, whole parts wrap; only an oversized part splits at inner spaces.
 export function stateChips(inputs, { width, preset = TATSU_STATES } = {}) {
@@ -48,4 +54,14 @@ export function stateChips(inputs, { width, preset = TATSU_STATES } = {}) {
   }
   flush();
   return lines;
+}
+
+// Natural role/emission pieces: separate gaps matter to hosts with opaque pre-styled text.
+// Generic counts use the same curated multiplication sign as the Tatsu preset, not caller Unicode code text.
+export function stateChipParts(input, { preset = TATSU_STATES, count, countPolicy = 'safe-integer' } = {}) {
+  if (!['safe-integer', 'number-text'].includes(countPolicy)) throw new RangeError('countPolicy must be safe-integer or number-text');
+  if (count !== undefined && (!Number.isSafeInteger(count) || count < 0)) throw new RangeError('count must be a non-negative safe integer');
+  const [label, labelGap, state] = renderChip(input, { preset }, countPolicy);
+  return { label: [label], labelGap: [labelGap], shape: [span(state.text[0], state.style)],
+    stateGap: [span(' ', state.style)], code: [span(state.text.slice(2) + (count === undefined ? '' : '×' + count), state.style)] };
 }

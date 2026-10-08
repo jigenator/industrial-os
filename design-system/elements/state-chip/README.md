@@ -54,6 +54,13 @@ Natural part width is sanitized label length + one gap + shape + one gap + code 
 
 [Foundation](../../foundation/README.md) owns the one-cell glyph and truecolor requirements. Labels use decorative grey, not bold. Tatsu state colors use roles; `•`, `▲`, `◆`, `✕`, `·`, `×` are curated glyphs. Caller labels/custom codes use `safeText`. Invalid state/count/width throws `RangeError`; invalid text, shape, color, flag or inputs-array throws `TypeError`. This pure renderer has no timers, I/O or stored baseline; hosts own warm-up, checking fade, beacon and latch.
 
+## Natural emission pieces
+
+`stateChipParts(input, { preset = TATSU_STATES, count, countPolicy = 'safe-integer' })` returns `{ label, labelGap, shape, stateGap, code }`, each a span array, with no clipping. Joined output equals the original chip; its original renderer's grouping/defaults remain unchanged. Generic `count` appends the curated `×` and an exact non-negative safe integer to the code (invalid counts throw `RangeError`). It is independent of Tatsu's `commitsBehind` grammar.
+
+`countPolicy` applies only to native `commitsBehind` display in these natural parts. Default `safe-integer` retains the non-negative safe integer contract. Explicit `number-text` requires a JS number, then displays `String(value)` including negatives, fractions, NaN, Infinity and unsafe integers. This exists so a renderer whose input type admits arbitrary numbers can retain exact output; callers that validate should keep the default. The complete `stateChip`/`stateChips` stay strict and unchanged, and the separate generic `count` suffix remains safe-integer-only. Invalid policies throw `RangeError`; a nonnumber under `number-text` throws `TypeError`.
+
+status-bar consumes these parts for Tatsu and generic background-task counts/update groups. Its producer adapter supplies only non-negative safe integer counts; `number-text` is renderer-contract compatibility, not producer admission. Producer grammar, activation, ordering and opaque hint text (`Shift↓`, measured by Pi rather than sanitized by this ASCII renderer) remain host-owned. Separate gaps let the host retain its exact paint/reset boundaries.
 ## Differences from status-bar
 
 Settled Tatsu parts and three-cell gaps model `footer.ts:24–37,1167–1180,1192–1203`. This element accepts any label and a custom preset; it does not parse provider messages, retain completed checks across refreshes, supply component order, or draw decorations. The inline piece may clip to maxWidth; the layout helper keeps full parts whenever possible, like the footer. Inactive is an explicit component state, not the footer's raw-provider fallback for an inactive snapshot.

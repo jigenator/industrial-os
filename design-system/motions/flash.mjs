@@ -1,9 +1,9 @@
-import { resolveColor } from '../foundation/cells.mjs';
+import { isTerminalDefault, resolveColor, resolveStyle } from '../foundation/cells.mjs';
 import { MIN_PERIOD_MS, assertLines, assertMs, assertTime, copyLines, inRegion, invertCell, resolveOptions, resolveRegion, restyleCells } from './frame.mjs';
 
-// The defaults are claude-interrupt's plate flash (pi/claude-interrupt/src/index.ts FLASH_OFF, FLASH_ON): 0-79 ms
+// The defaults are the marker plate flash (MARKER_TIMELINE flashOff/flashOn): 0-79 ms
 // filled, 80-159 ms outline, then filled.
-export const FLASH_DEFAULTS = Object.freeze({ step: 80, pattern: Object.freeze(['fill', 'outline']), region: undefined, stateCells: false });
+export const FLASH_DEFAULTS = Object.freeze({ step: 80, pattern: Object.freeze(['fill', 'outline']), region: undefined, stateCells: false, outlineBackground: undefined, solidBackground: undefined, invertStyle: undefined });
 
 // Extension flashes as ready-made option sets; target the plate or cell with `region`.
 export const FLASH_PRESETS = Object.freeze({
@@ -27,6 +27,9 @@ function check(o) {
     throw new RangeError(`flash pattern must be a non-empty array of ${KINDS.join(', ')}, got ${JSON.stringify(o.pattern)}`);
   }
   if (typeof o.stateCells !== 'boolean') throw new TypeError(`flash stateCells must be a boolean, got ${o.stateCells}`);
+  if (o.outlineBackground !== undefined && !isTerminalDefault(o.outlineBackground)) resolveColor(o.outlineBackground);
+  if (o.solidBackground !== undefined && typeof o.solidBackground !== 'boolean') throw new TypeError('flash solidBackground must be boolean');
+  if (o.invertStyle !== undefined) resolveStyle(o.invertStyle);
   return resolveRegion('flash', o.region);
 }
 
@@ -38,11 +41,11 @@ export function flashDuration(options = {}) {
 }
 
 // How one cell looks in one pattern step; undefined keeps it.
-function frameOf(kind, style, ch) {
+function frameOf(kind, style, ch, outlineBackground, solidBackground, invertStyle) {
   const bg = style.bg ?? 'field';
-  if (kind === 'outline') return same(bg, 'field') ? undefined : { ...style, fg: bg, bg: 'field' };
-  if (kind === 'invert') return invertCell(style, ch);
-  if (kind === 'white') return ch === '█' ? { ...style, fg: 'primary' } : { fg: 'field', bg: 'primary', bold: true };
+  if (kind === 'outline') return isTerminalDefault(bg) || same(bg, 'field') ? undefined : { ...style, fg: bg, bg: outlineBackground };
+  if (kind === 'invert') return invertStyle ?? invertCell(style, ch);
+  if (kind === 'white') return ch === '█' ? { ...style, fg: 'primary', ...(solidBackground ? { bg: 'primary' } : {}) } : { fg: 'field', bg: 'primary', bold: true };
   return undefined;
 }
 
@@ -61,7 +64,7 @@ export function flash(lines, options = {}) {
 
   return restyleCells(lines, (style, col, row, ch) => {
     if (!inRegion(region, col, row)) return undefined;
-    const next = frameOf(kind, style, ch);
+    const next = frameOf(kind, style, ch, o.outlineBackground ?? 'field', o.solidBackground, o.invertStyle);
     return next && { style: next };
   }, { stateCells: o.stateCells });
 }
