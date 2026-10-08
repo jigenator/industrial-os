@@ -40,14 +40,20 @@ export function au(panes) {
   }
   return count(sum, 'AU');
 }
+// Herdr 0.9.3 gives a top-level space row (sidebar width - divider - scrollbar) - indent 1 - 2 cells:
+// 31 at the locked width of 36 with a scrollbar (src/ui/sidebar.rs expanded_sidebar_sections,
+// src/client/shell/sidebar.rs render_workspace_rows). The icon, ` `, NNPN and ` · ` take 9, leaving 22.
+export const NAME_CELLS = 22;
+export const STALE_NAME_CELLS = 15;
+export const QUIET_CELLS = NAME_CELLS - STALE_NAME_CELLS - 3;
 export function tokens(workspace, panes, last, now) {
   const quiet = !workspace.focused && now - last >= QUIET_MS;
   const result = { sp_panes: count(workspace.pane_count, 'PN') };
   if (quiet) {
-    result.sp_name_stale = fitLabel(workspace.label, 15, true);
-    result.sp_quiet = (Math.min(99, Math.floor((now - last) / DAY_MS)) + 'd').padStart(6, PAD);
+    result.sp_name_stale = fitLabel(workspace.label, STALE_NAME_CELLS, true);
+    result.sp_quiet = (Math.min(99, Math.floor((now - last) / DAY_MS)) + 'd').padStart(QUIET_CELLS, PAD);
   } else {
-    result[workspace.focused ? 'sp_name_active' : 'sp_name'] = fitLabel(workspace.label, 24);
+    result[workspace.focused ? 'sp_name_active' : 'sp_name'] = fitLabel(workspace.label, NAME_CELLS);
     result.sp_agents = count(panes.filter((p) => p.agent != null).length, 'AG');
     result.sp_au = au(panes);
   }
@@ -96,8 +102,10 @@ export function units(workspaces, history, now) {
 export function sortPlan(workspaces, history, now, previousSignature, lastMove = -Infinity) {
   const all = units(workspaces, history, now);
   const quiet = all.filter((u) => u.quiet).sort((a, b) => b.last - a.last || a.ids.toSorted().join().localeCompare(b.ids.toSorted().join(), 'en'));
-  // Signature excludes user ordering of non-quiet units, and numeric age changes that do not change quiet order.
-  const signature = JSON.stringify(quiet.map((u) => [...u.ids].sort()));
+  // Signature covers which spaces exist and the quiet order, so a created or closed space re-sorts; it excludes
+  // user ordering of non-quiet units and age changes that keep the quiet order, so drags otherwise stay.
+  const present = workspaces.map((w) => w.workspace_id).sort();
+  const signature = JSON.stringify({ present, quiet: quiet.map((u) => [...u.ids].sort()) });
   if (signature === previousSignature || now - lastMove < 60_000) return { signature: previousSignature, moves: [] };
   const desired = [...all.filter((u) => !u.quiet), ...quiet].flatMap((u) => u.ids);
   if (desired.join('\0') === workspaces.map((w) => w.workspace_id).join('\0')) return { signature, moves: [] };

@@ -112,3 +112,13 @@ five theme keys' wider effects were verified from source, not live rendering.
   with the updated reporter; old unprefixed frozen tokens are no longer read.
   The plugin's [corrected protocol evidence](../herdr-plugins/spaces/CONTRIBUTING.md#review-fix-round)
   replaces the initial fake-server compatibility assumption, not parser evidence.
+
+### Spaces isolated rendering
+
+2026-10-08: merged agents and Spaces fragments passed `herdr config check` and
+ran in an isolated Herdr 0.9.3 server with the Spaces plugin linked; a client
+capture replayed in xterm.js matched the design, including quiet rows with the
+Spaces scrollbar shown. The run found quiet rows one cell too wide; the plugin
+now sizes them for 31 cells (see the
+[plugin record](../herdr-plugins/spaces/CONTRIBUTING.md#isolated-herdr-check)).
+Live session merge and reload: **not run**.

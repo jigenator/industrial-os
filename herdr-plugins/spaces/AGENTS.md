@@ -15,10 +15,11 @@ Follow the [root](../../AGENTS.md) and [plugin group](../AGENTS.md) guides.
 - Never treat a failed report as accepted. Names have no TTL; counts and age
   have TTL. Use the one stable source and monotonic clock-based sequence.
 - Never plan to move the focused unit in a current snapshot; recheck the event
-  epoch before dispatch (the unavoidable focus race is documented in architecture); preserve non-quiet user order. Reorder only on
-  quiet-set/order changes and at most once a minute, in one atomic block move.
+  epoch before dispatch (the unavoidable focus race is documented in architecture); preserve non-quiet user order. Reorder only when a
+  space is created/closed or the quiet set/order changes, at most once a minute, in atomic block moves.
 - All tests use fake sockets/temp directories. Never install/link/enable a
-  plugin, modify live config or mutate a live server during verification.
+  plugin, modify live config or mutate a live server during verification; the
+  end-to-end check uses only the isolated throwaway server in CONTRIBUTING.
 
 ## Read for the task
 

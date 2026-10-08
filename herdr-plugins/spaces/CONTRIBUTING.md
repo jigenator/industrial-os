@@ -12,12 +12,37 @@ design-system package. No live Herdr server or installed plugin is needed here.
 | 1 | `herdr-plugins/spaces/` | `node --test` | Pure tokens/width/AU/activity/groups/order; fake Unix socket subscribe/read/report/diff/clear/TTL/failure/reconnect/exit; private lock/history; detached ensure EOF. Temporary directories/processes only. |
 | 2 | `herdr/` | [Config validation sequence](../../herdr/CONTRIBUTING.md#spaces-validation) | Contract/colors tests and Herdr's read-only parser on isolated config copies. |
 | 3 | Root | [Repository-wide checks](../../CONTRIBUTING.md#repository-wide-checks) | Links, inventory, entrypoints, whitespace and publication review. |
-| 4 | Live Herdr | Interactive alignment, navigation/order and restart inspection | **Not authorized during development; not run.** Requires separately authorized operator installation/config merge. |
+| 4 | Isolated Herdr | [Throwaway server check](#throwaway-server-check) | Real protocol, lifecycle, ordering and rendering against a separate Herdr server with its own config, state and socket. |
+| 5 | Live Herdr | Interactive inspection in the user's own session | **Not authorized during development; not run.** Requires separately authorized operator installation/config merge. |
 
 No `plugin link/install/enable`, server commands or workspace mutations against
 a live socket are validation commands. Tests overwrite inherited Herdr target
 environment with their own temporary socket and always stop owned children.
 Timer injection accelerates tests without changing production constants.
+
+### Throwaway server check
+
+Run a second Herdr that shares nothing with a live session. Inside a Herdr pane
+the shell inherits `HERDR_*` variables pointing at the live server, so every
+command starts from an empty environment (`env -i`) with a temporary `HOME`,
+`XDG_CONFIG_HOME` and `XDG_STATE_HOME` (Herdr derives its config, plugin
+registry, plugin state and socket from them) and an explicit
+`HERDR_SOCKET_PATH` under that config directory. Keep the directory short;
+macOS limits socket paths to about 104 bytes.
+
+1. Write a merged `config.toml` (agents and Spaces fragments) into
+   `$XDG_CONFIG_HOME/herdr/` and run `herdr config check` on it.
+2. Start `herdr server` with that environment; create a few spaces with
+   `herdr workspace create`, then `herdr plugin link` this directory.
+3. Check tokens with `herdr workspace get`, focus/rename/split changes, simulated
+   Pi panes (`herdr pane report-agent` and `report-metadata` with `g2_au`),
+   quiet ordering after back-dating the throwaway history file while the
+   reporter is stopped, the `stop` action, disable, `herdr server stop` (the
+   reporter exits after about two minutes) and restart (the startup hook).
+4. For rendering, attach a client in a sized pseudo-terminal, capture its
+   output and replay it in a terminal emulator such as xterm.js.
+5. Stop the server and delete the temporary directory. Compare checksums of the
+   live config and plugin registry taken before the run.
 
 ## Verification records
 
@@ -193,3 +218,48 @@ can briefly lag events; moves remain fenced and dirty reruns correct reports.
 Storage failure can leave health stale. Existing concurrent-focus move race,
 Unicode-width approximation, same-label/restart ID reuse and PID-only upgrade
 limitations remain as documented; no live upgrade or state deletion occurred.
+
+### Isolated Herdr check
+
+2026-10-08, macOS, Node 22.23.0, Herdr 0.9.3, using the
+[throwaway server check](#throwaway-server-check). Live config and plugin
+registry checksums matched before and after; the live server was not contacted.
+
+**Passed against the throwaway server:**
+- `herdr plugin link` then `workspace.created` started one reporter; the first
+  read reported all four spaces (8 accepted reports, 0 failures).
+- Tokens: `NNPN`, `NNAG`, one name key per space, long names cut with `…`.
+  Focus and rename moved `sp_name_active`/`sp_name` within about a second, which
+  confirms the snake_case event handling; a split raised the count; the
+  `pane.created` hook kept a single reporter.
+- AU: two simulated Pi panes, one without an AU token, gave `??AU`; once both
+  reported, `07AU`. Quiet spaces cleared `sp_agents`/`sp_au`.
+- Quiet ordering after back-dating history: the focused space stayed, quiet
+  spaces moved to the end least quiet first (3d, 5d, 9d). A manual drag of a
+  quiet space held for 70 s. Focusing a quiet space woke it, and only quiet
+  units moved.
+- Lifecycle: the `stop` action exited and released the lock; `herdr server
+  stop` then restart reconnected and re-sent every token with stable IDs and
+  order; disable stopped the reporter after about 20 s; a server left down made
+  it exit after about 120 s (`connection_exhausted`); the next server start ran
+  the startup hook. Linking or enabling does not run startup hooks.
+- Rendering (client in a 140-column pseudo-terminal, replayed in xterm.js 6.0.0):
+  rows, colors and quiet collapse match the design.
+
+**Failed, then fixed in this round:**
+- Quiet names were cut one cell short (`platform-tool…`). A top-level space
+  row has 32 cells after the indent at width 36, 31 with the Spaces scrollbar,
+  not the 33 assumed. Names now cut to 22 cells and the quiet age slot is 4
+  cells; re-rendered at 40 and 22 rows (scrollbar shown), names were whole and
+  ages aligned.
+- New spaces stayed below quiet ones. The sort signature now includes which
+  spaces exist; after the fix, creating a space moved the quiet ones below it.
+
+**Automated:** `node --test` **43/43 passed**; the three new or changed tests
+failed against the previous `src/model.mjs`. `herdr/` tests 10/10 and
+`herdr config check` on both fragments passed. Root links (983, 0 broken),
+CLAUDE entrypoints (10 exact), `git diff --check` and publication review passed.
+
+**Not run:** the user's live Herdr session, other terminals or fonts, Linux,
+real Pi panes (agent state was simulated with `report-agent`), and a worktree
+group in a live server.

@@ -26,12 +26,15 @@ Optional `config.json` in `HERDR_PLUGIN_CONFIG_DIR`:
 or unreadable config retains the last valid setting (startup uses true until a
 valid setting is read). A sanitized `config_invalid` diagnostic is logged once
 per error category per daemon run; normal absence is silent. Config is re-read
-on every 30-second tick, so changes apply without restarting. Set `sort: false`
+on every 30-second tick, so changes apply without restarting. Quiet spaces sink
+again when a space is created or closed, because Herdr appends new spaces at the
+end; a manual drag otherwise stays until the quiet set changes. Set `sort: false`
 to retain the user's order entirely. Number keys follow Herdr position, so enabling sort changes their targets when quiet units move.
 
 Manifest hooks run `node bin/spaces.mjs ensure`. It exits quickly, starting a
 detached `run` if needed; hooks on `pane.created` and `workspace.created` also
-repair a stopped reporter. The optional plugin `status` action returns only
+repair a stopped reporter. Linking or enabling does not run startup hooks, so the
+reporter starts at the next Herdr start or the next pane or space creation. The optional plugin `status` action returns only
 whether its socket's unique owner control endpoint answers. The `stop` action
 asks that endpoint to shut down (it never signals an arbitrary disk PID). No
 restart action is shipped. Disabling/uninstalling stops the daemon on the next

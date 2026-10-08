@@ -9,11 +9,11 @@ styles belong to [herdr/spaces.toml](../../../herdr/spaces.toml).
    03AG · 07AU ↓7
  × 01PN · tooling
    01AG · 02AU ↑2
- ○ 01PN · harness-engine… ·     2d
- ○ 02PN · general-purpose ·     3d
+ ○ 01PN · harness-engine… ·   2d
+ ○ 02PN · general-purpose ·   3d
 ```
 
-Acid / Black, 36 columns, 34-cell scrollbar geometry. Focused name is bold
+Acid / Black, 36 columns, 31-cell space rows (the scrollbar case). Focused name is bold
 primary white; other current names bold secondary; quiet names/ages decorative
 grey. Zero counts use decorative grey, nonzero AU uses bold accent, `??AU`
 remains explicitly unknown, not disguised as zero. State icons come from
@@ -40,5 +40,6 @@ refreshes even reused IDs; differently named reappearance after an absent read
 also resets history within a daemon run. Missed creation across restarts or
 same-label reuse can still inherit ages. Disabling the plugin stops reporting
 and sorting on its next tick; sort config changes apply on the next tick too.
-Terminal font,
-Unicode widths, truecolor and live scrollbar alignment remain unverified.
+Rows, colors and quiet-age alignment, with and without the Spaces scrollbar,
+were checked in an isolated Herdr 0.9.3 rendered by xterm.js; other terminals,
+fonts and ambiguous-width settings remain unverified.

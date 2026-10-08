@@ -138,9 +138,10 @@ equal ages break ties by canonical member IDs. All quiet IDs are moved in one
 `workspace.move_block` request, omitting the anchor for end insertion. This
 operation is atomic in Herdr; the unit focused in the validated snapshot never appears in the block.
 
-Signature tracks quiet-unit membership and quiet order, not non-quiet order
-or age text. Store it across daemon restarts. Unchanged signatures do nothing,
-even after a manual drag. Changed signatures are held until the minute rate
+Signature tracks which workspaces exist plus quiet-unit membership and quiet
+order, not non-quiet order or age text, so creating or closing a space re-sorts
+(Herdr appends new spaces below quiet ones). Store it across daemon restarts.
+Unchanged signatures do nothing, even after a manual drag. Changed signatures are held until the minute rate
 limit permits a move. Failed moves do not accept the new signature; retry is
 rate-limited and reads current state again. A dropped reply can have applied
 on the server, but the next read avoids a duplicate move if already ordered.

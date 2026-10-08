@@ -15,10 +15,21 @@ test('AU sums only Pi, caps, and distinguishes missing, conflicting and unknown 
 });
 test('tokens always panes; quiet clears second row/name variants; focused cannot be quiet', () => {
   const w = workspace('w1', { pane_count: 200, label: 'industrial-os' });
-  assert.deepEqual(tokens(w, [], 0, QUIET_MS), { sp_panes: '99PN', sp_name_stale: 'industrial-os' + PAD.repeat(2), sp_quiet: PAD.repeat(4) + '2d' });
+  assert.deepEqual(tokens(w, [], 0, QUIET_MS), { sp_panes: '99PN', sp_name_stale: 'industrial-os' + PAD.repeat(2), sp_quiet: PAD.repeat(2) + '2d' });
   assert.deepEqual(tokens({ ...w, focused: true }, [{ agent: 'pi' }, { agent: 'claude' }, {}], 0, QUIET_MS), { sp_panes: '99PN', sp_name_active: 'industrial-os', sp_agents: '02AG', sp_au: '??AU' });
-  assert.equal(tokens(w, [], 0, 1000 * DAY_MS).sp_quiet, PAD.repeat(3) + '99d');
+  assert.equal(tokens(w, [], 0, 1000 * DAY_MS).sp_quiet, PAD + '99d');
   assert.equal(tokens(w, [], 0, QUIET_MS - 1).sp_name, 'industrial-os');
+});
+test('row 1 fits the 31 cells Herdr 0.9.3 gives a space row at width 36 with a scrollbar', () => {
+  // state_icon + ' ' + NNPN + ' · ', then the name tokens; quiet rows add ' · ' + age.
+  const lead = 1 + 1 + 4 + 3;
+  for (const label of ['a', 'platform-tools', 'harness-engine-experimental', '界'.repeat(30)]) {
+    const w = workspace('w1', { label });
+    const quiet = tokens(w, [], 0, 12 * DAY_MS);
+    assert.equal(lead + width(quiet.sp_name_stale) + 3 + width(quiet.sp_quiet), 31);
+    assert.ok(lead + width(tokens(w, [], 0, 0).sp_name) <= 31);
+  }
+  assert.equal(tokens(workspace('w1', { label: 'x'.repeat(25) }), [], 0, 0).sp_name, 'x'.repeat(21) + '…');
 });
 test('text cell fitting handles controls, wide bases, graphemes, emoji and bounded combining marks', () => {
   assert.equal(fitLabel(' \x1b\u202ee\u0301\x7f ', 15, true), 'e\u0301' + PAD.repeat(14));
@@ -65,6 +76,18 @@ test('sort moves quiet only, least quiet first, no manual-drag fight and minute 
   assert.equal(sortPlan(ws, h, now + 1000, plan.signature).signature, plan.signature);
   const moved = [ws[1], ws[3], ws[2], ws[0]];
   assert.deepEqual(sortPlan(moved, h, now).moves, []);
+});
+test('a created or closed space re-sorts quiet spaces below it; a later drag still stays', () => {
+  const now = 10 * DAY_MS;
+  const ws = [workspace('active', { focused: true }), workspace('young'), workspace('old')];
+  const h = { active: { last: now }, young: { last: DAY_MS }, old: { last: 0 }, fresh: { last: now } };
+  const settled = sortPlan(ws, h, now);
+  assert.deepEqual(settled.moves, []);
+  const created = [...ws, workspace('fresh')];
+  const plan = sortPlan(created, h, now, settled.signature);
+  assert.deepEqual(plan.moves, [{ workspace_ids: ['young'] }, { workspace_ids: ['old'] }]);
+  assert.deepEqual(sortPlan([created[2], ...created.slice(0, 2), created[3]], h, now, plan.signature).moves, []);
+  assert.notEqual(sortPlan(ws.slice(0, 2), h, now, plan.signature).signature, plan.signature);
 });
 test('untrusted lists reject malformed data and torn workspace/pane reads', () => {
   assert.equal(validateLists([workspace('a')], []), true);
