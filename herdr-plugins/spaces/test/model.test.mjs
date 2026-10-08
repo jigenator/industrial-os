@@ -15,10 +15,10 @@ test('AU sums only Pi, caps, and distinguishes missing, conflicting and unknown 
 });
 test('tokens always panes; quiet clears second row/name variants; focused cannot be quiet', () => {
   const w = workspace('w1', { pane_count: 200, label: 'industrial-os' });
-  assert.deepEqual(tokens(w, [], 0, QUIET_MS), { panes: '99PN', name_stale: 'industrial-os' + PAD.repeat(2), quiet: PAD.repeat(4) + '2d' });
-  assert.deepEqual(tokens({ ...w, focused: true }, [{ agent: 'pi' }, { agent: 'claude' }, {}], 0, QUIET_MS), { panes: '99PN', name_active: 'industrial-os', agents: '02AG', au: '??AU' });
-  assert.equal(tokens(w, [], 0, 1000 * DAY_MS).quiet, PAD.repeat(3) + '99d');
-  assert.equal(tokens(w, [], 0, QUIET_MS - 1).name, 'industrial-os');
+  assert.deepEqual(tokens(w, [], 0, QUIET_MS), { sp_panes: '99PN', sp_name_stale: 'industrial-os' + PAD.repeat(2), sp_quiet: PAD.repeat(4) + '2d' });
+  assert.deepEqual(tokens({ ...w, focused: true }, [{ agent: 'pi' }, { agent: 'claude' }, {}], 0, QUIET_MS), { sp_panes: '99PN', sp_name_active: 'industrial-os', sp_agents: '02AG', sp_au: '??AU' });
+  assert.equal(tokens(w, [], 0, 1000 * DAY_MS).sp_quiet, PAD.repeat(3) + '99d');
+  assert.equal(tokens(w, [], 0, QUIET_MS - 1).sp_name, 'industrial-os');
 });
 test('text cell fitting handles controls, wide bases, graphemes, emoji and bounded combining marks', () => {
   assert.equal(fitLabel(' \x1b\u202ee\u0301\x7f ', 15, true), 'e\u0301' + PAD.repeat(14));
@@ -35,7 +35,7 @@ test('text cell fitting handles controls, wide bases, graphemes, emoji and bound
 test('activity excludes pane.updated/moved, includes closed and focus; persists and prunes only absent >30d', () => {
   assert.equal(activityWorkspace({ event: 'pane.updated', data: { pane: { workspace_id: 'a' } } }), null);
   assert.equal(activityWorkspace({ event: 'pane.created', data: { pane: { workspace_id: 'a' } } }), 'a');
-  for (const type of ['pane.closed', 'pane.agent_detected', 'pane.agent_status_changed', 'workspace.focused', 'pane.focused', 'tab.focused']) assert.equal(activityWorkspace({ event: type, data: { workspace_id: 'a' } }), 'a');
+  for (const type of ['pane.closed', 'pane.agent_detected', 'workspace.focused', 'pane.focused', 'tab.focused']) assert.equal(activityWorkspace({ event: type, data: { workspace_id: 'a' } }), 'a');
   const now = 40 * DAY_MS;
   const previous = { old: { last: 1, seen: 1 }, recent: { last: now - 1, seen: now - 1 }, a: { last: 1, seen: 1 } };
   const ws = ['a', 'b', 'c', 'd', 'e'].map((id) => workspace(id, { focused: id === 'd' }));

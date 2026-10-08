@@ -1,11 +1,12 @@
 import { tokens, advanceHistory, activityWorkspace, sortPlan, validateLists } from './model.mjs';
 import { request, subscribe } from './transport.mjs';
 import { Reporter } from './reporter.mjs';
-import { acquireLock, privateDirectory, readHistoryState, readConfig, atomicWrite, log } from './state.mjs';
+import { acquireDaemonLock, privateDirectory, readHistoryState, readConfig, atomicWrite, log } from './state.mjs';
 
 export async function runDaemon(target, options = {}) {
   await privateDirectory(target.stateDir);
-  const release = await acquireLock(target.lock);
+  let stopRequested = false, requestStop = () => { stopRequested = true; };
+  const release = await acquireDaemonLock(target.lock, () => requestStop());
   if (!release) return { owned: false, done: Promise.resolve(), stop: async () => {} };
   let history = {}, config = { sort: true }, signature, lastMove = -Infinity;
   try {
@@ -17,7 +18,8 @@ export async function runDaemon(target, options = {}) {
   const send = (method, params) => request(target.socket, method, params, options.requestTimeoutMs ?? 1000);
   const reporter = new Reporter(send, { now, ...options.reporter });
   let closed = false, connected = false, epoch = 0, reading, dirty = false;
-  let debounce, retry, subscription, periodic;
+  let debounce, retry, subscription, periodic, settingsRead, settingsValid = false;
+  const labels = new Map(); let previousPresent = new Set();
   let healthWrites = Promise.resolve();
   let readDelay = options.readRetryMs ?? 250;
   const activity = new Set();
@@ -47,47 +49,87 @@ export async function runDaemon(target, options = {}) {
       scheduleRetry(Math.min(30_000, readDelay)); readDelay = Math.min(30_000, readDelay * 2);
     }).finally(() => { reading = undefined; if (dirty && !closed && connected) refresh(); });
   }
+  function checkSettings() {
+    if (settingsRead) return settingsRead;
+    settingsValid = false;
+    settingsRead = (async () => {
+      const plugins = await send('plugin.list', { plugin_id: 'industrial-os.spaces' });
+      const entries = plugins.result?.plugins;
+      if (closed) return false;
+      if (!plugins.ok || !Array.isArray(entries) || entries.length > 4096 || entries.some((p) => !p || typeof p.plugin_id !== 'string' || typeof p.enabled !== 'boolean')) {
+        metrics.readFailures++; await log(target, 'plugin_read_failed'); await health('connected');
+        scheduleRetry(readDelay); readDelay = Math.min(30_000, readDelay * 2); return false;
+      }
+      if (!entries.some((p) => p.plugin_id === 'industrial-os.spaces' && p.enabled)) { signal(); return false; }
+      try { config = await readConfig(target.configDir); } catch { config = { sort: true }; await log(target, 'config_defaulted'); }
+      settingsValid = !closed; return settingsValid;
+    })().finally(() => { settingsRead = undefined; });
+    return settingsRead;
+  }
   async function reconcile() {
     dirty = false;
+    if (!settingsValid && !await checkSettings()) return;
+    if (closed || !connected) return;
     const owner = epoch;
-    const [ws, ps] = await Promise.all([send('workspace.list', {}), send('pane.list', {})]);
+    let [ws, ps] = await Promise.all([send('workspace.list', {}), send('pane.list', {})]);
+    const valid = () => ws.ok && ps.ok && validateLists(ws.result?.workspaces, ps.result?.panes, { allowCountMismatch: true });
+    const mismatches = () => {
+      const counts = new Map();
+      for (const p of ps.result.panes) counts.set(p.workspace_id, (counts.get(p.workspace_id) ?? 0) + 1);
+      return new Set(ws.result.workspaces.filter((w) => w.pane_count !== (counts.get(w.workspace_id) ?? 0)).map((w) => w.workspace_id));
+    };
+    if (valid() && mismatches().size) [ws, ps] = await Promise.all([send('workspace.list', {}), send('pane.list', {})]);
+    // Fence once after all reads, not between reports: events request a corrective dirty rerun.
     if (closed || !connected || owner !== epoch) return;
-    const workspaces = ws.result?.workspaces, panes = ps.result?.panes;
-    if (!ws.ok || !ps.ok || !validateLists(workspaces, panes)) {
+    if (!valid()) {
       metrics.readFailures++; await log(target, 'read_failed');
       if (!closed && connected && owner === epoch) await health('connected');
       scheduleRetry(readDelay); readDelay = Math.min(30_000, readDelay * 2); return;
     }
+    const skipped = mismatches();
+    if (skipped.size) { metrics.readFailures++; await log(target, 'pane_count_mismatch'); }
+    const allWorkspaces = ws.result.workspaces;
+    const workspaces = allWorkspaces.filter((w) => !skipped.has(w.workspace_id));
+    const panes = ps.result.panes.filter((p) => !skipped.has(p.workspace_id));
+    for (const w of allWorkspaces) {
+      if (!previousPresent.has(w.workspace_id) && labels.has(w.workspace_id) && labels.get(w.workspace_id) !== w.label) activity.add(w.workspace_id);
+      labels.set(w.workspace_id, w.label);
+    }
+    previousPresent = new Set(allWorkspaces.map((w) => w.workspace_id));
     metrics.reads++; readDelay = options.readRetryMs ?? 250;
     clearTimeout(retry); retry = undefined;
     const time = now();
-    const nextHistory = advanceHistory(history, workspaces, panes, activity, time);
+    const nextHistory = advanceHistory(history, allWorkspaces, ps.result.panes, activity, time);
     if (Object.keys(nextHistory).length > 16_384 || Buffer.byteLength(JSON.stringify(nextHistory)) > 1024 * 1024) throw new Error('history_limit');
-    history = nextHistory; activity.clear();
+    history = nextHistory;
+    for (const w of workspaces) activity.delete(w.workspace_id);
+    for (const id of labels.keys()) if (!history[id] && !previousPresent.has(id)) labels.delete(id);
     await persist();
-    if (closed || !connected || owner !== epoch) return;
+    if (closed || !connected) return;
     const byWorkspace = new Map(workspaces.map((w) => [w.workspace_id, []]));
     for (const p of panes) byWorkspace.get(p.workspace_id).push(p);
-    reporter.prune(new Set(byWorkspace.keys()));
+    reporter.prune(previousPresent);
     const failuresBefore = reporter.metrics.failures;
     for (const w of workspaces) {
-      if (closed || !connected || owner !== epoch) return;
+      if (closed || !connected) return;
       await reporter.report(w.workspace_id, tokens(w, byWorkspace.get(w.workspace_id), history[w.workspace_id].last, time));
     }
-    if (closed || !connected || owner !== epoch) return;
+    if (closed || !connected) return;
     if (reporter.metrics.failures > failuresBefore) await log(target, 'report_failed', { failures: reporter.metrics.failures });
     const reportRetry = reporter.retryIn();
     if (reportRetry !== null) scheduleRetry(reportRetry);
-    if (config.sort) {
+    // A partial read cannot safely determine complete worktree families or ordering.
+    if (settingsValid && config.sort && !skipped.size) {
       const plan = sortPlan(workspaces, history, time, signature, lastMove);
       // One block request moves all quiet units in their desired order, atomically. No focused id can appear.
       if (plan.moves.length) {
         // Diagnostics/persistence can yield since the earlier fence. Abort a stale plan immediately before dispatch.
-        if (closed || !connected || owner !== epoch) return;
-        lastMove = time;
-        const reply = await send('workspace.move_block', { workspace_ids: plan.moves.flatMap((m) => m.workspace_ids) });
-        if (reply.ok) { signature = plan.signature; metrics.moves++; }
-        else { metrics.moveFailures++; await log(target, 'move_failed'); }
+        if (!closed && connected && owner === epoch) {
+          lastMove = time;
+          const reply = await send('workspace.move_block', { workspace_ids: plan.moves.flatMap((m) => m.workspace_ids) });
+          if (reply.ok) { signature = plan.signature; metrics.moves++; }
+          else { metrics.moveFailures++; await log(target, 'move_failed'); }
+        }
       } else signature = plan.signature;
     }
     if (!closed) { await persist(); await health('connected'); }
@@ -97,16 +139,17 @@ export async function runDaemon(target, options = {}) {
     closed = true; connected = false; ++epoch;
     clearTimeout(debounce); clearTimeout(retry); clearInterval(periodic); subscription?.close();
     process.off('SIGTERM', signal); process.off('SIGINT', signal);
-    try { await reading; await health('stopped').catch(() => {}); await log(target, 'stopped', metrics); }
-    finally { await release(); resolveDone(); }
+    try { await reading; await settingsRead; await health('stopped').catch(() => {}); await log(target, 'stopped', metrics); }
+    finally { try { await release(); } finally { resolveDone(); } }
     return done;
   }
   const signal = () => { void stop().catch(() => {}); };
+  requestStop = signal;
   process.on('SIGTERM', signal); process.on('SIGINT', signal);
   try {
     subscription = subscribe(target.socket, {
       started() {
-        connected = true; ++epoch; metrics.reconnects++; reporter.invalidate(); refresh();
+        connected = true; settingsValid = false; ++epoch; metrics.reconnects++; reporter.invalidate(); refresh();
         void log(target, 'connected');
       },
       event(event) {
@@ -120,8 +163,13 @@ export async function runDaemon(target, options = {}) {
     }, options.subscription);
     // Force renewal on the tick; comparing exactly 30 s since an asynchronous
     // acceptance could otherwise skip a tick and silently renew only every 60 s.
-    periodic = setInterval(() => { reporter.invalidate(); refresh(); }, options.tickMs ?? 30_000);
+    periodic = setInterval(() => {
+      // Independent of the report loop: disabling cannot wait behind thousands of reports.
+      if (!connected || closed) return;
+      void checkSettings().then((ok) => { if (ok) { reporter.invalidate(); refresh(); } }).catch(signal);
+    }, options.tickMs ?? 30_000);
     await health('connecting'); await log(target, 'started');
+    if (stopRequested) signal();
   } catch (error) { await stop(); throw error; }
   return { owned: true, done, stop, metrics };
 }

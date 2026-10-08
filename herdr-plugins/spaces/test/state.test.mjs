@@ -45,3 +45,24 @@ test('socket isolation and bounded sanitized diagnostics; symlinks fail closed',
   assert.equal(await readFile(victim, 'utf8'), 'untouched');
   const path = join(dir, 'unsafe.lock'); await symlink(dir, path); await assert.rejects(acquireLock(path));
 });
+
+test('daemon liveness cannot be fooled by a recycled live PID; concurrent recovery and long paths stay safe', async (t) => {
+  const { acquireDaemonLock, daemonCommand, lockOwner, controlPath } = await import('../src/state.mjs');
+  const dir = await fixture(t), path = join(dir, 'daemon.lock');
+  const { chmod } = await import('node:fs/promises');
+  await chmod(dir, 0o755); // Herdr may pre-create owner-writable state parents with ordinary umask.
+  await mkdir(path); await writeFile(join(path, `${process.pid}-dead.json`), '{}');
+  assert.equal((await daemonCommand(path, await lockOwner(path))).running, false);
+  const contenders = await Promise.all(Array.from({ length: 8 }, () => acquireDaemonLock(path, () => {})));
+  assert.equal(contenders.filter(Boolean).length, 1);
+  const owner = await lockOwner(path);
+  assert.equal((await daemonCommand(path, owner)).running, true);
+  await contenders.find(Boolean)();
+  assert.equal((await daemonCommand(path, owner)).running, false);
+  assert.ok(Buffer.byteLength(controlPath('/tmp/' + 'x'.repeat(200) + '/l', owner.name)) <= 100);
+  const longDir = join(dir, 'x'.repeat(120)); await mkdir(longDir);
+  const longLock = join(longDir, 'daemon.lock'); let stopped = false;
+  const release = await acquireDaemonLock(longLock, () => { stopped = true; });
+  assert.equal((await daemonCommand(longLock, await lockOwner(longLock), 'stop')).running, true);
+  assert.equal(stopped, true); await release();
+});

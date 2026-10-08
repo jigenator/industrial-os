@@ -1,6 +1,6 @@
 import { KEYS } from './model.mjs';
 export const SOURCE = 'industrial-os:spaces';
-const NAMES = new Set(['name_active', 'name', 'name_stale']);
+const NAMES = new Set(['sp_name_active', 'sp_name', 'sp_name_stale']);
 export class Reporter {
   constructor(request, { now = Date.now, renewMs = 30_000, retryMs = 5000, maxRetryMs = 60_000 } = {}) {
     this.request = request; this.now = now; this.renewMs = renewMs; this.retryMs = retryMs; this.maxRetryMs = maxRetryMs;

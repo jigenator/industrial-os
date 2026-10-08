@@ -19,3 +19,8 @@ command = ["node", "bin/spaces.mjs", "ensure"]
 id = "status"
 title = "Spaces reporter status"
 command = ["node", "bin/spaces.mjs", "status"]
+
+[[actions]]
+id = "stop"
+title = "Stop Spaces reporter"
+command = ["node", "bin/spaces.mjs", "stop"]

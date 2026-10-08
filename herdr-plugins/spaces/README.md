@@ -23,18 +23,23 @@ Optional `config.json` in `HERDR_PLUGIN_CONFIG_DIR`:
 ```
 
 `sort` defaults to true. Missing, invalid, oversized or unknown config fields
-use defaults with a sanitized diagnostic. Config is read once per daemon
-start. Set `sort: false` to retain the user's order entirely. Number keys follow
-Herdr position, so enabling sort changes their targets when quiet units move.
+use defaults with a sanitized diagnostic. Config is re-read on every 30-second
+tick, so changes apply without restarting. Set `sort: false` to retain the user's
+order entirely. Number keys follow Herdr position, so enabling sort changes their targets when quiet units move.
 
 Manifest hooks run `node bin/spaces.mjs ensure`. It exits quickly, starting a
 detached `run` if needed; hooks on `pane.created` and `workspace.created` also
 repair a stopped reporter. The optional plugin `status` action returns only
-whether its socket's recorded PID is alive. No restart action is shipped.
+whether its socket's unique owner control endpoint answers. The `stop` action
+asks that endpoint to shut down (it never signals an arbitrary disk PID). No
+restart action is shipped. Disabling/uninstalling stops the daemon on the next
+30-second tick, plus any bounded in-flight request; it checks `plugin.list`
+independently of long report passes. Registry failure cannot prove removal and
+is retried; disconnected instances stop on reconnect or connection exhaustion.
 
 ## Operations and privacy
 
-State resides only in `HERDR_PLUGIN_STATE_DIR`, partitioned by a hash of
+Persistent state resides only in `HERDR_PLUGIN_STATE_DIR`, partitioned by a hash of
 `HERDR_SOCKET_PATH`. A `.lock` directory holds a PID marker; `.history.json`
 holds stable workspace IDs, activity/last-seen timestamps and the sorting
 signature; `.health.json` holds state and aggregate request/failure counters;
@@ -45,8 +50,10 @@ Labels travel only into Herdr's local in-memory workspace tokens.
 
 Absent history entries expire after 30 days during a successful reconciliation.
 History and health remain on disk while stopped. For deletion, an operator must
-stop the reporter first (SIGTERM to the verified PID), then remove its socket's
-state files. Plugin uninstall alone does not remove owned state. Do not delete
+stop the reporter first (`node bin/spaces.mjs stop` with its socket/state/config
+environment, or the plugin stop action), wait for stopped health/lock release,
+then remove its socket's state files. A later ensure hook can restart a stopped
+enabled plugin; disable it for a durable stop. Plugin uninstall alone does not remove owned state. Do not delete
 a live lock or trust an arbitrary PID file for signaling. No removal was run
 against installed state during development.
 
@@ -54,6 +61,10 @@ Health is a local snapshot, not an HTTP service: `connecting`, `connected`,
 `disconnected` or `stopped`, updated after reconciliation. PID plus socket hash
 correlates local logs and health. `status` is a liveness hint, not proof of
 successful reporting; inspect health's timestamp and failure counters as well.
+Control sockets use short hashed names under state. For paths longer than 100
+bytes (macOS sun_path limit), they live in private `/tmp/ios-sp-<uid>/` instead;
+normal shutdown removes the owner socket, while a crash can leave an inert
+unique inode. Inspect before removing it; never remove a live endpoint/lock.
 
 ## Limits
 
@@ -72,13 +83,25 @@ successful reporting; inspect health's timestamp and failure counters as well.
   this race. Plans are snapshot/event-fenced, not server-side conditional moves.
 - Unicode width is an explicit stdlib approximation, not terminal/font detection;
   [the contract](docs/token-contract.md#text-and-width) states its limits.
-- A rejected/slow read publishes nothing new. Requests time out at one second;
+- A rejected/slow read publishes nothing new. Torn pane counts retry once,
+  then only inconsistent spaces are skipped, leaving their previous tokens
+  until TTL expiry; consistent spaces still report. Sorting waits for a complete
+  consistent read. Event invalidations during reporting cannot starve later
+  spaces: the pass finishes, and a dirty rerun corrects values. Requests time out at one second;
   persistent failures can let TTL values expire. Names/count batches are not
   transactional across requests. A backwards wall clock can make Herdr ignore
   reports until the previous sequence is passed.
-- Dead PID locks recover automatically. PID reuse conservatively treats an
-  unrelated live PID as a live reporter; malformed/foreign lock contents fail
-  closed and require operator inspection. No automatic killing is performed.
+- A refused/missing owner control socket proves a stale lock even if its PID
+  was reused. Unknown/malformed locks, timeouts or invalid probe replies fail
+  closed and require inspection. No automatic PID killing is performed.
+- Workspace creation resets activity for reused IDs; differently named IDs
+  returning after an absent read also reset during one daemon run. Same-label
+  reuse, no observed absence, or missed creation across daemon restarts can
+  still inherit age. Labels never enter persisted history.
+- Upgrading from the initial PID-only daemon requires stopping that older
+  process before starting this version. Merge the new `$sp_...` fragment with
+  this reporter; unprefixed old no-TTL keys may remain unused until server
+  restart. The plugin does not clear keys it can no longer claim exclusively.
 - Private local storage is trusted to be operator-owned; this is not a sandbox
   against another process with the same user's filesystem/socket access.
 

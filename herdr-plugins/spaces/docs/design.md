@@ -35,5 +35,10 @@ animation, notifications or attention writes.
 
 Names freeze without TTL if the daemon stops; counts/age disappear after TTL.
 Users must not read a frozen name as a fresh count. First-seen spaces start
-with current activity rather than guessed historical ages. Terminal font,
+with current activity rather than guessed historical ages. Workspace creation
+refreshes even reused IDs; differently named reappearance after an absent read
+also resets history within a daemon run. Missed creation across restarts or
+same-label reuse can still inherit ages. Disabling the plugin stops reporting
+and sorting on its next tick; sort config changes apply on the next tick too.
+Terminal font,
 Unicode widths, truecolor and live scrollbar alignment remain unverified.

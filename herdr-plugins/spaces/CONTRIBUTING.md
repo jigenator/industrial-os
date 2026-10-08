@@ -74,3 +74,59 @@ Final hardening: an immediate pre-dispatch epoch fence covers async diagnostic
 yields. The approved residual concurrent-focus race is documented: Herdr has
 no conditional-move focus guard, but preserves active workspace ID. Final
 `node --test` remains **20/20 passed**; no live validation added.
+
+### Review fix round
+
+2026-10-08, macOS, Node 22.23.0, Herdr 0.9.3; source authority tag `v0.9.3`.
+
+**Correction:** the initial 20/20 result above was a passing local suite, not
+proof of subscription compatibility. The fake server incorrectly accepted any
+subscription and emitted dotted lifecycle names. The claim that those shapes
+were derived correctly from Herdr was wrong. `Subscription` requires `pane_id`
+for agent-status subscriptions; `EventKind` serializes lifecycle names in
+snake_case. This round validates required fields, rejects the whole request
+with `invalid_request`, emits snake_case lifecycle events, and maps them to one
+internal dotted form. No live/installed-plugin evidence has been added.
+
+**Passed**
+
+- `cd herdr-plugins/spaces && node --test`: **30/30 passed** on each of three
+  consecutive final runs, zero failures/skipped/cancelled. New regressions cover whole-request subscription rejection;
+  snake_case rename/creation activity and recycled-ID label reset; busy status
+  from pane.list; events every 10 ms while changed first-workspace reports are
+  delayed, all workspaces reporting, health persistence and a subsequent clean
+  sorting dispatch; tick config reload/disabled or missing plugin shutdown
+  (including interruption of a long report pass); persistent pane-count partial
+  reporting and transient mismatch single retry; PID-reuse-resistant control
+  probes, concurrent stale recovery, macOS long-path fallback and CLI stop.
+- Mutation checks in isolated temporary plugin copies: reverted B1, M1, M2,
+  M3, m1 disable/config, m2 creation/reappearance, m2b liveness, m3 partial-read,
+  and m4 key-prefix behavior each made its targeted regression fail (exit 1).
+  Nits have no behavior to revert: the redundant quiet filter is removed, and
+  the focused wording is corrected in the configuration design.
+- `cd herdr && node --test`: **10/10 passed**.
+- `cd herdr && node check-config.mjs`: temporary Spaces, sidebar and merged
+  copies **`config: ok`, exit 0** each; invalid copy **rejected, exit 1** expected.
+- Repository temporary walkthrough script: **982 local links/anchors passed**,
+  **93 tracked guidance documents mapped**, **10 CLAUDE entrypoints byte-exact**.
+  `git diff --check`, `git diff --cached --check` and manual publication/import
+  review: **passed**. No Pi source changes, private paths, payloads, copied
+  assets or generated files in the publication diff.
+
+**Failed (resolved):** updated fixtures/expectations before fixes: **12 passed,
+13 failed of 25**. An initial M3 mutation still passed because no-op events let
+accepted diffs advance across reruns; the regression now also changes the first
+workspace and proves the old epoch-aborting loop starves late workspaces. A
+repeated full run then exposed the old stale-read test gate matching an earlier
+`pane.list` call (**29/30 passed**); it now waits for the actual delayed old
+snapshot before invalidating it. The final repeated results recorded here use that corrected gate.
+
+**Skipped:** none of the authorized required checks.
+
+**Not run:** live/interactive Herdr, install/link/enable, installed manifest
+invocation, real-session mutations, Linux, native rendering/navigation, load
+benchmarks or power-loss durability. Mermaid re-rendering was not run (no
+diagram changes in this round; no local renderer found). Focus dispatch remains non-conditional;
+missed creation with same-label/restart ID reuse can still inherit age. Older
+PID-only daemons must be stopped before upgrade; update the `$sp_` fragment with
+the reporter. No upgrade or live-state deletion was performed.

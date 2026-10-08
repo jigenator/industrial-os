@@ -8,7 +8,8 @@ The [root conventions](../../../docs/conventions.md) and
 - `.mjs`, Node 22 standard library only. Pure model functions receive clocks,
   authoritative records and history explicitly; adapters own all I/O.
 - Wire and persisted data are untrusted shapes: validate, bound, reject, never
-  turn missing AU into zero. Reject torn pane/workspace reads.
+  turn missing AU into zero. Retry torn pane counts once, then skip only the
+  inconsistent workspaces; all other shape failures reject the read.
 - Request failures use local enumerable codes (`timeout`, `connection_failed`,
   `connection_closed`, `invalid_reply`, `request_rejected`); no internal server
   error payload is surfaced. Diagnostics contain fixed codes/counters only.

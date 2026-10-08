@@ -1,5 +1,7 @@
 import { createConnection } from 'node:net';
-export const EVENTS = ['pane.created', 'pane.closed', 'pane.agent_detected', 'pane.agent_status_changed', 'pane.updated', 'pane.moved', 'pane.focused', 'tab.focused', 'workspace.created', 'workspace.closed', 'workspace.focused', 'workspace.moved', 'workspace.reordered', 'workspace.renamed', 'workspace.updated'];
+export const EVENTS = ['pane.created', 'pane.closed', 'pane.agent_detected', 'pane.updated', 'pane.moved', 'pane.focused', 'tab.focused', 'workspace.created', 'workspace.closed', 'workspace.focused', 'workspace.moved', 'workspace.reordered', 'workspace.renamed', 'workspace.updated'];
+// Lifecycle events are snake_case on the wire; request subscription types are dotted.
+const WIRE_EVENTS = new Map(EVENTS.map((type) => [type.replace('.', '_'), type]));
 let serial = 0;
 const requestId = () => `industrial-os:spaces:${process.pid}:${++serial}`;
 const MAX_BYTES = 1024 * 1024;
@@ -69,7 +71,7 @@ export function subscribe(socketPath, { started, event, offline, exhausted }, op
         clearTimeout(handshake); clearTimeout(watchdog); watchdog = undefined;
         live = true; backoff = min; started();
       } else if (line?.error) drop();
-      else if (EVENTS.includes(line?.event)) event(line);
+      else if (WIRE_EVENTS.has(line?.event)) event({ ...line, event: WIRE_EVENTS.get(line.event) });
     }, drop);
   }
   beginFailure(); connect();

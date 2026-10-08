@@ -1,5 +1,5 @@
 // Pure display, activity and ordering rules. No host or project imports.
-export const KEYS = ['panes', 'agents', 'au', 'name_active', 'name', 'name_stale', 'quiet'];
+export const KEYS = ['sp_panes', 'sp_agents', 'sp_au', 'sp_name_active', 'sp_name', 'sp_name_stale', 'sp_quiet'];
 export const QUIET_MS = 48 * 60 * 60 * 1000;
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const PAD = '\u2800';
@@ -42,21 +42,21 @@ export function au(panes) {
 }
 export function tokens(workspace, panes, last, now) {
   const quiet = !workspace.focused && now - last >= QUIET_MS;
-  const result = { panes: count(workspace.pane_count, 'PN') };
+  const result = { sp_panes: count(workspace.pane_count, 'PN') };
   if (quiet) {
-    result.name_stale = fitLabel(workspace.label, 15, true);
-    result.quiet = (Math.min(99, Math.floor((now - last) / DAY_MS)) + 'd').padStart(6, PAD);
+    result.sp_name_stale = fitLabel(workspace.label, 15, true);
+    result.sp_quiet = (Math.min(99, Math.floor((now - last) / DAY_MS)) + 'd').padStart(6, PAD);
   } else {
-    result[workspace.focused ? 'name_active' : 'name'] = fitLabel(workspace.label, 24);
-    result.agents = count(panes.filter((p) => p.agent != null).length, 'AG');
-    result.au = au(panes);
+    result[workspace.focused ? 'sp_name_active' : 'sp_name'] = fitLabel(workspace.label, 24);
+    result.sp_agents = count(panes.filter((p) => p.agent != null).length, 'AG');
+    result.sp_au = au(panes);
   }
   return result;
 }
-export const ACTIVITY_EVENTS = new Set(['pane.created', 'pane.closed', 'pane.agent_detected', 'pane.agent_status_changed', 'pane.focused', 'tab.focused', 'workspace.focused']);
+export const ACTIVITY_EVENTS = new Set(['workspace.created', 'pane.created', 'pane.closed', 'pane.agent_detected', 'pane.focused', 'tab.focused', 'workspace.focused']);
 export function activityWorkspace(event) {
   if (!ACTIVITY_EVENTS.has(event.event)) return null;
-  return event.data?.workspace_id ?? event.data?.pane?.workspace_id ?? null;
+  return event.data?.workspace_id ?? event.data?.pane?.workspace_id ?? event.data?.workspace?.workspace_id ?? null;
 }
 export function advanceHistory(history, workspaces, panes, activity, now) {
   const next = Object.assign(Object.create(null), structuredClone(history));
@@ -102,12 +102,12 @@ export function sortPlan(workspaces, history, now, previousSignature, lastMove =
   const desired = [...all.filter((u) => !u.quiet), ...quiet].flatMap((u) => u.ids);
   if (desired.join('\0') === workspaces.map((w) => w.workspace_id).join('\0')) return { signature, moves: [] };
   // Moving only quiet units to the end preserves all non-quiet user order and never moves the focused unit.
-  return { signature, moves: quiet.filter((u) => !u.focused).map((u) => ({ workspace_ids: u.ids })) };
+  return { signature, moves: quiet.map((u) => ({ workspace_ids: u.ids })) };
 }
 const record = (x) => x && typeof x === 'object' && !Array.isArray(x);
 const id = (x) => typeof x === 'string' && x.length > 0 && x.length <= 128;
 const status = (x) => ['idle', 'working', 'blocked', 'done', 'unknown'].includes(x);
-export function validateLists(workspaces, panes) {
+export function validateLists(workspaces, panes, { allowCountMismatch = false } = {}) {
   if (!Array.isArray(workspaces) || !Array.isArray(panes) || workspaces.length > 4096 || panes.length > 16384) return false;
   const ids = new Set();
   for (const w of workspaces) {
@@ -125,5 +125,5 @@ export function validateLists(workspaces, panes) {
   // Two separate reads may span a mutation; reject inconsistent counts rather than displaying invented totals.
   const counts = new Map();
   for (const p of panes) counts.set(p.workspace_id, (counts.get(p.workspace_id) ?? 0) + 1);
-  return workspaces.filter((w) => w.focused).length <= 1 && workspaces.every((w) => (counts.get(w.workspace_id) ?? 0) === w.pane_count);
+  return workspaces.filter((w) => w.focused).length <= 1 && (allowCountMismatch || workspaces.every((w) => (counts.get(w.workspace_id) ?? 0) === w.pane_count));
 }

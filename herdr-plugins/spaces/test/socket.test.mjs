@@ -21,10 +21,24 @@ async function fixture(t) {
   const dest = target({ HERDR_SOCKET_PATH: join(dir, 'herdr.sock'), HERDR_PLUGIN_STATE_DIR: dir, HERDR_PLUGIN_CONFIG_DIR: dir });
   await writeFile(join(dir, 'config.json'), '{"sort":false}');
   const cleanup = [];
-  const calls = [], sockets = new Set(), subscriptions = new Set(), metadata = new Map(), sequences = new Map(), expiry = new Map();
+  const calls = [], errors = [], readSnapshots = [], sockets = new Set(), subscriptions = new Set(), metadata = new Map(), sequences = new Map(), expiry = new Map();
   let workspaces = [{ workspace_id: 'w1', label: 'space', pane_count: 1, focused: true, agent_status: 'idle' }];
   let panes = [{ pane_id: 'w1:p1', workspace_id: 'w1', agent_status: 'idle', agent: 'pi', tokens: { g2_au: '02AU' } }];
-  const control = { rejectRead: false, rejectReport: false, readDelay: 0, ignore: false };
+  const control = { rejectRead: false, rejectReport: false, readDelay: 0, reportDelay: 0, ignore: false, mismatchOnce: false,
+    plugins: [{ plugin_id: 'industrial-os.spaces', enabled: true }] };
+  // Herdr v0.9.3 Subscription serde: dotted request kinds, required fields on special kinds.
+  const lifecycle = new Set(['workspace.created', 'workspace.updated', 'workspace.metadata_updated', 'workspace.renamed', 'workspace.moved', 'workspace.reordered', 'workspace.closed', 'workspace.focused', 'worktree.created', 'worktree.opened', 'worktree.removed', 'tab.created', 'tab.closed', 'tab.focused', 'tab.renamed', 'tab.moved', 'pane.created', 'pane.closed', 'pane.updated', 'pane.focused', 'pane.moved', 'pane.exited', 'pane.agent_detected', 'layout.updated']);
+  function validSubscription(s) {
+    if (!s || typeof s !== 'object') return false;
+    if (lifecycle.has(s.type)) return true;
+    if (typeof s.pane_id !== 'string') return false;
+    if (s.type === 'pane.scroll_changed') return true;
+    if (s.type === 'pane.agent_status_changed') return s.agent_status == null || ['idle', 'working', 'blocked', 'done', 'unknown'].includes(s.agent_status);
+    return s.type === 'pane.output_matched' && ['visible', 'recent', 'recent_unwrapped', 'detection'].includes(s.source) &&
+      ['substring', 'regex'].includes(s.match?.type) && typeof s.match.value === 'string' &&
+      (s.lines == null || (Number.isInteger(s.lines) && s.lines >= 0 && s.lines <= 0xffff_ffff)) &&
+      (s.strip_ansi === undefined || typeof s.strip_ansi === 'boolean');
+  }
   const server = createServer((socket) => {
     sockets.add(socket); socket.on('close', () => { sockets.delete(socket); subscriptions.delete(socket); }); socket.on('error', () => {});
     let buffer = ''; socket.setEncoding('utf8');
@@ -33,11 +47,16 @@ async function fixture(t) {
       while ((index = buffer.indexOf('\n')) >= 0) {
         const msg = JSON.parse(buffer.slice(0, index)); buffer = buffer.slice(index + 1); calls.push(msg);
         const reply = (result) => { if (!socket.destroyed) socket.write(JSON.stringify({ id: msg.id, result }) + '\n'); };
-        const reject = () => { if (!socket.destroyed) socket.write(JSON.stringify({ id: msg.id, error: { code: 'rejected' } }) + '\n'); };
+        const reject = (code = 'rejected') => { errors.push({ id: msg.id, code }); if (!socket.destroyed) socket.write(JSON.stringify({ id: msg.id, error: { code, message: 'Invalid request parameters' } }) + '\n'); };
         if (control.ignore) continue;
-        if (msg.method === 'events.subscribe') { subscriptions.add(socket); reply({ type: 'subscription_started' }); }
+        if (msg.method === 'events.subscribe') {
+          if (!Array.isArray(msg.params?.subscriptions) || !msg.params.subscriptions.every(validSubscription)) { reject('invalid_request'); continue; }
+          subscriptions.add(socket); reply({ type: 'subscription_started' });
+        } else if (msg.method === 'plugin.list') reply({ plugins: control.plugins });
         else if (msg.method === 'workspace.list' || msg.method === 'pane.list') {
           const result = structuredClone(msg.method === 'workspace.list' ? { workspaces } : { panes });
+          if (control.mismatchOnce && msg.method === 'workspace.list') { result.workspaces[0].pane_count++; control.mismatchOnce = false; }
+          readSnapshots.push({ method: msg.method, result });
           if (control.rejectRead) reject(); else if (control.readDelay) setTimeout(() => reply(result), control.readDelay); else reply(result);
         } else if (msg.method === 'workspace.report_metadata') {
           if (control.rejectReport) { reject(); continue; }
@@ -52,15 +71,18 @@ async function fixture(t) {
             }
             metadata.set(p.workspace_id, data);
           }
-          reply({});
+          if (control.reportDelay) setTimeout(() => reply({}), control.reportDelay); else reply({});
         } else if (msg.method === 'workspace.move_block') reply({ workspaces }); else reply({});
       }
     });
   });
   await new Promise((resolve) => server.listen(dest.socket, resolve));
   t.after(async () => { for (const fn of cleanup) await fn(); for (const s of sockets) s.destroy(); await new Promise((resolve) => server.close(resolve)); await rm(dir, { recursive: true, force: true }); });
-  return { dest, cleanup, calls, control, subscriptions, metadata, setWorkspace: (value) => { workspaces = value; }, setPanes: (value) => { panes = value; },
-    emit(event, data) { for (const s of subscriptions) s.write(JSON.stringify({ event, data }) + '\n'); },
+  return { dest, cleanup, calls, errors, readSnapshots, control, subscriptions, metadata, setWorkspace: (value) => { workspaces = value; }, setPanes: (value) => { panes = value; },
+    emit(event, data) {
+      assert.ok(!lifecycle.has(event), 'lifecycle wire event must use snake_case, not a dotted subscription type');
+      for (const s of subscriptions) s.write(JSON.stringify({ event, data: { type: event, ...data } }) + '\n');
+    },
     expire(now) { for (const [identity, deadline] of expiry) if (deadline <= now) { const [id, key] = identity.split(':'); delete metadata.get(id)?.[key]; expiry.delete(identity); } },
     disconnect() { for (const s of subscriptions) s.destroy(); } };
 }
@@ -71,19 +93,19 @@ const fast = { debounceMs: 15, tickMs: 40, readRetryMs: 10, requestTimeoutMs: 10
 test('fake socket subscribe/read/report; TTL renew, quiet clears, activity, metadata ignored and reconnect full', async (t) => {
   const f = await fixture(t); let now = 10 * DAY_MS;
   const daemon = await runDaemon(f.dest, { ...fast, now: () => now }); f.cleanup.push(() => daemon.stop());
-  await until(() => f.metadata.get('w1')?.au === '02AU');
+  await until(() => f.metadata.get('w1')?.sp_au === '02AU');
   assert.deepEqual(f.calls[0].params.subscriptions.map((s) => s.type), EVENTS);
   assert.ok(!EVENTS.includes('workspace.metadata_updated'));
   const initial = f.calls.filter((m) => m.method === 'workspace.report_metadata'); assert.equal(initial.length, 2);
-  f.emit('workspace.metadata_updated', { workspace_id: 'w1' }); await wait(20); assert.equal(f.calls.filter((m) => m.method === 'workspace.report_metadata').length, 2);
+  f.emit('workspace_metadata_updated', { workspace_id: 'w1' }); await wait(20); assert.equal(f.calls.filter((m) => m.method === 'workspace.report_metadata').length, 2);
   now += 40; await until(() => f.calls.filter((m) => m.method === 'workspace.report_metadata').length >= 4);
   f.setWorkspace([{ workspace_id: 'w1', label: 'space', pane_count: 1, focused: false, agent_status: 'idle' }]);
-  now += 2 * DAY_MS; f.emit('pane.updated', { pane: { workspace_id: 'w1' } });
-  await until(() => f.metadata.get('w1')?.quiet?.endsWith('2d'));
-  assert.equal(f.metadata.get('w1').agents, undefined); assert.equal(f.metadata.get('w1').au, undefined);
+  now += 2 * DAY_MS; f.emit('pane_updated', { pane: { workspace_id: 'w1' } });
+  await until(() => f.metadata.get('w1')?.sp_quiet?.endsWith('2d'));
+  assert.equal(f.metadata.get('w1').sp_agents, undefined); assert.equal(f.metadata.get('w1').sp_au, undefined);
   const saved = JSON.parse(await readFile(f.dest.history, 'utf8')); assert.equal(saved.entries.w1.last, 10 * DAY_MS + 40);
-  f.emit('pane.agent_status_changed', { workspace_id: 'w1', pane_id: 'w1:p1', agent_status: 'idle' });
-  await until(() => f.metadata.get('w1')?.name === 'space'); assert.equal(f.metadata.get('w1').quiet, undefined);
+  f.emit('pane_created', { pane: { workspace_id: 'w1' } });
+  await until(() => f.metadata.get('w1')?.sp_name === 'space'); assert.equal(f.metadata.get('w1').sp_quiet, undefined);
   const count = f.calls.length; f.disconnect();
   await until(() => daemon.metrics.reconnects >= 2 && f.calls.length > count + 4);
   const full = f.calls.slice(count).filter((m) => m.method === 'workspace.report_metadata');
@@ -96,7 +118,7 @@ test('fake socket subscribe/read/report; TTL renew, quiet clears, activity, meta
   assert.ok(logs.every((entry) => !Object.hasOwn(entry, 'tokens') && !Object.hasOwn(entry, 'workspace_id') && !Object.hasOwn(entry, 'label')));
   const stopped = f.calls.length; await wait(60); assert.equal(f.calls.length, stopped);
   f.expire(Date.now() + 120_001);
-  assert.deepEqual(f.metadata.get('w1'), { name: 'space' }); // Only no-TTL names freeze after stop.
+  assert.deepEqual(f.metadata.get('w1'), { sp_name: 'space' }); // Only no-TTL names freeze after stop.
 });
 
 test('periodic tick forces full TTL renewal even before a prior acceptance reaches the nominal interval', async (t) => {
@@ -109,30 +131,31 @@ test('periodic tick forces full TTL renewal even before a prior acceptance reach
 
 test('failed reads publish nothing; report failures retry full with backoff; stale in-flight reads are fenced', async (t) => {
   const f = await fixture(t); const daemon = await runDaemon(f.dest, fast); f.cleanup.push(() => daemon.stop());
-  await until(() => f.metadata.get('w1')?.name_active === 'space');
+  await until(() => f.metadata.get('w1')?.sp_name_active === 'space');
   f.control.rejectRead = true;
   const count = f.calls.filter((m) => m.method === 'workspace.report_metadata').length;
   f.setPanes([{ pane_id: 'w1:p1', workspace_id: 'w1', agent_status: 'idle', agent: 'pi', tokens: {} }]);
-  f.emit('pane.updated', { pane: { workspace_id: 'w1' } }); await wait(130);
+  f.emit('pane_updated', { pane: { workspace_id: 'w1' } }); await wait(130);
   assert.equal(f.calls.filter((m) => m.method === 'workspace.report_metadata').length, count);
   assert.ok(daemon.metrics.readFailures > 0);
   assert.ok(JSON.parse(await readFile(f.dest.health, 'utf8')).readFailures > 0);
   f.control.rejectRead = false; f.control.rejectReport = true;
   await until(() => f.calls.filter((m) => m.method === 'workspace.report_metadata').length > count);
   const failed = f.calls.filter((m) => m.method === 'workspace.report_metadata').length;
-  f.emit('pane.updated', {}); await wait(25);
+  f.emit('pane_updated', {}); await wait(25);
   assert.equal(f.calls.filter((m) => m.method === 'workspace.report_metadata').length, failed);
-  f.control.rejectReport = false; await until(() => f.metadata.get('w1')?.au === '??AU');
+  f.control.rejectReport = false; await until(() => f.metadata.get('w1')?.sp_au === '??AU');
   const recent = f.calls.filter((m) => m.method === 'workspace.report_metadata').slice(-2);
   assert.equal(Object.keys(recent[0].params.tokens).length, 3); assert.equal(Object.keys(recent[1].params.tokens).length, 4);
   f.control.readDelay = 60;
   f.setWorkspace([{ workspace_id: 'w1', label: 'old-read', pane_count: 1, focused: true, agent_status: 'idle' }]);
-  f.emit('workspace.renamed', { workspace_id: 'w1' });
-  await until(() => f.calls.at(-1).method === 'pane.list');
+  f.emit('workspace_renamed', { workspace_id: 'w1' });
+  // Wait for this delayed old snapshot, not a pane.list call left over from an earlier pass.
+  await until(() => f.readSnapshots.some((r) => r.result.workspaces?.[0].label === 'old-read'));
   f.setWorkspace([{ workspace_id: 'w1', label: 'latest', pane_count: 1, focused: true, agent_status: 'idle' }]);
-  f.emit('workspace.renamed', { workspace_id: 'w1' });
-  await until(() => f.metadata.get('w1')?.name_active === 'latest');
-  assert.ok(!f.calls.some((m) => m.params.tokens?.name_active === 'old-read'));
+  f.emit('workspace_renamed', { workspace_id: 'w1' });
+  await until(() => f.metadata.get('w1')?.sp_name_active === 'latest');
+  assert.ok(!f.calls.some((m) => m.params.tokens?.sp_name_active === 'old-read'));
 });
 
 test('silent subscription handshake bounded; exponential reconnect and continuous failure exit releases lock', async (t) => {
@@ -164,13 +187,13 @@ test('history survives daemon restart and sorting respects disabled config and q
     { workspace_id: 'parent', label: 'parent', pane_count: 0, focused: false, agent_status: 'idle', worktree: tree(false) }]); f.setPanes([]);
   await atomicWrite(f.dest.history, { version: 1, entries: { child: { last: 0, seen: now }, parent: { last: DAY_MS, seen: now } } });
   let daemon = await runDaemon(f.dest, { ...fast, now: () => now });
-  await until(() => f.metadata.get('child')?.quiet?.endsWith('20d')); await daemon.stop();
+  await until(() => f.metadata.get('child')?.sp_quiet?.endsWith('20d')); await daemon.stop();
   assert.equal(f.calls.some((m) => m.method === 'workspace.move_block'), false);
   await writeFile(join(f.dest.configDir, 'config.json'), '{"sort":true}');
   daemon = await runDaemon(f.dest, { ...fast, now: () => now }); f.cleanup.push(() => daemon.stop());
   await until(() => f.calls.some((m) => m.method === 'workspace.move_block'));
   assert.deepEqual(f.calls.find((m) => m.method === 'workspace.move_block').params, { workspace_ids: ['parent', 'child'] });
-  f.emit('workspace.reordered', {}); await wait(100);
+  f.emit('workspace_reordered', {}); await wait(100);
   assert.equal(f.calls.filter((m) => m.method === 'workspace.move_block').length, 1);
   await daemon.stop();
   daemon = await runDaemon(f.dest, { ...fast, now: () => now + 120_000 });
@@ -191,8 +214,150 @@ test('ensure exits promptly with pipe EOF; detached daemon lives; concurrent hoo
   f.cleanup.push(async () => { const owner = await lockOwner(f.dest.lock).catch(() => null); if (owner?.pid && alive(owner.pid)) { process.kill(owner.pid, 'SIGTERM'); await until(async () => !(await lockOwner(f.dest.lock))); } });
   const start = Date.now(); const results = await Promise.all(Array.from({ length: 8 }, hook));
   assert.ok(Date.now() - start < 2000); assert.ok(results.every((r) => r.code === 0 && r.output === ''));
-  await until(() => f.metadata.get('w1')?.au === '02AU');
+  await until(() => f.metadata.get('w1')?.sp_au === '02AU');
   const owner = await lockOwner(f.dest.lock); assert.ok(alive(owner.pid)); assert.notEqual(owner.pid, process.pid);
   await wait(100); assert.equal(f.subscriptions.size, 1);
   assert.equal((await readdir(f.dest.stateDir)).filter((n) => n.endsWith('.lock')).length, 1);
+});
+
+test('subscription rejects the entire request when a special kind misses required fields', async (t) => {
+  const f = await fixture(t);
+  for (const entry of [{ type: 'pane.agent_status_changed' }, { type: 'pane.scroll_changed' }, { type: 'pane.output_matched', pane_id: 'p' }]) {
+    const reply = await request(f.dest.socket, 'events.subscribe', { subscriptions: [{ type: 'workspace.created' }, entry] });
+    assert.equal(reply.error, 'request_rejected'); assert.equal(f.subscriptions.size, 0);
+    assert.equal(f.errors.at(-1).code, 'invalid_request');
+  }
+  assert.ok(!EVENTS.includes('pane.agent_status_changed'), 'global subscribe cannot include a pane-scoped special subscription');
+});
+
+test('snake_case lifecycle events update names, activity and recycled workspace history', async (t) => {
+  const f = await fixture(t); let now = 10 * DAY_MS;
+  const w = (label) => ({ workspace_id: 'w1', label, pane_count: 0, focused: false, agent_status: 'idle' });
+  f.setWorkspace([w('old')]); f.setPanes([]);
+  await atomicWrite(f.dest.history, { version: 1, entries: { w1: { last: 0, seen: now } } });
+  const daemon = await runDaemon(f.dest, { ...fast, tickMs: 60_000, now: () => now }); f.cleanup.push(() => daemon.stop());
+  await until(() => f.metadata.get('w1')?.sp_quiet);
+  f.setWorkspace([w('renamed')]); f.emit('workspace_renamed', { workspace_id: 'w1', label: 'renamed' });
+  await until(() => f.metadata.get('w1')?.sp_name_stale?.startsWith('renamed'));
+  f.emit('workspace_created', { workspace: w('renamed') });
+  await until(() => f.metadata.get('w1')?.sp_name === 'renamed');
+  now += 3 * DAY_MS; f.emit('pane_updated', { pane: { workspace_id: 'w1' } });
+  await until(() => f.metadata.get('w1')?.sp_quiet);
+  f.setWorkspace([]); f.emit('workspace_closed', { workspace_id: 'w1' });
+  const before = daemon.metrics.reads; await until(() => daemon.metrics.reads > before);
+  f.setWorkspace([w('replacement')]); f.emit('workspace_updated', { workspace: w('replacement') });
+  await until(() => f.metadata.get('w1')?.sp_name === 'replacement');
+});
+
+test('steady pane.updated during reporting does not starve any workspace or later sorting', async (t) => {
+  const f = await fixture(t); const now = 20 * DAY_MS;
+  const ws = ['active', 'old', 'late'].map((id) => ({ workspace_id: id, label: id, pane_count: 0, focused: id === 'active', agent_status: 'idle' }));
+  f.setWorkspace(ws); f.setPanes([]); f.control.reportDelay = 25;
+  await writeFile(join(f.dest.configDir, 'config.json'), '{"sort":true}');
+  await atomicWrite(f.dest.history, { version: 1, entries: { old: { last: 0, seen: now }, late: { last: DAY_MS, seen: now } } });
+  const daemon = await runDaemon(f.dest, { ...fast, tickMs: 60_000, now: () => now }); f.cleanup.push(() => daemon.stop());
+  await until(() => f.calls.some((m) => m.method === 'workspace.report_metadata'));
+  let revision = 0;
+  const interval = setInterval(() => {
+    // Force a changed first workspace on every rerun, not just a stream of no-op invalidations.
+    f.setWorkspace(ws.map((w) => w.workspace_id === 'active' ? { ...w, label: `active-${++revision}` } : w));
+    f.emit('pane_updated', { pane: { workspace_id: 'active' } });
+  }, 10);
+  try {
+    await until(() => ws.every((w) => f.metadata.get(w.workspace_id)?.sp_panes));
+    await until(async () => JSON.parse(await readFile(f.dest.health, 'utf8')).reads > 0);
+  } finally { clearInterval(interval); }
+  // Moving during an epoch-invalidated pass is intentionally fenced; a clean rerun must still sort.
+  await until(() => f.calls.some((m) => m.method === 'workspace.move_block'));
+});
+
+test('ticks reload sort config and stop on disabled or absent plugin', async (t) => {
+  for (const plugins of [[{ plugin_id: 'industrial-os.spaces', enabled: false }], []]) {
+    const f = await fixture(t); const now = 10 * DAY_MS;
+    f.setWorkspace(['old', 'active'].map((id) => ({ workspace_id: id, label: id, pane_count: 0, focused: id === 'active', agent_status: 'idle' }))); f.setPanes([]);
+    await atomicWrite(f.dest.history, { version: 1, entries: { old: { last: 0, seen: now } } });
+    const daemon = await runDaemon(f.dest, { ...fast, now: () => now }); f.cleanup.push(() => daemon.stop());
+    await until(() => f.metadata.get('old')?.sp_quiet);
+    await writeFile(join(f.dest.configDir, 'config.json'), '{"sort":true}');
+    await until(() => f.calls.some((m) => m.method === 'workspace.move_block'));
+    f.control.plugins = plugins;
+    await until(async () => !(await lockOwner(f.dest.lock)));
+    await daemon.done;
+    assert.equal(JSON.parse(await readFile(f.dest.health, 'utf8')).state, 'stopped');
+  }
+});
+
+test('pane count mismatch retries once and isolates only inconsistent workspaces', async (t) => {
+  const f = await fixture(t);
+  const ws = ['w1', 'w2'].map((id) => ({ workspace_id: id, label: id, pane_count: 0, focused: id === 'w1', agent_status: 'idle' }));
+  f.setWorkspace(ws); f.setPanes([]);
+  const daemon = await runDaemon(f.dest, { ...fast, tickMs: 60_000 }); f.cleanup.push(() => daemon.stop());
+  await until(() => f.metadata.get('w2')?.sp_panes);
+  const before = f.calls.length;
+  f.setWorkspace([{ ...ws[0], label: 'consistent' }, { ...ws[1], label: 'torn', pane_count: 1 }]);
+  f.emit('workspace_updated', {});
+  await until(() => f.metadata.get('w1')?.sp_name_active === 'consistent');
+  assert.equal(f.metadata.get('w2').sp_name, 'w2', 'old accepted tokens left alone');
+  assert.ok(f.calls.slice(before).filter((m) => m.method === 'workspace.list').length >= 2);
+  assert.ok(!f.calls.slice(before).some((m) => m.method === 'workspace.report_metadata' && m.params.workspace_id === 'w2'));
+  assert.match(await readFile(f.dest.log, 'utf8'), /pane_count_mismatch/);
+  f.expire(Date.now() + 120_001);
+  assert.equal(f.metadata.get('w2').sp_panes, undefined); assert.equal(f.metadata.get('w2').sp_name, 'w2');
+});
+
+test('CLI status and ensure reject a reused PID and stop addresses only the owned control endpoint', async (t) => {
+  const f = await fixture(t);
+  const { mkdir } = await import('node:fs/promises');
+  await mkdir(f.dest.lock); await writeFile(join(f.dest.lock, `${process.pid}-dead.json`), '{}');
+  const bin = fileURLToPath(new URL('../bin/spaces.mjs', import.meta.url));
+  const env = { ...process.env, HERDR_SOCKET_PATH: f.dest.socket, HERDR_PLUGIN_STATE_DIR: f.dest.stateDir, HERDR_PLUGIN_CONFIG_DIR: f.dest.configDir };
+  const invoke = (command) => new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [bin, command], { env }); let output = '';
+    child.stdout.on('data', (chunk) => { output += chunk; }); child.stderr.on('data', (chunk) => { output += chunk; });
+    const timer = setTimeout(() => { child.kill(); reject(new Error('CLI timeout')); }, 2000);
+    child.on('close', (code) => { clearTimeout(timer); resolve({ code, output }); }); child.on('error', reject);
+  });
+  f.cleanup.push(async () => { await invoke('stop'); await until(async () => !(await lockOwner(f.dest.lock))); });
+  assert.deepEqual(await invoke('status'), { code: 0, output: '{"running":false}\n' });
+  assert.deepEqual(await invoke('ensure'), { code: 0, output: '' });
+  await until(() => f.metadata.get('w1')?.sp_panes);
+  assert.deepEqual(await invoke('status'), { code: 0, output: '{"running":true}\n' });
+  assert.equal((await invoke('stop')).code, 0);
+  await until(async () => !(await lockOwner(f.dest.lock)));
+  assert.deepEqual(await invoke('status'), { code: 0, output: '{"running":false}\n' });
+});
+
+test('a transient pane count mismatch succeeds on exactly one immediate retry', async (t) => {
+  const f = await fixture(t); f.control.mismatchOnce = true;
+  const daemon = await runDaemon(f.dest, { ...fast, tickMs: 60_000 }); f.cleanup.push(() => daemon.stop());
+  await until(() => f.metadata.get('w1')?.sp_panes);
+  assert.equal(f.calls.filter((m) => m.method === 'workspace.list').length, 2);
+  assert.equal(f.calls.filter((m) => m.method === 'pane.list').length, 2);
+  assert.equal(daemon.metrics.readFailures, 0);
+});
+
+test('pane.updated is not activity but working or blocked pane.list status refreshes activity', async (t) => {
+  const f = await fixture(t), now = 10 * DAY_MS;
+  f.setWorkspace([{ workspace_id: 'w1', label: 'space', pane_count: 1, focused: false, agent_status: 'idle' }]);
+  await atomicWrite(f.dest.history, { version: 1, entries: { w1: { last: 0, seen: now } } });
+  const daemon = await runDaemon(f.dest, { ...fast, tickMs: 60_000, now: () => now }); f.cleanup.push(() => daemon.stop());
+  await until(() => f.metadata.get('w1')?.sp_quiet);
+  for (const agent_status of ['working', 'blocked']) {
+    f.setPanes([{ pane_id: 'w1:p1', workspace_id: 'w1', agent: 'pi', agent_status, tokens: { g2_au: '02AU' } }]);
+    const reads = daemon.metrics.reads;
+    f.emit('pane_updated', { pane: { workspace_id: 'w1' } });
+    await until(() => daemon.metrics.reads > reads && f.metadata.get('w1')?.sp_name === 'space');
+    assert.equal(JSON.parse(await readFile(f.dest.history, 'utf8')).entries.w1.last, now);
+  }
+});
+
+test('disable tick interrupts a long report pass rather than waiting behind every workspace', async (t) => {
+  const f = await fixture(t);
+  f.setWorkspace(Array.from({ length: 12 }, (_, n) => ({ workspace_id: `w${n}`, label: `space${n}`, pane_count: 0, focused: n === 0, agent_status: 'idle' }))); f.setPanes([]);
+  f.control.reportDelay = 60;
+  const daemon = await runDaemon(f.dest, { ...fast, tickMs: 20 }); f.cleanup.push(() => daemon.stop());
+  await until(() => f.calls.some((m) => m.method === 'workspace.report_metadata'));
+  f.control.plugins = [];
+  await until(async () => !(await lockOwner(f.dest.lock)), 500); await daemon.done;
+  assert.ok(f.metadata.size < 12);
 });
