@@ -6,7 +6,10 @@ This guide covers the workflow for every change and the checks that apply to the
 | --- | --- | --- |
 | `design-system/` | Node.js 22, standard library; its own checks need no install step | [design-system/CONTRIBUTING.md](design-system/CONTRIBUTING.md) |
 | `pi/claude-interrupt/` | Node.js 22, npm, TypeScript, an installed Pi for the load check | [pi/claude-interrupt/CONTRIBUTING.md](pi/claude-interrupt/CONTRIBUTING.md) |
+| `pi/signals-collector/` | Node.js 22 type stripping, installed Pi; offline cache/contract tests | [pi/signals-collector/CONTRIBUTING.md](pi/signals-collector/CONTRIBUTING.md) |
 | `pi/status-bar/` | Node.js 22, npm, TypeScript run by type stripping, the globally installed Pi for its tests and the load check | [pi/status-bar/CONTRIBUTING.md](pi/status-bar/CONTRIBUTING.md) |
+| `pi/herdr-sidebar/` | Node.js 22, npm, TypeScript run by type stripping, the globally installed Pi for its tests and the load check | [pi/herdr-sidebar/CONTRIBUTING.md](pi/herdr-sidebar/CONTRIBUTING.md) |
+| `herdr/` | TOML; Node.js 22 for its check; an installed Herdr for the parser check | [herdr/CONTRIBUTING.md](herdr/CONTRIBUTING.md) |
 
 There is no root test command, script, or workspace. The root `package.json` lists the Pi extensions' entry points for Pi's git install, see [installing the Pi extensions](pi/README.md#install), and one `file:` dependency that links the design-system package. Running `node --test` from the root discovers the extensions' TypeScript tests, which need each extension's own setup; it is not a repository check. See [standalone packages](docs/decisions/standalone-packages.md) and [the in-repo design-system package](docs/decisions/in-repo-design-system-package.md).
 

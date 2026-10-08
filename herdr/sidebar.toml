@@ -1,0 +1,64 @@
+# Industrial OS: Herdr's Pi agents sidebar in layout B, for the tokens pi/herdr-sidebar reports.
+# A fragment of Herdr's config.toml, merged by hand; see README.md. The token names and widths are fixed by
+# pi/herdr-sidebar/docs/token-contract.md. Every color is a design-system value, named here by its role;
+# test/sidebar.test.mjs checks both.
+
+[theme.custom]
+sidebar_bg = "#000000"    # field
+active_row_bg = "#1c1c1c" # surface
+selection_bg = "#1c1c1c"  # surface
+
+[ui]
+# The token geometry assumes exactly 36 columns.
+sidebar_width = 36
+sidebar_min_width = 36
+sidebar_max_width = 36
+
+[ui.sidebar.agents]
+# Panel-wide spacing applies to every agent, not just Pi.
+row_gap = 1
+
+[ui.sidebar.agents.rows_by_agent]
+# Override only Pi; leave global rows and all other agents unchanged.
+pi = [
+  # Row 1: state (decorative; WRK and SUB accent, BLK and QNS critical, DNE primary), SPACE name, goal time.
+  [
+    { token = "$g1", fg = "#717171", bold = true, rules = [{ contains = "WRK", fg = "#c0fe04" }, { contains = "SUB", fg = "#c0fe04" }, { contains = "BLK", fg = "#f24723" }, { contains = "QNS", fg = "#f24723" }, { contains = "DNE", fg = "#ffffff" }] },
+    { token = "$proj", fg = "#ffffff", bold = true },      # primary
+    { token = "$proj_idle", fg = "#cfcfcf", bold = true }, # secondary
+    { token = "$gt", fg = "#cfcfcf" },                     # secondary
+    { token = "$gt_off", fg = "#333333" },                 # ghost: paused goal
+  ],
+  # Row 2: active units, context used, compactions (structural 00 and ??, violet 01-02, pink 03-04, critical 05+).
+  [
+    { token = "$g2_au", fg = "#c0fe04", bold = true }, # accent
+    { token = "$g2_au0", fg = "#717171" },             # decorative
+    { token = "$bar", fg = "#c0fe04" },                # accent
+    { token = "$bar_warn", fg = "#d79e52" },           # warning
+    { token = "$bar_crit", fg = "#f24723", bold = true }, # critical
+    { token = "$bar_idle", fg = "#717171" },           # decorative: IDL/UNK, never zone-colored
+    { token = "$bar_unk", fg = "#333333" },            # ghost
+    { token = "$cmpx", fg = "#555555", bold = true, rules = [{ equals = "CMP×01", fg = "#5200ff" }, { equals = "CMP×02", fg = "#5200ff" }, { equals = "CMP×03", fg = "#ff15bd" }, { equals = "CMP×04", fg = "#ff15bd" }, { equals = "CMP×00", fg = "#555555" }, { starts_with = "CMP×?", fg = "#555555" }, { starts_with = "CMP×", fg = "#f24723" }] },
+  ],
+  # Row 3: branch or directory, pull request.
+  [
+    { token = "$g3", fg = "#717171" },       # decorative
+    { token = "$br", fg = "#cfcfcf" },       # secondary
+    { token = "$br_dirty", fg = "#d79e52" }, # warning
+    { token = "$dir", fg = "#cfcfcf" },      # secondary
+    { token = "$prn", fg = "#cfcfcf" },      # secondary
+    { token = "$prn_off", fg = "#333333" },  # ghost: lookup unavailable
+  ],
+  # Row 4: model and thinking level.
+  [{ token = "$g4", fg = "#717171" }, { token = "$mthink", fg = "#cfcfcf" }],
+  # Row 5: phase, question or finished, and its age; then the question's continuation rows.
+  [
+    { token = "$g5", fg = "#717171" },                  # decorative
+    { token = "$ev_act", fg = "#cfcfcf" },              # secondary
+    { token = "$ask_l1", fg = "#f24723", bold = true }, # critical
+    { token = "$ev_rdy_text", fg = "#ffffff" },         # primary
+    { token = "$ph_age", fg = "#717171" },              # decorative
+  ],
+  [{ token = "$ask_l2", fg = "#f24723", bold = true }],
+  [{ token = "$ask_l3", fg = "#f24723", bold = true }],
+]

@@ -4,7 +4,7 @@
 
 Industrial OS is for people who run coding agents with Pi inside Herdr. It turns that workspace into an industrial-style control surface for managing agents, with one coherent visual and interaction language across the design system, Pi extensions, and Herdr tooling, instead of a different panel, gauge, or state convention in every tool.
 
-The repository is a monorepo for that work. Each project in it is its own project with its own language, toolchain, checks, and guides; the root holds only what they share. The terminal design system is the reference kit. Two Pi extensions have moved in: claude-interrupt and status-bar, the first implementation of the style. Herdr packages maintained in separate repositories are planned to follow.
+The repository is a monorepo for that work. Each project in it is its own project with its own language, toolchain, checks, and guides; the root holds only what they share. The terminal design system is the reference kit. Two Pi extensions have moved in: claude-interrupt and status-bar, the first implementation of the style. signals-collector collects each Pi session's data once for every display, herdr-sidebar shows it in Herdr's agents sidebar, and `herdr/` holds the Herdr configuration that draws it. Other Herdr packages maintained in separate repositories are planned to follow.
 
 The desired experience is an instrument that is clear and useful—not decoration pretending to be operational data.
 
