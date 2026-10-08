@@ -6,13 +6,15 @@ Industrial OS turns the [Pi](https://github.com/earendil-works/pi) coding agent 
 
 ## Status
 
-Three projects are here. They share code only through the private design-system package, which both Pi extensions import by name: claude-interrupt for its transcript marker, and status-bar for its footer elements:
+Five projects are here. They share code only through the private design-system package: claude-interrupt imports it for its transcript marker, status-bar for its footer elements, and the Herdr configuration's check for its colors:
 
 - [design-system](design-system/README.md): the terminal design system, a reference kit of elements, motions, a storybook, and a showcase. Plain Node.js, no dependencies. It is the private package `@industrial-os/design-system`, which the repository's projects can import by name; it is never published.
 - [pi/claude-interrupt](pi/claude-interrupt/README.md): a Pi extension that aborts the current response on Esc and continues with your queued text, marking the continuation with an animated plate.
 - [pi/status-bar](pi/status-bar/README.md): a Pi extension that replaces the footer with a framed Acid / Black instrument panel showing the agent-reported active project, where Pi's tools run, context use, model, and other extensions' statuses. It is the first implementation of the style.
+- [pi/herdr-sidebar](pi/herdr-sidebar/README.md): a Pi extension that reports each Pi session's state to Herdr's agents sidebar as tokens.
+- [herdr](herdr/README.md): Herdr configuration, today the agents-sidebar rows that draw herdr-sidebar's tokens.
 
-Herdr tooling still lives in separate repositories and is planned to move in.
+Other Herdr tooling still lives in separate repositories and is planned to move in.
 
 ## Layout
 
@@ -23,7 +25,9 @@ industrial-os/
 ├── design-system/            terminal design system and its guides
 ├── pi/                       Pi extensions, each its own project
 │   ├── claude-interrupt/     interrupt-and-continue with the DIRECTIVE UPDATED marker
-│   └── status-bar/           the Acid / Black footer for the agent-reported active project
+│   ├── status-bar/           the Acid / Black footer for the agent-reported active project
+│   └── herdr-sidebar/        this session's state as Herdr agents-sidebar tokens
+├── herdr/                    Herdr configuration: the agents-sidebar rows, merged by hand
 ├── docs/
 │   ├── mission.md            product scope and constraints
 │   ├── design.md             the shared visual and interaction language
@@ -38,8 +42,6 @@ industrial-os/
 ├── package-lock.json         npm's lockfile for that manifest
 └── .gitignore
 ```
-
-Planned, not yet created: `herdr/` for Herdr configuration. It gets its folder and guides when its first maintained content moves in.
 
 In a checkout, run `npm install` once at the root to link the design-system package into `node_modules/`; see [contributing](CONTRIBUTING.md#setup).
 

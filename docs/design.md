@@ -1,6 +1,6 @@
 # Design
 
-This is the visual and interaction language of every project in the repository: the design system, the Pi extensions, and the planned Herdr tooling. It holds only what they share. Each project's own design doc describes that project's experience and must agree with this one: [the design system](../design-system/docs/design.md), [claude-interrupt](../pi/claude-interrupt/docs/design.md), and [status-bar](../pi/status-bar/docs/design.md).
+This is the visual and interaction language of every project in the repository: the design system, the Pi extensions, and the Herdr configuration. It holds only what they share. Each project's own design doc describes that project's experience and must agree with this one: [the design system](../design-system/docs/design.md), [claude-interrupt](../pi/claude-interrupt/docs/design.md), [status-bar](../pi/status-bar/docs/design.md), [herdr-sidebar](../pi/herdr-sidebar/docs/design.md), and [the Herdr sidebar](../herdr/docs/design.md).
 
 ## Experience
 
@@ -16,7 +16,7 @@ Avoid simulated telemetry, decorative noise over content, unnecessary chrome, an
 
 ### Acid / Black
 
-This is the selected default palette. The design system owns its values: [foundation/palette.mjs](../design-system/foundation/palette.mjs) is their source and where every role's value can be read. Both Pi extensions import it through exported subpaths and convert styles with Pi: [status-bar](../pi/status-bar/docs/design.md#palette-and-context-semantics) uses the explicit `COLORS` alias map and Pi-converted `C`, while [claude-interrupt](../pi/claude-interrupt/docs/design.md) uses its marker adapter. This table defines what each role is for. The palette is not a shipped theme API or a blanket contrast certification.
+This is the selected default palette. The design system owns its values: [foundation/palette.mjs](../design-system/foundation/palette.mjs) is their source and where every role's value can be read. claude-interrupt and status-bar import it through exported subpaths and convert styles with Pi: [status-bar](../pi/status-bar/docs/design.md#palette-and-context-semantics) uses the explicit `COLORS` alias map and Pi-converted `C`, while [claude-interrupt](../pi/claude-interrupt/docs/design.md) uses its marker adapter. This table defines what each role is for. The palette is not a shipped theme API or a blanket contrast certification.
 
 | Role (`palette.mjs` key) | Intended use |
 | --- | --- |
@@ -51,6 +51,10 @@ Motion is instrument detail, never data. A motion decorates already-rendered out
 Common actions should be visible; secondary detail can be disclosed on demand. Never hide required inputs, errors, destructive consequences, or focus cues.
 
 Separate focus, selection, active work, saved state, and historical state. A transient effect cannot be the only confirmation of an action. Do not steal the host editor's keystrokes or mouse behavior without an explicit interaction contract.
+
+### Herdr configuration
+
+Herdr draws its own chrome from configuration, so a project there has no Pi styling API: it sets colors by value in Herdr's config, and those values are design-system roles checked against the design system. Text reported into Herdr follows the same rules as text Pi draws: fixed cell budgets, U+2800 for padding Herdr must not trim, and state carried by a code and shape, not color alone. [The Herdr sidebar](../herdr/docs/design.md) is the first example: layout B, filled with tokens by [herdr-sidebar](../pi/herdr-sidebar/docs/design.md).
 
 ## Accessibility and platform behavior
 
