@@ -12,7 +12,7 @@ This extension decides what text each sidebar row carries; [the Herdr design](..
 | 4 | `MDL · opus-5.5/hi` | Model and thinking level |
 | 5 | `SH · npm test · 12s` | What the agent does now and for how long |
 
-Row 5 shows at most one of three things. While a question waits for you, `ASK` and the question over up to three rows, with `(+N)` when more questions follow. While the agent works, its phase: `WAI` waiting for the model, `THK` thinking, `WRT` writing, or the tool (`RD` `ED` `WR` `SH` `WB` `AG`, `TL` for others) with its file, command, query or agent. When Herdr reports the agent done and not yet seen, `RDY · finished` and the time since it finished.
+Row 5 shows at most one of three things. While a question waits for you, `ASK` and the question over up to three rows, with `(+N)` when more questions follow. While the agent works, its phase: `WAI` waiting for the model, `THK` thinking, `WRT` writing, or the tool (`RD` `ED` `WR` `SH` `WB` `AG`, `TL` for others) with its file, command, query or agent. When the agent or its subagents finished and you have not seen the pane yet, `RDY · finished` and the time since they finished.
 
 ## States
 
@@ -20,12 +20,15 @@ The state code always carries the state in text and shape, so color is never the
 
 | Code | Shape | When |
 | --- | --- | --- |
-| `WRK` | `◐` | Herdr reports the agent working |
 | `QNS` | `×` | A question is pending, whatever Herdr reports |
 | `BLK` | `×` | Herdr reports the agent blocked for another reason |
-| `DNE` | `✓` | Herdr reports done: finished and not yet seen |
+| `WRK` | `◐` | Herdr reports the main agent working, whether or not subagents run |
+| `SUB` | `◐` | Subagents run (units ≥ 1) while the main agent is not working: Herdr reports idle, done or unknown |
+| `DNE` | `✓` | Finished and not yet seen: Herdr reports the main agent done, or the subagents finished while you were not looking at the pane |
 | `IDL` | `○` | Herdr reports idle |
 | `UNK` | `·` | Herdr's status is unknown or not yet read, including while the connection is down |
+
+The table is in precedence order: the first state that applies is shown. Herdr tracks only Pi's main (root) agent, so it would show `IDL` while subagents run and never mark their finish as done; `SUB` and the sidebar's own `DNE` fill those gaps without changing Herdr's state, notifications or attention sorting. The pane counts as seen when its tab is the active tab of Herdr's focused workspace, as Herdr's own rule has it; subagents that finish while you look at the pane go straight to `IDL`, and looking at it later clears `DNE`. Herdr's own `done` still clears only when Herdr marks the pane seen.
 
 A pending question also raises Herdr's blocked state through `herdr:blocked`, so Herdr's attention sorting, notifications and waits treat it like any blocked agent.
 
@@ -40,7 +43,7 @@ A pending question also raises Herdr's blocked state through `herdr:blocked`, so
 | Branch changes | no `*` when dirtiness is unknown; Herdr draws it like clean | `*` |
 | Everything else | the row or value is left out | a placeholder |
 
-In IDL and UNK, known context is decorative grey, not zone-coloured; its shape and used percentage remain unchanged. WRK, QNS, BLK and DNE retain the zone colours. Unknown context stays `--%` in every state.
+In IDL and UNK, known context is decorative grey, not zone-coloured; its shape and used percentage remain unchanged. WRK, SUB, QNS, BLK and DNE retain the zone colours. Unknown context stays `--%` in every state.
 
 Without the signals-collector the sidebar shows row 1 (including SPACE when known) and row 2's unknowns only. `99%` context means 99% or more used; `99AU` and `CMP×99` mean 99 or more.
 

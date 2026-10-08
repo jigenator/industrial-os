@@ -13,7 +13,7 @@ test("herdrRequest returns the reply, Herdr's error code, a timeout, or a connec
 	t.after(() => herdr.close());
 	herdr.setStatus("working", false);
 	const ok = await herdrRequest(herdr.socketPath, "pane.get", { pane_id: herdr.paneId }, 500);
-	assert.deepEqual(ok, { ok: true, result: { type: "pane_info", pane: { pane_id: herdr.paneId, workspace_id: "w1", agent_status: "working" } } });
+	assert.deepEqual(ok, { ok: true, result: { type: "pane_info", pane: { pane_id: herdr.paneId, workspace_id: "w1", tab_id: "w1:t1", agent_status: "working" } } });
 	assert.deepEqual(await herdrRequest(herdr.socketPath, "pane.get", { pane_id: "w9:p9" }, 500), { ok: false, error: "pane.get: pane_not_found" });
 	herdr.setPaneGetMode("silent");
 	const started = Date.now();
@@ -91,7 +91,7 @@ test("workspace label resolves via workspace.get, follows rename/update/move, an
 	const watch = watchPaneState({ socketPath: herdr.socketPath, paneId: herdr.paneId }, () => {}, { minBackoffMs: 20, maxBackoffMs: 80 }); t.after(() => watch.close());
 	await until(() => watch.workspaceLabel === "Initial SPACE");
 	assert.deepEqual(herdr.log.find((r) => r.method === "workspace.get")!.params, { workspace_id: "w1" });
-	assert.deepEqual(herdr.log.find((r) => r.method === "events.subscribe")!.params.subscriptions.map((s: any) => s.type), ["pane.agent_status_changed", "workspace.renamed", "workspace.updated", "pane.moved"]);
+	assert.deepEqual(herdr.log.find((r) => r.method === "events.subscribe")!.params.subscriptions.map((s: any) => s.type), ["pane.agent_status_changed", "workspace.renamed", "workspace.updated", "pane.moved", "workspace.focused", "tab.focused", "pane.focused"]);
 	herdr.setWorkspaceLabel("Renamed SPACE"); await until(() => watch.workspaceLabel === "Renamed SPACE");
 	herdr.setWorkspaceLabel("Updated SPACE", "updated"); await until(() => watch.workspaceLabel === "Updated SPACE");
 	const reads = herdr.log.filter((r) => r.method === "workspace.get").length;
@@ -115,4 +115,32 @@ test("workspace rename during a read wins; reconnect fences an old pending label
 	herdr.dropSubscribers(); herdr.setWorkspaceLabel("Current", false); herdr.setWorkspaceGetDelay(0);
 	await until(() => watch.workspaceLabel === "Current"); await new Promise((done) => setTimeout(done, 200));
 	assert.equal(watch.workspaceLabel, "Current"); assert.ok(!seen.includes("Obsolete"));
+});
+
+test("visibility: the pane's tab is the focused workspace's active tab, re-resolved on each focus event and reconnect", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close());
+	const seen: (boolean | null)[] = [];
+	const watch = watchPaneState({ socketPath: herdr.socketPath, paneId: herdr.paneId }, (state: any) => seen.push(state.visible), { minBackoffMs: 20, maxBackoffMs: 80 }); t.after(() => watch.close());
+	await until(() => watch.visible === true, "visible at start");
+	// Another tab of the same workspace, then another workspace: either hides the pane.
+	herdr.focus("w1", "w1:t2", "w1:p2"); await until(() => watch.visible === false, "another tab");
+	herdr.focus("w1", "w1:t1", "w1:p1"); await until(() => watch.visible === true, "back");
+	herdr.focus("w3", "w3:t1", "w3:p1"); await until(() => watch.visible === false, "another workspace");
+	// Each focus event alone re-resolves through pane.get and workspace.get; the payload is not trusted.
+	for (const event of ["workspace.focused", "tab.focused", "pane.focused"]) {
+		const reads = herdr.log.filter((r) => r.method === "workspace.get").length;
+		herdr.focus("w1", "w1:t1", "w1:p9", [event]); await until(() => watch.visible === true, `${event} shows`);
+		assert.ok(herdr.log.filter((r) => r.method === "workspace.get").length > reads, event);
+		herdr.focus("w1", "w1:t2", "w1:p2", false); herdr.emit(event, { workspace_id: "w1", tab_id: "w1:t1", pane_id: herdr.paneId });
+		await until(() => watch.visible === false, `${event} hides despite its payload`);
+	}
+	// Unknown while disconnected; a reconnect re-resolves the focus that changed meanwhile.
+	herdr.dropSubscribers(); await until(() => watch.visible === null, "unknown while disconnected");
+	herdr.focus("w1", "w1:t1", "w1:p1", false);
+	await until(() => watch.visible === true && herdr.subscriberCount === 1, "re-resolved after reconnect");
+	// Without the workspace read, visibility is unknown, never assumed.
+	herdr.setWorkspaceGetMode("error"); herdr.focus("w1", "w1:t2", "w1:p2");
+	await until(() => watch.visible === null, "unknown without workspace.get");
+	assert.equal(watch.status, "idle");
+	assert.deepEqual(seen.slice(0, 5), [true, false, true, false, true]);
 });

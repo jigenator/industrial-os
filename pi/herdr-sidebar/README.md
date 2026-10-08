@@ -10,7 +10,7 @@ A Pi extension that fills Herdr's agents sidebar with this Pi session's state: o
    SH   · npm test        ·    12s
 ```
 
-- **Row 1:** the agent state (`WRK`, `QNS` while a question waits for you, `BLK`, `DNE`, `IDL`, `UNK`), the Herdr SPACE name (workspace label; Active folder basename while unknown) and, with a [pi-goal](https://www.npmjs.com/package/@narumitw/pi-goal) goal, its time.
+- **Row 1:** the agent state (`QNS` while a question waits for you, `BLK`, `WRK`, `SUB` while subagents run and the main agent does not, `DNE` when it or its subagents finished unseen, `IDL`, `UNK`), the Herdr SPACE name (workspace label; Active folder basename while unknown) and, with a [pi-goal](https://www.npmjs.com/package/@narumitw/pi-goal) goal, its time.
 - **Row 2:** active units (`AU`), the context used toward compaction as a bar and percentage, and the compaction count (`CMP`).
 - **Row 3:** the Active branch, with `*` when it has changes, or its directory; an open pull request's number.
 - **Row 4:** the model and thinking level.
@@ -47,6 +47,7 @@ It reports only from Pi's interactive terminal mode inside a Herdr pane (`HERDR_
 - A wall clock that steps backwards makes Herdr ignore the sidebar's reports until it catches up; see [architecture](docs/architecture.md#reporting-to-herdr).
 - A multi-request full report can be half-applied for up to one retry interval and self-heals with the next successful full report. Failure retries use exponential backoff with jitter from 5 to 60 seconds.
 - Data egress: the first line of bash commands and tool paths are sent to Herdr's in-memory pane tokens as `ev_act` (bounded and sanitized for display). Avoid sensitive command/path content when using this display.
+- Herdr tracks only Pi's main agent. `SUB` and the subagents-finished `DNE` are this sidebar's own display and do not change Herdr's state, notifications or attention sorting. Whether you have seen the pane follows Herdr's focused workspace and its active tab; Herdr's knowledge of whether the terminal window itself has focus is not available to extensions, so subagents finishing in the active tab of an unfocused window go straight to `IDL`. See [architecture](docs/architecture.md#seen-and-the-subagents-finished-flag).
 - No interactive check in Pi and Herdr has been recorded; see [contributing](CONTRIBUTING.md#verification-records).
 
 ## Project guides

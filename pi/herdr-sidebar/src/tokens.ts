@@ -1,5 +1,5 @@
-// Pure token builder: a snapshot, Herdr's agent status for this pane, a clock and the home path in; the sidebar
-// token map out. The canonical rules are in docs/token-contract.md; this module performs no I/O.
+// Pure token builder: a snapshot, Herdr's agent status for this pane, the subagents-finished flag, a clock and the
+// home path in; the sidebar token map out. The canonical rules are in docs/token-contract.md; this module performs no I/O.
 import { basename, dirname, isAbsolute, relative, sep } from "node:path";
 import { visibleWidth } from "@earendil-works/pi-tui";
 import type { Phase, SidebarSnapshot } from "./snapshot.ts";
@@ -12,7 +12,8 @@ export type TokenKey = (typeof TOKEN_KEYS)[number];
 export type TokenMap = Partial<Record<TokenKey, string>>;
 
 export type HerdrStatus = "idle" | "working" | "blocked" | "done" | "unknown";
-export type SidebarInput = { snapshot: SidebarSnapshot | null; herdr: HerdrStatus | null; workspaceLabel?: string | null; now: number; home: string };
+// `subagentsFinishedAt` is this extension's own "subagents finished unseen" flag: when it was set, or null.
+export type SidebarInput = { snapshot: SidebarSnapshot | null; herdr: HerdrStatus | null; workspaceLabel?: string | null; subagentsFinishedAt?: number | null; now: number; home: string };
 
 // Herdr trims ASCII whitespace but keeps U+2800, so every padding cell is U+2800.
 export const BLANK = "\u2800";
@@ -26,7 +27,7 @@ const ASK_LINES = 3;
 const SEGMENT_CODE_POINTS = 60;
 
 const STATES = {
-	working: ["◐", "WRK"], question: ["×", "QNS"], blocked: ["×", "BLK"], done: ["✓", "DNE"], idle: ["○", "IDL"], unknown: ["·", "UNK"],
+	working: ["◐", "WRK"], subagents: ["◐", "SUB"], question: ["×", "QNS"], blocked: ["×", "BLK"], done: ["✓", "DNE"], idle: ["○", "IDL"], unknown: ["·", "UNK"],
 } as const;
 type DisplayState = keyof typeof STATES;
 const THINKING: Record<string, string> = { off: "off", minimal: "mn", low: "lo", medium: "md", high: "hi", xhigh: "xh", max: "mx" };
@@ -127,9 +128,30 @@ function displayPath(path: string, home: string): string {
 	return dirname(elided) === elided ? path : `${basename(parent)}${sep}${basename(path)}`;
 }
 
+// QNS, BLK, WRK, SUB, DNE, then IDL or UNK. Herdr only tracks the root agent: while it is not working or blocked,
+// running units still mean work is happening, and their unseen finish is a completion Herdr cannot see.
 function displayState(input: SidebarInput): DisplayState {
 	if (input.snapshot?.question) return "question";
-	return input.herdr ?? "unknown";
+	const herdr = input.herdr ?? "unknown";
+	if (herdr === "blocked" || herdr === "working") return herdr;
+	const units = input.snapshot?.units ?? null;
+	if (units !== null && units >= 1) return "subagents";
+	if (herdr === "done" || (input.subagentsFinishedAt ?? null) !== null) return "done";
+	return herdr;
+}
+
+export type FinishedInput = { previousUnits: number | null; units: number | null; herdr: HerdrStatus | null; visible: boolean | null; subagentsFinishedAt: number | null; now: number };
+
+/**
+ * The next value of the "subagents finished unseen" flag. Set when units fall from one or more to zero while the root
+ * agent is not working and the pane is not known to be seen; cleared when the pane is seen, the root agent works or
+ * units rise. Unknown units keep it as it is, and unknown visibility counts as not seen. See docs/architecture.md.
+ */
+export function nextSubagentsFinishedAt(input: FinishedInput): number | null {
+	if (input.herdr === "working" || input.visible === true) return null;
+	if (input.units !== null && input.units >= 1) return null;
+	if (input.subagentsFinishedAt !== null) return input.subagentsFinishedAt;
+	return input.previousUnits !== null && input.previousUnits >= 1 && input.units === 0 ? input.now : null;
 }
 
 // A running duration: `base` seconds plus the time since `start` (none before it).
@@ -142,13 +164,15 @@ function goalClock(snapshot: SidebarSnapshot): Clock | null {
 	return goal.status === "active" && goal.activeSince !== null ? { base: goal.usedSeconds, start: goal.activeSince } : { base: goal.usedSeconds, start: Infinity };
 }
 
-// Row 5's age clock: the phase's start while working, the last settle when Herdr reports done.
+// Row 5's age clock: the phase's start while working; when done, the subagents' unseen finish if flagged,
+// otherwise the last settle.
 function ageClock(input: SidebarInput): Clock | null {
 	const snapshot = input.snapshot;
 	if (!snapshot || snapshot.question) return null;
 	if (snapshot.phase) return { base: 0, start: snapshot.phase.since };
-	if (displayState(input) === "done" && snapshot.lastSettledAt !== null) return { base: 0, start: snapshot.lastSettledAt };
-	return null;
+	if (displayState(input) !== "done") return null;
+	const finished = input.subagentsFinishedAt ?? snapshot.lastSettledAt;
+	return finished === null ? null : { base: 0, start: finished };
 }
 
 function phaseCode(phase: Phase): string {

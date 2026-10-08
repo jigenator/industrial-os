@@ -1,6 +1,6 @@
 # Herdr sidebar token contract
 
-Status: current. This is the canonical copy of the token contract between this extension, which reports the tokens, and the [Herdr configuration](../../../herdr/README.md), whose rows render them. The geometry was frozen on 2026-10-08 for the parallel signals-collector and herdr-sidebar work and verified live in Herdr 0.9.3 that day. The approved follow-up uses context used and the Herdr SPACE label; the collector snapshot contract is unchanged. Change it here first, then the builder in `src/tokens.ts`, then the rows in `herdr/sidebar.toml`; the checks in both projects read the key list below.
+Status: current. This is the canonical copy of the token contract between this extension, which reports the tokens, and the [Herdr configuration](../../../herdr/README.md), whose rows render them. The geometry was frozen on 2026-10-08 for the parallel signals-collector and herdr-sidebar work and verified live in Herdr 0.9.3 that day. The approved follow-up uses context used and the Herdr SPACE label; the later state follow-up adds `◐ SUB` and the subagents-finished `DNE` without new keys. The collector snapshot contract is unchanged. Change it here first, then the builder in `src/tokens.ts`, then the rows in `herdr/sidebar.toml`; the checks in both projects read the key list below.
 
 The snapshot fields named here (`snapshot.active`, `snapshot.question` and the rest) are the signals-collector's snapshot contract v1; [architecture](architecture.md#inputs) describes how this extension receives and validates it.
 
@@ -12,14 +12,21 @@ Herdr trims ASCII whitespace but keeps U+2800, so every padding cell is U+2800. 
 
 ## Row 1
 
-- `g1`: `<icon> <CODE>` + one U+2800. State from Herdr's `agent_status` for this pane, except QNS whenever `snapshot.question` is non-null: working `◐ WRK`, question `× QNS`, blocked `× BLK`, done `✓ DNE`, idle `○ IDL`, unknown `· UNK`.
-- `proj` (WRK/QNS/BLK/DNE) or `proj_idle` (IDL/UNK): the Herdr SPACE name (the pane's workspace `label`), with the full basename of `snapshot.active` only while the label is unknown. Resolve with `pane.get` → `workspace_id` → `workspace.get`; re-resolve on `workspace.renamed`, `workspace.updated`, `pane.moved` and reconnect.
+- `g1`: `<icon> <CODE>` + one U+2800. The first state that applies, from `snapshot.question`, Herdr's `agent_status` for this pane (which tracks only Pi's root agent) and `snapshot.units`:
+  1. question `× QNS`: `snapshot.question` is non-null.
+  2. blocked `× BLK`: Herdr reports blocked.
+  3. working `◐ WRK`: Herdr reports working; the main agent supersedes its subagents.
+  4. subagents `◐ SUB`: `snapshot.units` ≥ 1 while Herdr reports idle, done or unknown.
+  5. done `✓ DNE`: Herdr reports done, or the subagents-finished flag below is set.
+  6. idle `○ IDL` or unknown `· UNK`: Herdr reports idle, or unknown or not yet read.
+- The subagents-finished flag is the sidebar's own unseen completion, because Herdr makes `done` only from the root agent. It is set when `snapshot.units` falls from ≥ 1 to 0 between consecutive snapshots (unknown units never count and keep the flag as it is) while Herdr does not report working and the pane is not known to be seen. It is cleared when the pane is seen, when Herdr reports working, or when units rise to ≥ 1. Seen mirrors Herdr's rule: the pane's tab is the active tab of Herdr's focused workspace, from `pane.get` (`tab_id`) and `workspace.get` (`focused`, `active_tab_id`), re-resolved on `workspace.focused`, `tab.focused`, `pane.focused` and reconnect. Unknown visibility counts as not seen. [Architecture](architecture.md#seen-and-the-subagents-finished-flag) gives the sources and limits.
+- `proj` (WRK/SUB/QNS/BLK/DNE) or `proj_idle` (IDL/UNK): the Herdr SPACE name (the pane's workspace `label`), with the full basename of `snapshot.active` only while the label is unknown. Resolve with `pane.get` → `workspace_id` → `workspace.get`; re-resolve on `workspace.renamed`, `workspace.updated`, `pane.moved` and reconnect.
 - `gt` (goal status active) or `gt_off` (any other goal status): pi-goal's own duration format (`<60s → Ns`, `<60m → Nm`, else `HhMm`) of `usedSeconds` plus, when active, `now − activeSince`. Right slot. Absent when `goal` is null.
 
 ## Row 2 (always all three present)
 
 - `g2_au` (units ≥ 1) or `g2_au0` (units 0 or unknown): two-digit `NNAU`, capped at `99AU`; unknown is `??AU`.
-- `bar` / `bar_warn` / `bar_crit` / `bar_idle` / `bar_unk`: 11-cell bar of context used, `━` lit and `─` unlit, lit = ceil(used × 11 / 100), then one space, then the used percent as two digits and `%`. used = max(0, min(99, floor(usedPercent))), so `99%` means 99% or more. Warning from 70% used and critical from 90% used. At the compaction budget the collector holds `usedPercent` at 100, giving a fully lit critical bar. IDL and UNK use `bar_idle` instead of a zone token, with identical text/shape in decorative grey (#717171), not bold. WRK, QNS, BLK and DNE keep the zone tokens. Unknown context: `bar_unk` = 11 × `─` + space + `--%`.
+- `bar` / `bar_warn` / `bar_crit` / `bar_idle` / `bar_unk`: 11-cell bar of context used, `━` lit and `─` unlit, lit = ceil(used × 11 / 100), then one space, then the used percent as two digits and `%`. used = max(0, min(99, floor(usedPercent))), so `99%` means 99% or more. Warning from 70% used and critical from 90% used. At the compaction budget the collector holds `usedPercent` at 100, giving a fully lit critical bar. IDL and UNK use `bar_idle` instead of a zone token, with identical text/shape in decorative grey (#717171), not bold. WRK, SUB, QNS, BLK and DNE keep the zone tokens. Unknown context: `bar_unk` = 11 × `─` + space + `--%`.
 - `cmpx`: `CMP×NN`, two digits, capped at `CMP×99`; unknown `CMP×??`.
 
 ## Row 3
@@ -39,7 +46,7 @@ At most one of these; otherwise no row-5 tokens.
 
 - Question pending: `g5` = `ASK` + U+2800; `ask_l1`…`ask_l3` = the question text, plus ` (+N)` when `more > 0`, word-wrapped to 24 cells, at most 3 lines, the last cut with `…`. `ask_l2` and `ask_l3` start with 7 U+2800 so they align under the text column.
 - Working with a phase: `g5` = phase code padded to 4 cells: waiting `WAI`, thinking `THK`, writing `WRT`, tools `read` `RD`, `edit` `ED`, `write` `WR`, `bash` `SH`, `web_search`/`fetch_content` `WB`, `subagent` `AG`, any other tool `TL`. `ev_act` = the target, or when there is none: `waiting`, `thinking`, `writing`, or the tool name. `ph_age` = time since `phase.since`, in pi-goal's format, right slot.
-- Herdr state done: `g5` = `RDY` + U+2800; `ev_rdy_text` = `finished`; `ph_age` = time since `root.lastSettledAt` (absent when unknown).
+- State `DNE`: `g5` = `RDY` + U+2800; `ev_rdy_text` = `finished`; `ph_age` = time since the subagents-finished flag was set when it is set, otherwise since `root.lastSettledAt` (absent when unknown).
 
 ## Reporting
 

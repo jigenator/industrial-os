@@ -1,5 +1,5 @@
 // Herdr's local socket API: newline-delimited JSON over a Unix socket (a named pipe on Windows). One short-lived
-// connection per request, and one long-lived subscription for this pane's status and workspace label. Every wait is bounded and
+// connection per request, and one long-lived subscription for this pane's status, workspace label and visibility. Every wait is bounded and
 // every failure is returned or reported as unknown; nothing here throws into Pi.
 import { createConnection, type Socket } from "node:net";
 import type { HerdrStatus } from "./tokens.ts";
@@ -62,11 +62,15 @@ export function herdrRequest(socketPath: string, method: string, params: Record<
 }
 
 export type PaneWatchOptions = { requestTimeoutMs?: number; minBackoffMs?: number; maxBackoffMs?: number };
-export type PaneState = { status: HerdrStatus | null; workspaceLabel: string | null };
+// `visible`: the pane's tab is the active tab of Herdr's focused workspace, which Herdr 0.9.3 treats as seen; null is unknown.
+export type PaneState = { status: HerdrStatus | null; workspaceLabel: string | null; visible: boolean | null };
+const UNKNOWN: PaneState = { status: null, workspaceLabel: null, visible: null };
+const FOCUS_EVENTS: readonly unknown[] = ["workspace.focused", "tab.focused", "pane.focused"];
 
 /**
- * Subscribes before reading pane.get and workspace.get. Workspace events and pane moves invalidate reads;
- * every reconnect re-resolves both. Herdr 0.9.3 schema/events.rs and schema/workspaces.rs define these shapes.
+ * Subscribes before reading pane.get and workspace.get. Workspace, focus and pane-move events invalidate reads;
+ * every reconnect re-resolves them. Herdr 0.9.3 schema/events.rs, schema/panes.rs and schema/workspaces.rs define
+ * these shapes; app/api.rs emits the three focus events together whenever the focused pane changes.
  */
 export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) => void, options: PaneWatchOptions = {}) {
 	const requestTimeoutMs = options.requestTimeoutMs ?? 1500;
@@ -76,12 +80,12 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 	let socket: Socket | undefined;
 	let retry: NodeJS.Timeout | undefined;
 	let backoff = minBackoffMs;
-	let state: PaneState = { status: null, workspaceLabel: null };
+	let state: PaneState = { ...UNKNOWN };
 	let paneId = target.paneId, workspaceId: string | undefined, connection = 0;
 	let reading: { owner: number; stale: boolean } | undefined;
 
 	const report = (next: PaneState) => {
-		if (closed || (next.status === state.status && next.workspaceLabel === state.workspaceLabel)) return;
+		if (closed || (next.status === state.status && next.workspaceLabel === state.workspaceLabel && next.visible === state.visible)) return;
 		state = next;
 		onState({ ...next });
 	};
@@ -95,18 +99,21 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 				const reply = await herdrRequest(target.socketPath, "pane.get", { pane_id: paneId }, requestTimeoutMs);
 				if (closed || owner !== connection) return;
 				if (task.stale) continue;
-				if (!reply.ok || !record(reply.result) || !record(reply.result.pane)) { report({ status: null, workspaceLabel: null }); return; }
+				if (!reply.ok || !record(reply.result) || !record(reply.result.pane)) { report({ ...UNKNOWN }); return; }
 				const pane = reply.result.pane;
 				if (typeof pane.pane_id === "string" && pane.pane_id) paneId = pane.pane_id;
 				workspaceId = typeof pane.workspace_id === "string" && pane.workspace_id ? pane.workspace_id : undefined;
-				let workspaceLabel: string | null = null;
+				const tabId = typeof pane.tab_id === "string" && pane.tab_id ? pane.tab_id : undefined;
+				let workspaceLabel: string | null = null, visible: boolean | null = null;
 				if (workspaceId) {
-					const workspace = await herdrRequest(target.socketPath, "workspace.get", { workspace_id: workspaceId }, requestTimeoutMs);
+					const read = await herdrRequest(target.socketPath, "workspace.get", { workspace_id: workspaceId }, requestTimeoutMs);
 					if (closed || owner !== connection) return;
 					if (task.stale) continue;
-					if (workspace.ok && record(workspace.result) && record(workspace.result.workspace) && workspace.result.workspace.workspace_id === workspaceId && typeof workspace.result.workspace.label === "string") workspaceLabel = workspace.result.workspace.label.slice(0, 200);
+					const workspace = read.ok && record(read.result) && record(read.result.workspace) && read.result.workspace.workspace_id === workspaceId ? read.result.workspace : undefined;
+					if (typeof workspace?.label === "string") workspaceLabel = workspace.label.slice(0, 200);
+					if (tabId && typeof workspace?.focused === "boolean" && typeof workspace.active_tab_id === "string") visible = workspace.focused && workspace.active_tab_id === tabId;
 				}
-				report({ status: herdrStatus(pane.agent_status), workspaceLabel });
+				report({ status: herdrStatus(pane.agent_status), workspaceLabel, visible });
 			} while (task.stale);
 		} finally { if (reading === task) reading = undefined; }
 	}
@@ -131,7 +138,7 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 			socket = undefined;
 			++connection; // Fence reads still pending on this connection.
 			current.destroy();
-			report({ status: null, workspaceLabel: null });
+			report({ ...UNKNOWN });
 			scheduleReconnect();
 		};
 		current.on("error", drop);
@@ -139,6 +146,7 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 		current.on("connect", () => current.write(`${JSON.stringify({ id, method: "events.subscribe", params: { subscriptions: [
 			{ type: "pane.agent_status_changed", pane_id: paneId },
 			{ type: "workspace.renamed" }, { type: "workspace.updated" }, { type: "pane.moved" },
+			...FOCUS_EVENTS.map((type) => ({ type })),
 		] } })}\n`));
 		readLines(current, (line) => {
 			if (socket !== current || !record(line)) return;
@@ -162,7 +170,9 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 				if (reading?.owner === owner) reading.stale = true;
 				report({ ...state, status: herdrStatus(data.agent_status) });
 			} else if ((line.event === "workspace.renamed" && (workspaceId === undefined || data.workspace_id === workspaceId)) ||
-				(line.event === "workspace.updated" && record(data.workspace) && (workspaceId === undefined || data.workspace.workspace_id === workspaceId))) {
+				(line.event === "workspace.updated" && record(data.workspace) && (workspaceId === undefined || data.workspace.workspace_id === workspaceId)) ||
+				FOCUS_EVENTS.includes(line.event)) {
+				// Any focus change can make this pane seen or unseen; the reads are authoritative, the payloads only invalidate.
 				void reconcile(owner);
 			}
 		});
@@ -172,6 +182,7 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 	return {
 		get status() { return state.status; },
 		get workspaceLabel() { return state.workspaceLabel; },
+		get visible() { return state.visible; },
 		get paneId() { return paneId; },
 		close() {
 			closed = true;

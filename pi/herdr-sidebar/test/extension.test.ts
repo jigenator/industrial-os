@@ -147,7 +147,11 @@ for (const order of ["before", "after"] as const) {
 		await until(() => herdr.tokens.get("mthink") === "opus-5.5/hi", "pushed snapshot");
 		assert.equal(herdr.tokens.get("g2_au"), "03AU");
 		assert.equal(herdr.tokens.get("g2_au0"), undefined, "a key that stopped applying is cleared");
-		assert.equal(herdr.tokens.get("bar_idle"), "━━━━━━━━─── 67%");
+		// Running units while Herdr reports the main agent idle: SUB, a working state with the title and zone bar.
+		assert.equal(herdr.tokens.get("g1"), `◐ SUB${B}`);
+		assert.equal(herdr.tokens.get("proj"), "tatsu-cli");
+		assert.equal(herdr.tokens.get("bar"), "━━━━━━━━─── 67%");
+		assert.equal(herdr.tokens.has("bar_idle"), false);
 		assert.equal(herdr.tokens.get("cmpx"), "CMP×04");
 		assert.deepEqual(h.errors, []);
 	});
@@ -302,4 +306,110 @@ test("WRK to IDL swaps the zone bar for bar_idle and clears it on the next atten
 	herdr.setStatus("done"); await until(() => herdr.tokens.get("bar_crit") === "━━━━━━━━━━━ 95%"); assert.equal(herdr.tokens.has("bar_idle"), false);
 	herdr.setStatus("unknown"); await until(() => herdr.tokens.get("bar_idle") === "━━━━━━━━━━━ 95%"); assert.equal(herdr.tokens.has("bar_crit"), false);
 	h.set({ context: null }); await until(() => herdr.tokens.get("bar_unk") === "─────────── --%"); assert.equal(herdr.tokens.has("bar_idle"), false);
+});
+
+test("SUB: the main agent working supersedes it; it shows while Herdr is idle, done or unknown and beats DNE", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); inside(t, herdr); herdr.setStatus("working", false);
+	const h = await harness(t); await h.start();
+	h.set({ units: 2, context: { usedPercent: 67 } });
+	await until(() => herdr.tokens.get("g2_au") === "02AU" && herdr.tokens.get("g1") === `◐ WRK${B}`, "WRK beats SUB");
+	herdr.setStatus("idle"); await until(() => herdr.tokens.get("g1") === `◐ SUB${B}`, "SUB while idle");
+	assert.equal(herdr.tokens.get("proj"), "tatsu-cli"); assert.equal(herdr.tokens.get("bar"), "━━━━━━━━─── 67%");
+	herdr.setStatus("done"); await new Promise((done) => setTimeout(done, 60));
+	assert.equal(herdr.tokens.get("g1"), `◐ SUB${B}`, "SUB beats Herdr's done"); assert.equal(herdr.tokens.has("ev_rdy_text"), false);
+	herdr.setStatus("unknown"); await new Promise((done) => setTimeout(done, 60)); assert.equal(herdr.tokens.get("g1"), `◐ SUB${B}`);
+	herdr.dropSubscribers(); herdr.setStatus("idle", false);
+	await until(() => herdr.tokens.get("g1") === `◐ SUB${B}` && herdr.subscriberCount === 1, "SUB while unknown and after reconnect");
+	herdr.setStatus("blocked"); await until(() => herdr.tokens.get("g1") === `× BLK${B}`, "blocked wins");
+	h.set({ units: 2, question: { text: "Go?", more: 0, since: Date.now() } }); await until(() => herdr.tokens.get("g1") === `× QNS${B}`, "question wins");
+	assert.deepEqual(h.errors, []);
+});
+
+const workspaceReads = (herdr: FakeHerdr) => herdr.log.filter((r) => r.method === "workspace.get").length;
+// Waits until the watch has read the workspace again after `reads`, so the visibility it holds is current.
+async function visibilityRead(herdr: FakeHerdr, reads: number) {
+	await until(() => workspaceReads(herdr) > reads, "visibility read");
+	await new Promise((done) => setTimeout(done, 40));
+}
+
+async function finishedUnseen(t: any) {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); inside(t, herdr); herdr.setStatus("idle", false);
+	const h = await harness(t); await h.start();
+	await visibilityRead(herdr, 0);
+	// The user looks at another tab of the pane's workspace while the subagents run.
+	const reads = workspaceReads(herdr);
+	herdr.focus("w1", "w1:t2", "w1:p2"); await visibilityRead(herdr, reads);
+	h.set({ units: 1 }); await until(() => herdr.tokens.get("g1") === `◐ SUB${B}`, "SUB");
+	h.set({ units: 0 });
+	await until(() => herdr.tokens.get("g1") === `✓ DNE${B}`, "DNE after an unseen finish");
+	return { herdr, h };
+}
+
+test("subagents finishing unseen show DNE with RDY · finished and its age, cleared when tab focus makes the pane seen", async (t) => {
+	const { herdr, h } = await finishedUnseen(t);
+	assert.equal(herdr.tokens.get("g5"), `RDY${B}`); assert.equal(herdr.tokens.get("ev_rdy_text"), `finished${B.repeat(7)}`);
+	assert.equal(herdr.tokens.get("ph_age"), `${B.repeat(4)}0s`); assert.equal(herdr.tokens.get("proj"), "tatsu-cli");
+	await until(() => herdr.tokens.get("ph_age") === `${B.repeat(4)}1s`, "the age ticks", 2500);
+	// Focus moves elsewhere without reaching the pane: still unseen.
+	herdr.focus("w3", "w3:t1", "w3:p1"); await new Promise((done) => setTimeout(done, 80));
+	assert.equal(herdr.tokens.get("g1"), `✓ DNE${B}`);
+	herdr.focus("w1", "w1:t1", "w1:p1", ["tab.focused"]);
+	await until(() => herdr.tokens.get("g1") === `○ IDL${B}` && !herdr.tokens.has("ev_rdy_text") && !herdr.tokens.has("ph_age"), "seen clears it");
+	// Seen is sticky: looking away again does not bring DNE back.
+	herdr.focus("w1", "w1:t2", "w1:p2"); await new Promise((done) => setTimeout(done, 80));
+	assert.equal(herdr.tokens.get("g1"), `○ IDL${B}`); assert.deepEqual(h.errors, []);
+});
+
+for (const event of ["workspace.focused", "pane.focused"]) {
+	test(`subagents-finished DNE clears when ${event} makes the pane seen`, async (t) => {
+		const { herdr } = await finishedUnseen(t);
+		herdr.focus("w1", "w1:t1", "w1:p1", [event]);
+		await until(() => herdr.tokens.get("g1") === `○ IDL${B}`, "seen");
+	});
+}
+
+test("subagents finishing while the pane is seen go straight to IDL", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); inside(t, herdr); herdr.setStatus("idle", false);
+	const h = await harness(t); await h.start();
+	await visibilityRead(herdr, 0);
+	h.set({ units: 2 }); await until(() => herdr.tokens.get("g1") === `◐ SUB${B}`, "SUB");
+	const g1: string[] = [];
+	h.set({ units: 0 }); await until(() => herdr.tokens.get("g1") === `○ IDL${B}`, "IDL");
+	for (const r of herdr.reports()) if (r.params.tokens.g1) g1.push(r.params.tokens.g1);
+	assert.ok(!g1.includes(`✓ DNE${B}`), "never DNE");
+	assert.equal(herdr.tokens.has("ev_rdy_text"), false);
+});
+
+test("the subagents-finished flag clears when the main agent starts working or units rise; question and blocked still win", async (t) => {
+	const { herdr, h } = await finishedUnseen(t);
+	h.set({ units: 0, question: { text: "Next?", more: 0, since: Date.now() } }); await until(() => herdr.tokens.get("g1") === `× QNS${B}`, "question wins");
+	h.set({ units: 0 }); await until(() => herdr.tokens.get("g1") === `✓ DNE${B}`, "flag kept under the question");
+	herdr.setStatus("blocked"); await until(() => herdr.tokens.get("g1") === `× BLK${B}`, "blocked wins");
+	herdr.setStatus("idle"); await until(() => herdr.tokens.get("g1") === `✓ DNE${B}`, "flag kept under blocked");
+	herdr.setStatus("working"); await until(() => herdr.tokens.get("g1") === `◐ WRK${B}`, "main agent works");
+	herdr.setStatus("idle"); await until(() => herdr.tokens.get("g1") === `○ IDL${B}`, "work cleared the flag");
+	// Units rising clears a new flag too.
+	h.set({ units: 1 }); await until(() => herdr.tokens.get("g1") === `◐ SUB${B}`);
+	h.set({ units: 0 }); await until(() => herdr.tokens.get("g1") === `✓ DNE${B}`, "second unseen finish");
+	h.set({ units: 3 }); await until(() => herdr.tokens.get("g1") === `◐ SUB${B}`, "units rise");
+	herdr.focus("w1", "w1:t1", "w1:p1", false); h.set({ units: 0 });
+	await new Promise((done) => setTimeout(done, 80));
+	// The focus change went unannounced, so the pane still reads as unseen: the new drop flags again.
+	assert.equal(herdr.tokens.get("g1"), `✓ DNE${B}`); assert.deepEqual(h.errors, []);
+});
+
+test("reconnect re-resolves visibility: a pane seen while disconnected clears the flag; the flag survives the outage", async (t) => {
+	const { herdr } = await finishedUnseen(t);
+	let reads = workspaceReads(herdr);
+	herdr.dropSubscribers();
+	await new Promise((done) => setTimeout(done, 100));
+	// The reconnect waits at least 250 ms; meanwhile Herdr's state and visibility are unknown.
+	assert.equal(herdr.subscriberCount, 0);
+	assert.equal(herdr.tokens.get("g1"), `✓ DNE${B}`, "own DNE outranks unknown Herdr state");
+	await until(() => herdr.subscriberCount === 1, "reconnected"); await visibilityRead(herdr, reads);
+	assert.equal(herdr.tokens.get("g1"), `✓ DNE${B}`, "still unseen after reconnect: the flag survived");
+	reads = workspaceReads(herdr);
+	herdr.dropSubscribers(); herdr.focus("w1", "w1:t1", "w1:p1", false);
+	await until(() => herdr.tokens.get("g1") === `○ IDL${B}` && herdr.subscriberCount === 1, "re-resolved as seen after reconnect");
+	assert.ok(workspaceReads(herdr) > reads);
 });

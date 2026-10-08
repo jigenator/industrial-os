@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { load, tui } from "./host.ts";
 
-const { TOKEN_KEYS, BLANK, buildTokens, nextTokenChange, formatDuration, shortModel, wrapQuestion, cut, fitLeft, rightSlot, clean } = await load("src/tokens.ts");
+const { TOKEN_KEYS, BLANK, buildTokens, nextTokenChange, nextSubagentsFinishedAt, formatDuration, shortModel, wrapQuestion, cut, fitLeft, rightSlot, clean } = await load("src/tokens.ts");
 const { readSnapshot } = await load("src/snapshot.ts");
 const width = (text: string) => tui.visibleWidth(text);
 const B = BLANK;
@@ -22,7 +22,7 @@ function raw(overrides: Record<string, unknown> = {}) {
 		root: { working: false, lastSettledAt: null }, phase: null, question: null,
 		model: { provider: "anthropic", id: "claude-opus-5-5" }, thinking: "high",
 		context: { tokens: 1000, window: 200_000, reserve: 16_384, usedPercent: 67 },
-		compactions: 18, units: 2, goal: null, usage: {},
+		compactions: 18, units: 0, goal: null, usage: {},
 		...overrides,
 	};
 }
@@ -39,7 +39,7 @@ test("the key list matches the canonical contract document", async () => {
 });
 
 test("the spike's verified rows: state, fitted project and goal time; bar and CMP", () => {
-	const t = build({ goal: { status: "active", usedSeconds: 9180 - 60, activeSince: NOW - 60_000 } });
+	const t = build({ units: 2, goal: { status: "active", usedSeconds: 9180 - 60, activeSince: NOW - 60_000 } });
 	assert.equal(t.g1, `◐ WRK${B}`);
 	assert.equal(t.proj, `tatsu-cli${B.repeat(6)}`);
 	assert.equal(t.gt, `${B}2h33m`);
@@ -68,6 +68,52 @@ test("row 1 state codes from Herdr, QNS whenever a question is pending, and the 
 		assert.equal(t.g1, `× QNS${B}`);
 		assert.equal(t.proj, "tatsu-cli");
 	}
+});
+
+test("row 1 precedence: QNS, BLK, WRK, SUB, DNE (Herdr's or the subagents-finished flag), then IDL or UNK", () => {
+	const g1 = (herdr: string | null, overrides: Record<string, unknown> = {}, subagentsFinishedAt: number | null = null) =>
+		buildTokens({ snapshot: snap(overrides), herdr, subagentsFinishedAt, now: NOW, home: HOME }).g1;
+	const question = { question: { text: "Which?", more: 0, since: NOW } };
+	for (const flag of [null, NOW - 5000]) {
+		for (const units of [0, 3]) {
+			for (const herdr of ["working", "blocked", "done", "idle", "unknown", null]) assert.equal(g1(herdr, { ...question, units }, flag), `× QNS${B}`);
+			assert.equal(g1("blocked", { units }, flag), `× BLK${B}`, `blocked ${units} ${flag}`);
+			// The main agent working supersedes running subagents.
+			assert.equal(g1("working", { units }, flag), `◐ WRK${B}`, `working ${units} ${flag}`);
+		}
+		// SUB while the main agent is idle, done or unknown and units run; it beats Herdr's done and the flag.
+		for (const herdr of ["idle", "done", "unknown", null]) for (const units of [1, 99]) assert.equal(g1(herdr, { units }, flag), `◐ SUB${B}`, `${herdr} ${units}`);
+	}
+	assert.equal(g1("done", { units: 0 }), `✓ DNE${B}`);
+	for (const herdr of ["idle", "unknown", null, "done"]) assert.equal(g1(herdr, { units: 0 }, NOW), `✓ DNE${B}`, `flag over ${herdr}`);
+	assert.equal(g1("idle", { units: 0 }), `○ IDL${B}`);
+	assert.equal(g1("unknown", { units: 0 }), `· UNK${B}`);
+	// Unknown units never mean subagents run.
+	assert.equal(g1("idle", { units: null }), `○ IDL${B}`);
+	// SUB is a working state: the primary title and the zone bar.
+	const sub = buildTokens({ snapshot: snap({ units: 2, context: { usedPercent: 75 } }), herdr: "idle", now: NOW, home: HOME });
+	assert.equal(sub.proj, "tatsu-cli"); assert.equal(sub.proj_idle, undefined);
+	assert.equal(sub.bar_warn, "━━━━━━━━━── 75%"); assert.equal(sub.bar_idle, undefined);
+	assert.equal(sub.g2_au, "02AU"); assert.equal(sub.g5, undefined);
+});
+
+test("nextSubagentsFinishedAt: set by a real 1+ to 0 drop while not working and not seen; cleared by seen, work or units", () => {
+	const next = (overrides: Record<string, unknown>) => nextSubagentsFinishedAt({ previousUnits: 2, units: 0, herdr: "idle", visible: false, subagentsFinishedAt: null, now: NOW, ...overrides });
+	for (const herdr of ["idle", "done", "unknown", "blocked", null]) assert.equal(next({ herdr }), NOW, `${herdr}`);
+	assert.equal(next({ previousUnits: 1 }), NOW);
+	// Unknown visibility counts as not seen, as Herdr leaves a completion unseen without an active tab.
+	assert.equal(next({ visible: null }), NOW);
+	assert.equal(next({ visible: true }), null, "seen: straight to IDL");
+	assert.equal(next({ herdr: "working" }), null);
+	// Only a real drop sets it: unknown before or after, zero before, or still running.
+	for (const [previousUnits, units] of [[null, 0], [0, 0], [2, null], [2, 1], [0, 3]]) assert.equal(next({ previousUnits, units }), null, `${previousUnits}→${units}`);
+	// Once set it holds its time, also through unknown units and visibility, until cleared.
+	const set = { subagentsFinishedAt: NOW - 9000, now: NOW };
+	for (const [previousUnits, units] of [[0, 0], [0, null], [null, 0], [null, null]]) assert.equal(next({ ...set, previousUnits, units }), NOW - 9000);
+	assert.equal(next({ ...set, previousUnits: 0, visible: null, herdr: null }), NOW - 9000);
+	assert.equal(next({ ...set, previousUnits: 0, visible: true }), null);
+	assert.equal(next({ ...set, previousUnits: 0, herdr: "working" }), null);
+	assert.equal(next({ ...set, previousUnits: 0, units: 1 }), null);
 });
 
 test("row 1 project: full basename, cut to 24 cells alone or fitted to 15 beside the goal", () => {
@@ -267,6 +313,20 @@ test("row 5 done: RDY and finished, with the settle age when known", () => {
 		t = build({ root: { working: false, lastSettledAt: NOW } }, herdr);
 		for (const key of ["g5", "ev_act", "ev_rdy_text", "ph_age", "ask_l1"]) assert.equal(t[key], undefined, `${herdr} ${key}`);
 	}
+});
+
+test("row 5 subagents finished: RDY and finished with the age since the flag, ahead of the settle age", () => {
+	const finished = (herdr: string | null, overrides: Record<string, unknown> = {}) =>
+		buildTokens({ snapshot: snap({ root: { working: false, lastSettledAt: NOW - 3_600_000 }, ...overrides }), herdr, subagentsFinishedAt: NOW - 61_000, now: NOW, home: HOME });
+	for (const herdr of ["idle", "done", "unknown", null]) {
+		const t = finished(herdr);
+		assert.equal(t.g1, `✓ DNE${B}`); assert.equal(t.g5, `RDY${B}`); assert.equal(t.ev_rdy_text, `finished${B.repeat(7)}`); assert.equal(t.ph_age, `${B.repeat(4)}1m`, `${herdr}`);
+		assert.equal(t.proj, "tatsu-cli");
+	}
+	// Running units or the main agent working show no finished row.
+	for (const [herdr, units] of [["idle", 1], ["working", 0], ["blocked", 0]] as const) for (const key of ["g5", "ev_rdy_text", "ph_age"]) assert.equal(finished(herdr, { units })[key], undefined);
+	assert.equal(nextTokenChange({ snapshot: snap({ root: { working: false, lastSettledAt: null } }), herdr: "idle", subagentsFinishedAt: NOW - 61_000, now: NOW, home: HOME }), NOW + 59_001);
+	assert.equal(nextTokenChange({ snapshot: snap({ units: 1 }), herdr: "idle", subagentsFinishedAt: NOW - 61_000, now: NOW, home: HOME }), null);
 });
 
 test("fitting, cutting and the right slot measure terminal cells, keep graphemes and pad with U+2800", () => {

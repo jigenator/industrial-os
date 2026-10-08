@@ -1,7 +1,8 @@
 // A fake Herdr server on a temporary Unix socket, never the live Herdr. It models the parts of Herdr 0.9.3 this
 // extension depends on, as read in its source (src/metadata_tokens.rs, src/app/api/panes.rs,
 // src/terminal/metadata.rs, src/api/subscriptions.rs, src/api/schema/events.rs, src/api/schema/workspaces.rs): one token map per pane that any source can patch, per-source
-// sequence freshness, at most 32 sequenced token sources per pane, 16 keys per report and 32 keys per pane.
+// sequence freshness, at most 32 sequenced token sources per pane, 16 keys per report and 32 keys per pane. Focus follows
+// src/app/creation.rs (`workspace_info`: `focused`, `active_tab_id`) and src/app/api.rs (`emit_focus_api_events`).
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer, type Socket } from "node:net";
 import { tmpdir } from "node:os";
@@ -20,7 +21,10 @@ export async function startFakeHerdr(paneId = "w1:p1") {
 	const log: Logged[] = [];
 	const subscribers = new Set<{ socket: Socket; id: string; subscriptions: any[] }>();
 	const sockets = new Set<Socket>();
-	let status = "idle", currentPaneId = paneId, workspaceId = "w1";
+	let status = "idle", currentPaneId = paneId, workspaceId = "w1", tabId = "w1:t1";
+	// The pane starts in the focused workspace's active tab, so it is seen unless a test moves the focus.
+	let focusedWorkspaceId: string | null = "w1";
+	const activeTabs = new Map([["w1", "w1:t1"]]);
 	const paneAliases = new Set([paneId]);
 	// Unknown label by default keeps existing fallback fixtures explicit.
 	let workspaceLabel: string | null = null;
@@ -67,11 +71,11 @@ export async function startFakeHerdr(paneId = "w1:p1") {
 		} else if (method === "pane.get") {
 			if (paneGetMode === "silent") return;
 			if (paneGetMode === "error" || !paneAliases.has(params?.pane_id)) return error(socket, id, "pane_not_found");
-			reply(socket, id, { result: { type: "pane_info", pane: { pane_id: currentPaneId, workspace_id: workspaceId, agent_status: status } } });
+			reply(socket, id, { result: { type: "pane_info", pane: { pane_id: currentPaneId, workspace_id: workspaceId, tab_id: tabId, agent_status: status } } });
 		} else if (method === "workspace.get") {
 			if (workspaceGetMode === "silent") return;
 			if (workspaceGetMode === "error" || params?.workspace_id !== workspaceId) return error(socket, id, "workspace_not_found");
-			const result = { type: "workspace_info", workspace: { workspace_id: workspaceId, label: workspaceLabel } };
+			const result = { type: "workspace_info", workspace: { workspace_id: workspaceId, label: workspaceLabel, focused: focusedWorkspaceId === workspaceId, active_tab_id: activeTabs.get(workspaceId) ?? `${workspaceId}:t1` } };
 			const respond = () => reply(socket, id, { result });
 			if (workspaceGetDelayMs) setTimeout(respond, workspaceGetDelayMs); else respond();
 		} else if (method === "events.subscribe") {
@@ -85,7 +89,7 @@ export async function startFakeHerdr(paneId = "w1:p1") {
 	}
 
 	function assertSubscriptions(subscriptions: any[]) {
-		for (const s of subscriptions) if (!["pane.agent_status_changed", "workspace.renamed", "workspace.updated", "pane.moved"].includes(s.type)) throw new Error("Unknown subscription");
+		for (const s of subscriptions) if (!["pane.agent_status_changed", "workspace.renamed", "workspace.updated", "pane.moved", "workspace.focused", "tab.focused", "pane.focused"].includes(s.type)) throw new Error("Unknown subscription");
 	}
 	function emit(event: string, data: any) {
 		for (const { socket, subscriptions } of subscribers) if (subscriptions.some((s) => s.type === event && (event !== "pane.agent_status_changed" || s.pane_id === data.pane_id))) socket.write(`${JSON.stringify({ event, data })}\n`);
@@ -125,10 +129,21 @@ export async function startFakeHerdr(paneId = "w1:p1") {
 		},
 		movePane(nextWorkspaceId: string, nextPaneId: string, label: string) {
 			const previous_pane_id = currentPaneId, previous_workspace_id = workspaceId;
-			currentPaneId = nextPaneId; workspaceId = nextWorkspaceId; workspaceLabel = label; paneAliases.add(nextPaneId);
+			currentPaneId = nextPaneId; workspaceId = nextWorkspaceId; tabId = `${nextWorkspaceId}:t1`; workspaceLabel = label; paneAliases.add(nextPaneId);
 			emit("pane.moved", { previous_pane_id, previous_workspace_id, previous_tab_id: "w1:t1", pane: { pane_id: currentPaneId, workspace_id: workspaceId, agent_status: status } });
 		},
 		emit,
+		/**
+		 * Focuses a pane in a workspace's tab. Herdr emits workspace.focused, tab.focused and pane.focused together when
+		 * the focused pane changes; `push` limits the events sent, or sends none, as while disconnected.
+		 */
+		focus(nextWorkspaceId: string | null, nextTabId: string, focusedPaneId: string, push: string[] | false = ["workspace.focused", "tab.focused", "pane.focused"]) {
+			focusedWorkspaceId = nextWorkspaceId;
+			if (nextWorkspaceId) activeTabs.set(nextWorkspaceId, nextTabId);
+			if (!push || !nextWorkspaceId) return;
+			const events: [string, object][] = [["workspace.focused", { workspace_id: nextWorkspaceId }], ["tab.focused", { tab_id: nextTabId, workspace_id: nextWorkspaceId }], ["pane.focused", { pane_id: focusedPaneId, workspace_id: nextWorkspaceId }]];
+			for (const [event, data] of events) if (push.includes(event)) emit(event, data);
+		},
 		setWorkspaceGetMode(mode: Mode) { workspaceGetMode = mode; },
 		setWorkspaceGetDelay(ms: number) { workspaceGetDelayMs = ms; },
 		/** Herdr drops every subscription, as on events_lost or a server restart. */

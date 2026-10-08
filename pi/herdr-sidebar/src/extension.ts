@@ -4,7 +4,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { herdrRequest, watchPaneState, type HerdrTarget } from "./herdr-client.ts";
 import { createTokenSender } from "./sender.ts";
 import { READY_CHANNEL, REQUEST_CHANNEL, SNAPSHOT_CHANNEL, readSnapshot, type SidebarSnapshot } from "./snapshot.ts";
-import { buildTokens, nextTokenChange, type HerdrStatus } from "./tokens.ts";
+import { buildTokens, nextSubagentsFinishedAt, nextTokenChange, type HerdrStatus, type SidebarInput } from "./tokens.ts";
 
 // The blocked-state signal Herdr's Pi integration (herdr-agent-state.ts) counts: one true per question wait, one false.
 export const BLOCKED_CHANNEL = "herdr:blocked";
@@ -24,6 +24,8 @@ type Runtime = {
 	snapshot: SidebarSnapshot | null;
 	herdr: HerdrStatus | null;
 	workspaceLabel: string | null;
+	visible: boolean | null;
+	subagentsFinishedAt: number | null;
 	question: boolean;
 	lastRender: number;
 	timer?: NodeJS.Timeout;
@@ -37,13 +39,19 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 		if (runtime !== r) return;
 		if (r.timer) clearTimeout(r.timer);
 		r.timer = undefined;
-		const now = Date.now(), home = homedir();
+		const now = Date.now();
 		r.lastRender = now;
-		send(buildTokens({ snapshot: r.snapshot, herdr: r.herdr, workspaceLabel: r.workspaceLabel, now, home }));
-		const due = nextTokenChange({ snapshot: r.snapshot, herdr: r.herdr, workspaceLabel: r.workspaceLabel, now, home });
+		const input: SidebarInput = { snapshot: r.snapshot, herdr: r.herdr, workspaceLabel: r.workspaceLabel, subagentsFinishedAt: r.subagentsFinishedAt, now, home: homedir() };
+		send(buildTokens(input));
+		const due = nextTokenChange(input);
 		if (due === null) return;
 		r.timer = setTimeout(() => render(r, send), Math.max(due - now, r.lastRender + MIN_RENDER_INTERVAL_MS - now));
 		r.timer.unref();
+	}
+
+	// Advances the "subagents finished unseen" flag from the units before this change to the current inputs.
+	function updateFinished(r: Runtime, previousUnits: number | null) {
+		r.subagentsFinishedAt = nextSubagentsFinishedAt({ previousUnits, units: r.snapshot?.units ?? null, herdr: r.herdr, visible: r.visible, subagentsFinishedAt: r.subagentsFinishedAt, now: Date.now() });
 	}
 
 	// Balanced: one true when a question becomes pending, one false when it clears or the runtime ends.
@@ -63,7 +71,7 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 		const send = (tokens: ReturnType<typeof buildTokens>) => sender.update(tokens);
 		const unsubscribe: (() => void)[] = [];
 		const r: Runtime = {
-			sessionId: ctx.sessionManager.getSessionId(), snapshot: null, herdr: null, workspaceLabel: null, question: false, lastRender: 0,
+			sessionId: ctx.sessionManager.getSessionId(), snapshot: null, herdr: null, workspaceLabel: null, visible: null, subagentsFinishedAt: null, question: false, lastRender: 0,
 			async dispose() {
 				if (r.timer) clearTimeout(r.timer);
 				r.timer = undefined;
@@ -79,7 +87,9 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 			const snapshot = readSnapshot(data, r.sessionId);
 			// Pushes arrive in order; a reply to a request is the collector's current snapshot whatever its seq.
 			if (!snapshot || (!requested && r.snapshot && snapshot.seq <= r.snapshot.seq)) return;
+			const previousUnits = r.snapshot?.units ?? null;
 			r.snapshot = snapshot;
+			updateFinished(r, previousUnits);
 			setQuestion(r, snapshot.question !== null);
 			render(r, send);
 		};
@@ -93,6 +103,8 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 			if (runtime !== r) return;
 			r.herdr = state.status;
 			r.workspaceLabel = state.workspaceLabel;
+			r.visible = state.visible;
+			updateFinished(r, r.snapshot?.units ?? null);
 			render(r, send);
 		});
 		// The collector may load before or after this extension; one that loads later announces itself with ready.
