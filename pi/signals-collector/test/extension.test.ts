@@ -264,3 +264,41 @@ test("snapshot rate budget is monotonic while wire timestamps use the wall clock
 	assert.equal(pushes.length, 1, "a wall-clock jump must not bypass the 100ms push budget"); await until(() => pushes.length === 2);
 	assert.ok(pushes[1] - pushes[0] >= 100); assert.deepEqual(h.errors, []);
 });
+
+test("non-TUI set_active_project validates and persists the same details without starting collection", async (t) => {
+	const f = await fixtures(t), cwd = process.cwd();
+	for (const mode of ["print", "json", "rpc"]) {
+		const manager = host.SessionManager.inMemory(f.launch), h = await harness(f, manager, mode);
+		await h.start();
+		const result = await h.select("../repo");
+		assert.deepEqual(result.details, { version: 1, path: f.repo });
+		assert.match(result.content[0].text, /Cwd, tools, instructions and resources are unchanged/);
+		await assert.rejects(h.select("../missing"));
+		await assert.rejects(h.select(f.plain, AbortSignal.abort()));
+		assert.equal(manager.getCwd(), f.launch); assert.equal(process.cwd(), cwd);
+		assert.equal(h.read(), undefined); assert.deepEqual(h.pushed, []); assert.deepEqual(h.ready, []); assert.deepEqual(h.requests, []);
+		await h.stop();
+		// Details produced outside TUI restore through the normal selected-branch path.
+		const restored = await harness(f, manager); await restored.start("resume");
+		assert.equal(restored.read().active, f.repo); await restored.stop();
+		assert.deepEqual(h.errors, []); assert.deepEqual(restored.errors, []);
+	}
+});
+
+test("streaming deltas neither sample host state nor publish; phase starts still do", async (t) => {
+	const f = await fixtures(t), h = await harness(f, host.SessionManager.inMemory(f.launch)); t.after(() => h.stop());
+	await h.start(); await until(() => h.read().workspace !== null && h.read().usage.installed === false); await sleep(150);
+	h.idle(false); await h.runner.emit({ type: "agent_start" });
+	await h.runner.emit({ type: "message_update", message: {}, assistantMessageEvent: { type: "text_start", contentIndex: 0, partial: { content: [] } } });
+	await sleep(150);
+	const reads = t.mock.method(h.runner.createContext().sessionManager, "getBranch"), pushes = h.pushed.length;
+	for (let i = 0; i < 500; i++) {
+		for (const type of ["text_delta", "thinking_delta", "toolcall_delta"]) await h.runner.emit({ type: "message_update", message: {}, assistantMessageEvent: { type, delta: "token" } });
+	}
+	await sleep(150);
+	assert.equal(reads.mock.callCount(), 0, "no branch walk/JSON sample on plain deltas");
+	assert.equal(h.pushed.length, pushes);
+	await h.runner.emit({ type: "message_update", message: {}, assistantMessageEvent: { type: "thinking_start", contentIndex: 0, partial: { content: [] } } });
+	assert.ok(reads.mock.callCount() > 0); await until(() => h.pushed.length > pushes);
+	assert.equal(h.pushed.at(-1).phase.kind, "thinking"); assert.deepEqual(h.errors, []);
+});

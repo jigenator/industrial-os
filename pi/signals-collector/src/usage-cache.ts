@@ -45,7 +45,7 @@ export function parseUsageCache(raw: unknown): Cache | null {
 export function collectUsage(publish: (usage: UsageSnapshot) => void): { dispose(): void } {
 	const directory = join(process.env.XDG_CACHE_HOME || join(homedir(), ".cache"), "industrial-os", "signals-collector");
 	const file = join(directory, "usage.json"), lock = join(directory, "usage.lock");
-	let live = true, busy = false, cache: Cache | null = null;
+	let live = true, busy = false, lockRemoved = false, cache: Cache | null = null;
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const controller = new AbortController();
 	const fresh = () => cache !== null && Date.now() - cache.fetchedAt < REFRESH_MS;
@@ -69,7 +69,14 @@ export function collectUsage(publish: (usage: UsageSnapshot) => void): { dispose
 	let watcher: ReturnType<typeof watch> | undefined;
 	try {
 		mkdirSync(directory, { recursive: true, mode: 0o700 });
-		watcher = watch(directory, (_event, name) => { if (name === null || name.toString() === "usage.json") reload(); });
+		watcher = watch(directory, (_event, name) => {
+			if (name === null || name.toString() === "usage.json") reload();
+			if (name === null || name.toString() === "usage.lock") {
+				// A disposed winner may release without writing. Wake contenders on removal,
+				// but not on creation/writes (which would reset stale-lock backoff).
+				try { statSync(lock); } catch (error: any) { if (error.code === "ENOENT") { lockRemoved = true; reload(); } }
+			}
+		});
 		watcher.unref();
 		watcher.on("error", () => { watcher?.close(); watcher = undefined; });
 	} catch { /* Cache failure does not fall back to uncoordinated CodexBar calls. */ }
@@ -78,7 +85,7 @@ export function collectUsage(publish: (usage: UsageSnapshot) => void): { dispose
 
 	async function refresh() {
 		if (!live || busy) return;
-		busy = true;
+		busy = true; lockRemoved = false;
 		let handle: Awaited<ReturnType<typeof open>> | undefined;
 		let temporary: string | undefined;
 		let retry = REFRESH_MS;
@@ -127,7 +134,7 @@ export function collectUsage(publish: (usage: UsageSnapshot) => void): { dispose
 				await handle.close();
 			}
 			busy = false;
-			arm(fresh() ? undefined : retry);
+			arm(fresh() ? undefined : lockRemoved ? 0 : retry);
 		}
 	}
 	return { dispose() { live = false; if (timer) clearTimeout(timer); watcher?.close(); controller.abort(); } };

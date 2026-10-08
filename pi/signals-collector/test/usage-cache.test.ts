@@ -126,3 +126,15 @@ test("one five-minute freshness timer plus jitter: no early fetch, next round fa
 	assert.equal((await f.calls()).length, 6); assert.ok((await f.read()).fetchedAt > good.fetchedAt); assert.deepEqual((await f.read()).providers.map((p: any) => p.data), good.providers.map((p: any) => p.data));
 	collector.dispose();
 });
+
+test("a waiting collector retries promptly when a disposed lock holder releases without writing", async (t) => {
+	const f = await fixture(t); await writeFile(join(f.root, "mode"), "hold");
+	const holder = collectUsage(() => {}); t.after(() => holder.dispose());
+	await until(async () => (await f.calls()).length === 3);
+	let last: any; const waiter = collectUsage((s) => { last = s; }); t.after(() => waiter.dispose());
+	await sleep(500); assert.equal((await f.calls()).length, 3, "waiter lost the fresh lock");
+	await writeFile(join(f.root, "mode"), "good"); const released = Date.now(); holder.dispose();
+	await until(() => last.installed === true);
+	assert.ok(Date.now() - released < 4000, "not the three-minute stale deadline");
+	assert.equal((await f.calls()).length, 6); assert.equal((await f.read()).installed, true);
+});

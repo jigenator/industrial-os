@@ -35,3 +35,7 @@ Record date, installed Node/Pi versions, test counts and exact command results. 
 Follow-up on the same toolchain: **45/45 passed** after adding a wall-clock-jump regression and using a monotonic 100ms push budget (wire timestamps remain Date.now epoch values). Status-bar re-run: **135/135 passed**. Both changed architecture diagrams rendered with existing grok-mermaid 0.2.3, non-null art and no warnings; the root manifest CLI RPC load exited 0 in an isolated temporary agent/cache directory.
 
 Final budget check: **45/45 collector and 135/135 consumer tests passed** after rounding timer deadlines up and rechecking early wakes before publishing; the wall-clock-jump regression now asserts at least 100ms between pushes. This does not claim a hard real-time event-loop latency guarantee.
+
+### Final-review corrections
+
+2026-10-08, macOS, Node 22.23.0 and installed Pi 1.0.4: host prerequisite passed; `npm test` **48/48 passed**, no skipped/cancelled tests. New regressions cover non-TUI Active details/restoration, streaming-delta sampling suppression, and a second collector waking on an aborted holder's lock removal. Isolated checkout RPC load: **exit 0**, expected disabled-provider warnings only. Root links/anchors, guide inventory, exact CLAUDE entrypoints and whitespace checks passed. Interactive Pi/Herdr and live providers: **not run**.

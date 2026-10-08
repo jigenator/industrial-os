@@ -183,7 +183,9 @@ export default function (pi: ExtensionAPI) {
 	pi.on("turn_start", (_e, ctx) => { const s = live(ctx); if (s) { phase(s, { kind: "waiting", since: Date.now() }); changed(s); } });
 	pi.on("message_update", (e, ctx) => {
 		const s = live(ctx); if (!s) return;
-		const update = e.assistantMessageEvent, since = Date.now();
+		const update = e.assistantMessageEvent;
+		if (update.type !== "thinking_start" && update.type !== "text_start" && update.type !== "toolcall_start") return;
+		const since = Date.now();
 		if (update.type === "thinking_start") phase(s, { kind: "thinking", since });
 		else if (update.type === "text_start") phase(s, { kind: "writing", since });
 		else if (update.type === "toolcall_start") {
@@ -221,14 +223,22 @@ export default function (pi: ExtensionAPI) {
 		promptGuidelines: ["Before deliberately starting work in a different project or worktree (including an unrelated repository), call set_active_project with its path; call it again when switching back. Do not switch for incidental reads. This signal changes only the display; use explicit tool paths/cwd for actual work."],
 		parameters: Type.Object({ path: Type.String({ minLength: 1, description: "Existing project/worktree directory; relative to the original session Launch directory" }) }),
 		executionMode: "sequential", annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-		async execute(_id, params, signal) {
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			const result = (path: string) => ({ content: [{ type: "text" as const, text: `Active display: ${toolPath(path)}. Cwd, tools, instructions and resources are unchanged.` }], details: { version: 1, path } satisfies Selection });
+			if (ctx.mode !== "tui") {
+				const id = ctx.sessionManager.getSessionId();
+				const launch = ctx.sessionManager.getHeader()?.cwd ?? ctx.sessionManager.getCwd();
+				const path = await resolveActivePath(params.path, launch, { signal });
+				if (signal?.aborted || ctx.sessionManager.getSessionId() !== id) throw new Error("Workspace selection cancelled or session changed");
+				return result(path);
+			}
 			const s = session; if (!s || !current(s)) throw new Error("No active TUI session");
 			const selection = ++s.selection, path = await resolveActivePath(params.path, s.launch, { signal });
 			if (!current(s) || s.selection !== selection || signal?.aborted) throw new Error("Workspace selection cancelled or session changed");
 			s.localAbort?.abort(); s.prAbort?.abort(); s.localAbort = s.prAbort = undefined; s.refreshPending = false;
 			s.active = path; s.workspace = undefined; s.prKey = undefined; s.pr = null;
 			changed(s); void refreshLocal(s);
-			return { content: [{ type: "text", text: `Active display: ${toolPath(path)}. Cwd, tools, instructions and resources are unchanged.` }], details: { version: 1, path } satisfies Selection };
+			return result(path);
 		},
 	});
 }
