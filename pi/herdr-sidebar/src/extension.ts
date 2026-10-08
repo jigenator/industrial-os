@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import { isAbsolute } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { herdrRequest, watchAgentStatus, type HerdrTarget } from "./herdr-client.ts";
+import { herdrRequest, watchPaneState, type HerdrTarget } from "./herdr-client.ts";
 import { createTokenSender } from "./sender.ts";
 import { READY_CHANNEL, REQUEST_CHANNEL, SNAPSHOT_CHANNEL, readSnapshot, type SidebarSnapshot } from "./snapshot.ts";
 import { buildTokens, nextTokenChange, type HerdrStatus } from "./tokens.ts";
@@ -23,6 +23,7 @@ type Runtime = {
 	sessionId: string;
 	snapshot: SidebarSnapshot | null;
 	herdr: HerdrStatus | null;
+	workspaceLabel: string | null;
 	question: boolean;
 	lastRender: number;
 	timer?: NodeJS.Timeout;
@@ -38,8 +39,8 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 		r.timer = undefined;
 		const now = Date.now(), home = homedir();
 		r.lastRender = now;
-		send(buildTokens({ snapshot: r.snapshot, herdr: r.herdr, now, home }));
-		const due = nextTokenChange({ snapshot: r.snapshot, herdr: r.herdr, now, home });
+		send(buildTokens({ snapshot: r.snapshot, herdr: r.herdr, workspaceLabel: r.workspaceLabel, now, home }));
+		const due = nextTokenChange({ snapshot: r.snapshot, herdr: r.herdr, workspaceLabel: r.workspaceLabel, now, home });
 		if (due === null) return;
 		r.timer = setTimeout(() => render(r, send), Math.max(due - now, r.lastRender + MIN_RENDER_INTERVAL_MS - now));
 		r.timer.unref();
@@ -57,12 +58,12 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 		// TUI only: subagent children run in print, JSON or RPC mode with the parent's Herdr environment.
 		const target = herdrTarget(process.env);
 		if (ctx.mode !== "tui" || !target) return;
-		const sender = createTokenSender({ paneId: target.paneId, request: (params, timeoutMs) => herdrRequest(target.socketPath, "pane.report_metadata", params, timeoutMs) });
+		let watch: ReturnType<typeof watchPaneState> | undefined;
+		const sender = createTokenSender({ paneId: target.paneId, request: (params, timeoutMs) => herdrRequest(target.socketPath, "pane.report_metadata", { ...params, pane_id: watch?.paneId ?? target.paneId }, timeoutMs) });
 		const send = (tokens: ReturnType<typeof buildTokens>) => sender.update(tokens);
 		const unsubscribe: (() => void)[] = [];
-		let watch: ReturnType<typeof watchAgentStatus> | undefined;
 		const r: Runtime = {
-			sessionId: ctx.sessionManager.getSessionId(), snapshot: null, herdr: null, question: false, lastRender: 0,
+			sessionId: ctx.sessionManager.getSessionId(), snapshot: null, herdr: null, workspaceLabel: null, question: false, lastRender: 0,
 			async dispose() {
 				if (r.timer) clearTimeout(r.timer);
 				r.timer = undefined;
@@ -88,9 +89,10 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 			const ready = data as { version?: unknown; sessionId?: unknown } | undefined;
 			if (runtime === r && ready?.version === 1 && ready.sessionId === r.sessionId) request();
 		}));
-		watch = watchAgentStatus(target, (status) => {
+		watch = watchPaneState(target, (state) => {
 			if (runtime !== r) return;
-			r.herdr = status;
+			r.herdr = state.status;
+			r.workspaceLabel = state.workspaceLabel;
 			render(r, send);
 		});
 		// The collector may load before or after this extension; one that loads later announces itself with ready.

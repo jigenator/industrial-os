@@ -49,13 +49,13 @@ test("later reports send only what changed, clear keys that stopped applying, an
 	sender.update(FIRST);
 	await until(() => sender.state.synced, "first report");
 	const before = herdr.reports().length;
-	sender.update({ ...FIRST, bar_unk: undefined, bar: "━━━━─────── 33%", proj: "tatsu-cli" });
+	sender.update({ ...FIRST, bar_unk: undefined, bar: "━━━━━━━━─── 67%", proj: "tatsu-cli" });
 	await until(() => herdr.reports().length === before + 1 && sender.state.synced, "diff");
-	assert.deepEqual(herdr.reports().at(-1)!.params.tokens, { bar_unk: null, bar: "━━━━─────── 33%", proj: "tatsu-cli" });
-	sender.update({ ...FIRST, bar_unk: undefined, bar: "━━━━─────── 33%", proj: "tatsu-cli" });
+	assert.deepEqual(herdr.reports().at(-1)!.params.tokens, { bar_unk: null, bar: "━━━━━━━━─── 67%", proj: "tatsu-cli" });
+	sender.update({ ...FIRST, bar_unk: undefined, bar: "━━━━━━━━─── 67%", proj: "tatsu-cli" });
 	await new Promise((resolve) => setTimeout(resolve, 50));
 	assert.equal(herdr.reports().length, before + 1);
-	assert.deepEqual(map(herdr.tokens), sorted({ g1: "◐ WRK⠀", g2_au0: "??AU", bar: "━━━━─────── 33%", cmpx: "CMP×??", proj: "tatsu-cli" }));
+	assert.deepEqual(map(herdr.tokens), sorted({ g1: "◐ WRK⠀", g2_au0: "??AU", bar: "━━━━━━━━─── 67%", cmpx: "CMP×??", proj: "tatsu-cli" }));
 });
 
 test("rapid updates coalesce: one request in flight, then the latest state", async (t) => {
@@ -75,7 +75,7 @@ test("the TTL is renewed with a full report well before it expires", async (t) =
 	for (const r of reports) assert.equal(r.params.ttl_ms, 600);
 	// Each renewal is a full report: every key set again or cleared.
 	const renewal = reports.slice(2, 4).flatMap((r) => Object.keys(r.params.tokens));
-	assert.equal(renewal.length, 27);
+	assert.equal(renewal.length, 28);
 	assert.ok(reports[2].at - reports[0].at >= 100 && reports[2].at - reports[0].at < 600);
 });
 
@@ -107,7 +107,7 @@ test("shutdown stops reporting and clears every key, bounded even when Herdr doe
 	await sender.shutdown();
 	assert.equal(herdr.tokens.size, 0);
 	const clears = herdr.reports().slice(-2).flatMap((r) => Object.entries(r.params.tokens));
-	assert.equal(clears.length, 27);
+	assert.equal(clears.length, 28);
 	assert.ok(clears.every(([, value]) => value === null));
 	const count = herdr.reports().length;
 	sender.update(FIRST);
@@ -163,4 +163,40 @@ test("nextSeq is microsecond wall-clock time and never repeats or goes backwards
 	assert.ok(b > a && c > b && d > c);
 	assert.ok(d >= Date.now() * 1000 - 1e6);
 	assert.ok(Number.isSafeInteger(d));
+});
+
+test("persistent rejection backs off exponentially with jitter up to 60s, gates updates/renewals, resets after success", async (t) => {
+	t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_800_000_000_000 });
+	t.mock.method(Math, "random", () => 0.5);
+	const attempts: number[] = []; let reject = true;
+	const sender = createTokenSender({ paneId: "fixture", request: async () => { attempts.push(Date.now()); return reject ? { ok: false, error: "rejected" } : { ok: true, result: {} }; } });
+	t.after(() => sender.shutdown());
+	const settle = async () => { for (let n = 0; n < 20; n++) await Promise.resolve(); };
+	sender.update(FIRST); await settle(); assert.equal(attempts.length, 1);
+	for (const delay of [5500, 11000, 22000, 44000, 60000, 60000]) {
+		const count = attempts.length, at = Date.now();
+		sender.update({ ...FIRST, proj: `p${count}` }); await settle();
+		t.mock.timers.tick(delay - 1); await settle(); assert.equal(attempts.length, count);
+		t.mock.timers.tick(1); await settle(); assert.equal(attempts.length, count + 1);
+		assert.equal(attempts.at(-1)! - at, delay);
+	}
+	reject = false; t.mock.timers.tick(60000); await settle(); assert.equal(sender.state.synced, true);
+	// Successful full report arms renewal; a failing diff cancels it until recovery.
+	reject = true; sender.update({ ...FIRST, proj: "new" }); await settle(); const count = attempts.length;
+	t.mock.timers.tick(5499); await settle(); assert.equal(attempts.length, count);
+	t.mock.timers.tick(1); await settle(); assert.equal(attempts.length, count + 1, "success resets to 5s plus jitter");
+	t.mock.timers.tick(11000); await settle(); assert.equal(attempts.length, count + 2);
+	t.mock.timers.tick(20000 - 5500 - 11000); await settle(); assert.equal(attempts.length, count + 2, "renewal cannot bypass backoff");
+});
+
+test("success of the first batch does not reset backoff when every second batch is rejected", async (t) => {
+	t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_800_000_000_000 }); t.mock.method(Math, "random", () => 0);
+	let requests = 0;
+	const sender = createTokenSender({ paneId: "fixture", request: async () => ++requests % 2 ? { ok: true, result: {} } : { ok: false, error: "limit" } });
+	t.after(() => sender.shutdown());
+	const settle = async () => { for (let n = 0; n < 20; n++) await Promise.resolve(); };
+	sender.update(FIRST); await settle(); assert.equal(requests, 2);
+	t.mock.timers.tick(5000); await settle(); assert.equal(requests, 4);
+	t.mock.timers.tick(9999); await settle(); assert.equal(requests, 4);
+	t.mock.timers.tick(1); await settle(); assert.equal(requests, 6); assert.equal(sender.state.synced, false);
 });

@@ -5,14 +5,14 @@ import { visibleWidth } from "@earendil-works/pi-tui";
 import type { Phase, SidebarSnapshot } from "./snapshot.ts";
 
 export const TOKEN_KEYS = [
-	"g1", "proj", "proj_idle", "gt", "gt_off", "g2_au", "g2_au0", "bar", "bar_warn", "bar_crit", "bar_unk", "cmpx", "g3", "br",
+	"g1", "proj", "proj_idle", "gt", "gt_off", "g2_au", "g2_au0", "bar", "bar_warn", "bar_crit", "bar_idle", "bar_unk", "cmpx", "g3", "br",
 	"br_dirty", "dir", "prn", "prn_off", "g4", "mthink", "g5", "ev_act", "ask_l1", "ask_l2", "ask_l3", "ev_rdy_text", "ph_age",
 ] as const;
 export type TokenKey = (typeof TOKEN_KEYS)[number];
 export type TokenMap = Partial<Record<TokenKey, string>>;
 
 export type HerdrStatus = "idle" | "working" | "blocked" | "done" | "unknown";
-export type SidebarInput = { snapshot: SidebarSnapshot | null; herdr: HerdrStatus | null; now: number; home: string };
+export type SidebarInput = { snapshot: SidebarSnapshot | null; herdr: HerdrStatus | null; workspaceLabel?: string | null; now: number; home: string };
 
 // Herdr trims ASCII whitespace but keeps U+2800, so every padding cell is U+2800.
 export const BLANK = "\u2800";
@@ -37,9 +37,9 @@ const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 const graphemes = (text: string) => Array.from(segmenter.segment(text), (part) => part.segment);
 const codePoints = (text: string) => [...text].length;
 
-/** Removes control characters (C0, DEL, C1) and surrounding whitespace before anything is measured. */
+/** Removes terminal and bidi controls and surrounding whitespace before anything is measured. */
 export function clean(text: string): string {
-	return text.replace(/[\u0000-\u001f\u007f-\u009f]/g, "").trim();
+	return text.replace(/[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, "").trim();
 }
 
 /** Cuts `text` to at most `cells` terminal cells, ending a cut with `…`. */
@@ -172,23 +172,23 @@ export function buildTokens(input: SidebarInput): TokenMap {
 	const state = displayState(input);
 	const [icon, code] = STATES[state];
 
-	// Row 1: state, project, goal time.
+	// Row 1: state, Herdr SPACE (Active basename while unknown), goal time.
 	tokens.g1 = `${icon} ${code}${BLANK}`;
 	const goal = snapshot && goalClock(snapshot);
 	const goalTime = goal ? rightSlot(formatDuration(seconds(goal, now))) : undefined;
 	if (goalTime) set(snapshot!.goal!.status === "active" ? "gt" : "gt_off", goalTime);
-	const project = snapshot?.active ? clean(basename(snapshot.active) || snapshot.active) : "";
+	const project = clean(input.workspaceLabel ?? "") || (snapshot?.active ? clean(basename(snapshot.active) || snapshot.active) : "");
 	if (project) set(state === "idle" || state === "unknown" ? "proj_idle" : "proj", left(project, goalTime));
 
-	// Row 2: units, remaining context, compactions. Always all three; unknown is never zero.
+	// Row 2: units, used context, compactions. Always all three; unknown is never zero.
 	const units = snapshot?.units ?? null;
 	set(units !== null && units >= 1 ? "g2_au" : "g2_au0", units === null ? "??AU" : `${twoDigits(units)}AU`);
 	const used = snapshot?.usedPercent ?? null;
 	if (used === null) set("bar_unk", `${"─".repeat(BAR_CELLS)} --%`);
 	else {
-		const remaining = Math.max(0, Math.min(99, Math.floor(100 - used)));
-		const lit = Math.ceil((remaining * BAR_CELLS) / 100);
-		set(remaining < 10 ? "bar_crit" : remaining < 30 ? "bar_warn" : "bar", `${"━".repeat(lit)}${"─".repeat(BAR_CELLS - lit)} ${twoDigits(remaining)}%`);
+		const percent = Math.max(0, Math.min(99, Math.floor(used)));
+		const lit = Math.ceil((percent * BAR_CELLS) / 100);
+		set(state === "idle" || state === "unknown" ? "bar_idle" : used >= 90 ? "bar_crit" : used >= 70 ? "bar_warn" : "bar", `${"━".repeat(lit)}${"─".repeat(BAR_CELLS - lit)} ${twoDigits(percent)}%`);
 	}
 	const compactions = snapshot?.compactions ?? null;
 	set("cmpx", `CMP×${compactions === null ? "??" : twoDigits(compactions)}`);

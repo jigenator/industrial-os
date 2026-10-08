@@ -1,6 +1,6 @@
 // A fake Herdr server on a temporary Unix socket, never the live Herdr. It models the parts of Herdr 0.9.3 this
 // extension depends on, as read in its source (src/metadata_tokens.rs, src/app/api/panes.rs,
-// src/terminal/metadata.rs, src/api/subscriptions.rs): one token map per pane that any source can patch, per-source
+// src/terminal/metadata.rs, src/api/subscriptions.rs, src/api/schema/events.rs, src/api/schema/workspaces.rs): one token map per pane that any source can patch, per-source
 // sequence freshness, at most 32 sequenced token sources per pane, 16 keys per report and 32 keys per pane.
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer, type Socket } from "node:net";
@@ -18,9 +18,14 @@ export async function startFakeHerdr(paneId = "w1:p1") {
 	const sequences = new Map<string, number>();
 	const tokenSources = new Set<string>();
 	const log: Logged[] = [];
-	const subscribers = new Set<{ socket: Socket; id: string }>();
+	const subscribers = new Set<{ socket: Socket; id: string; subscriptions: any[] }>();
 	const sockets = new Set<Socket>();
-	let status = "idle";
+	let status = "idle", currentPaneId = paneId, workspaceId = "w1";
+	const paneAliases = new Set([paneId]);
+	// Unknown label by default keeps existing fallback fixtures explicit.
+	let workspaceLabel: string | null = null;
+	let workspaceGetMode: Mode = "ok";
+	let workspaceGetDelayMs = 0;
 	let reportMode: Mode = "ok";
 	let paneGetMode: Mode = "ok";
 	let subscribeMode: Mode = "ok";
@@ -30,7 +35,7 @@ export async function startFakeHerdr(paneId = "w1:p1") {
 	const error = (socket: Socket, id: string, code: string) => reply(socket, id, { error: { code, message: code } });
 
 	function report(params: any): string | undefined {
-		if (params.pane_id !== paneId) return "pane_not_found";
+		if (!paneAliases.has(params.pane_id)) return "pane_not_found";
 		const patch: Record<string, string | null> = params.tokens ?? {};
 		if (Object.keys(patch).length > 16) return "invalid_metadata_token";
 		if (params.ttl_ms !== undefined && !(params.ttl_ms >= 1 && params.ttl_ms <= 86_400_000)) return "invalid_metadata_ttl";
@@ -61,15 +66,29 @@ export async function startFakeHerdr(paneId = "w1:p1") {
 			if (reportDelayMs) setTimeout(respond, reportDelayMs); else respond();
 		} else if (method === "pane.get") {
 			if (paneGetMode === "silent") return;
-			if (paneGetMode === "error" || params?.pane_id !== paneId) return error(socket, id, "pane_not_found");
-			reply(socket, id, { result: { type: "pane_info", pane: { pane_id: paneId, workspace_id: "w1", agent_status: status } } });
+			if (paneGetMode === "error" || !paneAliases.has(params?.pane_id)) return error(socket, id, "pane_not_found");
+			reply(socket, id, { result: { type: "pane_info", pane: { pane_id: currentPaneId, workspace_id: workspaceId, agent_status: status } } });
+		} else if (method === "workspace.get") {
+			if (workspaceGetMode === "silent") return;
+			if (workspaceGetMode === "error" || params?.workspace_id !== workspaceId) return error(socket, id, "workspace_not_found");
+			const result = { type: "workspace_info", workspace: { workspace_id: workspaceId, label: workspaceLabel } };
+			const respond = () => reply(socket, id, { result });
+			if (workspaceGetDelayMs) setTimeout(respond, workspaceGetDelayMs); else respond();
 		} else if (method === "events.subscribe") {
 			const entry = params?.subscriptions?.[0];
 			if (subscribeMode === "silent") return;
-			if (subscribeMode === "error" || entry?.type !== "pane.agent_status_changed" || entry.pane_id !== paneId) { error(socket, id, "pane_not_found"); socket.end(); return; }
+			if (subscribeMode === "error" || entry?.type !== "pane.agent_status_changed" || !paneAliases.has(entry.pane_id)) { error(socket, id, "pane_not_found"); socket.end(); return; }
 			reply(socket, id, { result: { type: "subscription_started" } });
-			subscribers.add({ socket, id });
+			assertSubscriptions(params.subscriptions);
+			subscribers.add({ socket, id, subscriptions: params.subscriptions.map((s: any) => s.type === "pane.agent_status_changed" ? { ...s, pane_id: currentPaneId } : s) });
 		} else error(socket, id, "unknown_method");
+	}
+
+	function assertSubscriptions(subscriptions: any[]) {
+		for (const s of subscriptions) if (!["pane.agent_status_changed", "workspace.renamed", "workspace.updated", "pane.moved"].includes(s.type)) throw new Error("Unknown subscription");
+	}
+	function emit(event: string, data: any) {
+		for (const { socket, subscriptions } of subscribers) if (subscriptions.some((s) => s.type === event && (event !== "pane.agent_status_changed" || s.pane_id === data.pane_id))) socket.write(`${JSON.stringify({ event, data })}\n`);
 	}
 
 	const server = createServer((socket) => {
@@ -97,8 +116,21 @@ export async function startFakeHerdr(paneId = "w1:p1") {
 		get sources() { return new Set(log.filter((entry) => entry.method === "pane.report_metadata").map((entry) => entry.params.source)); },
 		setStatus(next: string, push = true) {
 			status = next;
-			if (push) for (const { socket } of subscribers) socket.write(`${JSON.stringify({ event: "pane.agent_status_changed", data: { pane_id: paneId, workspace_id: "w1", agent_status: next } })}\n`);
+			if (push) emit("pane.agent_status_changed", { pane_id: currentPaneId, workspace_id: workspaceId, agent_status: next });
 		},
+		setWorkspaceLabel(label: string | null, push: "renamed" | "updated" | false = "renamed") {
+			workspaceLabel = label;
+			if (push === "renamed") emit("workspace.renamed", { workspace_id: workspaceId, label });
+			if (push === "updated") emit("workspace.updated", { workspace: { workspace_id: workspaceId, label } });
+		},
+		movePane(nextWorkspaceId: string, nextPaneId: string, label: string) {
+			const previous_pane_id = currentPaneId, previous_workspace_id = workspaceId;
+			currentPaneId = nextPaneId; workspaceId = nextWorkspaceId; workspaceLabel = label; paneAliases.add(nextPaneId);
+			emit("pane.moved", { previous_pane_id, previous_workspace_id, previous_tab_id: "w1:t1", pane: { pane_id: currentPaneId, workspace_id: workspaceId, agent_status: status } });
+		},
+		emit,
+		setWorkspaceGetMode(mode: Mode) { workspaceGetMode = mode; },
+		setWorkspaceGetDelay(ms: number) { workspaceGetDelayMs = ms; },
 		/** Herdr drops every subscription, as on events_lost or a server restart. */
 		dropSubscribers(lost = false) {
 			for (const { socket, id } of subscribers) { if (lost) error(socket, id, "events_lost"); socket.destroy(); }

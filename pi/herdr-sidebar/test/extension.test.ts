@@ -147,7 +147,7 @@ for (const order of ["before", "after"] as const) {
 		await until(() => herdr.tokens.get("mthink") === "opus-5.5/hi", "pushed snapshot");
 		assert.equal(herdr.tokens.get("g2_au"), "03AU");
 		assert.equal(herdr.tokens.get("g2_au0"), undefined, "a key that stopped applying is cleared");
-		assert.equal(herdr.tokens.get("bar"), "━━━━─────── 33%");
+		assert.equal(herdr.tokens.get("bar_idle"), "━━━━━━━━─── 67%");
 		assert.equal(herdr.tokens.get("cmpx"), "CMP×04");
 		assert.deepEqual(h.errors, []);
 	});
@@ -278,4 +278,28 @@ test("time values re-render when their text changes, at most once a second", asy
 	const count = herdr.reports().length;
 	await new Promise((done) => setTimeout(done, 1200));
 	assert.equal(herdr.reports().length, count);
+});
+
+test("row-1 SPACE label updates on rename, reconnect and cross-workspace pane move", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); inside(t, herdr);
+	herdr.setWorkspaceLabel("SPACE", false);
+	const h = await harness(t); await h.start(); await until(() => herdr.tokens.get("proj_idle") === "SPACE");
+	h.set({ active: "/work/other-project" }); await new Promise((done) => setTimeout(done, 30)); assert.equal(herdr.tokens.get("proj_idle"), "SPACE");
+	herdr.setWorkspaceLabel("Renamed SPACE"); await until(() => herdr.tokens.get("proj_idle") === "Renamed SPACE");
+	herdr.dropSubscribers(); herdr.setWorkspaceLabel("Reconnect SPACE", false); await until(() => herdr.tokens.get("proj_idle") === "Reconnect SPACE");
+	herdr.movePane("w2", "w2:p2", "Moved SPACE"); await until(() => herdr.tokens.get("proj_idle") === "Moved SPACE");
+	assert.equal(herdr.reports().at(-1)!.params.pane_id, "w2:p2");
+	await h.stop(); assert.equal(herdr.tokens.size, 0); assert.deepEqual(h.errors, []);
+});
+
+test("WRK to IDL swaps the zone bar for bar_idle and clears it on the next attention state", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); inside(t, herdr); herdr.setStatus("working", false);
+	const h = await harness(t); await h.start(); h.set({ context: { usedPercent: 67 } });
+	await until(() => herdr.tokens.get("bar") === "━━━━━━━━─── 67%");
+	herdr.setStatus("idle"); await until(() => herdr.tokens.get("bar_idle") === "━━━━━━━━─── 67%"); assert.equal(herdr.tokens.has("bar"), false);
+	h.set({ context: { usedPercent: 95 } }); await until(() => herdr.tokens.get("bar_idle") === "━━━━━━━━━━━ 95%");
+	assert.equal(herdr.tokens.has("bar_crit"), false); assert.equal(herdr.tokens.has("bar_warn"), false);
+	herdr.setStatus("done"); await until(() => herdr.tokens.get("bar_crit") === "━━━━━━━━━━━ 95%"); assert.equal(herdr.tokens.has("bar_idle"), false);
+	herdr.setStatus("unknown"); await until(() => herdr.tokens.get("bar_idle") === "━━━━━━━━━━━ 95%"); assert.equal(herdr.tokens.has("bar_crit"), false);
+	h.set({ context: null }); await until(() => herdr.tokens.get("bar_unk") === "─────────── --%"); assert.equal(herdr.tokens.has("bar_idle"), false);
 });

@@ -36,6 +36,8 @@ export function createTokenSender(options: SenderOptions) {
 	const ttlMs = options.ttlMs ?? 60_000;
 	const renewMs = options.renewMs ?? 20_000;
 	const retryMs = options.retryMs ?? 5_000;
+	const maxRetryMs = 60_000;
+	let retryDelay = retryMs;
 	const requestTimeoutMs = options.requestTimeoutMs ?? 1_000;
 	const shutdownTimeoutMs = options.shutdownTimeoutMs ?? 1_500;
 	let desired: TokenMap = {};
@@ -79,6 +81,8 @@ export function createTokenSender(options: SenderOptions) {
 					// Herdr may hold any mix of old and new values now; resend everything on the next attempt.
 					synced = false;
 					lastError = reply.error;
+					if (renewTimer) clearTimeout(renewTimer);
+					renewTimer = undefined;
 					scheduleRetry();
 					return;
 				}
@@ -88,9 +92,11 @@ export function createTokenSender(options: SenderOptions) {
 					else sent[key as TokenKey] = value;
 				}
 			}
+			// Reset only after the whole report succeeds, not after its first batch.
+			retryDelay = retryMs;
+			lastError = undefined;
 			if (full) {
 				synced = true;
-				lastError = undefined;
 				scheduleRenew();
 			}
 		}
@@ -99,12 +105,15 @@ export function createTokenSender(options: SenderOptions) {
 	function flush() {
 		if (closed) return;
 		dirty = true;
-		draining ??= drain().finally(() => { draining = undefined; if (dirty && !closed) flush(); });
+		if (retryTimer) return; // Updates retain the latest map, but cannot bypass failure backoff.
+		draining ??= drain().finally(() => { draining = undefined; if (dirty && !closed && !retryTimer) flush(); });
 	}
 
 	function scheduleRetry() {
 		if (retryTimer || closed) return;
-		retryTimer = setTimeout(() => { retryTimer = undefined; flush(); }, retryMs);
+		const delay = Math.min(maxRetryMs, retryDelay * (1 + Math.random() * 0.2));
+		retryDelay = Math.min(maxRetryMs, retryDelay * 2);
+		retryTimer = setTimeout(() => { retryTimer = undefined; flush(); }, delay);
 		retryTimer.unref();
 	}
 

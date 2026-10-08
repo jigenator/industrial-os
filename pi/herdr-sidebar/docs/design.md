@@ -6,8 +6,8 @@ This extension decides what text each sidebar row carries; [the Herdr design](..
 
 | Row | Reads as | Meaning |
 | --- | --- | --- |
-| 1 | `◐ WRK · tatsu-cli · 2h33m` | State, Active project folder, goal time. The goal time counts while the goal is active and stands still otherwise |
-| 2 | `02AU · ━━━━─────── 33% · CMP×18` | Active units, context left before compaction, compactions on this branch |
+| 1 | `◐ WRK · release · 2h33m` | State, Herdr SPACE name, goal time (Active basename while SPACE is unknown). The goal time counts while the goal is active and stands still otherwise |
+| 2 | `02AU · ━━━━━━━━─── 67% · CMP×18` | Active units, context used toward compaction, compactions on this branch |
 | 3 | `ACT · feat/sidebar* · #42` | Active branch (`*` has changes) or directory; open pull request (`#?` when the lookup is unavailable) |
 | 4 | `MDL · opus-5.5/hi` | Model and thinking level |
 | 5 | `SH · npm test · 12s` | What the agent does now and for how long |
@@ -40,7 +40,9 @@ A pending question also raises Herdr's blocked state through `herdr:blocked`, so
 | Branch changes | no `*` when dirtiness is unknown; Herdr draws it like clean | `*` |
 | Everything else | the row or value is left out | a placeholder |
 
-Without the signals-collector the sidebar shows row 1 and row 2's unknowns only. `99%` context means 99% or more left; `99AU` and `CMP×99` mean 99 or more.
+In IDL and UNK, known context is decorative grey, not zone-coloured; its shape and used percentage remain unchanged. WRK, QNS, BLK and DNE retain the zone colours. Unknown context stays `--%` in every state.
+
+Without the signals-collector the sidebar shows row 1 (including SPACE when known) and row 2's unknowns only. `99%` context means 99% or more used; `99AU` and `CMP×99` mean 99 or more.
 
 ## Timing
 
@@ -48,4 +50,4 @@ Values change when the snapshot or Herdr's status changes, usually within a frac
 
 ## Accessibility and limits
 
-The rows are plain text in single-cell glyphs as measured by Pi TUI, padded with U+2800 so Herdr's trimming cannot shift the columns. Terminals that draw `◐`, `━` or `─` at ambiguous width, or fonts without U+2800, are unverified. Agent panes without this extension show no rows. No interactive check in Herdr has been recorded for this extension; the geometry was verified live with a throwaway script on 2026-10-08.
+The rows are plain text in single-cell glyphs as measured by Pi TUI, padded with U+2800 so Herdr's trimming cannot shift the columns. Terminals that draw `◐`, `━` or `─` at ambiguous width, or fonts without U+2800, are unverified. Pi panes without this extension show no Industrial OS rows; other agents retain their own rows. No interactive check in Herdr has been recorded for this extension; the geometry was verified live with a throwaway script on 2026-10-08.

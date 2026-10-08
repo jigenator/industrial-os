@@ -32,7 +32,7 @@ Start here and scan the supporting-documents map. Read every document whose `Rea
 | Herdr requests and the agent-status subscription | `src/herdr-client.ts` | Node `net` only; bounded, never throws into Pi |
 | Diffing, batching, sequence, TTL and the shutdown clear | `src/sender.ts` | Takes a request function; no Pi state |
 | Gating, event-bus intake, `herdr:blocked`, timers, lifecycle | `src/extension.ts` | Public Pi APIs; dispose on every exit |
-| Regression coverage | Matching file in `test/` | Fake Herdr server; real installed Pi loader only in `test/extension.test.ts` |
+| Regression coverage | Matching file in `test/` | Fake Herdr server; real installed Pi loader in `test/extension.test.ts` and `test/signals.test.ts` |
 
 ## Implement and verify
 

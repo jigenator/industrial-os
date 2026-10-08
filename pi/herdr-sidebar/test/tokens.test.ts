@@ -35,7 +35,7 @@ test("the key list matches the canonical contract document", async () => {
 	assert.ok(line, "docs/token-contract.md states the full key list");
 	assert.deepEqual([...TOKEN_KEYS], line[1].split(" "));
 	assert.equal(TOKEN_KEYS.length, Number(line[2]));
-	assert.equal(TOKEN_KEYS.length, 27);
+	assert.equal(TOKEN_KEYS.length, 28);
 });
 
 test("the spike's verified rows: state, fitted project and goal time; bar and CMP", () => {
@@ -43,7 +43,7 @@ test("the spike's verified rows: state, fitted project and goal time; bar and CM
 	assert.equal(t.g1, `◐ WRK${B}`);
 	assert.equal(t.proj, `tatsu-cli${B.repeat(6)}`);
 	assert.equal(t.gt, `${B}2h33m`);
-	assert.equal(t.bar, "━━━━─────── 33%");
+	assert.equal(t.bar, "━━━━━━━━─── 67%");
 	assert.equal(t.cmpx, "CMP×18");
 	assert.equal(t.g2_au, "02AU");
 	assert.equal(width(t.g1), 6);
@@ -110,27 +110,27 @@ test("row 2 units: two digits, capped at 99, unknown ??; the zero and unknown ke
 	}
 });
 
-test("row 2 bar: lit cells, remaining percent, zones and unknown", () => {
+test("row 2 bar: lit cells, used percent, zones and unknown", () => {
 	const cases: [number | null, string, string][] = [
-		[0, "bar", "━━━━━━━━━━━ 99%"], [0.5, "bar", "━━━━━━━━━━━ 99%"], [1, "bar", "━━━━━━━━━━━ 99%"], [1.5, "bar", "━━━━━━━━━━━ 98%"],
-		[67, "bar", "━━━━─────── 33%"], [70, "bar", "━━━━─────── 30%"], [70.01, "bar_warn", "━━━━─────── 29%"],
-		[90, "bar_warn", "━━───────── 10%"], [90.5, "bar_crit", "━────────── 09%"], [99.5, "bar_crit", "─────────── 00%"],
-		[100, "bar_crit", "─────────── 00%"], [130, "bar_crit", "─────────── 00%"], [-20, "bar", "━━━━━━━━━━━ 99%"],
+		[0, "bar", "─────────── 00%"], [0.5, "bar", "─────────── 00%"], [1, "bar", "━────────── 01%"], [1.5, "bar", "━────────── 01%"],
+		[67, "bar", "━━━━━━━━─── 67%"], [69.99, "bar", "━━━━━━━━─── 69%"], [70, "bar_warn", "━━━━━━━━─── 70%"], [70.01, "bar_warn", "━━━━━━━━─── 70%"],
+		[89.99, "bar_warn", "━━━━━━━━━━─ 89%"], [90, "bar_crit", "━━━━━━━━━━─ 90%"], [90.5, "bar_crit", "━━━━━━━━━━─ 90%"], [99.5, "bar_crit", "━━━━━━━━━━━ 99%"],
+		[100, "bar_crit", "━━━━━━━━━━━ 99%"], [130, "bar_crit", "━━━━━━━━━━━ 99%"], [-20, "bar", "─────────── 00%"],
 		[null, "bar_unk", "─────────── --%"],
 	];
 	for (const [usedPercent, key, text] of cases) {
 		const t = build({ context: { tokens: null, window: 1, reserve: null, usedPercent } });
 		assert.equal(t[key], text, `used ${usedPercent}`);
-		for (const other of ["bar", "bar_warn", "bar_crit", "bar_unk"]) if (other !== key) assert.equal(t[other], undefined);
+		for (const other of ["bar", "bar_warn", "bar_crit", "bar_idle", "bar_unk"]) if (other !== key) assert.equal(t[other], undefined);
 		assert.equal(width(text), 15);
 	}
 	assert.equal(build({ context: null }).bar_unk, "─────────── --%");
-	// lit = ceil(remaining × 11 / 100) at every remaining value.
+	// lit = ceil(used × 11 / 100) at every displayed value.
 	for (let used = 1; used <= 100; used++) {
 		const t = build({ context: { tokens: 1, window: 1, reserve: null, usedPercent: used } });
-		const text = t.bar ?? t.bar_warn ?? t.bar_crit, remaining = Math.min(99, 100 - used);
-		assert.equal([...text].filter((c) => c === "━").length, Math.ceil((remaining * 11) / 100));
-		assert.equal(text.slice(-3), `${String(remaining).padStart(2, "0")}%`);
+		const text = t.bar ?? t.bar_warn ?? t.bar_crit, percent = Math.min(99, used);
+		assert.equal([...text].filter((c) => c === "━").length, Math.ceil((percent * 11) / 100));
+		assert.equal(text.slice(-3), `${String(percent).padStart(2, "0")}%`);
 	}
 });
 
@@ -344,4 +344,51 @@ test("readSnapshot accepts only v1 snapshots for this session and treats malform
 	const bounded = readSnapshot(raw({ question: { text: "q".repeat(500), more: 1 } }), SESSION);
 	assert.equal(bounded.question.text.length, 200);
 	assert.equal(readSnapshot(raw({ goal: { status: "paused", usedSeconds: 5, activeSince: NOW } }), SESSION).goal.activeSince, null);
+});
+
+test("bidi and invisible controls are removed at token sinks while U+2800 padding survives", () => {
+	const controls = "\u061c\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069";
+	assert.equal(clean(` ${controls}safe${B}${controls} `), `safe${B}`);
+	const tokens = build({ active: `/work/${controls}project`, model: { provider: "fixture", id: `${controls}model` }, thinking: `${controls}high`,
+		root: { working: true }, phase: { kind: "tool", tool: "bash", target: `${controls}npm test`, since: NOW } });
+	assert.equal(tokens.proj, "project"); assert.equal(tokens.ev_act, `npm test${B.repeat(7)}`);
+	for (const value of Object.values(tokens)) assert.doesNotMatch(value as string, /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/);
+	assert.equal(build({ question: { text: `${controls}Which?`, more: 0, since: NOW } }).ask_l1, "Which?");
+});
+
+test("row 1 uses the Herdr SPACE label, fits beside a goal, and falls back only when unknown", () => {
+	const snapshot = snap({ goal: { status: "paused", usedSeconds: 30, activeSince: null } });
+	const input = { snapshot, herdr: "working", now: NOW, home: HOME };
+	const tokens = buildTokens({ ...input, workspaceLabel: "Release workspace with a long name" });
+	assert.equal(tokens.proj, "Release worksp…"); assert.equal(width(tokens.proj), 15);
+	assert.equal(buildTokens({ ...input, herdr: "idle", workspaceLabel: "SPACE" }).proj_idle, `SPACE${B.repeat(10)}`);
+	assert.equal(buildTokens({ ...input, workspaceLabel: null }).proj, `tatsu-cli${B.repeat(6)}`);
+	assert.equal(buildTokens({ ...input, workspaceLabel: "\u202eSPACE" }).proj, `SPACE${B.repeat(10)}`);
+	assert.equal(buildTokens({ ...input, snapshot: null, workspaceLabel: "SPACE" }).proj, "SPACE");
+});
+
+test("IDL/UNK known context is bar_idle regardless of zone; attention states keep zone tokens", () => {
+	for (const usedPercent of [0, 67, 70, 90, 95, 100]) {
+		const context = { usedPercent };
+		const zone = usedPercent >= 90 ? "bar_crit" : usedPercent >= 70 ? "bar_warn" : "bar";
+		const expected = build({ context }, "working")[zone];
+		for (const herdr of ["idle", "unknown", null]) {
+			const tokens = build({ context }, herdr); assert.equal(tokens.bar_idle, expected);
+			for (const key of ["bar", "bar_warn", "bar_crit", "bar_unk"]) assert.equal(tokens[key], undefined);
+		}
+		for (const herdr of ["working", "blocked", "done"]) {
+			assert.equal(build({ context }, herdr)[zone], expected); assert.equal(build({ context }, herdr).bar_idle, undefined);
+		}
+		assert.equal(build({ context, question: { text: "Q?", more: 0, since: NOW } }, "idle")[zone], expected);
+	}
+	for (const herdr of ["idle", "unknown", "working", "blocked", "done", null]) {
+		const tokens = build({ context: null }, herdr); assert.equal(tokens.bar_unk, "─────────── --%"); assert.equal(tokens.bar_idle, undefined);
+	}
+});
+
+test("README bounds Herdr compatibility and records token egress and partial-report limitations", async () => {
+	const readme = await readFile("README.md", "utf8");
+	assert.match(readme, /Tested with Herdr 0\.9\.3/); assert.doesNotMatch(readme, /0\.9\.3 or newer/);
+	assert.match(readme, /first line of bash commands and tool paths[\s\S]*in-memory pane tokens as `ev_act`/);
+	assert.match(readme, /half-applied for up to one retry interval/);
 });

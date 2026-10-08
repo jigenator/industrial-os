@@ -26,7 +26,7 @@ Scope reviewed: the complete source and tests at the revision that added the pro
 
 ## Types and validation
 
-**Rule:** the snapshot and every Herdr reply are untrusted. Malformed fields become unknown; text is stripped of control characters and trimmed before it is measured; every value is bounded in cells and characters. **Check:** `test/tokens.test.ts` malformed, hostile and budget cases.
+**Rule:** the snapshot and every Herdr reply are untrusted. Malformed fields become unknown; text is stripped of terminal/bidi controls and trimmed before it is measured; every value is bounded in cells and characters. **Check:** `test/tokens.test.ts` malformed, hostile and budget cases.
 
 ## Errors and diagnostics
 
@@ -37,6 +37,7 @@ Scope reviewed: the complete source and tests at the revision that added the pro
 - `test/tokens.test.ts`: every rule of the token contract, the snapshot validation, and the key list read from [the contract](token-contract.md).
 - `test/sender.test.ts` and `test/herdr-client.test.ts`: the modules against `test/fake-herdr.ts`.
 - `test/extension.test.ts`: the real installed Pi loader, runner and event bus, a fake collector extension loaded before or after, and the fake Herdr server.
+- `test/signals.test.ts`: both real collector/sidebar package load orders through Pi's loader, offline Git/gh/CodexBar fixtures, real usage/context shapes and lifecycle-to-token assertions. Test-only sibling package paths follow status-bar's composition precedent; production imports never cross project boundaries.
 
 **Rule:** no test contacts a live Herdr. Each extension case sets the Herdr environment to the fake server and restores it. **Rule:** `test/fake-herdr.ts` models only behavior read in the Herdr source of the version in use, and cites it.
 
@@ -51,5 +52,5 @@ No runtime or development dependency. Pi's packages are `"*"` peers, resolved in
 | No type check, formatter, linter or build | Tests run by type stripping; no compiler is installed for this project | Add a pinned compiler with a lockfile when the maintainer approves the tooling | Proposed; not implemented |
 | No lockfile or development pin of Pi | Tests use the globally installed Pi, as status-bar does | Pin Pi as development dependencies in one reviewed change if a reproducible run is wanted | Record the installed Pi version with each run |
 | No interactive Pi/Herdr record | The fake server and RPC load prove neither rendering nor Herdr's acceptance | Run the manual step in [contributing](../CONTRIBUTING.md#full-validation-sequence) | Manual; not run |
-| No run against a real signals-collector | The collector was built in parallel; tests use a fake one to the frozen contract | Run the suite and the manual step after both are merged | Not run |
+| No live collector/provider qualification | Real collector/sidebar composition is covered offline in both orders; this is not interactive/provider evidence | Run the manual step with live inputs when authorized | Manual; not run |
 | No license | No `LICENSE` or `license` field | Resolve with the repository's open license decision | Review the manifest |
