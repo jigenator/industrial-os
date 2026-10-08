@@ -1,4 +1,4 @@
-# Industrial OS: Herdr's agents sidebar in layout B, for the tokens pi/herdr-sidebar reports.
+# Industrial OS: Herdr's Pi agents sidebar in layout B, for the tokens pi/herdr-sidebar reports.
 # A fragment of Herdr's config.toml, merged by hand; see README.md. The token names and widths are fixed by
 # pi/herdr-sidebar/docs/token-contract.md. Every color is a design-system value, named here by its role;
 # test/sidebar.test.mjs checks both.
@@ -15,9 +15,13 @@ sidebar_min_width = 36
 sidebar_max_width = 36
 
 [ui.sidebar.agents]
+# Panel-wide spacing applies to every agent, not just Pi.
 row_gap = 1
-rows = [
-  # Row 1: state (decorative; WRK accent, BLK and QNS critical, DNE primary), project, goal time.
+
+[ui.sidebar.agents.rows_by_agent]
+# Override only Pi; leave global rows and all other agents unchanged.
+pi = [
+  # Row 1: state (decorative; WRK accent, BLK and QNS critical, DNE primary), SPACE name, goal time.
   [
     { token = "$g1", fg = "#717171", bold = true, rules = [{ contains = "WRK", fg = "#c0fe04" }, { contains = "BLK", fg = "#f24723" }, { contains = "QNS", fg = "#f24723" }, { contains = "DNE", fg = "#ffffff" }] },
     { token = "$proj", fg = "#ffffff", bold = true },      # primary
@@ -25,13 +29,14 @@ rows = [
     { token = "$gt", fg = "#cfcfcf" },                     # secondary
     { token = "$gt_off", fg = "#333333" },                 # ghost: paused goal
   ],
-  # Row 2: active units, context left, compactions (structural 00 and ??, violet 01-02, pink 03-04, critical 05+).
+  # Row 2: active units, context used, compactions (structural 00 and ??, violet 01-02, pink 03-04, critical 05+).
   [
     { token = "$g2_au", fg = "#c0fe04", bold = true }, # accent
     { token = "$g2_au0", fg = "#717171" },             # decorative
     { token = "$bar", fg = "#c0fe04" },                # accent
     { token = "$bar_warn", fg = "#d79e52" },           # warning
     { token = "$bar_crit", fg = "#f24723", bold = true }, # critical
+    { token = "$bar_idle", fg = "#717171" },           # decorative: IDL/UNK, never zone-colored
     { token = "$bar_unk", fg = "#333333" },            # ghost
     { token = "$cmpx", fg = "#555555", bold = true, rules = [{ equals = "CMP×01", fg = "#5200ff" }, { equals = "CMP×02", fg = "#5200ff" }, { equals = "CMP×03", fg = "#ff15bd" }, { equals = "CMP×04", fg = "#ff15bd" }, { equals = "CMP×00", fg = "#555555" }, { starts_with = "CMP×?", fg = "#555555" }, { starts_with = "CMP×", fg = "#f24723" }] },
   ],

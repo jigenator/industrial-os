@@ -10,6 +10,15 @@ const fragment = await readFile(new URL('../sidebar.toml', import.meta.url), 'ut
 const contract = await readFile(new URL('../../pi/herdr-sidebar/docs/token-contract.md', import.meta.url), 'utf8');
 // Comments removed: colors are quoted, so a `#` at a line start or after whitespace begins a comment.
 const code = fragment.split('\n').map((line) => line.replace(/(^|\s)#.*$/, '')).join('\n');
+// Scope layout checks to the canonical Pi override, not to any global agent rows.
+const piRows = () => {
+  const table = /^\[ui\.sidebar\.agents\.rows_by_agent\]\s*\n([\s\S]*?)(?=^\[|$(?![\s\S]))/m.exec(code);
+  assert.ok(table, 'rows_by_agent is a table');
+  assert.match(table[1], /^pi\s*=\s*\[/m, 'Pi has a complete row override');
+  assert.equal([...table[1].matchAll(/^([a-z_]+)\s*=/gm)].length, 1, 'only Pi is overridden');
+  assert.doesNotMatch(code, /^rows\s*=/m, 'global rows must stay absent so other agents retain their rows');
+  return table[1];
+};
 const keyList = () => {
   const match = /^Full key list: `([^`]+)` \((\d+) keys\)\.$/m.exec(contract);
   assert.ok(match, 'the token contract states the full key list');
@@ -25,6 +34,8 @@ const value = (key) => {
 
 test('every color is an exported design-system palette or signal color', () => {
   const allowed = new Set([...Object.values(ACID_BLACK), ...Object.values(SIGNAL_COLORS)].map((hex) => hex.toLowerCase()));
+  const rows = piRows();
+  assert.ok([...rows.matchAll(/"(#[^"]*)"/g)].length > 30, 'Pi rows set their colors');
   const colors = [...code.matchAll(/"(#[^"]*)"/g)].map((match) => match[1]);
   assert.ok(colors.length > 30, 'the fragment sets colors');
   for (const color of colors) {
@@ -37,12 +48,13 @@ test('every color is an exported design-system palette or signal color', () => {
 
 test('every token is in the contract key list, and every key in the list has a row', () => {
   const keys = keyList();
-  const referenced = [...code.matchAll(/token\s*=\s*"\$([A-Za-z0-9_-]+)"/g)].map((match) => match[1]);
+  const rows = piRows();
+  const referenced = [...rows.matchAll(/token\s*=\s*"\$([A-Za-z0-9_-]+)"/g)].map((match) => match[1]);
   for (const name of referenced) assert.ok(keys.includes(name), `$${name} is in the token contract`);
   assert.deepEqual([...new Set(referenced)].sort(), [...keys].sort());
   assert.equal(new Set(referenced).size, referenced.length, 'each token appears once');
   // Every token entry is a custom `$` token; Herdr's built-in tokens are not part of this layout.
-  assert.equal([...code.matchAll(/token\s*=\s*"/g)].length, referenced.length);
+  assert.equal([...rows.matchAll(/token\s*=\s*"/g)].length, referenced.length);
 });
 
 test('the width lock, row gap and theme block match the contract', () => {
@@ -51,5 +63,20 @@ test('the width lock, row gap and theme block match the contract', () => {
   assert.equal(value('sidebar_bg'), `"${ACID_BLACK.field}"`);
   assert.equal(value('active_row_bg'), `"${ACID_BLACK.surface}"`);
   assert.equal(value('selection_bg'), `"${ACID_BLACK.surface}"`);
-  for (const table of ['[theme.custom]', '[ui]', '[ui.sidebar.agents]']) assert.ok(code.includes(`\n${table}\n`), `${table} is a table`);
+  for (const table of ['[theme.custom]', '[ui]', '[ui.sidebar.agents]', '[ui.sidebar.agents.rows_by_agent]']) assert.ok(code.includes(`\n${table}\n`), `${table} is a table`);
+});
+
+test('Pi-only layout preserves other agents and scopes row_gap to the agents panel', () => {
+  piRows();
+  const panel = /^\[ui\.sidebar\.agents\]\s*\n([\s\S]*?)(?=^\[)/m.exec(code);
+  assert.ok(panel);
+  assert.match(panel[1], /^row_gap\s*=\s*1\s*$/m);
+  assert.doesNotMatch(piRows(), /^row_gap\s*=/m);
+});
+
+test('bar_idle is decorative grey without bold or zone rules', () => {
+  const entry = /\{\s*token\s*=\s*"\$bar_idle"([^}]+)\}/.exec(piRows());
+  assert.ok(entry);
+  assert.match(entry[1], new RegExp(`fg\\s*=\\s*"${ACID_BLACK.decorative}"`));
+  assert.doesNotMatch(entry[1], /bold\s*=\s*true|rules\s*=/);
 });

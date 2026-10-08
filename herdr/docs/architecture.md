@@ -7,7 +7,7 @@ Evidence: `sidebar.toml`, `test/sidebar.test.mjs`, Herdr 0.9.3's configuration r
 
 | File | Owns | Depends on |
 | --- | --- | --- |
-| `sidebar.toml` | The agents-sidebar rows, their colors and rules, the theme colors the layout needs, and the 36-column width lock | Herdr's config schema; the token names in [the token contract](../../pi/herdr-sidebar/docs/token-contract.md); design-system colors, restated as values because TOML cannot import |
+| `sidebar.toml` | The Pi agents-sidebar row override, their colors and rules, the theme colors the layout needs, and the 36-column width lock | Herdr's config schema; the token names in [the token contract](../../pi/herdr-sidebar/docs/token-contract.md); design-system colors, restated as values because TOML cannot import |
 | `test/sidebar.test.mjs` | The checks that keep the fragment true to its two sources | `@industrial-os/design-system/foundation/palette` and `/signal-colors` by package name; reads the token contract document |
 
 ```mermaid
@@ -23,7 +23,7 @@ No code is shared. The check imports the design system only by package name, as 
 
 ## Flow
 
-A person merges the fragment into Herdr's `config.toml` and reloads. Herdr's client reads the rows; the herdr-sidebar extension in each Pi pane reports token values; Herdr draws each row from the values present, dropping missing tokens and their separators and any row left empty. Styling lives only here; values live only in the extension.
+A person merges the fragment into Herdr's `config.toml` and reloads. Herdr's client selects the `rows_by_agent.pi` override for canonical agent ID `pi` (replacing, not extending, its base rows), leaving other agents on their configured/default rows; the herdr-sidebar extension in each Pi pane reports token values; Herdr draws each row from the values present, dropping missing tokens and their separators and any row left empty. Styling lives only here; values live only in the extension.
 
 ## Critical invariants
 
@@ -31,6 +31,7 @@ A person merges the fragment into Herdr's `config.toml` and reloads. Herdr's cli
 | --- | --- |
 | Every color is an exported design-system color | `test/sidebar.test.mjs` |
 | Every token is in the contract key list, and every key has one row entry | `test/sidebar.test.mjs` |
+| Only `rows_by_agent.pi` is set; global `rows` is absent | `test/sidebar.test.mjs` |
 | The width is locked at 36 columns with `row_gap = 1` | `test/sidebar.test.mjs` |
 | The fragment is a valid Herdr config by itself | `herdr config check` in [contributing](../CONTRIBUTING.md#validation-sequence) |
 
@@ -41,4 +42,5 @@ Another piece of maintained Herdr configuration, such as Space rows or keybindin
 ## Limits and evolution
 
 - Herdr has no config includes, so the fragment is merged by hand and drifts from the user's copy until merged again.
-- `rows` replaces Herdr's default rows for every agent, so agents without the extension show nothing. Herdr's `rows_by_agent.pi` could scope the layout to Pi and keep the defaults for others; that is a layout change for the maintainer to approve.
+- Pi panes without the extension show no Industrial OS rows. Other agents retain their configured/default layouts.
+- `row_gap = 1` is a panel-wide setting: all agents receive that spacing, not only Pi.

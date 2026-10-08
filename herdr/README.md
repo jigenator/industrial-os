@@ -1,6 +1,6 @@
 # Industrial OS Herdr configuration
 
-Herdr configuration that belongs to Industrial OS. Today it is one fragment, [sidebar.toml](sidebar.toml): the [Herdr](https://github.com/herdrdev/herdr) agents-sidebar rows that draw the tokens the [herdr-sidebar](../pi/herdr-sidebar/README.md) Pi extension reports, in Acid / Black layout "B", with the theme colors and the width lock that layout needs. The experience is in [the design](docs/design.md).
+Herdr configuration that belongs to Industrial OS. Today it is one fragment, [sidebar.toml](sidebar.toml): the [Herdr](https://github.com/herdrdev/herdr) Pi agents-sidebar rows that draw the tokens the [herdr-sidebar](../pi/herdr-sidebar/README.md) Pi extension reports, in Acid / Black layout "B", with the theme colors and the width lock that layout needs. The experience is in [the design](docs/design.md).
 
 Status: checked by its own test and by Herdr 0.9.3's config parser; no interactive check of this file in a running Herdr has been recorded. The layout was verified live on 2026-10-08 with an equivalent spike configuration.
 
@@ -10,7 +10,7 @@ Herdr has no config includes, so merge the fragment into your own config by hand
 
 1. Back up your config.
 2. Copy the keys under `[theme.custom]` and `[ui]` into the tables of the same names in your config, adding a table you do not have. TOML rejects a table defined twice, so do not paste a second `[ui]` header. `[theme.custom]` overrides the colors of whichever theme `[theme] name` selects.
-3. Replace any `[ui.sidebar.agents]` table you have with the fragment's. Its `rows` replace Herdr's default agent rows.
+3. Merge `row_gap = 1` into `[ui.sidebar.agents]` (spacing is panel-wide, for all agents). Merge the fragment's `pi` array into `[ui.sidebar.agents.rows_by_agent]`, replacing only an existing `pi` override. Leave any existing `rows` and other agent overrides alone: agents without an override keep those rows or Herdr's defaults. Do not paste duplicate table headers.
 4. Check the result without touching the running server:
 
    ```sh
@@ -24,7 +24,8 @@ Then run Pi with the herdr-sidebar extension, and the signals-collector extensio
 
 ## Limitations
 
-- Agent panes that do not run the herdr-sidebar extension, such as other agents than Pi, show no rows: the fragment replaces Herdr's default agent rows and reports no fallback.
+- Pi panes without herdr-sidebar show no Industrial OS rows. Other agents keep their configured/default rows; layout B overrides only canonical agent ID `pi`.
+- `row_gap = 1` applies to the entire agents panel, including non-Pi agents.
 - The layout assumes exactly 36 columns; the width lock keeps the sidebar at that width. Collapsed and mobile sidebars keep Herdr's compact layouts.
 - Colors are truecolor values; other color depths are untested.
 
