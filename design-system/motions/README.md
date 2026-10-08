@@ -81,6 +81,12 @@ Guarantees that hold for every motion:
 - **Time 0 and the end are stated.** Scan, pulse, beacon, fade (with its defaults), blink, and edge pulse at time 0 equal the input, so they can rest anywhere; cycle shows its first glyph and nudge starts its programme. A finite motion equals the input from its duration helper's time onward, except ping, which ends with every bar gone because a host drops the bar line.
 - **No frequency cap.** Any positive `period` is allowed (`MIN_PERIOD_MS` is 1, exported by `frame.mjs`), so a motion may cycle or flash faster than three times a second, as the [shared motion rule](../../docs/design.md#motion) permits. `animate: false` settles every motion; state the rate of a fast motion where it is used. No photosensitivity or WCAG flash compliance is claimed.
 
+## Status-bar host composition
+
+status-bar consumes scoped primitives beneath its existing state machine and single decoration scheduler: CMP polarity flash, calibration offset, pixel-element reconstruction, USG fill-in/edge pulse/burn-out, Tatsu cycle/fade/latch/beacon, PNYTL activity phase, BG RUN blink, and CTX threshold/tag flash. It preserves Pi paint boundaries, current-cell ownership and host timing. State colors enter motions as `warning`/`critical` roles, never literal RGB to evade the guard.
+
+Footer boot plans, plate wipes, re-strikes, registration ghosts, fill glitches, PNYTL bursts, unit shuttle, Tatsu warm-up and USG row boot remain host-owned compatibility effects. In particular Tatsu warm-up can hide amber/red and USG row boot can hide stale/failure text; **the DS cue guard is not weakened to reproduce them**. Negative/manual frame pre-roll remains a host compatibility projection, not negative DS time. These are retained legacy behaviors, not endorsement of state hiding.
+
 ## `scan(lines, options)`
 
 A bright band sweeping across the block, entering before the first cell and leaving past the last. It loops: frame at `time + period` equals frame at `time`.
@@ -162,6 +168,7 @@ const delays = [
 warmUp(lines, { time, delays, stateCells: true });   // settled at warmUpDuration({ delays }) = 650 ms
 ```
 
+- **Terminal defaults:** a default foreground has unknown RGB and throws `TypeError` when a mix is needed. A concrete foreground may warm up over `bg: 'default'`: its ink is treated as distinct from the unknown background, not as a measured contrast guarantee. Motion-off copies the input.
 - **Rate:** one-shot, four steps of 100 ms per cell.
 - **State cells:** exempt by default. With `stateCells: true` they warm up too, but start at their 25% step instead of the field, and a step that would match the cell's background keeps its settled color.
 - **Motion-off:** the settled block.
@@ -200,6 +207,7 @@ A looping attention beacon on every `▲` cell in `region`. In the last three st
 
 `BEACON_DEFAULTS` is exported.
 
+- **Terminal defaults:** dimming a default foreground throws `TypeError` because it has no known RGB. Concrete ink over `bg: 'default'` is treated as distinct from the unknown background; this does not certify host contrast. Motion-off copies the input.
 - **Rate:** one 150 ms pulse every 4 s.
 - **State cells:** Tatsu's `▲` is amber, so pass `stateCells: true`. If the 50% mix would match the cell's background, only the glyph changes.
 - **Motion-off:** the settled `▲`.
@@ -221,7 +229,7 @@ A looping placeholder. Every cell in `region` whose character is one of `glyphs`
 - **Rate:** a step every 150 ms, 750 ms per cycle.
 - **State cells:** always exempt.
 - **Motion-off:** the input glyph, a steady `·` for a checking placeholder.
-- **Source:** [footer.ts](../../pi/status-bar/src/footer.ts) `TATSU_CHECK_GLYPHS`, `TATSU_CHECK_STEP_MS` and `tatsuCheck`; [status-bar design](../../pi/status-bar/docs/design.md) "Checking scan and fade".
+- **Source:** [footer.ts](../../pi/status-bar/src/footer.ts) `TATSU_CHECK_STEP_MS` and `tatsuCheck`, which now take the glyphs from `CYCLE_DEFAULTS.glyphs`; [status-bar design](../../pi/status-bar/docs/design.md) "Checking scan and fade".
 - **Differences from status-bar:** it targets cells by glyph and region instead of a checking component's shape cell. A cell whose character is not in the sequence never changes, so letters and digits never do.
 
 ## `fade(lines, options)`
@@ -255,7 +263,7 @@ A looping blink on the cells of `region`. For `on` ms they keep their own style;
 | `offGlyph` | `null`, or one character from `GLYPHS` | `null` |
 | `region` | the cells that blink | whole block |
 
-`BLINK_DEFAULTS` and `BLINK_PRESETS` are exported. The defaults are the lamp preset.
+`blinkOn(time, { on = 500, off = 300 })` exposes the same validated non-negative-time phase as a boolean for host scheduling/frame projection, without styles or glyphs. `BLINK_DEFAULTS` and `BLINK_PRESETS` are exported. The defaults are the lamp preset.
 
 | Preset | Options | Input | Rate |
 | --- | --- | --- | --- |
@@ -278,6 +286,8 @@ A one-shot flash on the cells of `region`: the step `pattern[floor(time / step)]
 | `pattern` | non-empty array of up to 1000 kinds | `['fill', 'outline']` |
 | `region` | the cells that flash, typically a plate | whole block |
 | `stateCells` | `true` to flash warning and critical cells too | `false` |
+| `solidBackground` | also sets a white full block's background to primary-white | omitted/false, retain background |
+| `invertStyle` | optional validated replacement style for invert steps (e.g. unknown tag's white fill) | omitted, ordinary inversion |
 
 | Kind | A cell looks like |
 | --- | --- |
@@ -298,7 +308,7 @@ A one-shot flash on the cells of `region`: the step `pattern[floor(time / step)]
 - **Rate:** as the presets show. The threshold preset exceeds three flashes a second; state that rate wherever it is used. No photosensitivity or WCAG flash compliance is claimed.
 - **State cells:** exempt by default. A threshold or alarm flash on state cells passes `stateCells: true`; every kind keeps the glyph readable.
 - **Motion-off:** the settled block.
-- **Differences from the extensions:** claude-interrupt follows its flash with a ping and a settling wipe; only the flash is here. Status-bar lights a lit cell white on white; here a full block keeps its background and turns its ink white, which looks the same: a full block shows only its foreground, so the cue guard judges it against the field, not its background (see the state-cell rule above). Status-bar picks the lit cells and the mark cell itself; pass them as `region`. Status-bar's tag window lasts eight ticks, the last one settled, so its frames match the 350 ms here.
+- **Differences from the extensions:** claude-interrupt follows its flash with a ping and a settling wipe; only the flash is here. Status-bar lights a lit cell white on white; the default full block keeps its background and turns its ink white; `solidBackground: true` also matches the exact foreground/background bytes: a full block shows only its foreground, so the cue guard judges it against the field, not its background (see the state-cell rule above). Status-bar picks the lit cells and the mark cell itself; pass them as `region`. An unknown footer tag uses `invertStyle: { fg: 'field', bg: 'primary', bold: true }`. Status-bar's tag window lasts eight ticks, the last one settled, so its frames match the 350 ms here.
 
 ## `ping(lines, options)` and `pingDuration(lines, options)`
 
@@ -446,7 +456,7 @@ The host can keep a generator from `random(hostSeed)` in [foundation/seeded.mjs]
 
 ## `nudge(lines, options)`
 
-Calibration slip of a **single** marked glyph, swapping ±1 cell with a blank neighbour and returning home; exact width and neighbouring readings remain intact. `NUDGE_DEFAULTS` is frozen.
+Calibration slip of a **single** marked glyph, swapping ±1 cell with a blank neighbour and returning home; exact width and neighbouring readings remain intact. `NUDGE_DEFAULTS` is frozen. `nudgeOffset(time, { period = 6000, tick = 50 })` exposes the same validated calibration offset, without moving cells; the host retains center-window admission and occupancy checks.
 
 | Option | Default | Range / meaning |
 | --- | --- | --- |

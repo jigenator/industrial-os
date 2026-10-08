@@ -117,6 +117,12 @@ Checked on 2026-10-07 on macOS with Node v22.23.0 and Pi 1.0.4, when the package
 
 Neither extension imported the package, so this does not cover a migrated extension. `pi install git:` itself, an interactive Pi session, and Herdr were not checked.
 
+Consumed exported subpaths ship colocated `.d.mts` declarations. Their extension-local compile-only specimens use the existing claude-interrupt compiler; this adds no design-system typecheck toolchain/dependency or generated output. Keep declarations aligned with runtime APIs and extend the specimens for current consumers.
+
+## Port regression verification (2026-10-07)
+
+Node 22.23.0, macOS: all 387 DS checks passed (368 pre-existing after slice-1, 19 additive status-bar checks); independent default API corpus against origin/main passed 2,334 comparisons. Both migrated extensions passed their suites and recorded golden/RPC/copied-state root-install checks; see their contributing guides. These are not real `pi install git:` or interactive/Herdr checks. Consumed declarations passed strict NodeNext checking with the existing claude-interrupt compiler; no new dependency or standalone DS typecheck gate.
+
 ## Making a change
 
 Follow the [repository workflow](../CONTRIBUTING.md#making-a-change) and the routes in this folder's [AGENTS.md](AGENTS.md). All elements and demos must be terminal-ready text, without a browser presentation layer; verify appearance, resizing, input, and repaint behavior in Herdr.

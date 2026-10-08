@@ -223,7 +223,7 @@ export const SIGNAL_GROUPS = Object.freeze([...USES, ...(others.length ? [['OTHE
   .map(([title, note, names]) => Object.freeze({ title, note, names: Object.freeze(names.filter((name) => Object.hasOwn(SIGNAL_COLORS, name))) }))
   .filter((g) => g.names.length));
 
-const SIGNAL_NOTE = "The design system owns these; status-bar's C palette mirrors them. Literal #rrggbb values, not Acid / Black roles, and separate from the IndustrialOS reference collection.";
+const SIGNAL_NOTE = "The design system owns these; status-bar imports them for its C palette. Literal #rrggbb values, not Acid / Black roles, and separate from the IndustrialOS reference collection.";
 
 function signals(width, swatchCells) {
   const out = [...paragraph(SIGNAL_NOTE, width)];
@@ -245,7 +245,7 @@ export const SIGNAL_STORY = Object.freeze({
   contract: 'foundation/README.md',
   rules: [
     'SIGNAL_COLORS is a frozen object of lowercase #rrggbb strings; paint() accepts them as fg or bg.',
-    "These values are the source; status-bar's C palette mirrors them, checked by review comparison.",
+    "These values are the source; status-bar imports them by package name for its C palette.",
     'They are not role names: a motion never treats a literal color as a warning or critical cell.',
     'mixOver(color, p) gives p of a color over the field; status-bar\'s declared mixes are returned exactly.',
     'Swatches need 24-bit color. No contrast or accessibility rating is claimed.',

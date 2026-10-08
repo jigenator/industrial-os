@@ -1,4 +1,4 @@
-import { safeText, fit, span } from '../../foundation/cells.mjs';
+import { safeText, fit, span, resolveStyle } from '../../foundation/cells.mjs';
 
 export const PLATE_TONES = Object.freeze({
   accent: { fg: 'field', bg: 'accent' },
@@ -13,10 +13,11 @@ export const PLATE_FORMS = Object.freeze(['capped', 'slab']);
 // in color and stays visibly bounded in plain text. `slab` is status-bar's padded plate ` TEXT `, every cell filled.
 // Deliberately not a button: no brackets, focus, or key hint. Returns spans no wider than maxWidth: text is
 // truncated first; capped padding is dropped only below 5 cells, slab padding only below 3.
-export function labelPlate(text, { tone = 'neutral', pad = true, maxWidth = Infinity, form = 'capped' } = {}) {
+export function labelPlate(text, { tone = 'neutral', pad = true, maxWidth = Infinity, form = 'capped', style } = {}) {
   if (!Object.hasOwn(PLATE_TONES, tone)) throw new RangeError(`unknown plate tone: ${tone}`);
   if (!PLATE_FORMS.includes(form)) throw new RangeError(`unknown plate form: ${form}`);
-  const t = PLATE_TONES[tone];
+  if (style !== undefined) resolveStyle(style);
+  const t = style === undefined ? PLATE_TONES[tone] : style;
   if (maxWidth !== Infinity && (!Number.isInteger(maxWidth) || maxWidth < 0)) {
     throw new RangeError(`maxWidth must be a non-negative integer, got ${maxWidth}`);
   }

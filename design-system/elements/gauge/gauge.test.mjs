@@ -145,3 +145,44 @@ test('invalid opt-in thresholds and layout columns are rejected', () => {
   assert.throws(() => gaugeScale({}, { width: 30, readoutWidth: 0.5 }), RangeError);
   assert.throws(() => gaugeScale({}, { width: 30, tickFree: 'yes' }), TypeError);
 });
+
+import { gaugeTick, gaugeExtent, gaugeZone, gaugeTrack, gaugeParts, gaugeScaleParts, READOUT_CHIP } from './gauge.mjs';
+test('gaugeTrack opt-in cell-ceil/position ink exactly covers context track and readout', () => {
+  const line = gaugeTrack({ percent: 95, readout: '84k/100k' }, { cells: 20, fill: 'cell-ceil', fillInk: 'zone', trackGlyph: ' ', marks: true, filledBackground: 'ink' });
+  assert.equal(paint(line, 'none'), ' 84k/100k █████████ ');
+  assert.equal(line[13].style.fg, 'accent');
+  assert.equal(line[14].style.fg, 'warning');
+  assert.equal(line[18].style.fg, 'critical');
+  assert.equal(line[19].style.bg, '#300e07');
+  assert.equal(line[1].style.fg, 'field');
+  assert.equal(gaugeExtent(0.000001, 20), 1);
+  assert.equal(gaugeExtent(-1, 20), 0);
+  assert.equal(gaugeExtent(101, 20), 20);
+  assert.equal(gaugeTick(70, 20), 14);
+  assert.equal(gaugeZone(18, 20), 'high');
+});
+test('gaugeTrack defaults remain fractional reading-ink; unknown and range-preserving pieces are explicit', () => {
+  const line = gaugeTrack({ percent: 12.5 }, { cells: 10 });
+  assert.equal(paint(line, 'none'), '█▎░░░░░░░░');
+  const unknown = gaugeTrack({ percent: null, readout: '?' }, { cells: 10 });
+  assert.equal(paint(unknown, 'none'), ' ? ╱╱╱╱╱╱╱');
+  assert.deepEqual(gaugeParts('84k/100k', 'warn'), { readout: [{ text: ' 84k/100k ', style: READOUT_CHIP.warn }], tag: [{ text: ' ▲ WARN ', style: { fg: 'warning', bold: true } }] });
+  assert.equal(gaugeParts('?', 'unknown').tag[0].style.fg, 'secondary');
+  assert.equal(gaugeParts('0', 'ok').tag.length, 0);
+});
+test('gaugeScaleParts applies collision priority and explicit decile threshold', () => {
+  const labels = gaugeScaleParts({ cells: 60 }, { width: 63, decilesMinCells: 50 });
+  assert.deepEqual(labels.map((p) => [p.percent, p.start]), [[0, 0], [100, 59], [70, 42], [90, 54], [50, 30], [10, 6], [20, 12], [30, 18], [40, 24], [60, 36], [80, 48]]);
+  assert.deepEqual(gaugeScaleParts({ cells: 49 }, { width: 52, decilesMinCells: 50 }).map((p) => p.percent), [0, 100, 70, 90, 50]);
+});
+test('gauge piece boundaries validate dimensions/options without changing gaugeReading', () => {
+  assert.throws(() => gaugeTrack({ percent: NaN }, { cells: 20 }), RangeError);
+  assert.throws(() => gaugeTrack({ percent: 1 }, { cells: 0 }), RangeError);
+  assert.throws(() => gaugeTrack({ percent: 1 }, { cells: 20, marks: 1 }), TypeError);
+  assert.throws(() => gaugeTrack({ percent: 1 }, { cells: 20, fill: 'bad' }), RangeError);
+  assert.throws(() => gaugeTrack({ percent: 1, readout: 'too long' }, { cells: 3 }), RangeError);
+  assert.throws(() => gaugeExtent(Infinity, 20), RangeError);
+  assert.throws(() => gaugeZone(20, 20), RangeError);
+  assert.throws(() => gaugeScaleParts({ cells: 60 }, { width: 63, decilesMinCells: -1 }), RangeError);
+  assert.throws(() => gaugeParts('?', 'bad'), RangeError);
+});

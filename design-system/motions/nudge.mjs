@@ -10,7 +10,7 @@ export function nudge(lines, options = {}) {
   if (typeof o.glyph !== 'string' || !GLYPHS.includes(o.glyph) || [...o.glyph].length !== 1) throw new RangeError('nudge glyph must be one GLYPHS character');
   o.region = resolveRegion('nudge', o.region); assertTime(o, 'nudge');
   if (!o.animate) return copyLines(lines);
-  const delta = CAL[Math.floor((o.time % o.period) / o.tick)] ?? 0;
+  const delta = nudgeOffset(o.time, o);
   if (!delta) return copyLines(lines);
   const cells = lines.map((line) => line.flatMap((s) => [...s.text].map((ch) => ({ ch, style: s.style }))));
   let mark;
@@ -25,4 +25,11 @@ export function nudge(lines, options = {}) {
     if (col === mark.col) return { char: ' ', style: dest.style };
     if (col === mark.col + delta) return { char: o.glyph, style: { ...cells[row][mark.col].style, fg: 'accent', bold: true } };
   });
+}
+
+// Geometry-only projection; callers own admission and occupied-cell checks.
+export function nudgeOffset(time, { period = NUDGE_DEFAULTS.period, tick = NUDGE_DEFAULTS.tick } = {}) {
+  assertMs(period, 'nudge period', { min: 1 }); assertMs(tick, 'nudge tick', { min: 1 });
+  assertTime({ animate: true, time }, 'nudge');
+  return CAL[Math.floor((time % period) / tick)] ?? 0;
 }

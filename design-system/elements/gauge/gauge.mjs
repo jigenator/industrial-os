@@ -146,3 +146,62 @@ export function gaugeScale(input, { width, labelWidth = 8, readoutWidth = 0, zon
   const comb = cells.join('');
   return fitLine([span(' '.repeat(barStart)), ...[...comb].map((c) => span(c, { fg: c === '╵' ? 'decorative' : 'secondary' }))], width);
 }
+
+// Low-level geometry for hosts with their own admission, readout formatting and decoration memory.
+export function gaugeTick(percent, cells) {
+  assertCells(cells, 'gauge cells');
+  if (!Number.isFinite(percent)) throw new RangeError('tick percentage must be finite');
+  return Math.min(cells - 1, Math.max(0, Math.floor(percent * cells / 100 + 1e-9)));
+}
+export function gaugeExtent(percent, cells) {
+  assertCells(cells, 'gauge cells');
+  if (!Number.isFinite(percent)) throw new RangeError('fill percentage must be finite');
+  return Math.min(cells, Math.max(0, Math.ceil(percent * cells / 100 - 1e-9)));
+}
+export function gaugeZone(column, cells, zones = { warn: 70, high: 90 }) {
+  validateLayout(0, 0, zones);
+  if (!Number.isInteger(column) || column < 0 || column >= cells) throw new RangeError('column must be inside gauge');
+  return column >= gaugeTick(zones.high, cells) ? 'high' : column >= gaugeTick(zones.warn, cells) ? 'warn' : 'ok';
+}
+export function gaugeTrack({ percent, readout }, { cells, fill = 'eighth-floor', fillInk = 'reading', trackGlyph = '░', marks = false, filledBackground = 'track', zones = { warn: 70, high: 90 } } = {}) {
+  assertCells(cells, 'gauge cells'); validateLayout(0, 0, zones);
+  const known = percent != null;
+  if (known && (typeof percent !== 'number' || !Number.isFinite(percent))) throw new RangeError('percent must be finite or null');
+  if (!['eighth-floor', 'cell-ceil'].includes(fill) || !['reading', 'zone'].includes(fillInk) || !['░', ' '].includes(trackGlyph) || !['track', 'ink'].includes(filledBackground)) throw new RangeError('invalid gauge track option');
+  if (typeof marks !== 'boolean') throw new TypeError('marks must be boolean');
+  const text = readout === undefined ? '' : ' ' + safeText(readout) + ' ';
+  if (text.length > cells) throw new RangeError('readout must fit track');
+  const tone = !known ? 'unknown' : percent > zones.high ? 'high' : percent > zones.warn ? 'warn' : 'ok';
+  const eighths = known ? Math.min(cells * 8, Math.max(0, Math.floor(percent * cells * 8 / 100))) : 0;
+  const lit = known ? fill === 'cell-ceil' ? gaugeExtent(percent, cells) : Math.ceil(eighths / 8) : 0;
+  return Array.from({ length: cells }, (_, i) => {
+    const zone = gaugeZone(i, cells, zones), ink = INK[fillInk === 'zone' ? zone : tone];
+    const bg = !known ? 'surface' : zone === 'high' ? SIGNAL_COLORS.criticalZone : zone === 'warn' ? SIGNAL_COLORS.warningZone : 'surface';
+    if (i < text.length) return span(text[i], { fg: i < lit ? 'field' : 'primary', bg: i < lit ? ink : bg, bold: true });
+    if (!known) return span('╱', { fg: 'decorative', bg: 'surface' });
+    if (i < lit) return span(fill === 'cell-ceil' || i < Math.floor(eighths / 8) ? '█' : EIGHTHS[eighths % 8], { fg: ink, bg: filledBackground === 'ink' ? ink : bg });
+    if (marks && (i === gaugeTick(zones.warn, cells) || i === gaugeTick(zones.high, cells))) return span('┃', { fg: i === gaugeTick(zones.high, cells) ? 'critical' : 'warning', bg, bold: true });
+    return span(trackGlyph, { fg: trackGlyph === ' ' ? 'primary' : 'structural', bg });
+  });
+}
+export function gaugeParts(readout, tone, { pad = true } = {}) {
+  if (!Object.hasOwn(READOUT_CHIP, tone)) throw new RangeError('unknown gauge tone');
+  if (typeof pad !== 'boolean') throw new TypeError('pad must be boolean');
+  const padding = pad ? ' ' : '';
+  return { readout: [span(padding + safeText(readout) + padding, READOUT_CHIP[tone])],
+    tag: TAG[tone] ? [span(padding + TAG[tone] + padding, { fg: tone === 'unknown' ? 'secondary' : INK[tone], bold: true })] : [] };
+}
+// Positions and styled labels, unpadded: a host can project its own boot onto each whole label.
+export function gaugeScaleParts({ cells, max = 100, zones = { warn: 70, high: 90 } }, { width, decilesMinCells = 0 } = {}) {
+  assertCells(cells, 'gauge cells'); assertCells(width, 'scale width'); validateLayout(0, 0, zones);
+  if (!Number.isFinite(max) || max <= 0 || !Number.isInteger(decilesMinCells) || decilesMinCells < 0) throw new RangeError('invalid scale range or decile threshold');
+  const limit = Math.min(cells + 3, width), used = Array(limit).fill(false), labels = [];
+  const priority = [0, 100, zones.warn, zones.high, 50];
+  for (const percent of cells >= decilesMinCells ? [...priority, 10, 20, 30, 40, 60, 80] : priority) {
+    const text = String(max * percent / 100), start = gaugeTick(percent, cells), end = start + text.length;
+    if (end > limit || used.slice(Math.max(0, start - 1), end + 1).some(Boolean)) continue;
+    for (let i = start; i < end; i++) used[i] = true;
+    labels.push({ percent, start, spans: [span(text, { fg: percent === zones.warn ? 'warning' : percent === zones.high ? 'critical' : 'secondary', bg: 'field', bold: percent === zones.warn || percent === zones.high })] });
+  }
+  return labels;
+}

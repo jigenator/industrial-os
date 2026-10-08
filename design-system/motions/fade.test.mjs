@@ -85,3 +85,7 @@ test('fade rejects invalid options and lines', () => {
   for (const lines of [null, 'abc', [null], [[{ text: 5 }]]]) assert.throws(() => fade(lines, { time: 0 }), TypeError);
   assert.deepEqual(fade([], { time: 0 }), []);
 });
+
+test('fade rejects unresolved terminal-default levels', () => {
+  assert.throws(() => fade([[span('A', { fg: 'accent' })]], { time: 0, levels: ['default'] }), TypeError);
+});

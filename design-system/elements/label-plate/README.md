@@ -49,6 +49,9 @@ Each tone is bold lettering on a filled plate, the same in both forms.
 
 Only the capped form draws glyphs: `▐` `▌` from the curated set, plus `…` when truncating. Tones are role names, so motions recognise warning and critical plates as state cells.
 
+## Host styles
+
+`labelPlate(text, { style })` optionally overrides the tone's foreground/background with a validated foundation style. Lettering remains bold. Omission retains every existing tone/form/width byte. A slab with `style: { fg: 'field', bg: SIGNAL_COLORS.pink }` expresses USG without introducing a new palette role. The footer now consumes slab plates, leaving its boot wipe, zone metadata and wrapping host-owned.
 ## Differences from status-bar
 
 - status-bar pads every plate to its eight-cell plate column (`padEnd(8)` in the plate's style). A slab is as wide as its padded text; the [instrument frame](../instrument-frame/README.md) gives plates their column. Six-character labels such as `01 ACT` are exactly eight cells, the same as the footer.

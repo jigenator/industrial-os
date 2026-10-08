@@ -89,3 +89,12 @@ test('invalid activity throws instead of becoming unknown', () => {
   assert.throws(() => threadRail(undefined, { width: 40, align: 'center' }), RangeError);
   assert.throws(() => threadRailPieces(undefined, { marks: 'no' }), TypeError);
 });
+
+import { unitMarks } from './thread-rail.mjs';
+test('unitMarks takes projected shuttle poses without changing the settled rail', () => {
+  assert.equal(paint(unitMarks(3, { sides: [1, 0, 1] }), 'none'), '·██··█······');
+  assert.deepEqual(unitMarks(3), threadRailPieces({ working: true, units: 3 })[2]);
+  assert.equal(paint(unitMarks(null, { sides: [1] }), 'none'), '············');
+  for (const sides of [[2], [0, 0, 0, 0, 0, 0, 0], null]) assert.throws(() => unitMarks(1, { sides }), RangeError);
+  assert.throws(() => unitMarks(-1), RangeError);
+});

@@ -37,3 +37,7 @@ test('every curated glyph is a single code point listed once', () => {
   assert.equal(new Set(glyphs).size, glyphs.length);
   for (const glyph of '━┃┏┓┗┛┼▀▄▒▓▚▞■▪·•◆▴⌑⑂×') assert.ok(GLYPHS.includes(glyph), glyph);
 });
+
+test('mixOver rejects unknown terminal-default RGB rather than manufacturing a color', () => {
+  for (const proportion of [0, 0.25, 0.5, 1]) assert.throws(() => mixOver('default', proportion), TypeError);
+});

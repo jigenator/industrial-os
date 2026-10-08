@@ -73,11 +73,22 @@ The original 48-cell bar cap, exact widths and stacking remain. When the combine
 
 [Foundation](../../foundation/README.md) owns the curated one-cell glyph and truecolor contracts. State ink uses role names so motions can recognise it. This element has no clock or motion; a host owns any decoration.
 
+## Host-composed gauge pieces
+
+These additive functions do not change `gauge`, `gaugeReading` or `gaugeScale`:
+
+- `gaugeTick(percent, cells)` floors the threshold position with `1e-9` tolerance, bounded to the track; `gaugeExtent(percent, cells)` clamps only the ceil whole-cell graphical extent with the same tolerance. Percentages must be finite; cells are 1–1000.
+- `gaugeZone(column, cells, zones = { warn: 70, high: 90 })` returns the position's `ok/warn/high` region. Columns must be inside the track.
+- `gaugeTrack({ percent, readout? }, { cells, fill = 'eighth-floor', fillInk = 'reading', trackGlyph = '░', marks = false, filledBackground = 'track', zones = { warn: 70, high: 90 } })` returns one span per cell. Unknown is null/undefined. Finite out-of-range percentages retain their reading tone; only extent clamps. Optional ASCII-safe readout overlays from column 0 with one pad each side, black on fill/white on track, bold; it must fit. `fill: 'cell-ceil'`, `fillInk: 'zone'`, `trackGlyph: ' '`, `marks: true` (unfilled `┃` threshold marks) and `filledBackground: 'ink'` express the exact footer track. These whole-cell semantics intentionally differ from the default gauge's no-overstatement rule.
+- `gaugeParts(readout, tone, { pad = true })` returns `{ readout, tag }` spans with chip/state styles and optional pads; unknown tag is secondary, not decorative. Invalid tones throw `RangeError` and flags throw `TypeError`.
+- `gaugeScaleParts({ cells, max = 100, zones = { warn: 70, high: 90 } }, { width, decilesMinCells = 0 })` returns unpadded `{ percent, start, spans }` labels. Endpoints, warning/high and midpoint have collision priority with one-cell clearance; remaining deciles appear only at the supplied minimum cell count. Labels may use three cells beyond the track. Dimensions/ranges/thresholds are validated.
+
+status-bar consumes these pieces with whole-cell/position-ink options and decile minimum 50. Context budget math, Unicode/ANSI emission, boot underline/texture, glitches, admission and numeral anchors remain in the host. Defaults of the established renderers stay byte-identical.
 ## Differences from status-bar
 
-- The reference gauge **floors to 1/8 cell and never overstates**. status-bar lights a whole cell whenever any of its slice is used. This opt-in does not adopt that rounding.
+- The reference gauge **floors to 1/8 cell and never overstates**. status-bar lights a whole cell whenever any of its slice is used. The established `gauge` opt-in does not adopt that rounding; `gaugeTrack` explicitly can.
 - The established DS gauge retains an external value/unit chip, its range validation (no clamping) and 48-cell cap. The footer uses tokens/budget inside the track and clamps only graphical extent. This is an extension of the existing gauge, not a replacement footer layout.
 - Fill takes the reading's tone; track backgrounds are zoned. No boot, glitches, flashes, I/O, host settings or timers are included.
-- Tick-free labels retain all deciles that fit, rather than suppressing nonpriority deciles below a 50-cell bar. Defaults, including the original scale, remain byte-identical.
+- The established tick-free scale retains all deciles that fit; host-composed `gaugeScaleParts` can suppress them below a supplied cell count. Defaults, including the original scale, remain byte-identical.
 
 Additional checks in [gauge.test.mjs](gauge.test.mjs): exact thresholds/chip styles/tick-free snapshot, zone track tints, no ceil fill, opt-in widths 1–160, all states, invalid options and color/plain equivalence. Run `node --test elements/gauge/gauge.test.mjs` from `design-system/`; full suite: `node --test`. Automated renderer evidence only, not native Herdr visual acceptance.

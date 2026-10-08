@@ -119,3 +119,10 @@ test('wipe: active decorative fixtures retain widths 1–160 and immutable optio
     assert.equal(JSON.stringify(lines), before);
   }
 });
+
+test('wipe accepts terminal-default channels in the starting style', () => {
+  const lines = [[span('AB', { fg: 'primary', bg: 'structural' })]];
+  const fromStyle = { fg: 'accent', bg: 'default' };
+  assert.deepEqual(wipe(lines, { time: 0, fromStyle })[0][0].style, fromStyle);
+  assert.deepEqual(wipe(lines, { animate: false, fromStyle }), lines);
+});

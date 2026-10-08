@@ -121,3 +121,20 @@ test('invalid states and pads throw', () => {
   assert.throws(() => transcriptMarker({}, { width: 0 }), RangeError);
   assert.throws(() => transcriptMarker({ plate: 'settled' }, { width: 40 }), RangeError);
 });
+
+test('marker pieces expose explicit unfilled backgrounds and host-owned right padding', () => {
+  const options = { outputPad: 1, background: 'default', padToWidth: false };
+  assert.deepEqual(markerPlate('outline', options)[0].style, { fg: 'accent', bg: 'default', bold: true });
+  assert.deepEqual(markerPlate('live', options)[0].style, MARKER_PLATES.live);
+  assert.deepEqual(markerBars('lit', options)[0].style, { fg: 'accent', bg: 'default', bold: true });
+  assert.deepEqual(markerBars('off', options)[0].style, { fg: 'default', bg: 'default' });
+  for (let width = 1; width <= 160; width++) {
+    const [row] = transcriptMarker(options, { width });
+    assert.equal(lineWidth(row), width - 1);
+    assert.equal(stripVTControlCharacters(paint(row, 'truecolor')), text(row));
+  }
+  assert.equal(lineWidth(transcriptMarker({ ...options, outputPad: 0 }, { width: 40 })[0]), 40);
+  assert.throws(() => markerBars('lit', { background: 'invalid' }), TypeError);
+  assert.throws(() => markerPlate('live', { background: 'invalid' }), TypeError);
+  assert.throws(() => transcriptMarker({ padToWidth: 1 }, { width: 40 }), TypeError);
+});

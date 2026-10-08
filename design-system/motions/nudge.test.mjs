@@ -119,3 +119,10 @@ test('nudge: active decorative fixtures retain widths 1–160 and immutable opti
     assert.equal(JSON.stringify(lines), before);
   }
 });
+
+import { nudgeOffset } from './nudge.mjs';
+test('nudgeOffset projects calibration steps while hosts retain center-window admission', () => {
+  assert.deepEqual([0, 50, 100, 150, 200, 250, 5999, 6000].map((t) => nudgeOffset(t)), [1, 1, 0, -1, -1, 0, 0, 1]);
+  assert.throws(() => nudgeOffset(-1), RangeError);
+  assert.throws(() => nudgeOffset(0, { tick: 0 }), RangeError);
+});

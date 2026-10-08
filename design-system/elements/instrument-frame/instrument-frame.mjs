@@ -9,8 +9,9 @@ const STUB = { fg: 'decorative' };
 
 // The cells a caller renders content into: `contentWidth` cells starting at `contentColumn`. In the minimal
 // fallback there is no plate column; content wraps at the full width (a first line follows its inline plate).
-export function frameGeometry(width) {
-  assertCells(width, 'frame width');
+export function frameGeometry(width, { maxWidth = 1000 } = {}) {
+  if (maxWidth !== Infinity && (!Number.isInteger(maxWidth) || maxWidth < 1)) throw new RangeError('maxWidth must be a positive integer or Infinity');
+  if (!Number.isInteger(width) || width < 1 || width > maxWidth) throw new RangeError('frame width must be a positive integer within maxWidth');
   if (width < FRAME_MINIMAL_BELOW) return Object.freeze({ minimal: true, gutter: 0, plateWidth: FRAME_PLATE_WIDTH, contentColumn: 0, contentWidth: width });
   const gutter = width >= 60 ? 2 : 1;
   return Object.freeze({
@@ -214,4 +215,21 @@ export function instrumentFrame(input = {}, { width, centerMark = true } = {}) {
     return fitLine([span(left, STUB), ...row, span(right, STUB)], W);
   });
   return [placeRow(items, W), ...framed];
+}
+
+// Frame-only pieces for hosts that keep Unicode text, opaque runs and specialized header admission.
+export function frameStubs({ gutter, row, innerRows }) {
+  if (![1, 2].includes(gutter) || !Number.isInteger(innerRows) || innerRows < 1 || !Number.isInteger(row) || row < 0 || row > innerRows) throw new RangeError('invalid frame stub geometry');
+  const edge = row === 1 || row === innerRows - 1;
+  const left = row === 0 ? gutter === 2 ? '┏━' : '┏' : row === innerRows ? gutter === 2 ? '┗━' : '┗' : edge ? '┃'.padEnd(gutter) : ' '.repeat(gutter);
+  const right = row === 0 ? gutter === 2 ? '━┓' : '┓' : row === innerRows ? gutter === 2 ? '━┛' : '┛' : edge ? '┃'.padStart(gutter) : ' '.repeat(gutter);
+  const spans = (text) => [...text].map((ch) => span(ch, ch === ' ' ? { bg: 'field' } : { fg: 'decorative', bg: 'field', bold: false }));
+  return { left: spans(left), right: spans(right) };
+}
+export function frameCenter({ width, titleEnd, asideStart, offset = 0 }) {
+  frameGeometry(width, { maxWidth: Infinity });
+  if (![titleEnd, asideStart].every(Number.isFinite) || !Number.isInteger(offset)) throw new RangeError('invalid center mark geometry');
+  const mid = Math.floor(width / 2);
+  if (!(mid - 2 > titleEnd && mid + 2 < asideStart)) return undefined;
+  return { start: mid - 2, spans: Array.from({ length: 5 }, (_, i) => span(i === 2 + offset ? '┼' : ' ', i === 2 + offset ? { fg: offset ? 'accent' : 'decorative', bg: 'field', bold: offset !== 0 } : { bg: 'field' })) };
 }

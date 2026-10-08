@@ -17,8 +17,15 @@ export const LAMP_BLINK = Object.freeze({ onMs: 500, offMs: 300, tickMs: 50 });
 export const LAMP_DIM_STYLE = Object.freeze({ fg: 'surface', bg: 'surface' });
 
 // One span of exactly one cell.
-export function lamp(state) {
+export function lamp(state, { appearance = 'glyph', lit = true } = {}) {
   if (typeof state !== 'string' || !Object.hasOwn(LAMP_STATES, state)) throw new RangeError(`unknown lamp state: ${state}`);
+  if (!['glyph', 'field', 'solid'].includes(appearance)) throw new RangeError('unknown lamp appearance');
+  if (typeof lit !== 'boolean') throw new TypeError('lit must be boolean');
+  if (state !== 'unknown' && appearance !== 'glyph') {
+    const bg = state === 'working' && lit ? 'accent' : 'surface';
+    return [span(appearance === 'field' ? ' ' : '█', { fg: appearance === 'field' ? 'primary' : bg, bg })];
+  }
+  if (state === 'working' && !lit) return [span('█', LAMP_DIM_STYLE)];
   const { char, style } = LAMP_STATES[state];
   return [span(char, style)];
 }

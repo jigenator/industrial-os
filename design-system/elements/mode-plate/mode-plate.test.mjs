@@ -48,3 +48,17 @@ test('invalid states, widths, icons, inks and text fail explicitly', () => {
   assert.throws(() => modePlate({ title: 1, code: 'ON', ink: 'primary' }), TypeError);
   assert.throws(() => pnytlPlate('off', { active: 1 }), TypeError);
 });
+
+import { modePlateParts, pnytlPlateParts } from './mode-plate.mjs';
+test('modePlateParts exposes code-cell paint boundaries with unchanged complete plate', () => {
+  for (const state of Object.keys(PNYTL_MODES)) for (const active of [false, true]) {
+    const p = pnytlPlateParts(state, { active });
+    const line = [...p.leftGap, ...p.leadingPad, ...p.icon, ...p.title, ...p.codeCells, ...p.trailingPad, ...p.rightGap];
+    assert.equal(paint(line, 'truecolor'), paint(pnytlPlate(state, { active }), 'truecolor'));
+    assert.equal(p.codeCells.length, 3);
+    assert.ok(p.codeCells.every((s) => s.text.length === 1));
+  }
+  assert.equal(modePlateParts({ title: '', code: '', ink: 'accent' }).codeCells.length, 0);
+  assert.throws(() => pnytlPlateParts('bad'), RangeError);
+  assert.throws(() => pnytlPlateParts('lite', { active: 1 }), TypeError);
+});

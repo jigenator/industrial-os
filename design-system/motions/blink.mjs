@@ -1,4 +1,4 @@
-import { GLYPHS, resolveColor } from '../foundation/cells.mjs';
+import { GLYPHS, isTerminalDefault, resolveColor } from '../foundation/cells.mjs';
 import { MIN_PERIOD_MS, assertLines, assertMs, assertTime, copyLines, inRegion, resolveOptions, resolveRegion, restyleCells } from './frame.mjs';
 
 // The defaults are status-bar's Thread Rail lamp (pi/status-bar/src/footer.ts lampOn): 500 ms on, 300 ms dim.
@@ -15,6 +15,7 @@ export const BLINK_PRESETS = Object.freeze({
 
 const LETTER_OR_DIGIT = /[A-Za-z0-9]/;
 const isColor = (c) => {
+  if (isTerminalDefault(c)) throw new TypeError('blink requires a concrete color, not terminal default');
   try { resolveColor(c); return true; } catch { return false; }
 };
 
@@ -42,11 +43,18 @@ export function blink(lines, options = {}) {
   assertLines(lines);
   const region = check(o);
   assertTime(o, 'blink');
-  if (!o.animate || o.time % (o.on + o.off) < o.on) return copyLines(lines);
+  if (!o.animate || blinkOn(o.time, o)) return copyLines(lines);
 
   return restyleCells(lines, (style, col, row, ch) => {
     if (!inRegion(region, col, row)) return undefined;
     const char = o.offGlyph !== null && !LETTER_OR_DIGIT.test(ch) ? o.offGlyph : undefined;
     return { style: { ...style, ...o.offStyle }, char };
   });
+}
+
+// Shared phase projection for hosts that retain their own scheduling and frame memory.
+export function blinkOn(time, { on = BLINK_DEFAULTS.on, off = BLINK_DEFAULTS.off } = {}) {
+  assertMs(on, 'blink on', { min: MIN_PERIOD_MS }); assertMs(off, 'blink off', { min: MIN_PERIOD_MS });
+  assertTime({ animate: true, time }, 'blink');
+  return time % (on + off) < on;
 }

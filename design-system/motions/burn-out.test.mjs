@@ -120,3 +120,7 @@ test('burn-out: active decorative fixtures retain widths 1–160 and immutable o
     assert.equal(JSON.stringify(lines), before);
   }
 });
+
+test('burnOut rejects terminal-default option colors', () => {
+  for (const key of ['lit', 'mid', 'used']) assert.throws(() => burnOut([[span('■')]], { time: 0, [key]: 'default' }), TypeError);
+});

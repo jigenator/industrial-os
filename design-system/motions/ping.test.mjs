@@ -123,3 +123,13 @@ test('ping: active decorative fixtures retain widths 1–160 and immutable optio
     assert.equal(JSON.stringify(lines), before);
   }
 });
+
+test('ping offStyle replaces disappearing bar styles, retaining gaps and motion-off input', () => {
+  const offStyle = { fg: 'default', bg: 'default' };
+  const lines = [[span('│', { fg: 'accent', bg: 'default', bold: true }), span(' ', offStyle)]];
+  for (const time of [0, 800, 1520]) assert.deepEqual(ping(lines, { time, offStyle }), [[span('  ', offStyle)]]);
+  assert.deepEqual(ping(lines, { time: 160, offStyle })[0][0].style, { fg: 'accent', bg: 'default', bold: true });
+  assert.deepEqual(ping(lines, { time: 440, offStyle })[0][0].style, { fg: 'decorative', bg: 'default', bold: true });
+  assert.deepEqual(ping(lines, { animate: false, offStyle }), lines);
+  for (const style of [null, [], 1, { fg: 'invalid' }, { bold: 1 }, { other: true }]) assert.throws(() => ping(lines, { time: 0, offStyle: style }), TypeError);
+});

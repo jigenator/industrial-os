@@ -199,3 +199,23 @@ test('invalid input throws', () => {
   assert.throws(() => instrumentFrame({}, { width: 40, centerMark: 'yes' }), TypeError);
   assert.throws(() => wrapLine(t('x'), 0), RangeError);
 });
+
+import { frameStubs, frameCenter } from './instrument-frame.mjs';
+test('frameGeometry uncapped opt-in leaves defaults bounded and frameStubs own exact heavy geometry', () => {
+  assert.throws(() => frameGeometry(1001), RangeError);
+  assert.equal(frameGeometry(1200, { maxWidth: Infinity }).contentWidth, 1187);
+  for (const gutter of [1, 2]) {
+    const rows = Array.from({ length: 6 }, (_, row) => frameStubs({ gutter, row, innerRows: 5 }));
+    assert.deepEqual(rows.map((p) => [paint(p.left, 'none'), paint(p.right, 'none')]), gutter === 1 ? [['┏', '┓'], ['┃', '┃'], [' ', ' '], [' ', ' '], ['┃', '┃'], ['┗', '┛']] : [['┏━', '━┓'], ['┃ ', ' ┃'], ['  ', '  '], ['  ', '  '], ['┃ ', ' ┃'], ['┗━', '━┛']]);
+  }
+  assert.throws(() => frameStubs({ gutter: 3, row: 1, innerRows: 5 }), RangeError);
+});
+test('frameCenter owns five-cell reservation and clearance without owning admission or time', () => {
+  assert.equal(frameCenter({ width: 80, titleEnd: 38, asideStart: 70 }), undefined);
+  const p = frameCenter({ width: 80, titleEnd: 37, asideStart: 70, offset: -1 });
+  assert.equal(p.start, 38);
+  assert.equal(paint(p.spans, 'none'), ' ┼   ');
+  assert.equal(p.spans[1].style.fg, 'accent');
+  assert.equal(paint(frameCenter({ width: 80, titleEnd: 10, asideStart: 70 }).spans, 'none'), '  ┼  ');
+  assert.throws(() => frameCenter({ width: 80, titleEnd: 10, asideStart: 70, offset: 0.5 }), RangeError);
+});

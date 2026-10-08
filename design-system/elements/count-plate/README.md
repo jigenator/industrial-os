@@ -60,7 +60,7 @@ Negative, fractional, non-finite or unsafe numbers throw `RangeError`; non-numbe
 
 ## Differences from status-bar
 
-- status-bar's `knownCount` treats invalid counts (negative, fractional, `NaN`, strings) as unknown (` CMP×?? `). Here they throw: the element's caller validates data, and silent coercion would hide a caller bug.
+- status-bar now consumes `countPlate`/`COUNT_PLATES` after its `knownCount` treats invalid counts (negative, fractional, `NaN`, strings) as unknown (` CMP×?? `). Here they throw: the element's caller validates data, and silent coercion would hide a caller bug.
 - status-bar never narrows these plates: its minimal layout wraps them. The `maxWidth` pad-dropping and `#` fallback are this element's own narrow behavior.
 - The CMP boot polarity swap and AU re-strikes are status-bar motion, not part of the element.
 

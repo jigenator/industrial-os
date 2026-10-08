@@ -24,3 +24,15 @@ export function pnytlPlate(state, { active = false, maxWidth = Infinity } = {}) 
   if (typeof active !== 'boolean') throw new TypeError('active must be boolean');
   return modePlate({ title: 'PNYTL', ...PNYTL_MODES[state], active: active && !['off', 'checking', 'unknown'].includes(state) }, { maxWidth });
 }
+
+// Natural emission boundaries for hosts that paint each code letter separately. No clipping or clock.
+export function modePlateParts(input) {
+  const [leftGap, leadingPad, icon, title, code, trailingPad, rightGap] = modePlate(input);
+  return { leftGap: [leftGap], leadingPad: [leadingPad], icon: [icon], title: [title],
+    codeCells: [...code.text].map((ch) => span(ch, code.style)), trailingPad: [trailingPad], rightGap: [rightGap] };
+}
+export function pnytlPlateParts(state, { active = false } = {}) {
+  if (!Object.hasOwn(PNYTL_MODES, state)) throw new RangeError('unknown PNYTL state');
+  if (typeof active !== 'boolean') throw new TypeError('active must be boolean');
+  return modePlateParts({ title: 'PNYTL', ...PNYTL_MODES[state], active: active && !['off', 'checking', 'unknown'].includes(state) });
+}

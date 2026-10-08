@@ -121,3 +121,36 @@ test('invalid input never clamps or silently substitutes success', () => {
   assert.throws(() => countdown(1e308, -1e308), RangeError);
   for (const n of [-1, NaN, Infinity, '1']) assert.throws(() => staleAge(n), RangeError);
 });
+
+import { providerColumnParts } from './segment-meter.mjs';
+test('providerColumnParts exposes natural glyph/text extents without padding a none latch', () => {
+  const none = providerColumnParts({ provider: 'claude', data: { windows: {} } });
+  assert.equal(paint(none[1].top, 'none'), 'none');
+  assert.equal(none[1].width, 17);
+  assert.equal(none[1].bottomWidth, 0);
+  assert.deepEqual(none[1].bottom, []);
+  const pending = providerColumnParts({ provider: 'codex' });
+  assert.deepEqual(pending.map((p) => [p.kind, p.window, p.width, p.bottomWidth]), [['tag', undefined, 3, 0], ['slot', 'wk', 8, 7]]);
+  assert.equal(paint(pending[1].bottom, 'none'), 'pending');
+});
+test('providerColumnParts keeps absent slots blank and supports explicit corrected-clock age', () => {
+  const input = { provider: 'claude', data: { windows: { wk: { usedPercent: 25, resetsAt: 120000 } } } };
+  const parts = providerColumnParts(input, { now: 0, age: '0m' });
+  assert.deepEqual(parts[1].top, []);
+  assert.equal(parts[1].width, 8);
+  assert.equal(paint(parts[0].bottom, 'none'), '0m');
+  assert.equal(parts[0].top[0].style.fg, 'decorative');
+  assert.equal(parts[2].window, 'wk');
+  assert.equal(paint(parts[2].bottom, 'none'), '2m');
+  assert.equal(providerColumnParts(input, { age: null })[0].top[0].style.bold, true);
+  for (const age of ['\x1b[0m', '100m', {}, 1]) assert.throws(() => providerColumnParts(input, { age }), RangeError);
+});
+
+test('countdown explicit overflow text preserves extreme finite host-clock display; default still rejects', () => {
+  assert.throws(() => countdown(1e308, -1e308), RangeError);
+  assert.equal(countdown(1e308, -1e308, { overflow: 'text' }), 'Infinityd');
+  const parts = providerColumnParts({ provider: 'codex', data: { windows: { wk: { usedPercent: 1, resetsAt: 1e308 } } } }, { now: -1e308, countdownOverflow: 'text' });
+  assert.equal(paint(parts[1].bottom, 'none'), 'Infinityd');
+  assert.equal(parts[1].width, 9);
+  assert.throws(() => countdown(100, 0, { overflow: 'bad' }), RangeError);
+});

@@ -45,7 +45,7 @@ Pixel width is at least 13; `100.0` widens to 17. `pixelNumeral` never crops pix
 
 ## Differences from status-bar
 
-The FONT, half-block packing, default tones and reconstruction thresholds match `footer.ts:325–359,1483–1487`. The footer omits the numeral when an exponent or narrow layout prevents it; this standalone element returns a documented small-text fallback so its three-row contract stays useful. It does not include the footer spine, unit/USED/window captions, percentage calculation, boot scheduling, or motion lifecycle. Non-finite values throw rather than becoming unknown; callers explicitly supply unknown.
+status-bar now consumes `numeralGrid`, `numeralAt` and `numeralLines` through exported subpaths, translating roles to its Hue-valued motion memory and keeping Pi emission/ownership metadata. The FONT, half-block packing, default tones and reconstruction thresholds have one implementation here. The footer omits the numeral when an exponent or narrow layout prevents it; this standalone element returns a documented small-text fallback so its three-row contract stays useful. It does not include the footer spine, unit/USED/window captions, percentage calculation, boot scheduling, or motion lifecycle. Non-finite values throw rather than becoming unknown; callers explicitly supply unknown.
 
 ## Checks
 

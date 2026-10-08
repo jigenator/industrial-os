@@ -44,6 +44,9 @@ PNYTL has a primary-white 16-cell body (` ⌑ PNYTL // LTE `), plus two exterior
 
 [Foundation](../../foundation/README.md) owns glyph and truecolor contracts. The body is primary white; icon/title/slashes are field black, bold. PNYTL inks and pink come only from `SIGNAL_COLORS`; structural is a role. Caller title/code controls and non-ASCII become `?`. Invalid text, icons, inks or flags throw `TypeError`; unknown presets and invalid maxWidth throw `RangeError`. This renderer has no timers, I/O or state.
 
+## Natural emission pieces
+
+`modePlateParts(input)` and `pnytlPlateParts(state, { active = false })` expose `{ leftGap, leadingPad, icon, title, codeCells, trailingPad, rightGap }`. Every member is a span array; `codeCells` has one span per code character. They use the same validation/styles/gating as the complete renderers, at natural width with no clipping. Joining them paints the unchanged plate. status-bar consumes these boundaries through Pi styling, and owns code masks, the activity epoch and model-band placement.
 ## Differences from status-bar
 
 Settled PNYTL and explicit lit-icon cells match `footer.ts:143–147,1153–1159`. The standalone generic renderer does not own producer status parsing, model-band placement, wrapping, mode-letter bursts or blinking. Inline clipping follows the DS bounded-piece contract; status-bar instead wraps complete plate text in its minimal layout. The generic API permits another icon/title/code/ink without changing the PNYTL preset.

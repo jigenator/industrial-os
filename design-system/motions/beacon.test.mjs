@@ -106,3 +106,15 @@ test('beacon rejects invalid options and lines', () => {
   for (const lines of [null, 'abc', [null], [[{ text: 5 }]]]) assert.throws(() => beacon(lines, { time: 0 }), TypeError);
   assert.deepEqual(beacon([], { time: 3900 }), []);
 });
+
+test('beacon rejects terminal-default foreground when dimming needs RGB', () => {
+  const lines = [[span('▲', { fg: 'default', bg: 'default' })]];
+  assert.throws(() => beacon(lines, { time: 3900 }), TypeError);
+  assert.deepEqual(beacon(lines, { animate: false }), lines);
+  assert.equal(beacon([[span('▲', { fg: 'accent', bg: 'default' })]], { time: 3900 })[0][0].style.bg, 'default');
+});
+
+test('beacon preserves opted-in state cues on an unknown terminal-default background', () => {
+  const lines = [[span('▲', { fg: 'warning', bg: 'default' })]];
+  assert.doesNotThrow(() => beacon(lines, { time: 3900, stateCells: true }));
+});

@@ -1,6 +1,6 @@
 // Shared seam for the motion primitives: option and time validation, plus per-cell restyling.
 // Pure and I/O-free. See motions/README.md for the contract every motion shares.
-import { lineWidth, resolveColor, span } from '../foundation/cells.mjs';
+import { isTerminalDefault, lineWidth, resolveColor, span } from '../foundation/cells.mjs';
 
 // Shortest valid period. There is no frequency cap (../../docs/design.md#motion): any positive period is allowed,
 // and motion-off (animate: false) is what settles a motion.
@@ -75,7 +75,8 @@ export const blockWidth = (lines) => lines.reduce((max, line) => Math.max(max, l
 const norm = (s) => `${s.fg ?? 'secondary'}|${s.bg ?? 'field'}|${s.bold ?? false}`;
 const LETTER_OR_DIGIT = /[A-Za-z0-9]/;
 
-const sameColor = (a, b) => resolveColor(a).toLowerCase() === resolveColor(b).toLowerCase();
+// Default foreground and background are unknown, independent host colors, not an RGB equality.
+const sameColor = (a, b) => !isTerminalDefault(a) && !isTerminalDefault(b) && resolveColor(a).toLowerCase() === resolveColor(b).toLowerCase();
 
 // Whether a cell's glyph shows. A full block paints its foreground over the whole cell, so it shows only when that
 // foreground differs from the field around it; any other glyph shows when its foreground differs from its background.

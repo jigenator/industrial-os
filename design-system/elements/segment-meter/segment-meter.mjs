@@ -34,11 +34,12 @@ export function segmentMeter({ remaining, state = remaining == null ? 'unknown' 
   return fitLine(line, Math.min(maxWidth, segments));
 }
 // footer.ts:244-249: positive spans round up to whole minutes; no capped day count.
-export function countdown(resetsAt, now) {
+export function countdown(resetsAt, now, { overflow = 'throw' } = {}) {
+  if (!['throw', 'text'].includes(overflow)) throw new RangeError('countdown overflow must be throw or text');
   timestamp(resetsAt, 'resetsAt'); timestamp(now, 'now');
   if (resetsAt == null || now == null) return '?';
   if (resetsAt <= now) return 'reset';
-  if (!Number.isFinite(resetsAt - now)) throw new RangeError('countdown duration must be finite');
+  if (overflow === 'throw' && !Number.isFinite(resetsAt - now)) throw new RangeError('countdown duration must be finite');
   const m = Math.ceil((resetsAt - now) / MINUTE), h = Math.floor(m / 60), d = Math.floor(m / 1440);
   return m < 60 ? `${m}m` : m < 600 ? `${h}h${String(m % 60).padStart(2, '0')}m` : m < 1440 ? `${h}h` : m < 14400 ? `${d}d${Math.floor(m % 1440 / 60)}h` : `${d}d`;
 }
@@ -50,7 +51,7 @@ export function staleAge(ms) {
   if (ms < DAY) return `${Math.max(1, Math.floor(ms / HOUR))}h`;
   return ms < 100 * DAY ? `${Math.floor(ms / DAY)}d` : '99+';
 }
-function columnParts(input, { segments = 8, now } = {}) {
+function columnParts(input, { segments = 8, now, natural = false, age: suppliedAge, countdownOverflow = 'throw' } = {}) {
   segmentCount(segments); timestamp(now, 'now');
   const { provider, data, failure } = input;
   if (failure !== undefined && !['timeout', 'failed'].includes(failure)) throw new RangeError('failure must be timeout or failed');
@@ -76,9 +77,11 @@ function columnParts(input, { segments = 8, now } = {}) {
   const elapsed = now == null || stamp == null ? undefined : now - stamp;
   if (elapsed !== undefined && (!Number.isFinite(elapsed) || elapsed < 0)) throw new RangeError('sample time must not be later than now');
   const stale = data && (failure !== undefined || (elapsed !== undefined && elapsed > 15 * MINUTE));
-  const age = stale ? elapsed === undefined ? '?' : staleAge(elapsed) : '';
-  const part = (top, bottom, width) => ({ top: fitLine(top, width), bottom: fitLine(bottom, width), width });
-  const parts = [part([span(tag, stale ? { fg: 'decorative' } : { fg: look.ink, bold: true })], age ? [span(age, { fg: 'warning' })] : [], 3)];
+  if (suppliedAge !== undefined && suppliedAge !== null && (typeof suppliedAge !== 'string' || !/^(?:\d{1,2}[mhd]|99\+|\?)$/.test(suppliedAge))) throw new RangeError('age must be a compact age string or null');
+  const age = suppliedAge === undefined ? stale ? elapsed === undefined ? '?' : staleAge(elapsed) : '' : suppliedAge ?? '';
+  const isStale = suppliedAge === undefined ? stale : suppliedAge !== null;
+  const part = (top, bottom, width, kind = 'slot', window) => natural ? { top, bottom, width, bottomWidth: lineWidth(bottom), kind, window } : { top: fitLine(top, width), bottom: fitLine(bottom, width), width };
+  const parts = [part([span(tag, isStale ? { fg: 'decorative' } : { fg: look.ink, bold: true })], age ? [span(age, { fg: 'warning' })] : [], 3, 'tag')];
   const slot = Math.max(segments, 7); // Reserve pending/timeout text in custom short meters, in EVERY state.
   const keys = WINDOWS.filter((k) => look.declared.includes(k) || windows[k]);
   const none = data && !Object.keys(windows).length;
@@ -89,9 +92,9 @@ function columnParts(input, { segments = 8, now } = {}) {
   keys.forEach((key, i) => {
     const window = windows[key];
     const state = !data ? failure ? 'failure' : 'pending' : !window ? 'absent' : window.usedPercent === null ? 'unknown' : 'known';
-    const word = !data ? i ? '' : failure ?? 'pending' : !window ? '' : state === 'unknown' ? '?' : countdown(window.resetsAt, now);
-    const top = segmentMeter({ state, remaining: state === 'known' ? 100 - window.usedPercent : null, ink: look.ink }, { segments });
-    parts.push(part(top, word ? [span(word, { fg: !data && failure ? 'warning' : 'secondary' })] : [], Math.max(slot, word.length)));
+    const word = !data ? i ? '' : failure ?? 'pending' : !window ? '' : state === 'unknown' ? '?' : countdown(window.resetsAt, now, { overflow: countdownOverflow });
+    const top = natural && state === 'absent' ? [] : segmentMeter({ state, remaining: state === 'known' ? 100 - window.usedPercent : null, ink: look.ink }, { segments });
+    parts.push(part(top, word ? [span(word, { fg: !data && failure ? 'warning' : 'secondary' })] : [], Math.max(slot, word.length), 'slot', key));
   });
   return parts;
 }
@@ -118,4 +121,11 @@ export function providerColumn(input, { width, segments = 8, now } = {}) {
   }
   flush();
   return out;
+}
+
+// Natural, unpadded text and glyph boundaries; hosts own multi-provider packing and opaque emission.
+// `age` is an optional already-formatted clock-correction display: null=current, otherwise stale.
+export function providerColumnParts(input, { segments = 8, now, age, countdownOverflow = 'throw' } = {}) {
+  if (!['throw', 'text'].includes(countdownOverflow)) throw new RangeError('countdownOverflow must be throw or text');
+  return columnParts(input, { segments, now, age, countdownOverflow, natural: true });
 }

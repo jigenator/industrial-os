@@ -1,11 +1,18 @@
+import { isTerminalDefault, resolveColor } from '../foundation/cells.mjs';
 import { assertLines, assertMs, assertTime, copyLines, inRegion, resolveOptions, resolveRegion, restyleCells } from './frame.mjs';
 
-export const PING_DEFAULTS = Object.freeze({ launch: 160, stagger: 40, ghostAt: 440, ghostFor: 120, repeatAfter: 720, repeats: 1, frame: 40, region: undefined });
+export const PING_DEFAULTS = Object.freeze({ launch: 160, stagger: 40, ghostAt: 440, ghostFor: 120, repeatAfter: 720, repeats: 1, frame: 40, region: undefined, offStyle: undefined });
 function check(options) {
   const o = resolveOptions('ping', options, PING_DEFAULTS);
   for (const key of ['launch', 'stagger', 'ghostAt', 'repeatAfter']) assertMs(o[key], `ping ${key}`);
   for (const key of ['ghostFor', 'frame']) assertMs(o[key], `ping ${key}`, { min: 1 });
   if (o.ghostAt < o.launch || !Number.isInteger(o.repeats) || o.repeats < 0 || o.repeats > 100 || (o.repeats && !o.repeatAfter)) throw new RangeError('ping needs ghostAt >= launch, repeats 0–100 and a positive repeatAfter when repeating');
+  if (o.offStyle !== undefined) {
+    if (!o.offStyle || typeof o.offStyle !== 'object' || Array.isArray(o.offStyle)) throw new TypeError('ping offStyle must be a style');
+    for (const key of Object.keys(o.offStyle)) if (!['fg', 'bg', 'bold'].includes(key)) throw new TypeError('ping unknown style field');
+    for (const key of ['fg', 'bg']) if (o.offStyle[key] !== undefined && !isTerminalDefault(o.offStyle[key])) resolveColor(o.offStyle[key]);
+    if (o.offStyle.bold !== undefined && typeof o.offStyle.bold !== 'boolean') throw new TypeError('ping bold must be boolean');
+  }
   o.region = resolveRegion('ping', o.region);
   return o;
 }
@@ -21,7 +28,7 @@ export function pingDuration(lines, options = {}) {
   const count = Math.max(0, ...positions(lines, o.region).map((p) => p.length));
   return count ? Math.ceil((o.ghostAt + (count - 1) * o.stagger + o.ghostFor + o.repeats * o.repeatAfter) / o.frame) * o.frame : 0;
 }
-// claude-interrupt/src/index.ts:67–71,113–120. Hosts remove the bar line on completion.
+// Stationary staggered bars; hosts remove the bar line on completion.
 export function ping(lines, options = {}) {
   assertLines(lines); const o = check(options); assertTime(o, 'ping');
   if (!o.animate) return copyLines(lines);
@@ -32,7 +39,7 @@ export function ping(lines, options = {}) {
     const i = indices[row].get(col);
     if (i === undefined) return undefined;
     const at = o.ghostAt + i * o.stagger;
-    if (t < o.launch + i * o.stagger || t >= at + o.ghostFor) return { char: ' ' };
+    if (t < o.launch + i * o.stagger || t >= at + o.ghostFor) return { char: ' ', style: o.offStyle };
     return { style: { ...style, fg: t < at ? 'accent' : 'decorative', bold: true } };
   });
 }

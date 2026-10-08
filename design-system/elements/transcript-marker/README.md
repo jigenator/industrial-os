@@ -19,9 +19,11 @@ DIRECTIVE UPDATED  ││ │ │  │  │   │      (live, all bars lit, outp
 
 | Function | Returns |
 | --- | --- |
-| `markerPlate(state = 'record', { outputPad = 1 })` | one span: `outputPad` filled cells, then `DIRECTIVE UPDATED ` (19 or 18 cells) |
-| `markerBars(bars = 'lit')` | 16 spans of one cell: bars at offsets `0, 1, 3, 5, 8, 11, 15` |
-| `transcriptMarker({ plate = 'record', bars = 'off', outputPad = 1 }, { width })` | one line of exactly `width` cells |
+| `markerPlate(state = 'record', { outputPad = 1, background })` | one span: `outputPad` filled cells, then `DIRECTIVE UPDATED ` (19 or 18 cells) |
+| `markerBars(bars = 'lit', { background })` | 16 spans of one cell: bars at offsets `0, 1, 3, 5, 8, 11, 15` |
+| `transcriptMarker({ plate = 'record', bars = 'off', outputPad = 1, background, padToWidth = true }, { width })` | one line of exactly `width` cells |
+
+`background` optionally sets every unfilled cell's background (outline plate, bars, gaps and padding); filled live/record plates keep their approved pairs. Use `'default'` for terminal transparency, or a role/RGB for a host surface. Off bars and blank cells use default foreground when this option is set. The omitted option preserves existing field rendering. `padToWidth: false` returns only `width - outputPad` content cells so a host such as Pi owns right padding; the default still returns exactly `width` cells.
 
 `bars` is one state for all seven bars or an array of seven states. `outputPad` is Pi's configured `0` or `1`. Exported constants: `MARKER_LABEL`, `MARKER_BAR_OFFSETS`, `MARKER_SPAN`, `MARKER_PLATES`, `MARKER_BARS`, `MARKER_TIMELINE`.
 
@@ -29,11 +31,11 @@ DIRECTIVE UPDATED  ││ │ │  │  │   │      (live, all bars lit, outp
 
 | Piece | State | Look | claude-interrupt source (`src/index.ts`) |
 | --- | --- | --- | --- |
-| Plate | `live` | field (black) bold lettering on accent (acid) | `livePlate` |
-| Plate | `outline` | accent bold lettering, no fill | the unfilled flash frame (`outline`) |
-| Plate | `record` | primary (white) bold lettering on structural `#555555` | `recordPlate` |
-| Bar | `lit` | accent bold `│` | a bar after its launch |
-| Bar | `ghost` | decorative `#717171` bold `│` | a bar in its grey phase (`ghost`) |
+| Plate | `live` | field (black) bold lettering on accent (acid) | `markerPlate("live")` |
+| Plate | `outline` | accent bold lettering, no fill | `flash` interrupt preset |
+| Plate | `record` | primary (white) bold lettering on structural `#555555` | `markerPlate("record")` |
+| Bar | `lit` | accent bold `│` | `ping` after launch |
+| Bar | `ghost` | decorative `#717171` bold `│` | `ping` grey phase |
 | Bar | `off` | blank | before launch and after its grey phase |
 
 The label is readable in every state; only the plate has a fill. The settled row, the element's default, is the record plate with no bars.
@@ -56,13 +58,17 @@ The extension redraws every 40 ms for those three seconds and then runs no timer
 
 `│` from the curated set, and the accent, field, primary, structural and decorative roles, which match claude-interrupt's `acid`, `black`, `bone`, `darkGrey` and `grey` constants.
 
-## Differences from claude-interrupt
+## Host integration
 
-- **Transparent cells sit on the field.** The extension leaves the outline lettering, the gap, the bars and the rest of the row on the terminal's default background, preserving transparency. The design system's line model has no default background, so those cells use `field` (black).
-- **Light themes.** The extension swaps transparent acid ink for Pi's accent on light themes. The design system has no theme, so acid is always acid.
-- **Exact width.** The extension returns `width - outputPad` cells and lets Pi pad; the element appends the `outputPad` blank cells itself.
-- **No timing.** `renderMarker(theme, width, outputPad, elapsed)` computes the frame from elapsed time; here time belongs to motions and hosts, and the element exposes each piece's states.
+claude-interrupt now consumes these pieces by exported package subpath and composes `flash` (interrupt preset, `outlineBackground: 'default'`), `ping` (`offStyle` with default channels), and `wipe` on the plate and bars. Elements do not own time or import motions. Its lifecycle reads the redraw interval and completion window from `MARKER_TIMELINE`, and remains responsible for cancellation.
+
+- **Transparency:** choose `background: 'default'` for the unfilled pieces. See the [foundation line model](../../foundation/README.md#line-model); explicit terminal defaults do not mean the black field.
+- **Light themes:** the Pi adapter replaces transparent accent ink with the host's `accent` on light themes. Filled plate pairs are unchanged. The design system has no theme or Pi dependency.
+- **Exact output:** `padToWidth: false` exposes the content-only static row. The animated host composes the pieces, pads to its content budget, translates spans to Pi style runs, then uses Pi's clipping helper, preserving byte-for-byte SGR at narrow widths as well as cell geometry.
+- **Types:** colocated `.d.mts` declarations type the pieces and constants without adding a runtime module or export.
+
+The default static/storybook element appearance and width contract are unchanged.
 
 ## Checks
 
-[transcript-marker.test.mjs](transcript-marker.test.mjs): every plate and bar state and both pads, the settled row, a composition of the pieces that reproduces claude-interrupt's literal 40-column timeline oracle frame by frame (flashes, both pings, the wipe at both pads), every width from 1 to 160 in every state with plain/color equivalence and blank right padding, and invalid states.
+[transcript-marker.test.mjs](transcript-marker.test.mjs): every plate and bar state and both pads, the settled row, a composition of the pieces that reproduces claude-interrupt's literal 40-column timeline oracle frame by frame (flashes, both pings, the wipe at both pads), every width from 1 to 160 in every state with plain/color equivalence and blank right padding, invalid states, transparent piece styles, and host-owned padding at every width 1–160. The extension separately compares original and migrated Pi output byte-for-byte across time, widths, pads, themes and color modes.

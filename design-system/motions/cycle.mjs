@@ -1,7 +1,7 @@
 import { GLYPHS } from '../foundation/cells.mjs';
 import { MIN_PERIOD_MS, assertLines, assertMs, assertTime, copyLines, inRegion, resolveOptions, resolveRegion, restyleCells } from './frame.mjs';
 
-// status-bar's Tatsu checking placeholder (pi/status-bar/src/footer.ts TATSU_CHECK_GLYPHS, TATSU_CHECK_STEP_MS).
+// status-bar's Tatsu checking placeholder (pi/status-bar/src/footer.ts takes its glyphs from here; TATSU_CHECK_STEP_MS).
 export const CYCLE_DEFAULTS = Object.freeze({ glyphs: Object.freeze(['·', '•', '•', '•', '·']), step: 150, region: undefined });
 
 const MAX_GLYPHS = 1000;

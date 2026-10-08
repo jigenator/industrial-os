@@ -108,3 +108,15 @@ test('the lamp preset visibly dims the design-system lamp block as well as a bla
   assert.equal(dim.fg, 'surface');
   assert.equal(dim.bg, 'surface');
 });
+
+test('blink explicitly rejects terminal-default offStyle channels', () => {
+  for (const channel of ['fg', 'bg']) assert.throws(() => blink([[span('A')]], { time: 0, offStyle: { [channel]: 'default' } }), TypeError);
+});
+
+import { blinkOn } from './blink.mjs';
+test('blinkOn projects the exact phase for host scheduling without styles or glyphs', () => {
+  assert.deepEqual([0, 499, 500, 799, 800].map((t) => blinkOn(t)), [true, true, false, false, true]);
+  assert.deepEqual([0, 50, 100].map((t) => blinkOn(t, BLINK_PRESETS.activityLight)), [true, false, true]);
+  assert.throws(() => blinkOn(-1), RangeError);
+  assert.throws(() => blinkOn(0, { on: 0 }), RangeError);
+});
