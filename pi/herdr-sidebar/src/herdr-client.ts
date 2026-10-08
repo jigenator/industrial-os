@@ -86,9 +86,13 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 	let live: number | undefined;
 	let reading: { owner: number; stale: boolean } | undefined;
 	// A failed read is retried with the reconnect's bounded backoff, so a transient timeout does not leave the
-	// state unknown until the next event.
+	// state unknown until the next event. A failed read reports nothing new: on a fresh connection the state is
+	// already unknown, and on a live subscription the events keep it current, so a slow periodic refresh cannot
+	// blank row 1.
 	let readRetry: NodeJS.Timeout | undefined;
 	let readBackoff = minBackoffMs;
+	// Set by a focus change until a complete read: visibility is then genuinely unknown, not merely unrefreshed.
+	let focusChanged = false;
 
 	function cancelReadRetry() {
 		if (readRetry) clearTimeout(readRetry);
@@ -117,9 +121,10 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 				const reply = await herdrRequest(target.socketPath, "pane.get", { pane_id: paneId }, requestTimeoutMs);
 				if (closed || owner !== connection) return;
 				if (task.stale) continue;
-				if (!reply.ok || !record(reply.result) || !record(reply.result.pane)) { report({ ...UNKNOWN }); scheduleReadRetry(owner); return; }
+				if (!reply.ok || !record(reply.result) || !record(reply.result.pane)) { scheduleReadRetry(owner); return; }
 				const pane = reply.result.pane;
 				if (typeof pane.pane_id === "string" && pane.pane_id) paneId = pane.pane_id;
+				const previousWorkspaceId = workspaceId;
 				workspaceId = typeof pane.workspace_id === "string" && pane.workspace_id ? pane.workspace_id : undefined;
 				const tabId = typeof pane.tab_id === "string" && pane.tab_id ? pane.tab_id : undefined;
 				let workspaceLabel: string | null = null, visible: boolean | null = null, complete = true;
@@ -129,6 +134,8 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 					if (task.stale) continue;
 					const workspace = read.ok && record(read.result) && record(read.result.workspace) && read.result.workspace.workspace_id === workspaceId ? read.result.workspace : undefined;
 					complete = workspace !== undefined;
+					// A failed read keeps what is known about the same workspace; a different workspace stays unknown.
+					if (!complete && workspaceId === previousWorkspaceId) { workspaceLabel = state.workspaceLabel; if (!focusChanged) visible = state.visible; }
 					if (typeof workspace?.label === "string") workspaceLabel = workspace.label.slice(0, 200);
 					if (tabId && typeof workspace?.focused === "boolean" && typeof workspace.active_tab_id === "string") visible = workspace.focused && workspace.active_tab_id === tabId;
 				}
@@ -136,6 +143,7 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 				if (!complete) { scheduleReadRetry(owner); return; }
 				cancelReadRetry();
 				readBackoff = minBackoffMs;
+				focusChanged = false;
 			} while (task.stale);
 		} finally { if (reading === task) reading = undefined; }
 	}
@@ -188,7 +196,7 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 			if (!record(line.data)) return;
 			const data = line.data;
 			if (line.event === "pane.moved" && data.previous_pane_id === paneId && record(data.pane) && typeof data.pane.pane_id === "string") {
-				if (data.pane.pane_id === paneId) { void reconcile(owner); return; } // Same id, possibly another tab: the subscription stays valid.
+				if (data.pane.pane_id === paneId) { focusChanged = true; void reconcile(owner); return; } // Same id, possibly another tab: the subscription stays valid.
 				paneId = data.pane.pane_id;
 				workspaceId = undefined;
 				// Status subscriptions bind the canonical pane id; resubscribe after a move that changes it.
@@ -200,6 +208,7 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 				(line.event === "workspace.updated" && record(data.workspace) && (workspaceId === undefined || data.workspace.workspace_id === workspaceId)) ||
 				FOCUS_EVENTS.includes(line.event)) {
 				// Any focus change can make this pane seen or unseen; the reads are authoritative, the payloads only invalidate.
+				if (FOCUS_EVENTS.includes(line.event)) focusChanged = true;
 				void reconcile(owner);
 			}
 		});

@@ -179,14 +179,25 @@ test("a transient pane.get or workspace.get failure is retried with backoff, wit
 	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); herdr.setStatus("done", false); herdr.setWorkspaceLabel("SPACE", false);
 	herdr.setPaneGetMode("silent");
 	const watch = watchPaneState({ socketPath: herdr.socketPath, paneId: herdr.paneId }, () => {}, { requestTimeoutMs: 80, minBackoffMs: 20, maxBackoffMs: 80 }); t.after(() => watch.close());
-	await until(() => herdr.log.filter((r) => r.method === "pane.get").length >= 3, "pane.get retried");
+	await until(() => herdr.log.filter((r) => r.method === "pane.get").length >= 4, "pane.get retried");
 	assert.equal(watch.status, null);
+	// The retry delay doubles from 20 ms and stops at 80 ms (each attempt also waits out the 80 ms timeout).
+	const times = herdr.log.filter((r) => r.method === "pane.get").map((r) => r.at);
+	const gaps = times.slice(1).map((at, i) => at - times[i] - 80);
+	assert.ok(gaps[0] >= 15 && gaps[0] < 60, `first gap ${gaps[0]}`);
+	assert.ok(gaps[1] >= 35, `second gap ${gaps[1]}`);
+	assert.ok(gaps[2] >= 70 && gaps[2] < 140, `capped gap ${gaps[2]}`);
 	herdr.setPaneGetMode("ok"); await until(() => watch.status === "done" && watch.workspaceLabel === "SPACE", "recovered by the retry");
-	herdr.setWorkspaceGetMode("silent"); watch.refresh();
-	await until(() => watch.workspaceLabel === null && watch.visible === null, "workspace.get timed out");
-	const reads = herdr.log.filter((r) => r.method === "workspace.get").length;
-	await until(() => herdr.log.filter((r) => r.method === "workspace.get").length > reads, "workspace.get retried");
-	herdr.setWorkspaceGetMode("ok"); await until(() => watch.workspaceLabel === "SPACE" && watch.visible === true, "recovered");
+	// On a live subscription a failed refresh keeps the known state instead of blanking row 1.
+	herdr.setWorkspaceGetMode("silent"); const reads = herdr.log.filter((r) => r.method === "workspace.get").length; watch.refresh();
+	await until(() => herdr.log.filter((r) => r.method === "workspace.get").length >= reads + 3, "workspace.get retried");
+	assert.equal(watch.workspaceLabel, "SPACE"); assert.equal(watch.visible, true); assert.equal(watch.status, "done");
+	herdr.setWorkspaceGetMode("ok"); herdr.setWorkspaceLabel("RENAMED", false);
+	await until(() => watch.workspaceLabel === "RENAMED" && watch.visible === true, "recovered by the retry");
+	herdr.setPaneGetMode("silent"); const panes = herdr.log.filter((r) => r.method === "pane.get").length; watch.refresh();
+	await until(() => herdr.log.filter((r) => r.method === "pane.get").length >= panes + 3, "pane.get retried");
+	assert.equal(watch.status, "done"); assert.equal(watch.workspaceLabel, "RENAMED");
+	herdr.setPaneGetMode("ok"); await new Promise((done) => setTimeout(done, 250));
 	// Success resets the retry: no further reads without a cause.
 	const settled = herdr.log.length; await new Promise((done) => setTimeout(done, 200));
 	assert.equal(herdr.log.length, settled);
