@@ -7,7 +7,7 @@ This guide holds the rules for the whole repository. Each project is its own pro
 ## Critical engineering rules
 
 - No project imports another project's code, except that any project may import `@industrial-os/design-system` by package name through an exported subpath; never a relative path into `design-system/` or an unexported module. A Pi extension loads with the host's peer packages plus that package, resolved through the root install. Full rule: [conventions](docs/conventions.md#module-and-dependency-rules). Check: review imports; `design-system/package.test.mjs` checks the exports map; no automated cross-project check.
-- The design system owns color values; until an extension migrates to the package, its color constants mirror the design system and must match it. Change the design system first, then each extension that still mirrors it. Full rule: [decision](docs/decisions/in-repo-design-system-package.md). Check: both current extensions import their colors from the package; review that no hex value is copied into them, and compare any extension that has not migrated against `design-system/foundation/palette.mjs` and `signal-colors.mjs`.
+- The design system owns color values; until an extension migrates to the package, its color constants mirror the design system and must match it. Change the design system first, then each extension that still mirrors it. Full rule: [decision](docs/decisions/in-repo-design-system-package.md). Check: both rendering extensions import their colors from the package; review that no hex value is copied into them, and compare any extension that has not migrated against `design-system/foundation/palette.mjs` and `signal-colors.mjs`.
 - Claim only what the stated checks support. Do not invent an installed package, released API, or Herdr check that has not run; keep automated, Pi-load, and interactive evidence separate. Full rule: [conventions](docs/conventions.md#tests).
 - Do not publish private paths, data, credentials, or copied assets without rights and notices. Full rule: [conventions](docs/conventions.md#dependencies-and-generated-output).
 - Keep each rule, command, and value in one canonical place and trace callers before changing shared behavior. Full rule: [conventions](docs/conventions.md#engineering-principles).
@@ -19,7 +19,7 @@ Scan the supporting-documents map and read every document whose condition applie
 | Task | Route |
 | --- | --- |
 | Work in the design system | [The design-system guide](design-system/AGENTS.md) and its routes |
-| Work on a Pi extension | [The Pi guide](pi/AGENTS.md), then the extension's own guide, for example [claude-interrupt](pi/claude-interrupt/AGENTS.md) or [status-bar](pi/status-bar/AGENTS.md) |
+| Work on a Pi extension | [The Pi guide](pi/AGENTS.md), then the extension's own guide, for example [claude-interrupt](pi/claude-interrupt/AGENTS.md), [signals-collector](pi/signals-collector/AGENTS.md) or [status-bar](pi/status-bar/AGENTS.md) |
 | Change the visual language or a palette value | [Design](docs/design.md), [the package decision](docs/decisions/in-repo-design-system-package.md), the design-system guide, then each extension that mirrors the value |
 | Import the design system from another project | [Conventions](docs/conventions.md#module-and-dependency-rules), [the package decision](docs/decisions/in-repo-design-system-package.md#migrating-an-extension), then the importing project's guide |
 | Add or move in a project | [Architecture](docs/architecture.md#where-the-next-change-belongs), [contributing](CONTRIBUTING.md#adding-or-moving-in-a-project), then this map |
@@ -31,7 +31,8 @@ Scan the supporting-documents map and read every document whose condition applie
 | --- | --- | --- |
 | An element, motion, storybook story, or terminal host | `design-system/`; placement in [its architecture](design-system/docs/architecture.md#where-the-next-change-belongs), rules in [its conventions](design-system/docs/conventions.md) | Standard library only; imports no other project; elements and motions never own I/O; a new module gets an export entry |
 | claude-interrupt behavior or marker | `pi/claude-interrupt/`; placement in [its architecture](pi/claude-interrupt/docs/architecture.md) | Pi peer packages and the design-system package only; never block streaming, input, or focus |
-| status-bar footer, Active selection, or integrations | `pi/status-bar/`; placement in [its architecture](pi/status-bar/docs/architecture.md) | Pi peer packages and the design-system package only; display-only; no I/O in render |
+| status-bar footer, motion, or status integrations | `pi/status-bar/`; placement in [its architecture](pi/status-bar/docs/architecture.md) | Display-only snapshot consumer; no collection I/O; Pi/design-system exported subpaths only |
+| Session signals, Active selection, or shared quota cache | `pi/signals-collector/`; placement in [its architecture](pi/signals-collector/docs/architecture.md) | TUI-only collector; events only to consumers, no extension imports |
 | A new Pi extension | `pi/<name>/` with the [project document set](docs/architecture.md#contracts-between-the-root-and-a-project) | Its own manifest, checks, and license; the design system only by package name |
 | Shared experience or scope | `docs/design.md`, `docs/mission.md` | Then each project separately |
 | Herdr configuration | Planned `herdr/`; nothing exists | Do not create it before maintained content exists |
@@ -99,4 +100,14 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [pi/status-bar/docs/conventions.md](pi/status-bar/docs/conventions.md) | status-bar's TypeScript and Pi-extension rules and adoption gaps | Writing or reviewing status-bar code |
 | [pi/status-bar/docs/mission.md](pi/status-bar/docs/mission.md) | status-bar goals, non-goals, and constraints | Choosing or changing what status-bar does |
 | [pi/status-bar/docs/design.md](pi/status-bar/docs/design.md) | The footer experience, its palette, motion, and UI states | Changing anything a status-bar user sees or a status-bar color |
-| [pi/status-bar/docs/decisions/agent-reported-active-workspace.md](pi/status-bar/docs/decisions/agent-reported-active-workspace.md) | Why Active is explicit, agent-reported, and display-only | Changing status-bar's Active selection, persistence, or cwd relationship |
+| [docs/decisions/session-signals-collection.md](docs/decisions/session-signals-collection.md) | Why collection has one TUI owner and shared quota cache | Changing collector/display ownership or transport |
+| [pi/signals-collector/README.md](pi/signals-collector/README.md) | Collector install, consumer guide and limits | Using the collector or changing its public surface |
+| [pi/signals-collector/AGENTS.md](pi/signals-collector/AGENTS.md) | Collector rules, routes and placement | Working anywhere in pi/signals-collector |
+| [pi/signals-collector/CLAUDE.md](pi/signals-collector/CLAUDE.md) | Runtime import of the collector guide | Checking agent entry points |
+| [pi/signals-collector/CONTRIBUTING.md](pi/signals-collector/CONTRIBUTING.md) | Collector commands, fixtures and evidence | Making or verifying a collector change |
+| [pi/signals-collector/docs/architecture.md](pi/signals-collector/docs/architecture.md) | Collector modules, state, I/O and context parity | Changing collection, contracts or dependencies |
+| [pi/signals-collector/docs/conventions.md](pi/signals-collector/docs/conventions.md) | Collector engineering rules and gaps | Writing or reviewing collector code |
+| [pi/signals-collector/docs/mission.md](pi/signals-collector/docs/mission.md) | Collector goals and non-goals | Choosing collector scope |
+| [pi/signals-collector/docs/design.md](pi/signals-collector/docs/design.md) | Collector raw signals, tool and unknown states | Changing human-facing signals |
+| [pi/signals-collector/docs/contract.md](pi/signals-collector/docs/contract.md) | Canonical v1 snapshot and shared quota cache | Changing a signal, cache or consumer |
+| [pi/signals-collector/docs/decisions/agent-reported-active-workspace.md](pi/signals-collector/docs/decisions/agent-reported-active-workspace.md) | Why Active is explicit, agent-reported and display-only | Changing Active selection, persistence or cwd relationship |

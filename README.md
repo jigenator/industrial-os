@@ -6,10 +6,11 @@ Industrial OS turns the [Pi](https://github.com/earendil-works/pi) coding agent 
 
 ## Status
 
-Three projects are here. They share code only through the private design-system package, which both Pi extensions import by name: claude-interrupt for its transcript marker, and status-bar for its footer elements:
+Four projects are here. They share code only through the private design-system package, which both rendering Pi extensions import by name: claude-interrupt for its transcript marker, and status-bar for its footer elements:
 
 - [design-system](design-system/README.md): the terminal design system, a reference kit of elements, motions, a storybook, and a showcase. Plain Node.js, no dependencies. It is the private package `@industrial-os/design-system`, which the repository's projects can import by name; it is never published.
 - [pi/claude-interrupt](pi/claude-interrupt/README.md): a Pi extension that aborts the current response on Esc and continues with your queued text, marking the continuation with an animated plate.
+- [pi/signals-collector](pi/signals-collector/README.md): one TUI session signal producer for displays and future panels/dashboards; machine-wide parsed CodexBar cache, no renderer.
 - [pi/status-bar](pi/status-bar/README.md): a Pi extension that replaces the footer with a framed Acid / Black instrument panel showing the agent-reported active project, where Pi's tools run, context use, model, and other extensions' statuses. It is the first implementation of the style.
 
 Herdr tooling still lives in separate repositories and is planned to move in.
@@ -23,6 +24,7 @@ industrial-os/
 ├── design-system/            terminal design system and its guides
 ├── pi/                       Pi extensions, each its own project
 │   ├── claude-interrupt/     interrupt-and-continue with the DIRECTIVE UPDATED marker
+│   ├── signals-collector/    TUI session signals and shared quota cache
 │   └── status-bar/           the Acid / Black footer for the agent-reported active project
 ├── docs/
 │   ├── mission.md            product scope and constraints
@@ -55,4 +57,4 @@ In a checkout, run `npm install` once at the root to link the design-system pack
 
 ## Licensing
 
-A project license has not been selected. Public visibility alone does not grant a reuse license. The exception is [claude-interrupt](pi/claude-interrupt/README.md), which keeps the MIT license in its [LICENSE](pi/claude-interrupt/LICENSE) from before it moved here. [status-bar](pi/status-bar/README.md) had no license before it moved here and has none now.
+A project license has not been selected. Public visibility alone does not grant a reuse license. The exception is [claude-interrupt](pi/claude-interrupt/README.md), which keeps the MIT license in its [LICENSE](pi/claude-interrupt/LICENSE) from before it moved here. [status-bar](pi/status-bar/README.md) had no license before it moved here and has none now; [signals-collector](pi/signals-collector/README.md) likewise has none.

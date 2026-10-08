@@ -8,6 +8,7 @@
   "pi": {
     "extensions": [
       "./pi/claude-interrupt/src/index.ts",
+      "./pi/signals-collector/src/extension.ts",
       "./pi/status-bar/src/extension.ts"
     ],
     "skills": [],
