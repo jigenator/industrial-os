@@ -126,3 +126,7 @@ The toolchain baseline above was recorded before the package moved into the mono
 - Interactive Pi/Herdr, live producers/providers, Windows and a real git install: **not run**. No push/live configuration change. Iteration failures were fixture setup/assertion errors corrected before these complete passing runs.
 
 Final consumer re-run on the same toolchain: **135/135 passed**; collector follow-up **45/45 passed**. The current module/event diagram rendered with existing grok-mermaid 0.2.3 without warnings (automated documentation rendering only); the root manifest CLI RPC load exited 0 in an isolated temporary agent/cache directory.
+
+### Final-review absence correction
+
+2026-10-08, macOS, Node 22.23.0 and installed Pi 1.0.4: host prerequisite passed; `npm test` **135/135 passed**, no skipped/cancelled tests. The real-loader regression now distinguishes absent collector (`no collector`, never pending) from present-but-not-inspected (`Git pending`) in both load orders. Isolated checkout RPC load: **exit 0**, expected disabled-provider warnings only. Root links/anchors, guide inventory, exact CLAUDE entrypoints and whitespace checks passed. Interactive Pi/Herdr: **not run**.

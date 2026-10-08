@@ -47,13 +47,14 @@ async function composed(t: any, order: string[]) {
 	const cleanup = async () => { if (cleaned) return; cleaned = true; await runner.emit({ type: "session_shutdown", reason: "quit" }); component?.dispose(); for (const key of Object.keys(process.env)) if (!(key in oldEnv)) delete process.env[key]; Object.assign(process.env, oldEnv); await rm(directory, { recursive: true, force: true }); };
 	t.after(cleanup);
 	await runner.emit({ type: "session_start", reason: "startup" });
+	const initialText = component.render(180).join("\n").replace(/\x1b\[[0-9;]*m/g, "");
 	await runner.getCommand("footer-motion")!.handler("off", runner.createContext());
 	await sleep(900); let snapshot: any; events.emit("signals-collector:v1:request", { reply: (s: any) => { snapshot = s; } });
-	return { cleanup, runner, events, component: () => component, replace() { component.dispose(); component = builder({ requestRender() {} }, theme, { getExtensionStatuses: () => statuses }); }, snapshot, directory, statuses, model, usage, errors };
+	return { cleanup, runner, events, component: () => component, replace() { component.dispose(); component = builder({ requestRender() {} }, theme, { getExtensionStatuses: () => statuses }); }, snapshot, directory, statuses, model, usage, errors, initialText };
 }
 test("actual Pi loader composes display/collector in both orders: equal renderer bytes and replacement handshake", async (t) => {
 	for (const order of [[resolve("."), resolve("../signals-collector")], [resolve("../signals-collector"), resolve(".")]]) {
-		const h = await composed(t, order); assert.ok(h.snapshot); assert.equal(h.snapshot.compactions, 0); assert.equal(h.snapshot.usage.installed, false);
+		const h = await composed(t, order); assert.match(h.initialText, /Git pending/); assert.doesNotMatch(h.initialText, /no collector/); assert.ok(h.snapshot); assert.equal(h.snapshot.compactions, 0); assert.equal(h.snapshot.usage.installed, false);
 		const expected = { homePath: homedir(), launchPath: h.snapshot.launch, activePath: h.snapshot.active, workspace: h.snapshot.workspace ?? undefined, pullRequest: h.snapshot.pr,
 			activity: { working: false, units: h.snapshot.units }, compactions: h.snapshot.compactions, tatsu: undefined, ponytail: "unknown", statuses: h.statuses, model: h.model, thinking: "high", contextUsage: h.usage, compactionReserve: h.snapshot.context.reserve };
 		for (const width of [1, 20, 60, 120, 280]) assert.deepEqual(h.component().render(width), renderFooter(expected, width, theme));
@@ -64,5 +65,5 @@ test("actual Pi loader composes display/collector in both orders: equal renderer
 test("missing collector: no data subprocesses, unknown AU/CMP/Active/Git, live CTX/MDL still displayed", async (t) => {
 	const spawn = t.mock.method(ChildProcess.prototype, "spawn"); const h = await composed(t, [resolve(".")]);
 	assert.equal(h.snapshot, undefined); assert.equal(h.runner.getToolDefinition("set_active_project"), undefined); assert.equal(spawn.mock.callCount(), 0);
-	const text = h.component().render(180).join("\n").replace(/\x1b\[[0-9;]*m/g, ""); assert.match(text, /CMP×\?\?/); assert.match(text, /\? AU/); assert.match(text, /unknown/); assert.match(text, /Git pending/); assert.match(text, /fixture\/model/); assert.doesNotMatch(text, /CMP×00|00 AU|clean/);
+	const text = h.component().render(180).join("\n").replace(/\x1b\[[0-9;]*m/g, ""); assert.match(text, /CMP×\?\?/); assert.match(text, /\? AU/); assert.match(text, /unknown/); assert.match(text, /Git unavailable \(no collector\)/); assert.doesNotMatch(text, /pending|lookup pending/); assert.match(text, /fixture\/model/); assert.doesNotMatch(text, /CMP×00|00 AU|clean/);
 });

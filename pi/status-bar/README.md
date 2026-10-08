@@ -18,7 +18,7 @@ The native v9 frame has corners and a standalone calibration cross, without a co
 
 ## Quick start
 
-Prerequisites are Node.js 22.19 or newer and an installed Pi host. Git, the `gh` CLI and the `codexbar` CLI are optional; missing or unavailable Git/GitHub integrations are shown explicitly, and without `codexbar` on PATH the USG row is simply absent.
+Prerequisites are Node.js 22.19 or newer, an installed Pi host and signals-collector for collected project/quota/count data. Git, the `gh` CLI and the `codexbar` CLI are optional; missing or unavailable Git/GitHub integrations are shown explicitly, and without `codexbar` on PATH the USG row is simply absent.
 
 This package lives in the [Industrial OS](../../README.md) monorepo. Install it from git with this entry in the `packages` array of Pi's `settings.json`; see [installing the Pi extensions](../README.md#install) for the source, filter and updates:
 
@@ -34,7 +34,7 @@ To load it for one Pi invocation without installing it, from `pi/status-bar/`:
 pi -e ../signals-collector -e .
 ```
 
-The collector gives the agent the unchanged `set_active_project({ path })` tool. Either load order works through subscribe/request/ready; without a collector, Active/Git/AU/CMP are unknown, not zero or clean, and USG is hidden. ROOT/context/model/thinking and other statuses still come live from Pi. It should call the tool before deliberately moving work to another project or worktree and call it again when switching back. Incidental reads should not change Active.
+The collector gives the agent the unchanged `set_active_project({ path })` tool. Either load order works through subscribe/request/ready; without a collector, Active/AU/CMP are unknown, Git/GitHub show `unavailable (no collector)` rather than pending, and USG is hidden. Pending means a collector is present but has not inspected yet. ROOT/context/model/thinking and other statuses still come live from Pi. It should call the tool before deliberately moving work to another project or worktree and call it again when switching back. Incidental reads should not change Active.
 
 ## Limitations
 

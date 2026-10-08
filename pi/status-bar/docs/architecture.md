@@ -52,7 +52,7 @@ All motion state, RNG draw order, plans and scheduling remain in the extension. 
 
 ### Session start and snapshot discovery
 
-Restore display state and install the TUI footer; subscribe to snapshot and ready before a synchronous request. Matching ready re-requests, so collector-first and consumer-first both work. Validate version/live session ID and reject older sequences. No callback before emit returns means absent; asynchronous callbacks are ignored. Missing collector renders Active `unknown`, Git pending, AU/CMP unknown and no optional USG row, while live CTX/MDL/thinking/ROOT/statuses remain available. Replacement re-handshakes and detaches old listeners; obsolete components/session IDs cannot update the display.
+Restore display state and install the TUI footer; subscribe to snapshot and ready before a synchronous request. Matching ready re-requests, so collector-first and consumer-first both work. Validate version/live session ID and reject older sequences. No callback before emit returns means absent; asynchronous callbacks are ignored. Missing collector renders Active `unknown`, Git/GitHub unavailable (`no collector`), AU/CMP unknown and no optional USG row, while live CTX/MDL/thinking/ROOT/statuses remain available. Replacement re-handshakes and detaches old listeners; obsolete components/session IDs cannot update the display.
 
 ### Decorative motion
 

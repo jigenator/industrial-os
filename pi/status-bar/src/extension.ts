@@ -207,8 +207,11 @@ export default function (pi: ExtensionAPI) {
 					if (tatsu && tatsu.phase !== "inactive") statuses.delete("tatsu-status");
 					const signals = s.ctx.sessionManager.getSessionId() === s.id ? s.signals : undefined;
 					const launch = s.ctx.sessionManager.getHeader()?.cwd ?? s.ctx.sessionManager.getCwd();
+					const absent = { kind: "unknown" as const, reason: "no collector" };
 					return {
-						homePath, launchPath: signals?.launch ?? launch, activePath: signals?.active ?? "unknown", workspace: signals?.workspace ?? undefined, pullRequest: signals?.pr ?? { kind: "unavailable", reason: "lookup pending" },
+						homePath, launchPath: signals?.launch ?? launch, activePath: signals?.active ?? "unknown",
+						workspace: signals ? signals.workspace ?? undefined : { path: "unknown", git: absent, github: absent },
+						pullRequest: signals?.pr ?? { kind: "unavailable", reason: signals ? "lookup pending" : "no collector" },
 						contextUsage: s.ctx.getContextUsage(), model: s.ctx.model, thinking: pi.getThinkingLevel(),
 						statuses, tatsu, activity: { working: !s.ctx.isIdle(), units: signals?.units ?? null }, compactions: signals?.compactions ?? null, ponytail: ponytail.mode, ponytailActive: ponytail.active,
 						compactionReserve: signals?.context?.reserve ?? undefined,
