@@ -227,7 +227,10 @@ function contextOf(snapshot: FooterSnapshot) {
 	const fullWindow = [usage?.contextWindow, snapshot.model?.contextWindow].find((value) => typeof value === "number" && Number.isFinite(value) && value > 0);
 	const budget = fullWindow !== undefined && reserve !== undefined && reserve < fullWindow ? fullWindow - reserve : undefined;
 	const windowSize = budget ?? fullWindow;
-	const percent = budget === undefined ? finite(usage?.percent) : tokens === undefined ? undefined : (tokens * 100) / budget;
+	// Context can pass the budget mid-turn, before Pi's next compaction check; the numeral, tone and gauge stop at 100%,
+	// and only the token readout shows the overrun.
+	const used = budget === undefined ? finite(usage?.percent) : tokens === undefined ? undefined : (tokens * 100) / budget;
+	const percent = used === undefined ? undefined : Math.min(used, 100);
 	return { percent, tone: toneOf(percent), windowText: windowSize ? compact(windowSize) : "", tokensText: tokens === undefined ? "?" : compact(tokens, windowSize) };
 }
 const panelLabels = (percent: number | undefined, windowText: string) =>
