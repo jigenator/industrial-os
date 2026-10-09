@@ -49,7 +49,7 @@ Without the signals-collector the sidebar shows row 1 (including SPACE when know
 
 ## Timing
 
-Values change when the snapshot or Herdr's status changes, usually within a fraction of a second. Durations follow pi-goal's format (`45s`, `12m`, `2h33m`); they tick each second under a minute and each minute after that, and the extension sends nothing between those changes. Nothing in the rows animates.
+Values change when the snapshot, Herdr's status, announced workspace label or pane visibility changes, usually within a fraction of a second. Connected lifecycle events trigger reads immediately; only an automatic SPACE label changed without an event waits for the 20-second renewal refresh. Durations follow pi-goal's format (`45s`, `12m`, `2h33m`); they tick each second under a minute and each minute after that, and the extension sends nothing between those changes. Nothing in the rows animates.
 
 ## Accessibility and limits
 

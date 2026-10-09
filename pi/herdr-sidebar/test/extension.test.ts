@@ -353,14 +353,14 @@ test("subagents finishing unseen show DNE with RDY · finished and its age, clea
 	// Focus moves elsewhere without reaching the pane: still unseen.
 	herdr.focus("w3", "w3:t1", "w3:p1"); await new Promise((done) => setTimeout(done, 80));
 	assert.equal(herdr.tokens.get("g1"), `✓ DNE${B}`);
-	herdr.focus("w1", "w1:t1", "w1:p1", ["tab.focused"]);
+	herdr.focus("w1", "w1:t1", "w1:p1", ["tab_focused"]);
 	await until(() => herdr.tokens.get("g1") === `○ IDL${B}` && !herdr.tokens.has("ev_rdy_text") && !herdr.tokens.has("ph_age"), "seen clears it");
 	// Seen is sticky: looking away again does not bring DNE back.
 	herdr.focus("w1", "w1:t2", "w1:p2"); await new Promise((done) => setTimeout(done, 80));
 	assert.equal(herdr.tokens.get("g1"), `○ IDL${B}`); assert.deepEqual(h.errors, []);
 });
 
-for (const event of ["workspace.focused", "pane.focused"]) {
+for (const event of ["workspace_focused", "pane_focused"]) {
 	test(`subagents-finished DNE clears when ${event} makes the pane seen`, async (t) => {
 		const { herdr } = await finishedUnseen(t);
 		herdr.focus("w1", "w1:t1", "w1:p1", [event]);

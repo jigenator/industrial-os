@@ -65,7 +65,14 @@ export type PaneWatchOptions = { requestTimeoutMs?: number; minBackoffMs?: numbe
 // `visible`: the pane's tab is the active tab of Herdr's focused workspace, which Herdr 0.9.3 treats as seen; null is unknown.
 export type PaneState = { status: HerdrStatus | null; workspaceLabel: string | null; visible: boolean | null };
 const UNKNOWN: PaneState = { status: null, workspaceLabel: null, visible: null };
-const FOCUS_EVENTS: readonly unknown[] = ["workspace.focused", "tab.focused", "pane.focused"];
+const FOCUS_EVENTS = ["workspace.focused", "tab.focused", "pane.focused"];
+const LIFECYCLE_EVENTS = ["workspace.renamed", "workspace.updated", "pane.moved", ...FOCUS_EVENTS];
+// Herdr 0.9.3 schema/events.rs: Subscription request types are dotted, but EventKind envelopes serialize
+// as snake_case. SubscriptionEventKind keeps pane.agent_status_changed dotted. Normalize only known kinds.
+const WIRE_EVENTS = new Map([
+	...LIFECYCLE_EVENTS.map((type): [string, string] => [type.replace(".", "_"), type]),
+	["pane.agent_status_changed", "pane.agent_status_changed"],
+]);
 
 /**
  * Subscribes before reading pane.get and workspace.get. Workspace, focus and pane-move events invalidate reads;
@@ -178,8 +185,7 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 		current.on("close", drop);
 		current.on("connect", () => current.write(`${JSON.stringify({ id, method: "events.subscribe", params: { subscriptions: [
 			{ type: "pane.agent_status_changed", pane_id: paneId },
-			{ type: "workspace.renamed" }, { type: "workspace.updated" }, { type: "pane.moved" },
-			...FOCUS_EVENTS.map((type) => ({ type })),
+			...LIFECYCLE_EVENTS.map((type) => ({ type })),
 		] } })}\n`));
 		readLines(current, (line) => {
 			if (socket !== current || !record(line)) return;
@@ -193,22 +199,23 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 				return;
 			}
 			if (line.id === id && record(line.error)) return drop();
-			if (!record(line.data)) return;
+			const event = typeof line.event === "string" ? WIRE_EVENTS.get(line.event) : undefined;
+			if (!event || !record(line.data)) return;
 			const data = line.data;
-			if (line.event === "pane.moved" && data.previous_pane_id === paneId && record(data.pane) && typeof data.pane.pane_id === "string") {
+			if (event === "pane.moved" && data.previous_pane_id === paneId && record(data.pane) && typeof data.pane.pane_id === "string") {
 				if (data.pane.pane_id === paneId) { focusChanged = true; void reconcile(owner); return; } // Same id, possibly another tab: the subscription stays valid.
 				paneId = data.pane.pane_id;
 				workspaceId = undefined;
 				// Status subscriptions bind the canonical pane id; resubscribe after a move that changes it.
 				drop();
-			} else if (line.event === "pane.agent_status_changed" && data.pane_id === paneId) {
+			} else if (event === "pane.agent_status_changed" && data.pane_id === paneId) {
 				if (reading?.owner === owner) reading.stale = true;
 				report({ ...state, status: herdrStatus(data.agent_status) });
-			} else if ((line.event === "workspace.renamed" && (workspaceId === undefined || data.workspace_id === workspaceId)) ||
-				(line.event === "workspace.updated" && record(data.workspace) && (workspaceId === undefined || data.workspace.workspace_id === workspaceId)) ||
-				FOCUS_EVENTS.includes(line.event)) {
+			} else if ((event === "workspace.renamed" && (workspaceId === undefined || data.workspace_id === workspaceId)) ||
+				(event === "workspace.updated" && record(data.workspace) && (workspaceId === undefined || data.workspace.workspace_id === workspaceId)) ||
+				FOCUS_EVENTS.includes(event)) {
 				// Any focus change can make this pane seen or unseen; the reads are authoritative, the payloads only invalidate.
-				if (FOCUS_EVENTS.includes(line.event)) focusChanged = true;
+				if (FOCUS_EVENTS.includes(event)) focusChanged = true;
 				void reconcile(owner);
 			}
 		});
