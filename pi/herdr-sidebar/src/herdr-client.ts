@@ -23,6 +23,7 @@ function readLines(socket: Socket, onLine: (line: unknown) => void): void {
 		buffer += chunk;
 		let newline: number;
 		while ((newline = buffer.indexOf("\n")) >= 0) {
+			if (newline > MAX_LINE) { socket.destroy(); return; }
 			const line = buffer.slice(0, newline);
 			buffer = buffer.slice(newline + 1);
 			if (!line.trim()) continue;
@@ -61,6 +62,7 @@ export function herdrRequest(socketPath: string, method: string, params: Record<
 	});
 }
 
+// requestTimeoutMs bounds connection/subscription acknowledgement as well as each reconciliation request.
 export type PaneWatchOptions = { requestTimeoutMs?: number; minBackoffMs?: number; maxBackoffMs?: number };
 // `visible`: the pane's tab is the active tab of Herdr's focused workspace, which Herdr 0.9.3 treats as seen; null is unknown.
 export type PaneState = { status: HerdrStatus | null; workspaceLabel: string | null; visible: boolean | null };
@@ -86,6 +88,7 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 	let closed = false;
 	let socket: Socket | undefined;
 	let retry: NodeJS.Timeout | undefined;
+	let acknowledgement: NodeJS.Timeout | undefined;
 	let backoff = minBackoffMs;
 	let state: PaneState = { ...UNKNOWN };
 	let paneId = target.paneId, workspaceId: string | undefined, connection = 0;
@@ -100,6 +103,11 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 	let readBackoff = minBackoffMs;
 	// Set by a focus change until a complete read: visibility is then genuinely unknown, not merely unrefreshed.
 	let focusChanged = false;
+
+	function cancelAcknowledgement() {
+		if (acknowledgement) clearTimeout(acknowledgement);
+		acknowledgement = undefined;
+	}
 
 	function cancelReadRetry() {
 		if (readRetry) clearTimeout(readRetry);
@@ -172,6 +180,7 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 		let started = false;
 		const drop = () => {
 			if (socket !== current) return;
+			cancelAcknowledgement();
 			socket = undefined;
 			live = undefined;
 			++connection; // Fence reads still pending on this connection.
@@ -181,6 +190,9 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 			report({ ...UNKNOWN });
 			scheduleReconnect();
 		};
+		// Start before connect so a stalled connection is bounded too, just like herdrRequest.
+		acknowledgement = setTimeout(drop, requestTimeoutMs);
+		acknowledgement.unref();
 		current.on("error", drop);
 		current.on("close", drop);
 		current.on("connect", () => current.write(`${JSON.stringify({ id, method: "events.subscribe", params: { subscriptions: [
@@ -192,6 +204,7 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 			if (!started) {
 				if (line.id !== id) return;
 				if (!record(line.result) || line.result.type !== "subscription_started") return drop();
+				cancelAcknowledgement();
 				started = true;
 				live = owner;
 				backoff = minBackoffMs;
@@ -236,6 +249,7 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 		},
 		close() {
 			closed = true;
+			cancelAcknowledgement();
 			cancelReadRetry();
 			if (retry) clearTimeout(retry);
 			retry = undefined;
