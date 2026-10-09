@@ -10,7 +10,7 @@ The maintained content is TOML read by Herdr. The checks use Node.js 22 with its
 
 | Order | Directory | Command | Prerequisites/effects | Coverage |
 | --- | --- | --- | --- | --- |
-| 1 | `herdr/` | `node --test` | Root install; reads `sidebar.toml` and `../pi/herdr-sidebar/docs/token-contract.md`; no writes | Every color is an exported palette or signal color; every token is in the contract's key list and every key has one row entry; width lock, row gap and theme values; decay ladder, mutually exclusive ACT alternatives and native row/entry limits |
+| 1 | `herdr/` | `node --test` | Root install; reads `sidebar.toml`, `spaces.toml`, `theme.toml`, `../pi/herdr-sidebar/docs/token-contract.md` and `../herdr-plugins/spaces/docs/token-contract.md`; no writes | Every color is an exported palette or signal color; every token is in the contract's key list and every key has one row entry; width lock, row gap and theme values; decay ladder, mutually exclusive ACT alternatives and native row/entry limits; Spaces and theme checks below |
 | 2 | `herdr/` | `HERDR_CONFIG_PATH="$PWD/sidebar.toml" herdr config check` | Installed Herdr; reads only that file; contacts no server and writes nothing | Herdr's own parser and validation accept the fragment as a config: prints `config: ok`, exit 0 |
 | 3 | Herdr | Manual: merge into a config as in the [README](README.md#install), reload, and watch Pi panes running herdr-sidebar | Changes the live Herdr configuration | Rendering, colors, alignment with and without the scrollbar, every state |
 
@@ -18,7 +18,7 @@ Then follow the [repository-wide checks](../CONTRIBUTING.md#repository-wide-chec
 
 ## Making a change
 
-Change the source first: a color in the design system, a token in [the token contract](../pi/herdr-sidebar/docs/token-contract.md). Then change `sidebar.toml`, keep each color's role comment accurate, update [the design](docs/design.md), and run the sequence.
+Change the source first: a color in the design system, a token in [the token contract](../pi/herdr-sidebar/docs/token-contract.md). Then change the fragment, keep each color's role comment accurate, update [the design](docs/design.md), and run the sequence.
 
 ## Verification records
 
@@ -134,3 +134,32 @@ Live session merge and reload: **not run**.
 - Root package setup, changed local links/anchors, guidance inventory, exact CLAUDE entrypoints, `git diff --check`, `git diff --cached --check`, new-contributor and exact-file publication/import/color reviews: **passed**. No new dependency or palette value; production reporter still renders no colors.
 - Live/interactive Pi/Herdr, config merge/reload, terminal rendering and Mermaid rendering: **not run**; existing diagrams unchanged. Inherited `HERDR_*` variables were unset before every shell/test/parser run; no live socket/configuration or global Pi files touched. No push, PR or Linear mutation.
 - Adoption requires the updated complete Pi row override and reporter together; merge rows first so later-stage keys can render. Memory-only age resets on reload/restart. Existing full-report partial-state/backoff, visibility approximation and untested font/color-depth limitations remain.
+
+## Theme validation
+
+From `herdr/`, in order:
+
+1. `node --test`: `test/theme.test.mjs` checks that every `theme.toml` color is an exported palette, signal or Herdr chrome color; that `theme.toml`, `sidebar.toml` and `spaces.toml` together set each of Herdr 0.9.3's 19 `[theme.custom]` keys exactly once (the key list is restated in the test from Herdr's `src/config/theme.rs`); each key's approved value; `panel_bg` the field, because Herdr draws it as the ink on colored controls; and the other fragments' eight theme keys unchanged.
+2. `node check-config.mjs`: read-only `HERDR_CONFIG_PATH=<temporary copy> herdr config check` on `theme.toml` alone and on all three fragments merged into one config with a single `[theme.custom]`, besides the Spaces/sidebar cases above. A copy with a misspelled theme key must be rejected (`unknown config key`, exit 1), so the theme copy's `config: ok` shows Herdr knows all 11 keys. The parser does not validate theme color strings; step 1 does.
+3. Manual, by an operator: merge as in the [README](README.md#theme), reload, and look at tabs, menus, dialogs, the mode bar, copy-mode search and scrollbars. Changes the live configuration.
+
+A Herdr version change rechecks the 19-key list against that version's `src/config/theme.rs` first.
+
+### Acid & Orange theme
+
+2026-10-09, macOS, Node 22.23.0, installed Herdr 0.9.3. Inherited `HERDR_*` variables were unset before every shell, test and parser run.
+
+**Passed**
+
+- `cd design-system && node --test`: **388/388**, 0 failed/skipped/cancelled, including `package.test.mjs` **4/4** and `foundation/*.test.mjs` **21/21**. The new foundation check: `HERDR_CHROME` is frozen lowercase, `signalOrange` equals `SIGNAL_COLORS.cld`, and `mixOver(signalOrange, 0.3)` is `signalOrange30` `#4d1c00`.
+- `cd pi/status-bar && node --experimental-strip-types --test test/footer-colors.test.ts` with the global Pi host: **1/1**. `HERDR_CHROME` is kept out of `SIGNAL_COLORS`, whose every value status-bar maps to a footer alias.
+- `cd herdr && node --test`: **18/18**, 0 failed/skipped/cancelled; 13 existing sidebar and Spaces checks and 5 new theme checks.
+- `cd herdr && node check-config.mjs`: Spaces, sidebar, theme, sidebar+Spaces merge and all-three merge each **`config: ok`, exit 0**; malformed row copy and misspelled theme key copy each **rejected, exit 1**, expected.
+- Mutation checks, each restored: a non-exported `overlay1`, a `yellow` duplicated into `theme.toml`, `panel_bg` set to the surface, `blue` removed, and a changed `sidebar_bg` in `sidebar.toml` each failed the theme tests (2, 3, 2, 3 and 1 of 5 failing); `signalOrange30` set to `#4d1b00` failed the foundation check.
+- Root changed links and anchors, guidance inventory, exact CLAUDE entrypoints, `git diff --check`, `git diff --cached --check`, new-contributor and publication/private-path reviews. Existing grok-mermaid 0.2.3 rendered the changed root and Herdr diagrams with non-null art and no warnings.
+
+**Failed:** none. **Skipped:** none.
+
+**Live merge:** the same 11 keys were merged by hand into the operator's config; `herdr config check` printed **`config: ok`, exit 0**, and `herdr server reload-config` returned **`applied`** with no diagnostics.
+
+**Not run:** an agent-observed check of the rendered theme, the mobile layout, and other color depths. What each key colors is from Herdr 0.9.3 source, not observation; contrast ratios are computed from the hex values.

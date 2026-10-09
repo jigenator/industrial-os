@@ -130,7 +130,7 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [herdr/CONTRIBUTING.md](herdr/CONTRIBUTING.md) | Herdr configuration checks, validation sequence, and verification records | Making or verifying a Herdr configuration change |
 | [herdr/docs/architecture.md](herdr/docs/architecture.md) | Herdr configuration files, dependencies, invariants, and where the next file goes | Adding a Herdr configuration file or changing what it depends on |
 | [herdr/docs/conventions.md](herdr/docs/conventions.md) | Rules for Herdr configuration files and their checks | Writing or reviewing Herdr configuration |
-| [herdr/docs/design.md](herdr/docs/design.md) | Agents layout B and Spaces rows, width, colors, and states | Changing anything a user sees in the Herdr sidebar |
+| [herdr/docs/design.md](herdr/docs/design.md) | Agents layout B and Spaces rows, width, colors, and states; the chrome theme | Changing anything a user sees in the Herdr sidebar or Herdr's chrome colors |
 | [herdr-plugins/README.md](herdr-plugins/README.md) | Plugin index and operator install procedure | Using or adding a Herdr plugin |
 | [herdr-plugins/AGENTS.md](herdr-plugins/AGENTS.md) | Shared plugin rules and detach/lock boundaries | Working anywhere in herdr-plugins |
 | [herdr-plugins/CLAUDE.md](herdr-plugins/CLAUDE.md) | Runtime import of the group guide | Checking agent entry points |

@@ -32,7 +32,7 @@ This is the selected default palette. The design system owns its values: [founda
 
 Do not use decorative greys for essential control boundaries or readable small text without checking the actual contrast. Accent is not a substitute for a label; warning and critical states must remain understandable without color.
 
-To change a value, change `palette.mjs` first, then each extension that still mirrors it, each in its own commit; see [the decision](decisions/in-repo-design-system-package.md). Both current extensions import their values, so their manual comparison rows are retired. Review any future extension's mirrored constants directly against the source, using this table only to map names to roles. status-bar's colors beyond these roles (count tiers, mode inks, gauge zones, warm-up steps and usage providers) are product colors, not roles; their imported source is [foundation/signal-colors.mjs](../design-system/foundation/signal-colors.mjs).
+To change a value, change `palette.mjs` first, then each extension that still mirrors it, each in its own commit; see [the decision](decisions/in-repo-design-system-package.md). Both current extensions import their values, so their manual comparison rows are retired. Review any future extension's mirrored constants directly against the source, using this table only to map names to roles. status-bar's colors beyond these roles (count tiers, mode inks, gauge zones, warm-up steps and usage providers) are product colors, not roles; their imported source is [foundation/signal-colors.mjs](../design-system/foundation/signal-colors.mjs), which also holds the [Herdr theme](../herdr/theme.toml)'s two chrome colors, the Marathon signal orange and its 30% mix.
 
 ### Pi extensions
 

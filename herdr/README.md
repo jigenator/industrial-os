@@ -1,6 +1,6 @@
 # Industrial OS Herdr configuration
 
-Herdr configuration that belongs to Industrial OS. The agents fragment is [sidebar.toml](sidebar.toml): the [Herdr](https://github.com/herdrdev/herdr) Pi agents-sidebar rows that draw the tokens the [herdr-sidebar](../pi/herdr-sidebar/README.md) Pi extension reports, in Acid / Black layout "B", with the theme colors and the width lock that layout needs. The experience is in [the design](docs/design.md).
+Herdr configuration that belongs to Industrial OS. The agents fragment is [sidebar.toml](sidebar.toml): the [Herdr](https://github.com/herdrdev/herdr) Pi agents-sidebar rows that draw the tokens the [herdr-sidebar](../pi/herdr-sidebar/README.md) Pi extension reports, in Acid / Black layout "B", with the theme colors and the width lock that layout needs. [spaces.toml](spaces.toml) adds the Spaces rows, and [theme.toml](theme.toml) the rest of Herdr's chrome colors. The experience is in [the design](docs/design.md).
 
 Status: checked by its own test and by Herdr 0.9.3's config parser; no interactive check of this file in a running Herdr has been recorded. The layout was verified live on 2026-10-08 with an equivalent spike configuration.
 
@@ -60,12 +60,27 @@ TTL/name freeze behavior. Workspace custom keys use the `sp_` namespace because
 Herdr shares keys across reporters; update this fragment with the plugin. Old
 unprefixed frozen keys are not cleared automatically and are no longer rendered.
 
+## Theme
+
+[theme.toml](theme.toml) is the "Acid & Orange" chrome theme: the 11 `[theme.custom]` keys the agents and Spaces fragments leave unset. Together the three fragments set each of Herdr 0.9.3's 19 theme keys once, so no color of the base theme remains: white focus and selection, a black field, acid detail and signal-orange secondary chrome. What each key colors is in [the design](docs/design.md#theme).
+
+1. Back up your config.
+2. Merge the 11 keys into your **existing** `[theme.custom]` table, beside the agents and Spaces fragments' keys; TOML rejects a second `[theme.custom]`. Do not change a key another fragment sets.
+3. Leave `[theme] name` and `auto_switch` as they are in your config; this fragment does not set them. With every key set, the name no longer changes any color. With `auto_switch` on, `[theme.custom.light]` or `[theme.custom.dark]` keys could still override these.
+4. Check a temporary copy with `HERDR_CONFIG_PATH=<copy> herdr config check` before replacing your config. It prints `config: ok` and exits 0; a misspelled key prints `unknown config key` and exits 1.
+5. Reload with `herdr server reload-config`, or `reload config` in Herdr's global menu.
+
+The theme keys are global: they color every panel, dialog, menu and bar, not one panel. Its checks are automated tests and Herdr's parser; it has been merged into a live config and reloaded without diagnostics, but its rendering has not been checked by an agent.
+
 ## Limitations
 
 - Pi panes without herdr-sidebar show no Industrial OS rows. Other agents keep their configured/default rows; layout B overrides only canonical agent ID `pi`.
 - `row_gap = 1` applies to the entire agents panel, including non-Pi agents.
 - The layout assumes exactly 36 columns; the width lock keeps the sidebar at that width. Collapsed and mobile sidebars keep Herdr's compact layouts.
 - Colors are truecolor values; other color depths are untested.
+- Herdr computes pane text selection itself from the terminal background, or from `panel_bg` when the terminal reports none (about `#474747` on black either way); no theme key sets it directly. The theme does not recolor programs inside panes or the host terminal.
+- `panel_bg` must stay dark: Herdr draws it as the text on white, acid and red controls.
+- Acid also means working, and the signal orange is close in hue to critical red; see [the design's trade-offs](docs/design.md#theme-trade-offs).
 
 ## Guides
 

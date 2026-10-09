@@ -1,0 +1,18 @@
+# Industrial OS: the "Acid & Orange" Herdr chrome theme, the 11 [theme.custom] keys sidebar.toml and spaces.toml
+# leave unset. With all three fragments, Herdr 0.9.3's 19 theme keys are each set once and no base-theme color remains.
+# A fragment of Herdr's config.toml, merged by hand; see README.md. Merge these keys into your existing
+# [theme.custom] table: TOML rejects a second header. Every color is a design-system value, named here by its role;
+# test/theme.test.mjs checks them. What each key colors is in docs/design.md.
+
+[theme.custom]
+accent      = "#ffffff" # primary: focused pane, active tab, selection, buttons, mode badges, dialog frames
+panel_bg    = "#000000" # field: bars, menus, dialogs, toasts; also the ink on accent and acid controls
+surface0    = "#1c1c1c" # surface: inactive tabs, inputs, Cancel buttons, inline code
+surface1    = "#4d1c00" # Herdr chrome signalOrange30: other search matches, dragged Space, fenced code
+surface_dim = "#333333" # ghost (signal color): sidebar edge, dividers, scrollbar tracks
+overlay1    = "#ff5c00" # Herdr chrome signalOrange: tab-bar segments, custom-label tabs, help text, thumbs
+text        = "#ffffff" # primary: focused names, dialog and body text
+subtext0    = "#cfcfcf" # secondary: unfocused names, hints
+mauve       = "#c0fe04" # accent: focused Space branch, help keys, Resize badge
+blue        = "#c0fe04" # accent: finished-notification dot, mobile Done summary
+peach       = "#d79e52" # warning: not read by Herdr 0.9.3's UI; set so no base value remains

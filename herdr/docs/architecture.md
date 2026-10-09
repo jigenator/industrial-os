@@ -1,7 +1,7 @@
 # Architecture
 
 Status: current at the revision that added the project.
-Evidence: `sidebar.toml`, `test/sidebar.test.mjs`, Herdr 0.9.3's configuration reference and its config loader and sidebar schema (`src/config/io.rs`, `src/config/sidebar.rs`, `src/cli.rs` `config check`).
+Evidence: `sidebar.toml`, `test/sidebar.test.mjs`, Herdr 0.9.3's configuration reference and its config loader, sidebar and theme schemas (`src/config/io.rs`, `src/config/sidebar.rs`, `src/config/theme.rs`, `src/cli.rs` `config check`).
 
 ## Files and dependencies
 
@@ -9,8 +9,10 @@ Evidence: `sidebar.toml`, `test/sidebar.test.mjs`, Herdr 0.9.3's configuration r
 | --- | --- | --- |
 | `sidebar.toml` | The Pi agents-sidebar row override, their colors and rules, the theme colors the layout needs, and the 36-column width lock | Herdr's config schema; the token names in [the token contract](../../pi/herdr-sidebar/docs/token-contract.md); design-system colors, restated as values because TOML cannot import |
 | `spaces.toml` | Spaces rows and global state-icon theme keys | Herdr schema; [Spaces contract](../../herdr-plugins/spaces/docs/token-contract.md); design-system colors |
-| `check-config.mjs` | Isolated native parser checks for each fragment, merge and expected invalid rejection | Node stdlib; installed Herdr, only config check |
+| `theme.toml` | The 11 `[theme.custom]` chrome keys the other fragments leave unset | Herdr 0.9.3's 19 theme keys; design-system colors, including `HERDR_CHROME` |
+| `check-config.mjs` | Isolated native parser checks for each fragment, merges and expected invalid rejections | Node stdlib; installed Herdr, only config check |
 | `test/spaces.test.mjs` | Spaces color/key/role checks | Design-system exported palette; reads Spaces contract |
+| `test/theme.test.mjs` | Theme colors and approved values; the three fragments set each of the 19 theme keys once; the other fragments' 8 keys unchanged | `foundation/palette` and `/signal-colors` (`SIGNAL_COLORS`, `HERDR_CHROME`) by package name; the 19-key list restated from Herdr's `src/config/theme.rs` |
 | `test/sidebar.test.mjs` | The checks that keep the fragment true to its two sources | `@industrial-os/design-system/foundation/palette` and `/signal-colors` by package name; reads the token contract document |
 
 ```mermaid
@@ -21,6 +23,9 @@ flowchart LR
     Fragment -.->|merged by hand into config.toml| Herdr["Herdr client"]
     Spaces["herdr-plugins/spaces"] -->|workspace tokens| Herdr
     SpacesFragment["herdr/spaces.toml"] -.->|manual merge| Herdr
+    DS -->|imported by the check| ThemeTest["herdr/test/theme.test.mjs"]
+    ThemeTest -->|checks| ThemeFragment["herdr/theme.toml"]
+    ThemeFragment -.->|merged into the same theme.custom| Herdr
     Ext["pi/herdr-sidebar extension"] -->|pane tokens over the socket| Herdr
 ```
 
@@ -40,6 +45,8 @@ A person merges the fragment into Herdr's `config.toml` and reloads. Herdr's cli
 | Only `rows_by_agent.pi` is set; global `rows` is absent | `test/sidebar.test.mjs` |
 | The width is locked at 36 columns with `row_gap = 1` | `test/sidebar.test.mjs` |
 | The fragment is a valid Herdr config by itself | `herdr config check` in [contributing](../CONTRIBUTING.md#validation-sequence) |
+| The three fragments set each of Herdr 0.9.3's 19 theme keys exactly once, each with its approved design-system value; `panel_bg` is the field | `test/theme.test.mjs` |
+| Every fragment, and all three merged into one `[theme.custom]`, parses; a misspelled theme key is reported | `check-config.mjs` |
 
 ## Where the next change belongs
 
@@ -56,3 +63,9 @@ Its `sp_`-prefixed contract key list is consumed by `test/spaces.test.mjs`;
 Herdr workspace keys share a namespace across sources. Space names require
 that plugin: no built-in workspace fallback is configured. Theme keys are global;
 see [the wider color effects](design.md#spaces-theme-scope).
+
+The theme fragment is only `[theme.custom]` keys and has no rows. A Herdr
+version that adds, removes or renames a theme key changes the test's key list
+first; `herdr config check` reports an unknown key but does not validate theme
+color strings (Herdr turns an unreadable color into cyan at runtime), so the
+test checks each value.

@@ -1,6 +1,6 @@
 # Design
 
-The agents sidebar in Herdr, as this configuration draws it: layout "B", one block of up to seven rows per Pi pane, in the [shared language](../../docs/design.md). The extension's side, what each value means and when it is unknown, is in [herdr-sidebar's design](../../pi/herdr-sidebar/docs/design.md); the exact token values are in [the token contract](../../pi/herdr-sidebar/docs/token-contract.md).
+The agents sidebar in Herdr, as this configuration draws it: layout "B", one block of up to seven rows per Pi pane, in the [shared language](../../docs/design.md). The extension's side, what each value means and when it is unknown, is in [herdr-sidebar's design](../../pi/herdr-sidebar/docs/design.md); the exact token values are in [the token contract](../../pi/herdr-sidebar/docs/token-contract.md). The [Spaces](#spaces) rows and the [chrome theme](#theme) follow.
 
 ## Layout B
 
@@ -150,3 +150,63 @@ theme keys, not Spaces-only colors. Source grep against Herdr 0.9.3
 Teal's direct state-color use is done state via `client/shell.rs`. Configured
 custom token styles still override defaults. These consequences are intentional
 for the approved palette mapping, not a claim of panel-local theming.
+
+## Theme
+
+[theme.toml](../theme.toml) sets the 11 `[theme.custom]` keys that the agents
+and Spaces fragments leave unset, "Acid & Orange": white focus and selection on
+a black field, acid detail and signal-orange secondary chrome. Herdr 0.9.3 has
+exactly 19 keys (`src/config/theme.rs`, `CustomThemeColors`); with all three
+fragments each is set once, so no color of the `[theme] name` base theme shows
+and the name and `auto_switch` stay the user's. Herdr assigns each key on its
+own: `accent` does not recolor `mauve` or `blue`
+(`src/app/state.rs`). Uses below are from Herdr 0.9.3 source; paths are
+relative to the Herdr repository.
+
+| Key | Value | Role | What it colors |
+| --- | --- | --- | --- |
+| `accent` | `#ffffff` | Primary | Focused pane border and title (`ui/panes.rs`), active tab (`client/shell/tabs.rs`), selected menu, settings and navigator items and buttons, dialog and menu frames (`client/shell/overlays.rs`, `settings_overlay.rs`), mode badges (`client/shell/render.rs`), attention marks, the current copy-mode match |
+| `panel_bg` | `#000000` | Field | Tab bar, mode bar, menus, dialogs and toasts; also the **text on colored controls**: Herdr uses `panel_bg` itself as the contrast ink (`client/shell.rs`, `ui/widgets.rs`) |
+| `surface0` | `#1c1c1c` | Surface | Inactive tabs and tab arrows, inputs and Cancel buttons, inline code (`ui/release_notes.rs`), the settings divider |
+| `surface1` | `#4d1c00` | Herdr chrome `signalOrange30`: 30% of the signal orange over the field | The other (non-current) copy-mode search matches (`client/shell/composition.rs`), a dragged Space, fenced code, navigator and picker dividers |
+| `surface_dim` | `#333333` | Ghost (signal color) | The sidebar edge and the Spaces/Agents divider (`client/shell/render.rs`, `sidebar.rs`, `agent_sidebar.rs`), list and unfocused pane scrollbar tracks (`client/shell/scroll.rs`, `ui/scrollbar.rs`); the focused agent, Space and tab background in the mobile layout (`client/shell/mobile.rs`) |
+| `overlay1` | `#ff5c00` | Herdr chrome `signalOrange`, the Marathon signal orange | Tab-bar status, hostname and clock segments, custom-label inactive tabs and enabled arrows (`client/shell/tabs.rs`), help and settings secondary text, the focused pane scrollbar thumb |
+| `text` | `#ffffff` | Primary | Focused Space and agent names, dialog, menu and body text |
+| `subtext0` | `#cfcfcf` | Secondary | Unfocused Space and agent names, dialog hints |
+| `mauve` | `#c0fe04` | Accent | Focused Space branch and secondary tokens, help keybindings, the Resize mode badge background (black ink) |
+| `blue` | `#c0fe04` | Accent | The finished-notification dot (`client/shell/notifications.rs`), the leading Done category in the mobile summary |
+| `peach` | `#d79e52` | Warning | Stored but read by no Herdr 0.9.3 UI; set so no base value remains |
+
+The sidebar fragment's `sidebar_bg`, `active_row_bg` and `selection_bg` and the
+Spaces fragment's five state keys are unchanged; see
+[Spaces theme scope](#spaces-theme-scope) for their wider effects.
+
+### Theme trade-offs
+
+- Acid is the working color (`yellow`). `mauve` and `blue` reuse it for chrome
+  that does not mean working: branch tokens, help keys, the Resize badge and the
+  finished dot. Each keeps its own shape or text, so state is never read from
+  acid alone.
+- The signal orange is close in hue to critical `#f24723`, so the finished dot
+  stays acid rather than orange, apart from the red attention dot.
+- Pane text selection is computed by Herdr from the terminal background, or
+  from `panel_bg` when the terminal reports none (about `#474747` on black
+  either way, `ui/panes.rs`); no key sets it directly; `selection_bg`
+  is the sidebar cursor only.
+- `panel_bg` must stay dark: it is the ink on white, acid and red controls.
+- Programs in panes and the host terminal keep their own colors.
+
+### Theme contrast
+
+WCAG contrast ratios of the values, computed from the hex values, not measured
+on a display:
+
+| Pair | Ratio |
+| --- | --- |
+| `overlay1` `#ff5c00` on black / on `#1c1c1c` | 6.8:1 / 5.5:1 |
+| Black ink on the acid Resize badge | 17.4:1 |
+| White text on `surface1` `#4d1c00` | 14.2:1 |
+| `surface_dim` `#333333` on black | 1.7:1, decorative only: edges, dividers and tracks |
+
+Checked: the automated tests and Herdr's parser. Not checked: the theme in a
+running Herdr, other color depths, or the mobile layout.
