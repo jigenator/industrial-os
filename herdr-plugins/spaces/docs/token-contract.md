@@ -65,8 +65,11 @@ one U+2800 (15 for quiet), never an empty value that Herdr would clear.
 Quiet = not focused and time since activity ≥ 48 hours. Activity is workspace
 created; pane created/closed/agent detected; workspace, pane or tab focused;
 being focused at a recompute; or any pane working/blocked in `pane.list` at a
-recompute. Lifecycle wire names are snake_case and normalized to dotted internal
-names at the transport boundary. The pane-scoped `pane.agent_status_changed`
+recompute; or any Pi pane reporting `g2_au` of `01AU` or more (and no
+`g2_au0`) at a recompute, because Herdr tracks only Pi's root agent, which can be
+idle while its subagents run. Unknown or zero AU is not activity. Lifecycle
+wire names are snake_case and normalized to dotted internal names at the
+transport boundary. The pane-scoped `pane.agent_status_changed`
 subscription requires `pane_id` and is not subscribed; agent changes invalidate
 reads through `pane.updated`, while busy status is read authoritatively.
 `pane.updated` (including token updates), movement, renames and Git refresh
