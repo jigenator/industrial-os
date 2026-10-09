@@ -1,10 +1,10 @@
 # Agent guide
 
-Purpose: the Herdr configuration that renders Industrial OS in Herdr, the agents-sidebar fragment for the herdr-sidebar Pi extension and Spaces rows for the Spaces plugin; see [README.md](README.md). This project owns its standards and toolchain within the monorepo. Follow the [root guide](../AGENTS.md) as well.
+Purpose: the Herdr configuration that renders Industrial OS in Herdr, the agents-sidebar fragment for the herdr-sidebar Pi extension, Spaces rows for the Spaces plugin and the chrome theme; see [README.md](README.md). This project owns its standards and toolchain within the monorepo. Follow the [root guide](../AGENTS.md) as well.
 
 ## Critical engineering rules
 
-- Every color is a design-system value; the design system owns them. Change the design system first, then the fragment. Check: `test/sidebar.test.mjs` imports `@industrial-os/design-system/foundation/palette` and `signal-colors` by package name.
+- Every color is a design-system value; the design system owns them. Change the design system first, then the fragment. Check: `test/sidebar.test.mjs` and `test/theme.test.mjs` import `@industrial-os/design-system/foundation/palette` and `signal-colors` by package name.
 - Spaces keys/widths/meanings are owned by [the Spaces contract](../herdr-plugins/spaces/docs/token-contract.md); `test/spaces.test.mjs` reads its key list and checks theme roles.
 - Token names, widths and meanings are owned by [the token contract](../pi/herdr-sidebar/docs/token-contract.md) in pi/herdr-sidebar. Change the contract first, then the fragment. Check: `test/sidebar.test.mjs` reads the contract's key list and requires every key to have exactly one row entry.
 - Never modify a live Herdr configuration or server to check this project. `herdr config check` with `HERDR_CONFIG_PATH` on a file in this checkout or a temporary copy only reads it. Commands are in [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -25,6 +25,7 @@ Purpose: the Herdr configuration that renders Industrial OS in Herdr, the agents
 | --- | --- | --- |
 | Sidebar rows, rules, theme block, width lock | `sidebar.toml` | Herdr's config schema; design-system colors; contract tokens |
 | Spaces rows and state theme | `spaces.toml` | [Spaces contract](../herdr-plugins/spaces/docs/token-contract.md); global theme effects in design |
+| Chrome theme: the other 11 `[theme.custom]` keys | `theme.toml` | Herdr 0.9.3's 19 theme keys, each set by one fragment; design-system colors; [theme design](docs/design.md#theme) |
 | Checks | `test/` | Node's test runner; reads files, imports only the design-system package |
 | Token values or meanings | [pi/herdr-sidebar](../pi/herdr-sidebar/AGENTS.md) | Not here |
 
@@ -42,7 +43,7 @@ Use the [validation sequence](CONTRIBUTING.md#validation-sequence), then the [re
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Toolchain, commands, validation and records | Making or verifying any change |
 | [docs/architecture.md](docs/architecture.md) | Files, dependencies, flows and invariants | Changing what the configuration depends on or adding a file |
 | [docs/conventions.md](docs/conventions.md) | Project rules for configuration files and checks | Writing or reviewing configuration or checks |
-| [docs/design.md](docs/design.md) | The sidebar experience: layout B, states, colors, width | Changing anything a user sees in the sidebar |
+| [docs/design.md](docs/design.md) | The sidebar experience: layout B, states, colors, width; Spaces rows; the chrome theme | Changing anything a user sees in the sidebar or Herdr's chrome colors |
 | [Token contract](../pi/herdr-sidebar/docs/token-contract.md) | Canonical token names, widths and rules | Changing a row's tokens |
 | [Spaces contract](../herdr-plugins/spaces/docs/token-contract.md) | Canonical Spaces tokens and quiet/TTL rules | Changing Spaces rows |
 | [Root AGENTS](../AGENTS.md) | Shared rules and the repository guidance map | Working in this repository |

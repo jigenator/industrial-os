@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GLYPHS, paint, resolveColor, span } from './cells.mjs';
 import { ACID_BLACK } from './palette.mjs';
-import { SIGNAL_COLORS, mixOver } from './signal-colors.mjs';
+import { HERDR_CHROME, SIGNAL_COLORS, mixOver } from './signal-colors.mjs';
 
 test('signal colors are frozen lowercase #rrggbb values that paint as literal RGB', () => {
   assert.ok(Object.isFrozen(SIGNAL_COLORS));
@@ -30,6 +30,19 @@ test('mixOver mixes channels over black with ties up, and returns mirrored mixes
   assert.equal(mixOver(SIGNAL_COLORS.cld, 0.2), SIGNAL_COLORS.cldUsed);
   for (const bad of [-0.1, 1.1, Number.NaN, '0.5', undefined]) assert.throws(() => mixOver('accent', bad), RangeError, String(bad));
   for (const bad of ['acid', '#fff', 42, null]) assert.throws(() => mixOver(bad, 0.5), TypeError, String(bad));
+});
+
+test('Herdr chrome colors are frozen lowercase values: the signal orange equals cld, and its 30% mix over the field', () => {
+  assert.ok(Object.isFrozen(HERDR_CHROME));
+  assert.deepEqual(Object.keys(HERDR_CHROME), ['signalOrange', 'signalOrange30']);
+  for (const [name, hex] of Object.entries(HERDR_CHROME)) {
+    assert.match(hex, /^#[0-9a-f]{6}$/, name);
+    assert.equal(resolveColor(hex), hex);
+    assert.ok(!Object.hasOwn(ACID_BLACK, name) && !Object.hasOwn(SIGNAL_COLORS, name), name);
+  }
+  assert.equal(HERDR_CHROME.signalOrange, SIGNAL_COLORS.cld);
+  assert.equal(mixOver(HERDR_CHROME.signalOrange, 0.3), HERDR_CHROME.signalOrange30);
+  assert.equal(HERDR_CHROME.signalOrange30, '#4d1c00'); // 255 × 0.3 = 76.5 -> 0x4d, 92 × 0.3 = 27.6 -> 0x1c
 });
 
 test('every curated glyph is a single code point listed once', () => {
