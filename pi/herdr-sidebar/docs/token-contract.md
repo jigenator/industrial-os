@@ -53,11 +53,36 @@ At most one of these; otherwise no row-5 tokens.
 - Working with a phase: `g5` = phase code padded to 4 cells: waiting `WAI`, thinking `THK`, writing `WRT`, tools `read` `RD`, `edit` `ED`, `write` `WR`, `bash` `SH`, `web_search`/`fetch_content` `WB`, `subagent` `AG`, any other tool `TL`. `ev_act` = the target, or when there is none: `waiting`, `thinking`, `writing`, or the tool name. `ph_age` = time since `phase.since`, in pi-goal's format, right slot.
 - State `DNE`: `g5` = `RDY` + U+2800; `ev_rdy_text` = `finished`; `ph_age` = time since the subagents-finished flag was set when it is set, otherwise since `root.lastSettledAt` (absent when unknown).
 
+## ACT / MDL access decay
+
+Rows 3 and 4 alone decay by time since last access: **d0 < 1 hour,
+d1 ≥ 1 hour, d2 ≥ 4 hours, d3 ≥ 1 day**. Access means the pane is
+visible (its tab is the active tab of the focused workspace) or row 1 shows
+WRK or SUB; access refreshes continuously while either holds. QNS and BLK
+alone do not count as work. Unknown visibility or Herdr status is never
+guessed old: load starts at d0 and unknown inputs keep it at d0, refreshing
+the conservative access baseline. Returning to known inactivity starts aging
+from that baseline. The timestamp is memory only and resets on `/reload`,
+Pi restart or session replacement.
+
+The eight key families are `g3 br br_dirty dir prn prn_off g4 mthink`.
+At d0 use the unchanged base key; at later stages use `<key>_d1`,
+`<key>_d2` or `<key>_d3`. Exactly one variant of an applicable family
+is set; all others are cleared. Absent values keep all variants absent.
+Text, cell widths, padding and the dirty `*` are identical at every stage.
+Only the key and its configured color change, including the amber dirty branch.
+Rows 1, 2 and 5+ never decay. Colors are specified by
+[the Herdr design](../../../herdr/docs/design.md#access-decay).
+Herdr's configured-row limit is also 16 entries: ACT uses two mutually exclusive physical rows (d0+d1, d2+d3), each 12 entries, and empty rows are dropped without extra gaps; MDL uses one eight-entry row. The Pi layout has eight configured rows, within the 16-row limit.
+
+Thresholds have one executable source, `DECAY_THRESHOLDS_MS` in
+`src/tokens.ts`; the existing render timeout schedules the next boundary.
+
 ## Reporting
 
-Every report sets the applicable keys and clears the rest of this list in the same batch, so stale keys never linger. Herdr limits: 32 tokens per pane, 16 per request, 80 characters per value.
+Every report sets the applicable keys and clears the rest of this list across bounded requests (clears first), so stale keys never linger. Herdr limits: 32 tokens per pane, 16 per request, 80 characters per value. The 52-key contract is not 52 stored tokens: at most 15 are simultaneously applicable, and null clears remove stored keys. Other reporters share the pane's 32-token budget.
 
-Full key list: `g1 proj proj_idle gt gt_off g2_au g2_au0 bar bar_warn bar_crit bar_idle bar_unk cmpx g3 br br_dirty dir prn prn_off g4 mthink g5 ev_act ask_l1 ask_l2 ask_l3 ev_rdy_text ph_age` (28 keys).
+Full key list: `g1 proj proj_idle gt gt_off g2_au g2_au0 bar bar_warn bar_crit bar_idle bar_unk cmpx g3 br br_dirty dir prn prn_off g4 mthink g5 ev_act ask_l1 ask_l2 ask_l3 ev_rdy_text ph_age g3_d1 br_d1 br_dirty_d1 dir_d1 prn_d1 prn_off_d1 g4_d1 mthink_d1 g3_d2 br_d2 br_dirty_d2 dir_d2 prn_d2 prn_off_d2 g4_d2 mthink_d2 g3_d3 br_d3 br_dirty_d3 dir_d3 prn_d3 prn_off_d3 g4_d3 mthink_d3` (52 keys).
 
 ## How the builder resolves what the contract leaves open
 

@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { load, tui } from "./host.ts";
 
-const { TOKEN_KEYS, BLANK, buildTokens, nextTokenChange, nextSubagentsFinishedAt, formatDuration, shortModel, wrapQuestion, cut, fitLeft, rightSlot, clean } = await load("src/tokens.ts");
+const { TOKEN_KEYS, DECAY_FAMILIES, DECAY_THRESHOLDS_MS, decayStage, decayKey, nextLastAccessAt, BLANK, buildTokens, nextTokenChange, nextSubagentsFinishedAt, formatDuration, shortModel, wrapQuestion, cut, fitLeft, rightSlot, clean } = await load("src/tokens.ts");
 const { readSnapshot } = await load("src/snapshot.ts");
 const width = (text: string) => tui.visibleWidth(text);
 const B = BLANK;
@@ -35,7 +35,7 @@ test("the key list matches the canonical contract document", async () => {
 	assert.ok(line, "docs/token-contract.md states the full key list");
 	assert.deepEqual([...TOKEN_KEYS], line[1].split(" "));
 	assert.equal(TOKEN_KEYS.length, Number(line[2]));
-	assert.equal(TOKEN_KEYS.length, 28);
+	assert.equal(TOKEN_KEYS.length, 52);
 });
 
 test("the spike's verified rows: state, fitted project and goal time; bar and CMP", () => {
@@ -451,4 +451,80 @@ test("README bounds Herdr compatibility and records token egress and partial-rep
 	assert.match(readme, /Tested with Herdr 0\.9\.3/); assert.doesNotMatch(readme, /0\.9\.3 or newer/);
 	assert.match(readme, /first line of bash commands and tool paths[\s\S]*in-memory pane tokens as `ev_act`/);
 	assert.match(readme, /half-applied for up to one retry interval/);
+});
+
+test("access decay boundaries: 59m59s, 1h, 4h, 24h and next boundary", () => {
+	assert.deepEqual(DECAY_THRESHOLDS_MS, [3_600_000, 14_400_000, 86_400_000]);
+	const base = { snapshot: snap(), herdr: "idle", visible: false, lastAccessAt: NOW, home: HOME };
+	for (const [elapsed, stage, due] of [
+		[3_599_000, 0, 3_600_000], [3_600_000, 1, 14_400_000],
+		[14_399_999, 1, 14_400_000], [14_400_000, 2, 86_400_000],
+		[86_399_999, 2, 86_400_000], [86_400_000, 3, null],
+	]) {
+		const input = { ...base, now: NOW + elapsed };
+		assert.equal(decayStage(input), stage);
+		assert.equal(nextTokenChange(input), due === null ? null : NOW + due);
+	}
+	assert.equal(decayStage({ ...base, now: NOW - 1000 }), 0, "backwards clock");
+});
+
+test("access refresh: seen, WRK and SUB continuously refresh; unknown remains d0; QNS/BLK alone do not", () => {
+	const base = { snapshot: snap(), herdr: "idle", visible: false, lastAccessAt: NOW - 86_400_000, now: NOW, home: HOME };
+	for (const change of [{ visible: true }, { herdr: "working" }, { snapshot: snap({ units: 1 }) }, { visible: null }, { visible: undefined }, { herdr: null }, { herdr: "unknown" }]) {
+		const input = { ...base, ...change };
+		assert.equal(nextLastAccessAt(input), NOW);
+		assert.equal(nextLastAccessAt({ ...input, now: NOW + 1_000_000 }), NOW + 1_000_000);
+		assert.equal(decayStage(input), 0);
+		assert.equal(nextTokenChange(input), null);
+	}
+	for (const change of [{ herdr: "blocked" }, { snapshot: snap({ question: { text: "Go?", more: 0 } }) }]) {
+		assert.equal(nextLastAccessAt({ ...base, ...change }), base.lastAccessAt);
+		assert.equal(decayStage({ ...base, ...change }), 3);
+	}
+	assert.equal(nextLastAccessAt({ ...base, lastAccessAt: undefined }), NOW, "load baseline");
+	// A long access interval ends now, not at the last event hours ago.
+	const accessed = nextLastAccessAt({ ...base, visible: true });
+	assert.equal(decayStage({ ...base, lastAccessAt: accessed, now: NOW + 3_599_999 }), 0);
+	assert.equal(decayStage({ ...base, lastAccessAt: accessed, now: NOW + 3_600_000 }), 1);
+});
+
+test("all eight decay families select one variant with identical text/width; other rows are unchanged", () => {
+	const cases = [
+		snap({ pr: { kind: "open", number: 42 } }),
+		snap({ pr: { kind: "unavailable" }, workspace: null }),
+		snap({ workspace: { git: { kind: "repository", active: { branch: "a-long-dirty-branch-that-is-cut", dirty: true } }, github: { kind: "repository" } }, pr: { kind: "open", number: 7 } }),
+		snap({ model: null, active: null, workspace: null, pr: null }),
+	];
+	const covered = new Set();
+	for (const snapshot of cases) {
+		const base = { snapshot, herdr: "idle", visible: false, lastAccessAt: NOW, now: NOW, home: HOME };
+		const fresh = buildTokens(base);
+		for (const [stage, elapsed] of [[0, 0], [1, 3_600_000], [2, 14_400_000], [3, 86_400_000]]) {
+			const tokens = buildTokens({ ...base, now: NOW + elapsed });
+			const unchanged = { ...tokens };
+			for (const key of DECAY_FAMILIES) {
+				for (const s of [0, 1, 2, 3]) {
+					const variant = decayKey(key, s);
+					assert.equal(tokens[variant], s === stage ? fresh[key] : undefined, variant);
+					delete unchanged[variant];
+				}
+				if (fresh[key] !== undefined) { covered.add(key); assert.equal(width(tokens[decayKey(key, stage)]), width(fresh[key])); }
+			}
+			const other = { ...fresh }; for (const key of DECAY_FAMILIES) delete other[key];
+			assert.deepEqual(unchanged, other);
+			assert.ok(Object.keys(tokens).length <= 15);
+		}
+	}
+	assert.deepEqual([...covered].sort(), [...DECAY_FAMILIES].sort());
+});
+
+test("the maximal applicable snapshot stores 15 tokens, not the 52-key contract", () => {
+	const snapshot = snap({
+		pr: { kind: "open", number: 42 }, goal: { status: "paused", usedSeconds: 12 },
+		question: { text: "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen", more: 1 },
+	});
+	for (const elapsed of [0, 3_600_000, 14_400_000, 86_400_000]) {
+		const tokens = buildTokens({ snapshot, herdr: "idle", visible: false, lastAccessAt: NOW, now: NOW + elapsed, home: HOME });
+		assert.equal(Object.keys(tokens).length, 15);
+	}
 });

@@ -18,11 +18,11 @@ Scope reviewed: the complete source and tests at the revision that added the pro
 
 ## Functions and state
 
-**Rule:** `buildTokens` and `nextTokenChange` are pure functions of their input; the clock, home directory and Herdr state are arguments. **Check:** `test/tokens.test.ts` passes fixed times.
+**Rule:** `buildTokens`, `nextTokenChange`, `nextLastAccessAt` and `decayStage` are pure functions of their input; the clock, home directory, last-access timestamp and Herdr state are arguments. Decay thresholds live only in `DECAY_THRESHOLDS_MS` in `src/tokens.ts`; runtime state is memory only. **Check:** `test/tokens.test.ts` passes fixed times.
 
 **Rule:** one runtime per session owns every subscription, connection and timer, and `dispose` releases them all on shutdown, reload and replacement. Asynchronous callbacks check that their runtime is still current. Timers are unref'd; the status socket is unref'd. **Check:** `test/extension.test.ts` asserts no request and no subscription after shutdown.
 
-**Rule:** time-based values re-render only when their text would change, and at most once a second. **Check:** the timing case in `test/extension.test.ts`.
+**Rule:** the render timeout follows the next displayed text or decay-key change, at most once a second. Existing TTL renewal also refreshes ongoing access; decay adds no polling interval. **Check:** the timing case in `test/extension.test.ts`.
 
 ## Types and validation
 

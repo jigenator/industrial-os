@@ -20,6 +20,14 @@ Unknown values show as unknown (`??AU`, `--%`, `CMP×??`), never as zero. The ex
 
 The extension only displays. It reads the snapshot that the separate signals-collector extension publishes inside Pi, and Herdr's own agent status and SPACE label for its pane; it runs no Git, GitHub or CodexBar command and reads no session file. It also reports the question wait to Herdr's blocked state, which rpiv's ask-user-question did before.
 
+ACT and MDL alone fade after 1 hour, 4 hours and 1 day without access.
+Access means visible in the focused workspace's active tab or row 1 showing
+WRK/SUB; unknown visibility/status stays fresh. The dirty branch fades too,
+but text, widths and all other rows stay unchanged. Age is memory only and
+resets on `/reload` or Pi restart. See [the design](docs/design.md).
+Update the reporter and the complete Pi row override together; an old fragment
+cannot render the new stage keys.
+
 ## Install
 
 It needs Pi, Node.js 22.19 or newer, and Herdr with the [sidebar configuration](../../herdr/README.md) merged into Herdr's config. Tested with Herdr 0.9.3. For collected values beyond Herdr state/SPACE it needs the signals-collector extension, in either load order. Without the configuration Herdr ignores the tokens; without the collector the sidebar shows the state row, SPACE name when available, and unknown values.

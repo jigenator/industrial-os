@@ -4,7 +4,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { herdrRequest, watchPaneState, type HerdrTarget } from "./herdr-client.ts";
 import { createTokenSender } from "./sender.ts";
 import { READY_CHANNEL, REQUEST_CHANNEL, SNAPSHOT_CHANNEL, readSnapshot, type SidebarSnapshot } from "./snapshot.ts";
-import { buildTokens, nextSubagentsFinishedAt, nextTokenChange, type HerdrStatus, type SidebarInput } from "./tokens.ts";
+import { buildTokens, nextLastAccessAt, nextSubagentsFinishedAt, nextTokenChange, type HerdrStatus, type SidebarInput } from "./tokens.ts";
 
 // The blocked-state signal Herdr's Pi integration (herdr-agent-state.ts) counts: one true per question wait, one false.
 export const BLOCKED_CHANNEL = "herdr:blocked";
@@ -28,6 +28,7 @@ type Runtime = {
 	subagentsFinishedAt: number | null;
 	question: boolean;
 	lastRender: number;
+	lastAccessAt: number;
 	timer?: NodeJS.Timeout;
 	dispose(): Promise<void>;
 };
@@ -35,13 +36,21 @@ type Runtime = {
 export default function herdrSidebar(pi: ExtensionAPI) {
 	let runtime: Runtime | undefined;
 
+	const inputAt = (r: Runtime, now: number): SidebarInput => ({
+		snapshot: r.snapshot, herdr: r.herdr, workspaceLabel: r.workspaceLabel, visible: r.visible,
+		lastAccessAt: r.lastAccessAt, subagentsFinishedAt: r.subagentsFinishedAt, now, home: homedir(),
+	});
+	// Capture the end of a seen/working/unknown interval before changing its inputs.
+	const updateAccess = (r: Runtime) => { r.lastAccessAt = nextLastAccessAt(inputAt(r, Date.now())); };
+
 	function render(r: Runtime, send: (tokens: ReturnType<typeof buildTokens>) => void) {
 		if (runtime !== r) return;
 		if (r.timer) clearTimeout(r.timer);
 		r.timer = undefined;
 		const now = Date.now();
 		r.lastRender = now;
-		const input: SidebarInput = { snapshot: r.snapshot, herdr: r.herdr, workspaceLabel: r.workspaceLabel, subagentsFinishedAt: r.subagentsFinishedAt, now, home: homedir() };
+		r.lastAccessAt = nextLastAccessAt(inputAt(r, now));
+		const input = inputAt(r, now);
 		send(buildTokens(input));
 		const due = nextTokenChange(input);
 		if (due === null) return;
@@ -71,12 +80,16 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 			paneId: target.paneId,
 			request: (params, timeoutMs) => herdrRequest(target.socketPath, "pane.report_metadata", { ...params, pane_id: watch?.paneId ?? target.paneId }, timeoutMs),
 			// Herdr changes an automatic SPACE label without an event; re-read it with each renewal.
-			onRenew: () => watch?.refresh(),
+			onRenew: () => {
+				// Also refresh access even when watch inputs have not changed; no extra interval.
+				if (runtime === r) render(r, send);
+				watch?.refresh();
+			},
 		});
 		const send = (tokens: ReturnType<typeof buildTokens>) => sender.update(tokens);
 		const unsubscribe: (() => void)[] = [];
 		const r: Runtime = {
-			sessionId: ctx.sessionManager.getSessionId(), snapshot: null, herdr: null, workspaceLabel: null, visible: null, subagentsFinishedAt: null, question: false, lastRender: 0,
+			sessionId: ctx.sessionManager.getSessionId(), snapshot: null, herdr: null, workspaceLabel: null, visible: null, subagentsFinishedAt: null, question: false, lastRender: 0, lastAccessAt: Date.now(),
 			async dispose() {
 				if (r.timer) clearTimeout(r.timer);
 				r.timer = undefined;
@@ -93,6 +106,7 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 			// Pushes arrive in order; a reply to a request is the collector's current snapshot whatever its seq.
 			if (!snapshot || (!requested && r.snapshot && snapshot.seq <= r.snapshot.seq)) return;
 			const previousUnits = r.snapshot?.units ?? null;
+			updateAccess(r);
 			r.snapshot = snapshot;
 			updateFinished(r, previousUnits);
 			setQuestion(r, snapshot.question !== null);
@@ -106,6 +120,7 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 		}));
 		watch = watchPaneState(target, (state) => {
 			if (runtime !== r) return;
+			updateAccess(r);
 			r.herdr = state.status;
 			r.workspaceLabel = state.workspaceLabel;
 			r.visible = state.visible;
