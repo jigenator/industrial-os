@@ -4,6 +4,14 @@ Herdr configuration that belongs to Industrial OS. The agents fragment is [sideb
 
 Status: checked by its own test and by Herdr 0.9.3's config parser; no interactive check of this file in a running Herdr has been recorded. The layout was verified live on 2026-10-08 with an equivalent spike configuration.
 
+ACT and MDL alone fade after 1 hour, 4 hours and 1 day without access.
+Access means visible in the focused workspace's active tab or row 1 showing
+WRK/SUB; unknown visibility/status stays fresh. The dirty branch fades too,
+but text, widths and all other rows stay unchanged. Age is memory only and
+resets on `/reload` or Pi restart. See [the design](docs/design.md).
+Update the reporter and the complete Pi row override together; an old fragment
+cannot render the new stage keys.
+
 ## Install
 
 Herdr has no config includes, so merge the fragment into your own config by hand. Herdr reads `~/.config/herdr/config.toml` unless `HERDR_CONFIG_PATH` names another file.

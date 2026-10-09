@@ -45,13 +45,44 @@ Every color is a design-system value. Bold marks the readings that matter most.
 
 The theme block sets the sidebar field black (`sidebar_bg`) and the focused and selected rows to the surface grey (`active_row_bg`, `selection_bg`).
 
+## Access decay
+
+ACT and MDL alone fade by time since last access, as
+[the contract](../../pi/herdr-sidebar/docs/token-contract.md#act--mdl-access-decay)
+defines. Visible panes and WRK/SUB refresh access; unknown stays d0.
+`/reload` or Pi restart resets the memory-only timestamp.
+
+| Stage | Age | Labels `g3`/`g4` | Values `br`/`dir`/`prn`/`mthink` | `br_dirty` | `prn_off` |
+| --- | --- | --- | --- | --- | --- |
+| d0 | < 1h | decorative `#717171` | secondary `#cfcfcf` | warning `#d79e52` | ghost `#333333` |
+| d1 | ≥ 1h | structural `#555555` | decorative `#717171` | decorative `#717171` | ghost |
+| d2 | ≥ 4h | ghost `#333333` | structural `#555555` | structural `#555555` | ghost |
+| d3 | ≥ 1d | ghost `#333333` | ghost `#333333` | ghost `#333333` | ghost |
+
+At d0 the unchanged base keys retain today's rendering. Later stages use
+`_d1`/`_d2`/`_d3`; absent variants disappear with their separators.
+Text, padding, width and the dirty star do not change. Everything on these
+rows fades, including dirty-branch amber; Herdr's ` · ` stays theme overlay0.
+The state/title/SPACE/goal, AU/context/CMP and phase/question/finished rows
+never decay. Faint ACT/MDL values are historical detail, not a new state code.
+
+Herdr 0.9.3 permits at most 16 configured entries per row, so the ACT logical
+row has two mutually exclusive physical rows: d0+d1 and d2+d3 (12 entries
+each). MDL has eight entries in one physical row. The Pi override has eight
+configured rows but still at most seven rendered rows: Herdr drops empty rows
+before rendering. There is no extra blank row or gap for the inactive ACT
+alternative. Source: `src/ui/sidebar/tokens.rs::agent_rows` filters empties;
+`src/client/shell/agent_sidebar.rs` applies `row_gap` between pane blocks,
+not between configured token rows. Native parser checks and modeled row
+resolution tests are recorded separately from live rendering evidence.
+
 ## States
 
 Every state is readable without color: the state code and shape in row 1 (`× QNS`, `× BLK`, `◐ WRK`, `◐ SUB`, `✓ DNE`, `○ IDL`, `· UNK`; `SUB` shares `WRK`'s shape and accent, and its code tells it apart), `*` on a changed branch, `--%`, `??` and `#?` for unknowns. Color adds emphasis only. The meanings are in [herdr-sidebar's design](../../pi/herdr-sidebar/docs/design.md#states).
 
 ## Accessibility and limits
 
-- Ghost grey on black is deliberately faint, for paused or unavailable values; it is not used for anything that needs reading at a glance.
+- Ghost grey on black is deliberately faint, for paused, unavailable or decayed ACT/MDL values; it is not used for anything that needs reading at a glance.
 - Pi panes without herdr-sidebar show no Industrial OS rows; other agents retain their configured/default layouts.
 - The collapsed and mobile sidebars keep Herdr's compact layouts.
 - Checked: Herdr's parser accepts the file. Not checked: this file in a running Herdr, other color depths, or ambiguous-width glyph settings.

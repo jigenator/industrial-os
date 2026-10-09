@@ -94,3 +94,59 @@ test('g1 colors every contract state code: WRK and SUB accent, BLK and QNS criti
   assert.deepEqual(rules, expected);
   for (const code of codes) assert.ok(code in rules || code === 'IDL' || code === 'UNK', `${code} has a color role`);
 });
+
+test('ACT and MDL variants follow the complete access-decay color ladder in their original rows', () => {
+  // Row boundaries precede the comments in the source; stages must not become separate rendered rows.
+  const row3a = /# Row 3a:[\s\S]*?\n  \[([\s\S]*?)\n  \],/.exec(fragment);
+  const row3b = /# Row 3b:[\s\S]*?\n  \[([\s\S]*?)\n  \],/.exec(fragment);
+  const row4 = /# Row 4:[\s\S]*?\n  \[([\s\S]*?)\n  \],/.exec(fragment);
+  assert.ok(row3a && row3b && row4);
+  const families = ['g3', 'br', 'br_dirty', 'dir', 'prn', 'prn_off', 'g4', 'mthink'];
+  for (const key of families) for (const stage of [0, 1, 2, 3]) {
+    const name = key + (stage ? `_d${stage}` : '');
+    const row = key === 'g4' || key === 'mthink' ? row4[1] : stage < 2 ? row3a[1] : row3b[1];
+    const entry = new RegExp(`\\{\\s*token\\s*=\\s*"\\$${name}"([^}]+)\\}`).exec(row);
+    assert.ok(entry, `${name} stays on the original row`);
+    const labels = key === 'g3' || key === 'g4';
+    const color = key === 'prn_off' || stage === 3 ? SIGNAL_COLORS.ghost
+      : labels ? [ACID_BLACK.decorative, ACID_BLACK.structural, SIGNAL_COLORS.ghost][stage]
+      : stage === 0 ? (key === 'br_dirty' ? ACID_BLACK.warning : ACID_BLACK.secondary)
+      : [null, ACID_BLACK.decorative, ACID_BLACK.structural][stage];
+    assert.match(entry[1], new RegExp(`fg\\s*=\\s*"${color}"`));
+    assert.doesNotMatch(entry[1], /bold|rules|dim/);
+  }
+  assert.equal([...row3a[1].matchAll(/token\s*=/g)].length, 12);
+  assert.equal([...row3b[1].matchAll(/token\s*=/g)].length, 12);
+  assert.equal([...row4[1].matchAll(/token\s*=/g)].length, 8);
+});
+
+// This maintained fragment has one token per line (except question continuation rows); braces in rules
+// are not rows. Capture arrays by the same two-space row indentation used by sidebar.toml.
+const configuredRows = () => [...piRows().matchAll(/^  \[([^\n]*\]|[\s\S]*?^  \])/gm)]
+  .map((match) => [...match[1].matchAll(/token\s*=\s*"\$([A-Za-z0-9_-]+)"/g)].map((token) => token[1]));
+
+test('Pi layout and every configured row fit Herdr 0.9.3 limits (16 rows, 16 entries)', () => {
+  const rows = configuredRows();
+  assert.equal(rows.length, 8);
+  assert.equal(rows.flat().length, keyList().length, 'row scan includes every entry');
+  assert.ok(rows.length <= 16);
+  for (const row of rows) assert.ok(row.length <= 16, row.join(' '));
+});
+
+test('exactly one ACT alternative resolves at every stage, with unchanged text order and no empty-row gap', () => {
+  const rows = configuredRows();
+  const actRows = rows.filter((row) => row.some((key) => /^g3(?:_d[123])?$/.test(key)));
+  assert.equal(actRows.length, 2);
+  // Model v0.9.3 src/ui/sidebar/tokens.rs::agent_rows: absent tokens and empty rows are filtered.
+  // src/client/shell/agent_sidebar.rs: row_gap is between AgentRow blocks, not configured token rows.
+  for (const stage of [0, 1, 2, 3]) {
+    const suffix = stage ? `_d${stage}` : '';
+    for (const middle of ['br', 'br_dirty', 'dir']) for (const right of ['prn', 'prn_off', null]) {
+      const expected = ['g3', middle, ...(right ? [right] : [])].map((key) => key + suffix);
+      const present = new Set(expected);
+      const resolved = actRows.map((row) => row.filter((key) => present.has(key))).filter((row) => row.length);
+      assert.deepEqual(resolved, [expected], `d${stage} ${middle} ${right}`);
+    }
+  }
+  assert.deepEqual(actRows.map((row) => row.filter(() => false)).filter((row) => row.length), []);
+});

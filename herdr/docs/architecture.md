@@ -28,7 +28,7 @@ No code is shared. The check imports the design system only by package name, as 
 
 ## Flow
 
-A person merges the fragment into Herdr's `config.toml` and reloads. Herdr's client selects the `rows_by_agent.pi` override for canonical agent ID `pi` (replacing, not extending, its base rows), leaving other agents on their configured/default rows; the herdr-sidebar extension in each Pi pane reports token values; Herdr draws each row from the values present, dropping missing tokens and their separators and any row left empty. Styling lives only here; values live only in the extension.
+A person merges the fragment into Herdr's `config.toml` and reloads. Herdr's client selects the `rows_by_agent.pi` override for canonical agent ID `pi` (replacing, not extending, its base rows), leaving other agents on their configured/default rows; the herdr-sidebar extension in each Pi pane reports token values; Herdr draws each row from the values present, dropping missing tokens and their separators and any row left empty. Styling lives only here; values live only in the extension. ACT has two mutually exclusive configured rows (d0+d1 and d2+d3), each 12 entries, because Herdr 0.9.3 caps a row at 16 entries. The Pi layout is eight of the maximum 16 configured rows. Empty row filtering (`src/ui/sidebar/tokens.rs`) precedes pane-block rendering; `row_gap` in `src/client/shell/agent_sidebar.rs` separates pane blocks only, so the inactive ACT row adds no gap. MDL fits eight variants in one row. The reporter selects stage variants, keeping the visible logical layout unchanged.
 
 ## Critical invariants
 
@@ -36,6 +36,7 @@ A person merges the fragment into Herdr's `config.toml` and reloads. Herdr's cli
 | --- | --- |
 | Every color is an exported design-system color | `test/sidebar.test.mjs` |
 | Every token is in the contract key list, and every key has one row entry | `test/sidebar.test.mjs` |
+| The configured rows fit Herdr's 16-row/16-entry limits; exactly one ACT alternative resolves per stage | `test/sidebar.test.mjs`; native parser |
 | Only `rows_by_agent.pi` is set; global `rows` is absent | `test/sidebar.test.mjs` |
 | The width is locked at 36 columns with `row_gap = 1` | `test/sidebar.test.mjs` |
 | The fragment is a valid Herdr config by itself | `herdr config check` in [contributing](../CONTRIBUTING.md#validation-sequence) |

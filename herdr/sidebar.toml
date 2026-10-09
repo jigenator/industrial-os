@@ -40,17 +40,48 @@ pi = [
     { token = "$bar_unk", fg = "#333333" },            # ghost
     { token = "$cmpx", fg = "#555555", bold = true, rules = [{ equals = "CMP×01", fg = "#5200ff" }, { equals = "CMP×02", fg = "#5200ff" }, { equals = "CMP×03", fg = "#ff15bd" }, { equals = "CMP×04", fg = "#ff15bd" }, { equals = "CMP×00", fg = "#555555" }, { starts_with = "CMP×?", fg = "#555555" }, { starts_with = "CMP×", fg = "#f24723" }] },
   ],
-  # Row 3: branch or directory, pull request.
+  # Rows 3/4: access decay d0, d1 (1h), d2 (4h), d3 (1d); one variant per family.
+  # Row 3a: ACT d0/d1. Herdr drops the empty alternative (16 entries max per row).
   [
-    { token = "$g3", fg = "#717171" },       # decorative
-    { token = "$br", fg = "#cfcfcf" },       # secondary
+    { token = "$g3", fg = "#717171" }, # decorative
+    { token = "$g3_d1", fg = "#555555" }, # structural
+    { token = "$br", fg = "#cfcfcf" }, # secondary
+    { token = "$br_d1", fg = "#717171" }, # decorative
     { token = "$br_dirty", fg = "#d79e52" }, # warning
-    { token = "$dir", fg = "#cfcfcf" },      # secondary
-    { token = "$prn", fg = "#cfcfcf" },      # secondary
-    { token = "$prn_off", fg = "#333333" },  # ghost: lookup unavailable
+    { token = "$br_dirty_d1", fg = "#717171" }, # decorative
+    { token = "$dir", fg = "#cfcfcf" }, # secondary
+    { token = "$dir_d1", fg = "#717171" }, # decorative
+    { token = "$prn", fg = "#cfcfcf" }, # secondary
+    { token = "$prn_d1", fg = "#717171" }, # decorative
+    { token = "$prn_off", fg = "#333333" }, # ghost: lookup unavailable
+    { token = "$prn_off_d1", fg = "#333333" }, # ghost: lookup unavailable
+  ],
+  # Row 3b: ACT d2/d3; identical geometry, mutually exclusive with row 3a.
+  [
+    { token = "$g3_d2", fg = "#333333" }, # ghost
+    { token = "$g3_d3", fg = "#333333" }, # ghost
+    { token = "$br_d2", fg = "#555555" }, # structural
+    { token = "$br_d3", fg = "#333333" }, # ghost
+    { token = "$br_dirty_d2", fg = "#555555" }, # structural
+    { token = "$br_dirty_d3", fg = "#333333" }, # ghost
+    { token = "$dir_d2", fg = "#555555" }, # structural
+    { token = "$dir_d3", fg = "#333333" }, # ghost
+    { token = "$prn_d2", fg = "#555555" }, # structural
+    { token = "$prn_d3", fg = "#333333" }, # ghost
+    { token = "$prn_off_d2", fg = "#333333" }, # ghost: lookup unavailable
+    { token = "$prn_off_d3", fg = "#333333" }, # ghost: lookup unavailable
   ],
   # Row 4: model and thinking level.
-  [{ token = "$g4", fg = "#717171" }, { token = "$mthink", fg = "#cfcfcf" }],
+  [
+    { token = "$g4", fg = "#717171" }, # decorative
+    { token = "$g4_d1", fg = "#555555" }, # structural
+    { token = "$g4_d2", fg = "#333333" }, # ghost
+    { token = "$g4_d3", fg = "#333333" }, # ghost
+    { token = "$mthink", fg = "#cfcfcf" }, # secondary
+    { token = "$mthink_d1", fg = "#717171" }, # decorative
+    { token = "$mthink_d2", fg = "#555555" }, # structural
+    { token = "$mthink_d3", fg = "#333333" }, # ghost
+  ],
   # Row 5: phase, question or finished, and its age; then the question's continuation rows.
   [
     { token = "$g5", fg = "#717171" },                  # decorative
