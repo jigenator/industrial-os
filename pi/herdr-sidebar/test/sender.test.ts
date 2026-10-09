@@ -7,7 +7,7 @@ import { startFakeHerdr, until } from "./fake-herdr.ts";
 
 const { createTokenSender, nextSeq, SOURCE } = await load("src/sender.ts");
 const { herdrRequest } = await load("src/herdr-client.ts");
-const { TOKEN_KEYS } = await load("src/tokens.ts");
+const { TOKEN_KEYS, DECAY_FAMILIES, decayKey } = await load("src/tokens.ts");
 
 async function setup(t: any, options: Record<string, unknown> = {}) {
 	const herdr = await startFakeHerdr();
@@ -27,7 +27,7 @@ test("the first report sets the applicable keys and clears every other key, 16 k
 	sender.update(FIRST);
 	await until(() => sender.state.synced, "first report");
 	const reports = herdr.reports();
-	assert.equal(reports.length, 2);
+	assert.equal(reports.length, 4);
 	const keys = reports.flatMap((r) => Object.keys(r.params.tokens));
 	assert.deepEqual([...keys].sort(), [...TOKEN_KEYS].sort());
 	for (const r of reports) {
@@ -41,7 +41,7 @@ test("the first report sets the applicable keys and clears every other key, 16 k
 	assert.ok(values.indexOf(null) === 0 && values.lastIndexOf(null) < values.findIndex((value) => value !== null), "clears precede sets");
 	// The stale key is gone; a key outside the list is left to its owner.
 	assert.deepEqual(map(herdr.tokens), sorted({ ...FIRST, summary: "another reporter's token" }));
-	assert.equal(sender.state.accepted, 2);
+	assert.equal(sender.state.accepted, 4);
 });
 
 test("later reports send only what changed, clear keys that stopped applying, and send nothing when nothing changed", async (t) => {
@@ -64,19 +64,19 @@ test("rapid updates coalesce: one request in flight, then the latest state", asy
 	sender.update(FIRST);
 	for (let n = 0; n < 20; n++) sender.update({ ...FIRST, proj: `p${n}` });
 	await until(() => sender.state.synced && herdr.tokens.get("proj") === "p19", "latest state");
-	assert.ok(herdr.reports().length <= 4, `${herdr.reports().length} requests`);
+	assert.ok(herdr.reports().length <= 5, `${herdr.reports().length} requests`);
 });
 
 test("the TTL is renewed with a full report well before it expires", async (t) => {
 	const { herdr, sender } = await setup(t, { ttlMs: 600, renewMs: 120 });
 	sender.update(FIRST);
-	await until(() => herdr.reports().length >= 6, "two renewals");
+	await until(() => herdr.reports().length >= 12, "two renewals");
 	const reports = herdr.reports();
 	for (const r of reports) assert.equal(r.params.ttl_ms, 600);
 	// Each renewal is a full report: every key set again or cleared.
-	const renewal = reports.slice(2, 4).flatMap((r) => Object.keys(r.params.tokens));
-	assert.equal(renewal.length, 28);
-	assert.ok(reports[2].at - reports[0].at >= 100 && reports[2].at - reports[0].at < 600);
+	const renewal = reports.slice(4, 8).flatMap((r) => Object.keys(r.params.tokens));
+	assert.equal(renewal.length, TOKEN_KEYS.length);
+	assert.ok(reports[4].at - reports[0].at >= 100 && reports[4].at - reports[0].at < 600);
 });
 
 test("each TTL renewal calls onRenew, so unannounced inputs are re-read on the same cycle; none after shutdown", async (t) => {
@@ -84,8 +84,8 @@ test("each TTL renewal calls onRenew, so unannounced inputs are re-read on the s
 	const { herdr, sender } = await setup(t, { ttlMs: 600, renewMs: 80, onRenew: () => { renewals++; } });
 	sender.update(FIRST);
 	await until(() => renewals >= 2, "two renewals");
-	// A full report is two requests (28 keys, 16 per request): the first, then one per renewal.
-	await until(() => herdr.reports().length >= 2 * (renewals + 1), "a full report per renewal");
+	// A full report is four requests (52 keys, 16 per request): the first, then one per renewal.
+	await until(() => herdr.reports().length >= 4 * (renewals + 1), "a full report per renewal");
 	await sender.shutdown(); const count = renewals;
 	await new Promise((done) => setTimeout(done, 200));
 	assert.equal(renewals, count);
@@ -118,8 +118,8 @@ test("shutdown stops reporting and clears every key, bounded even when Herdr doe
 	await until(() => sender.state.synced, "first report");
 	await sender.shutdown();
 	assert.equal(herdr.tokens.size, 0);
-	const clears = herdr.reports().slice(-2).flatMap((r) => Object.entries(r.params.tokens));
-	assert.equal(clears.length, 28);
+	const clears = herdr.reports().slice(-4).flatMap((r) => Object.entries(r.params.tokens));
+	assert.equal(clears.length, TOKEN_KEYS.length);
 	assert.ok(clears.every(([, value]) => value === null));
 	const count = herdr.reports().length;
 	sender.update(FIRST);
@@ -149,7 +149,7 @@ test("reload safety: a replaced runtime's late clear is ignored, and every runti
 	await until(() => late.state.synced, "held runtime");
 	held.length = 0;
 	await late.shutdown();
-	assert.equal(held.length, 2);
+	assert.equal(held.length, 4);
 	const replacement = createTokenSender({ paneId: herdr.paneId, request: live });
 	t.after(() => replacement.shutdown());
 	replacement.update({ ...FIRST, proj: "new" });
@@ -211,4 +211,35 @@ test("success of the first batch does not reset backoff when every second batch 
 	t.mock.timers.tick(5000); await settle(); assert.equal(requests, 4);
 	t.mock.timers.tick(9999); await settle(); assert.equal(requests, 4);
 	t.mock.timers.tick(1); await settle(); assert.equal(requests, 6); assert.equal(sender.state.synced, false);
+});
+
+test("decay transitions clear all old variants before setting new ones within Herdr limits, including full recovery", async (t) => {
+	const { herdr, sender } = await setup(t, { retryMs: 100 });
+	// At the 32-key stored limit, stage transitions must release old keys before adding any new ones.
+	for (let n = 0; n < 20; n++) herdr.tokens.set(`other${n}`, "x");
+	for (const stage of [0, 1, 2, 3, 0]) {
+		const desired = { ...FIRST };
+		for (const key of DECAY_FAMILIES) desired[decayKey(key, stage)] = `text-${key}`;
+		sender.update(desired);
+		await until(() => sender.state.synced || sender.state.lastError, "stage transition");
+		assert.equal(sender.state.lastError, undefined);
+		assert.equal(herdr.tokens.size, 32);
+		for (const key of DECAY_FAMILIES) for (const s of [0, 1, 2, 3]) {
+			assert.equal(herdr.tokens.get(decayKey(key, s)), s === stage ? `text-${key}` : undefined);
+		}
+	}
+	herdr.setReportMode("error");
+	const recovered = { ...FIRST };
+	for (const key of DECAY_FAMILIES) recovered[decayKey(key, 3)] = `text-${key}`;
+	sender.update(recovered);
+	await until(() => !!sender.state.lastError, "failed stage change");
+	herdr.setReportMode("ok");
+	await until(() => sender.state.synced, "full recovery at stored limit");
+	assert.equal(herdr.tokens.size, 32);
+	for (const key of DECAY_FAMILIES) {
+		assert.equal(herdr.tokens.has(key), false);
+		assert.equal(herdr.tokens.get(decayKey(key, 3)), `text-${key}`);
+	}
+	// Every request, including full clears/recovery, stays within 16 patch keys.
+	for (const report of herdr.reports()) assert.ok(Object.keys(report.params.tokens).length <= 16);
 });

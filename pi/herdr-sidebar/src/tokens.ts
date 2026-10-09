@@ -4,16 +4,25 @@ import { basename, dirname, isAbsolute, relative, sep } from "node:path";
 import { visibleWidth } from "@earendil-works/pi-tui";
 import type { Phase, SidebarSnapshot } from "./snapshot.ts";
 
+// Only rows 3 and 4 have stage variants. Thresholds are the single executable source.
+export const DECAY_FAMILIES = ["g3", "br", "br_dirty", "dir", "prn", "prn_off", "g4", "mthink"] as const;
+export const DECAY_THRESHOLDS_MS = [3_600_000, 14_400_000, 86_400_000] as const;
+export type DecayStage = 0 | 1 | 2 | 3;
+type DecayKey = (typeof DECAY_FAMILIES)[number];
+type StagedKey = `${DecayKey}_d${1 | 2 | 3}`;
+const stageKeys = (stage: 1 | 2 | 3): StagedKey[] => DECAY_FAMILIES.map((key) => `${key}_d${stage}`);
+
 export const TOKEN_KEYS = [
 	"g1", "proj", "proj_idle", "gt", "gt_off", "g2_au", "g2_au0", "bar", "bar_warn", "bar_crit", "bar_idle", "bar_unk", "cmpx", "g3", "br",
 	"br_dirty", "dir", "prn", "prn_off", "g4", "mthink", "g5", "ev_act", "ask_l1", "ask_l2", "ask_l3", "ev_rdy_text", "ph_age",
+	...stageKeys(1), ...stageKeys(2), ...stageKeys(3),
 ] as const;
 export type TokenKey = (typeof TOKEN_KEYS)[number];
 export type TokenMap = Partial<Record<TokenKey, string>>;
 
 export type HerdrStatus = "idle" | "working" | "blocked" | "done" | "unknown";
 // `subagentsFinishedAt` is this extension's own "subagents finished unseen" flag: when it was set, or null.
-export type SidebarInput = { snapshot: SidebarSnapshot | null; herdr: HerdrStatus | null; workspaceLabel?: string | null; subagentsFinishedAt?: number | null; now: number; home: string };
+export type SidebarInput = { snapshot: SidebarSnapshot | null; herdr: HerdrStatus | null; workspaceLabel?: string | null; visible?: boolean | null; lastAccessAt?: number; subagentsFinishedAt?: number | null; now: number; home: string };
 
 // Herdr trims ASCII whitespace but keeps U+2800, so every padding cell is U+2800.
 export const BLANK = "\u2800";
@@ -140,6 +149,28 @@ function displayState(input: SidebarInput): DisplayState {
 	return herdr;
 }
 
+// Missing visibility is unknown, never evidence of inactivity; runtime always supplies it.
+function accessIsFresh(input: SidebarInput): boolean {
+	const state = displayState(input);
+	return input.visible !== false || input.herdr === null ||
+		input.herdr === "unknown" || state === "working" || state === "subagents";
+}
+
+/** Refresh while seen/WRK/SUB or unknown, otherwise keep the most recent access. Load starts at now. */
+export function nextLastAccessAt(input: SidebarInput): number {
+	return accessIsFresh(input) ? input.now : input.lastAccessAt ?? input.now;
+}
+
+/** Unknown is never guessed old. Future timestamps also remain d0 after a backwards clock step. */
+export function decayStage(input: SidebarInput): DecayStage {
+	const elapsed = Math.max(0, input.now - nextLastAccessAt(input));
+	return DECAY_THRESHOLDS_MS.filter((threshold) => elapsed >= threshold).length as DecayStage;
+}
+
+export function decayKey(key: DecayKey, stage: DecayStage): TokenKey {
+	return stage === 0 ? key : `${key}_d${stage}`;
+}
+
 export type FinishedInput = { previousUnits: number | null; units: number | null; herdr: HerdrStatus | null; visible: boolean | null; subagentsFinishedAt: number | null; now: number };
 
 /**
@@ -260,6 +291,12 @@ export function buildTokens(input: SidebarInput): TokenMap {
 		set("ev_rdy_text", left("finished", ageText));
 		set("ph_age", ageText);
 	}
+	// Build the unchanged text first, then select exactly one key variant per applicable family.
+	const stage = decayStage(input);
+	if (stage !== 0) for (const key of DECAY_FAMILIES) {
+		const value = tokens[key];
+		if (value !== undefined) { delete tokens[key]; tokens[decayKey(key, stage)] = value; }
+	}
 	return tokens;
 }
 
@@ -271,9 +308,13 @@ function nextChange(clock: Clock, now: number): number | null {
 	return Math.ceil(clock.start + (boundary - clock.base) * 1000) + 1;
 }
 
-/** The epoch time at which a displayed duration next changes its text, or null when nothing shown is running. */
+/** The next displayed duration change or access-decay boundary, or null when nothing shown will change. */
 export function nextTokenChange(input: SidebarInput): number | null {
 	const clocks = [input.snapshot && goalClock(input.snapshot), ageClock(input)].filter((clock): clock is Clock => !!clock);
 	const times = clocks.map((clock) => nextChange(clock, input.now)).filter((time): time is number => time !== null);
+	if (input.lastAccessAt !== undefined && input.snapshot && !accessIsFresh(input)) {
+		const stage = decayStage(input);
+		if (stage < DECAY_THRESHOLDS_MS.length) times.push(input.lastAccessAt + DECAY_THRESHOLDS_MS[stage]);
+	}
 	return times.length ? Math.min(...times) : null;
 }

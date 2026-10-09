@@ -47,9 +47,26 @@ In IDL and UNK, known context is decorative grey, not zone-coloured; its shape a
 
 Without the signals-collector the sidebar shows row 1 (including SPACE when known) and row 2's unknowns only. `99%` context means 99% or more used; `99AU` and `CMP×99` mean 99 or more.
 
+## Access decay
+
+Only ACT and MDL fade through the grey stages defined in
+[the token contract](token-contract.md#act--mdl-access-decay): d0 before
+one hour, d1 from one hour, d2 from four hours and d3 from one day since
+last access. Access means visible in the focused workspace's active tab,
+or row 1 showing WRK/SUB. This is not time since the last snapshot or
+last tool call. Access refreshes while either holds; QNS/BLK alone do not
+count. Unknown visibility/status stays d0 instead of guessing old.
+
+All ACT/MDL text, including the dirty branch's `*`, stays unchanged;
+the dirty branch's amber fades too. Rows 1, 2 and 5+ are unaffected.
+[The Herdr color ladder](../../../herdr/docs/design.md#access-decay)
+sets the grey roles; Herdr's ` · ` remains theme overlay0.
+Age is memory only: `/reload`, Pi restart or session replacement
+starts d0, and no historical age is recovered.
+
 ## Timing
 
-Values change when the snapshot, Herdr's status, announced workspace label or pane visibility changes, usually within a fraction of a second. Connected lifecycle events trigger reads immediately; only an automatic SPACE label changed without an event waits for the 20-second renewal refresh. Durations follow pi-goal's format (`45s`, `12m`, `2h33m`); they tick each second under a minute and each minute after that, and the extension sends nothing between those changes. Nothing in the rows animates.
+Values change when the snapshot, Herdr's status, announced workspace label or pane visibility changes, usually within a fraction of a second. Connected lifecycle events trigger reads immediately; only an automatic SPACE label changed without an event waits for the 20-second renewal refresh. Durations follow pi-goal's format (`45s`, `12m`, `2h33m`); they tick each second under a minute and each minute after that. Duration-only diffs follow those changes; TTL renewals and decay-key changes are independent. The existing unref'd render timeout also schedules the next exact decay boundary (subject to the one-second render floor and transport/backoff). The 20-second renewal refreshes ongoing access even if inputs have not changed; leaving an accessed state captures that transition's time. No extra polling timer is added; shutdown clears the timeout. Nothing in the rows animates.
 
 ## Accessibility and limits
 

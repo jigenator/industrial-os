@@ -28,9 +28,9 @@ flowchart LR
 
 | Module | Owns | Depends on |
 | --- | --- | --- |
-| `src/extension.ts` | The default export Pi loads: the TUI-and-Herdr gate, one runtime per session, event-bus subscriptions, the `herdr:blocked` balance, the subagents-finished flag, the re-render timer, disposal | The other four modules; Pi's extension types |
+| `src/extension.ts` | The default export Pi loads: the TUI-and-Herdr gate, one runtime per session, event-bus subscriptions, the `herdr:blocked` balance, the subagents-finished flag, memory-only last access, the re-render timer, disposal | The other four modules; Pi's extension types |
 | `src/snapshot.ts` | The v1 channel names and `readSnapshot`, which validates a payload and keeps only what the sidebar shows | Nothing |
-| `src/tokens.ts` | `buildTokens` and `nextTokenChange`, the [token contract](token-contract.md) as code, and `nextSubagentsFinishedAt`, the flag's pure transition | Node `path`; Pi TUI's `visibleWidth` |
+| `src/tokens.ts` | `buildTokens` and `nextTokenChange`, the [token contract](token-contract.md) as code, and `nextSubagentsFinishedAt`, the flag's pure transition; access refresh, stage/key selection and canonical decay thresholds | Node `path`; Pi TUI's `visibleWidth` |
 | `src/sender.ts` | Report composition: diff against accepted state, batches, the stable source, `seq`, TTL renewal, retry, the shutdown clear | A request function; the key list |
 | `src/herdr-client.ts` | Herdr's newline-delimited JSON protocol: one bounded request per connection, and the pane-status/workspace-label/visibility subscription with reconnect | Node `net` |
 
@@ -46,7 +46,7 @@ Pi supplies `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` as pe
 
 **Start.** On `session_start` the previous runtime, if any, is disposed. The extension then checks the gate: Pi's `ctx.mode` is `tui`, `HERDR_ENV` is `1`, `HERDR_PANE_ID` is set and `HERDR_SOCKET_PATH` is absolute. Subagent children run in print, JSON or RPC mode with the parent's environment, so the mode check is what keeps them silent. Outside the gate nothing is subscribed, connected or emitted. Inside it, the runtime subscribes to the snapshot and ready channels, starts the status watch, requests a snapshot, and reports the state row with unknowns if no snapshot came back.
 
-**Render.** Any new snapshot, status, SPACE label or visibility first advances the subagents-finished flag, then calls `buildTokens` with `Date.now()` and the home directory, hands the map to the sender, and asks `nextTokenChange` when a displayed duration (goal time, phase age or finished age) next changes its text. One unref'd timeout re-renders then, never sooner than a second after the last render.
+**Render.** Access starts at runtime load time. Before changing inputs, `nextLastAccessAt` captures the end of a visible/WRK/SUB or unknown interval; every render refreshes it again against current inputs. The timestamp is runtime memory only and resets on reload/restart/session replacement. Unknown visibility/status stays fresh, independently of the finished flag's unknown-as-not-seen rule. Any new snapshot, status, SPACE label or visibility first advances the subagents-finished flag, then calls `buildTokens` with `Date.now()` and the home directory, hands the map to the sender, and asks `nextTokenChange` when a displayed duration (goal time, phase age or finished age) next changes its text or ACT/MDL next changes decay stage. `DECAY_THRESHOLDS_MS` in `src/tokens.ts` is the one executable threshold source. One unref'd timeout re-renders then, never sooner than a second after the last render. No extra interval is added: the existing 20-second renewal also renders to refresh ongoing access even when watch inputs have not changed. Entering/remaining seen or WRK/SUB returns d0; known inactive panes schedule their next boundary without awaiting another event. Shutdown disposes the timer.
 
 **`herdr:blocked`.** When a valid snapshot's `question` turns non-null the extension emits `{ active: true }` once; when it turns null, `{ active: false }` once. Disposal emits the final `false` if a question was still pending, so shutdown, reload and session replacement leave the count balanced. Herdr's Pi bridge (`~/.pi/agent/extensions/herdr-agent-state.ts`, installed by Herdr) counts these to report the blocked state. This replaces rpiv ask-user-question's emission for the same wait.
 
@@ -73,6 +73,8 @@ Herdr's agent status follows only Pi's root agent, through Herdr's own Pi bridge
 
 `pane.report_metadata` patches the pane's token map: a string sets a key, `null` clears it, omitted keys stay. The sender keeps the map Herdr last accepted. A report sends only the keys whose value differs; when that state is unknown (the first report, after any failure, and at each TTL renewal) it sends every key in the list, set or cleared, so no stale key lingers. Clears go first so a pane near Herdr's 32-key limit does not reject the sets, and requests carry at most 16 keys. One flush runs at a time; updates meanwhile replace the desired map and are sent after it.
 
+**Variant and count bounds.** The contract has 52 keys, but the builder stores at most 15 simultaneously applicable values. Rows 3/4 select one stage per family, leaving other variants absent; null clears remove stored keys (`MetadataTokens::key_count_after_patch` in `src/metadata_tokens.rs`). The 32-per-pane guard in `src/app/api/panes.rs` counts the map after a patch, not all known names. Full reports now span four ≤16-key requests, clearing before setting; stage diffs also clear old variants first. Other reporters share the remaining token budget. Stage/color mapping lives in Herdr config, not in this reporter; its two mutually exclusive ACT rows work around the native 16-entry configured-row limit.
+
 **One stable source, clock-based sequence.** Every report uses the source `industrial-os:herdr-sidebar` and a `seq` of `max(Date.now() × 1000, previous + 1)`, allocated when the report is composed. A runtime-unique source was rejected after reading Herdr 0.9.3:
 
 - Tokens are one map per pane, not per source (`src/metadata_tokens.rs`, `MetadataTokens::patch`), so a late `null` from any source removes the key. A different source would not protect a new runtime's tokens from an old runtime's late clear.
@@ -95,6 +97,7 @@ The watch's `requestTimeoutMs` (default 1,500 ms) bounds connection plus subscri
 | --- | --- | --- |
 | Nothing reports outside TUI mode or outside Herdr | `herdrTarget` and `start` in `src/extension.ts` | `test/extension.test.ts`: print, JSON, RPC and four outside-Herdr environments make no connection |
 | Unknown is never zero; no snapshot reports `g1`, SPACE when known and row 2's unknowns | `src/tokens.ts`, `src/snapshot.ts` | `test/tokens.test.ts` |
+| ACT/MDL select one key variant, unknown stays d0 and boundary updates do not await an event | `src/tokens.ts`, `render` in `src/extension.ts` | pure boundary/access/key tests, fake-Herdr boundary/timer test and sender stored-limit/recovery test |
 | Every report clears the keys that do not apply | `src/sender.ts` | `test/sender.test.ts`, `test/extension.test.ts` |
 | One source for every runtime, and a replaced runtime's late clear is ignored | `src/sender.ts` | `test/sender.test.ts` reload-safety case |
 | `herdr:blocked` is balanced on every path | `setQuestion` and `dispose` in `src/extension.ts` | `test/extension.test.ts` |

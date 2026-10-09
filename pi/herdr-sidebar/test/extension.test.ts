@@ -6,6 +6,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
+import { setTimeout as sleep } from "node:timers/promises";
 import { host } from "./host.ts";
 import { startFakeHerdr, until, type FakeHerdr } from "./fake-herdr.ts";
 
@@ -412,4 +413,79 @@ test("reconnect re-resolves visibility: a pane seen while disconnected clears th
 	herdr.dropSubscribers(); herdr.focus("w1", "w1:t1", "w1:p1", false);
 	await until(() => herdr.tokens.get("g1") === `○ IDL${B}` && herdr.subscriberCount === 1, "re-resolved as seen after reconnect");
 	assert.ok(workspaceReads(herdr) > reads);
+});
+
+test("access decay reports each boundary without a snapshot/focus change and clears its timer on shutdown", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); inside(t, herdr);
+	herdr.focus("w2", "w2:t1", "w2:p1", false);
+	let now = 1_800_000_000_000;
+	t.mock.method(Date, "now", () => now);
+	const scheduled: { callback: () => void; due: number; timer: NodeJS.Timeout }[] = [];
+	const original = globalThis.setTimeout;
+	t.mock.method(globalThis, "setTimeout", (callback: () => void, delay: number, ...args: any[]) => {
+		const timer = original(callback, delay, ...args);
+		if (delay >= 3_600_000) scheduled.push({ callback, due: now + delay, timer });
+		return timer;
+	});
+	// Socket delivery uses the real event loop; virtual Date advances only when a boundary is invoked.
+	const wait = async (check: () => boolean) => {
+		for (let n = 0; n < 400; n++) { if (check()) return; await sleep(10); }
+		assert.fail("fake Herdr did not receive the expected stage");
+	};
+	const h = await harness(t); await h.start();
+	h.set({ model: { provider: "anthropic", id: "claude-opus-5-5" }, thinking: "high" });
+	await wait(() => herdr.tokens.has("mthink") && scheduled.some((item) => item.due === now + 3_600_000));
+	const baseline = now;
+	for (const [stage, elapsed] of [[1, 3_600_000], [2, 14_400_000], [3, 86_400_000]]) {
+		const boundary = scheduled.findLast((item) => item.due === baseline + elapsed)!;
+		assert.ok(boundary, "next exact stage boundary is scheduled");
+		assert.equal(boundary.timer.hasRef(), false, "boundary timer is unref'd");
+		assert.equal(herdr.tokens.has(`dir_d${stage}`), false, "not old before boundary");
+		now = boundary.due;
+		boundary.callback();
+		await wait(() => herdr.tokens.has(`dir_d${stage}`) && herdr.tokens.has(`mthink_d${stage}`));
+		for (const key of ["g3", "dir", "g4", "mthink"]) {
+			const variants = [key, `${key}_d1`, `${key}_d2`, `${key}_d3`];
+			assert.deepEqual(variants.filter((variant) => herdr.tokens.has(variant)), [`${key}_d${stage}`]);
+		}
+		assert.equal(herdr.tokens.get("g1"), `○ IDL${B}`);
+	}
+	// WRK refreshes even unseen, and its end captures now after days with no status event.
+	herdr.setStatus("working");
+	await wait(() => herdr.tokens.has("dir") && herdr.tokens.get("g1") === `◐ WRK${B}`);
+	now += 2 * 86_400_000;
+	herdr.setStatus("idle");
+	await wait(() => scheduled.some((item) => item.due === now + 3_600_000));
+	let boundary = scheduled.findLast((item) => item.due === now + 3_600_000)!;
+	now = boundary.due; boundary.callback();
+	await wait(() => herdr.tokens.has("dir_d1"));
+	herdr.setStatus("unknown");
+	await wait(() => herdr.tokens.has("dir") && !herdr.tokens.has("dir_d1"));
+	now += 2 * 86_400_000;
+	herdr.setStatus("idle");
+	await wait(() => scheduled.some((item) => item.due === now + 3_600_000));
+	boundary = scheduled.findLast((item) => item.due === now + 3_600_000)!;
+	now = boundary.due; boundary.callback();
+	await wait(() => herdr.tokens.has("dir_d1"));
+	// Session replacement, the same start path as reload, discards memory-only age.
+	await h.start("reload");
+	await wait(() => herdr.tokens.has("dir") && !herdr.tokens.has("dir_d1"));
+
+	// Access at the end of a long visible interval must restart the full hour, not use load time.
+	await wait(() => scheduled.some((item) => item.due === now + 3_600_000 && !(item.timer as any)._destroyed));
+	const beforeFocus = scheduled.findLast((item) => !(item.timer as any)._destroyed)!;
+	herdr.focus("w1", "w1:t1", herdr.paneId);
+	await wait(() => (beforeFocus.timer as any)._destroyed);
+	await sleep(30); // Let the focus reconciliation finish even though d0 text did not change.
+	now += 2 * 86_400_000;
+	herdr.focus("w2", "w2:t1", "w2:p1");
+	await wait(() => scheduled.some((item) => item.due === now + 3_600_000));
+	const pending = scheduled.findLast((item) => item.due === now + 3_600_000)!;
+	await h.stop();
+	assert.equal((pending.timer as any)._destroyed, true, "shutdown clears the boundary timeout");
+	assert.equal(herdr.tokens.size, 0);
+	const count = herdr.reports().length;
+	now = pending.due; pending.callback(); await sleep(30);
+	assert.equal(herdr.reports().length, count, "late callback cannot report");
+	assert.deepEqual(h.errors, []);
 });
