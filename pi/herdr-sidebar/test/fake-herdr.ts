@@ -9,7 +9,7 @@ import { createServer, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-export type Logged = { method: string; params: any; at: number };
+export type Logged = { id?: string; method: string; params: any; at: number };
 type Mode = "ok" | "error" | "silent";
 // Independent wire model from Herdr v0.9.3 src/api/schema/events.rs: Subscription uses dotted request types;
 // EventEnvelope/EventKind uses snake_case, while SubscriptionEventKind keeps the status event dotted.
@@ -43,8 +43,10 @@ export async function startFakeHerdr(paneId = "w1:p1") {
 	let paneGetMode: Mode = "ok";
 	let subscribeMode: Mode = "ok";
 	let reportDelayMs = 0;
+	// Transport fault injection only: JSON permits trailing whitespace, including an over-limit line.
+	let replyPadding = 0;
 
-	const reply = (socket: Socket, id: string, body: object) => { if (!socket.destroyed) socket.write(`${JSON.stringify({ id, ...body })}\n`); };
+	const reply = (socket: Socket, id: string, body: object) => { if (!socket.destroyed) socket.write(`${JSON.stringify({ id, ...body })}${" ".repeat(replyPadding)}\n`); };
 	const error = (socket: Socket, id: string, code: string) => reply(socket, id, { error: { code, message: code } });
 
 	function report(params: any): string | undefined {
@@ -71,7 +73,7 @@ export async function startFakeHerdr(paneId = "w1:p1") {
 
 	function handle(socket: Socket, request: any) {
 		const { id, method, params } = request;
-		log.push({ method, params, at: Date.now() });
+		log.push({ id, method, params, at: Date.now() });
 		if (method === "pane.report_metadata") {
 			if (reportMode === "silent") return;
 			if (reportMode === "error") return error(socket, id, "internal_error");
@@ -127,6 +129,10 @@ export async function startFakeHerdr(paneId = "w1:p1") {
 		socketPath, paneId, log, tokens,
 		reports: () => log.filter((entry) => entry.method === "pane.report_metadata"),
 		get subscriberCount() { return subscribers.size; },
+		get socketCount() { return sockets.size; },
+		/** Raw chunks for framing/bounds tests; not a model of Herdr's valid event serialization. */
+		writeSubscribers(chunk: string) { for (const { socket } of subscribers) socket.write(chunk); },
+		setReplyPadding(length: number) { replyPadding = length; },
 		get sources() { return new Set(log.filter((entry) => entry.method === "pane.report_metadata").map((entry) => entry.params.source)); },
 		setStatus(next: string, push = true) {
 			status = next;

@@ -1,12 +1,144 @@
 // The Herdr socket client against the fake Herdr server: bounded requests, and the agent-status subscription with
 // reconciliation, reconnect and backoff.
 import assert from "node:assert/strict";
+import { Socket } from "node:net";
 import { join } from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { load } from "./host.ts";
 import { startFakeHerdr, until } from "./fake-herdr.ts";
 
 const { herdrRequest, watchPaneState } = await load("src/herdr-client.ts");
+
+const MAX_LINE = 1024 * 1024;
+// Capture only the first client: readLines installs its decoder synchronously before the fake server accepts.
+// Unix sockets normally fragment large writes. Coalescing decoded data here makes the single-chunk bypass
+// deterministic while retaining the real fake-server connection, response id, and close/reconnect behavior.
+function captureClient(t: TestContext, coalesce = false) {
+	let client: Socket | undefined;
+	const delivered: string[] = [];
+	const setEncoding = Socket.prototype.setEncoding;
+	t.mock.method(Socket.prototype, "setEncoding", function (this: Socket, encoding: BufferEncoding) {
+		if (!client) {
+			client = this;
+			if (coalesce) {
+				const emit = this.emit;
+				let pending = "";
+				t.mock.method(this, "emit", function (this: Socket, event: string, ...args: any[]) {
+					if (event !== "data") return emit.call(this, event, ...args);
+					pending += args[0];
+					if (!pending.includes("\n")) return true;
+					const chunk = pending; pending = ""; delivered.push(chunk);
+					return emit.call(this, event, chunk);
+				});
+			}
+		}
+		return setEncoding.call(this, encoding);
+	});
+	return { get socket() { assert.ok(client); return client; }, delivered };
+}
+
+const statusLine = (status: string) => JSON.stringify({ event: "pane.agent_status_changed", data: { pane_id: "w1:p1", agent_status: status } });
+
+for (const complete of [true, false]) {
+	test(`watchPaneState drops an oversized ${complete ? "complete line in one chunk" : "incomplete line"} without delivering it`, async (t) => {
+		const herdr = await startFakeHerdr(); t.after(() => herdr.close());
+		const client = captureClient(t, complete);
+		const seen: (string | null)[] = [];
+		const watch = watchPaneState({ socketPath: herdr.socketPath, paneId: herdr.paneId }, (state: any) => seen.push(state.status), { minBackoffMs: 1000 }); t.after(() => watch.close());
+		await until(() => watch.status === "idle");
+		const line = `${statusLine("working")}${" ".repeat(MAX_LINE)}`;
+		herdr.writeSubscribers(complete ? `${line}\n${statusLine("blocked")}\n` : line);
+		await until(() => client.socket.destroyed && herdr.subscriberCount === 0, "over-limit socket dropped", 1000);
+		assert.equal(watch.status, null);
+		assert.deepEqual(seen, ["idle", null], "neither the oversized line nor a later line was delivered");
+		if (complete) assert.ok(client.delivered.some((chunk) => chunk.startsWith(line)), "complete oversized line reached readLines in one chunk");
+	});
+}
+
+test("herdrRequest rejects an oversized complete reply in one chunk instead of accepting success", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); herdr.setReplyPadding(MAX_LINE);
+	const client = captureClient(t, true);
+	assert.deepEqual(await herdrRequest(herdr.socketPath, "pane.get", { pane_id: herdr.paneId }, 1000), { ok: false, error: "pane.get connection closed" });
+	await until(() => herdr.socketCount === 0, "request socket dropped");
+	assert.ok(client.socket.destroyed);
+	assert.equal(client.delivered.length, 1);
+	assert.ok(client.delivered[0].length > MAX_LINE && client.delivered[0].endsWith("\n"));
+});
+
+test("readLines keeps normal, multiple, split and exactly-at-limit lines", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close());
+	const client = captureClient(t);
+	const seen: (string | null)[] = [];
+	const watch = watchPaneState({ socketPath: herdr.socketPath, paneId: herdr.paneId }, (state: any) => seen.push(state.status)); t.after(() => watch.close());
+	await until(() => watch.status === "idle");
+	// Deterministic decoded chunks over the connected fake socket exercise both sides of the exact boundary.
+	client.socket.emit("data", `${statusLine("working")}\n \n${statusLine("blocked")}\n`);
+	const split = statusLine("done");
+	client.socket.emit("data", split.slice(0, 15));
+	assert.equal(watch.status, "blocked", "incomplete line not delivered");
+	client.socket.emit("data", `${split.slice(15)}\n`);
+	const last = statusLine("idle");
+	client.socket.emit("data", last + " ".repeat(MAX_LINE - last.length));
+	assert.equal(watch.status, "done", "at-limit incomplete line waits for newline");
+	assert.equal(client.socket.destroyed, false);
+	client.socket.emit("data", "\n");
+	assert.equal(client.socket.destroyed, false);
+	assert.deepEqual(seen, ["idle", "working", "blocked", "done", "idle"]);
+});
+
+test("watchPaneState times out an unacknowledged subscription, reconnects with backoff and recovers", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); herdr.setSubscribeMode("silent");
+	const seen: (string | null)[] = [];
+	const watch = watchPaneState({ socketPath: herdr.socketPath, paneId: herdr.paneId }, (state: any) => seen.push(state.status), { requestTimeoutMs: 80, minBackoffMs: 20, maxBackoffMs: 40 }); t.after(() => watch.close());
+	const attempts = () => herdr.log.filter((entry) => entry.method === "events.subscribe");
+	await until(() => attempts().length >= 3, "unacknowledged subscriptions retried", 1000);
+	const times = attempts().slice(0, 3).map((entry) => entry.at);
+	assert.ok(times[1] - times[0] >= 90 && times[1] - times[0] < 400, "deadline then first backoff");
+	assert.ok(times[2] - times[1] >= 110 && times[2] - times[1] < 400, "deadline then capped backoff");
+	assert.equal(watch.status, null); assert.equal(watch.workspaceLabel, null); assert.equal(watch.visible, null);
+	assert.deepEqual(seen, [], "never known before acknowledgement");
+	assert.equal(herdr.log.some((entry) => entry.method === "pane.get"), false);
+	assert.equal(herdr.socketCount, 1, "only one pending subscription; no leaked sockets");
+	herdr.setSubscribeMode("ok"); herdr.setStatus("working", false);
+	await until(() => watch.status === "working" && watch.visible === true, "recovered after acknowledgement", 1000);
+	const count = attempts().length;
+	await new Promise((resolve) => setTimeout(resolve, 200));
+	assert.equal(attempts().length, count, "ack cleared deadline; no double reconnect");
+	assert.equal(herdr.subscriberCount, 1);
+	assert.equal(herdr.socketCount, 1);
+	assert.deepEqual(seen, ["working"]);
+});
+
+for (const exit of ["ack", "error", "close", "stop"] as const) {
+	test(`watchPaneState clears its acknowledgement timer on ${exit}`, async (t) => {
+		const herdr = await startFakeHerdr(); t.after(() => herdr.close()); herdr.setSubscribeMode("silent");
+		const client = captureClient(t);
+		const timers: NodeJS.Timeout[] = [], timeout = setTimeout;
+		t.mock.method(globalThis, "setTimeout", (callback: () => void, ms: number) => {
+			const timer = timeout(callback, ms);
+			if (ms === 123) timers.push(timer);
+			return timer;
+		});
+		const clear = t.mock.method(globalThis, "clearTimeout");
+		const watch = watchPaneState({ socketPath: herdr.socketPath, paneId: herdr.paneId }, () => {}, { requestTimeoutMs: 123, minBackoffMs: 1000 }); t.after(() => watch.close());
+		await until(() => herdr.log.some((entry) => entry.method === "events.subscribe"));
+		assert.equal(timers.length, 1, "one pending acknowledgement timer");
+		const timer = timers[0]; assert.equal(timer.hasRef(), false, "timer is unref'd");
+		if (exit === "ack") {
+			const id = herdr.log.find((entry) => entry.method === "events.subscribe")!.id;
+			client.socket.emit("data", `${JSON.stringify({ id, result: { type: "subscription_started" } })}\n`);
+			await until(() => watch.status === "idle");
+		} else if (exit === "error") client.socket.emit("error", new Error("fake transport error"));
+		else if (exit === "close") client.socket.destroy();
+		else watch.close();
+		await until(() => clear.mock.calls.some((call) => call.arguments[0] === timer), `timer cleared on ${exit}`);
+		watch.close(); watch.close();
+		await until(() => herdr.socketCount === 0);
+		const count = herdr.log.length;
+		await new Promise((resolve) => setTimeout(resolve, 200));
+		assert.equal(herdr.log.length, count, "no work after stop");
+	});
+}
 
 test("herdrRequest returns the reply, Herdr's error code, a timeout, or a connection failure; never throws", async (t) => {
 	const herdr = await startFakeHerdr();
