@@ -123,6 +123,10 @@ Consumed exported subpaths ship colocated `.d.mts` declarations. Their extension
 
 Node 22.23.0, macOS: all 387 DS checks passed (368 pre-existing after slice-1, 19 additive status-bar checks); independent default API corpus against origin/main passed 2,334 comparisons. Both migrated extensions passed their suites and recorded golden/RPC/copied-state root-install checks; see their contributing guides. These are not real `pi install git:` or interactive/Herdr checks. Consumed declarations passed strict NodeNext checking with the existing claude-interrupt compiler; no new dependency or standalone DS typecheck gate.
 
+## Herdr chrome colors verification (2026-10-09)
+
+Node 22.23.0, macOS: `node --test` **388/388 passed** (387 before, plus the `HERDR_CHROME` check), including `package.test.mjs` **4/4**. `HERDR_CHROME` adds no module or export entry; status-bar's `test/footer-colors.test.ts` still passes **1/1**, since `SIGNAL_COLORS` is unchanged. Setting `signalOrange30` to `#4d1b00` failed the new check, then was restored. No storybook story or native Herdr check covers these values; the theme that uses them is recorded in [the Herdr contributing guide](../herdr/CONTRIBUTING.md#acid--orange-theme).
+
 ## Making a change
 
 Follow the [repository workflow](../CONTRIBUTING.md#making-a-change) and the routes in this folder's [AGENTS.md](AGENTS.md). All elements and demos must be terminal-ready text, without a browser presentation layer; verify appearance, resizing, input, and repaint behavior in Herdr.

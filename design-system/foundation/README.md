@@ -71,6 +71,10 @@ These are deterministic mixes of encoded 8-bit sRGB channels toward black/white,
 
 The IndustrialOS reference collection is separate data. Where one of its colors is also a signal color, it has the same value: its `Magenta` is `#FF15BD`, the signal colors' `pink`.
 
+### Herdr chrome colors
+
+Signal colors now also serve Herdr chrome. `HERDR_CHROME`, exported from the same module, is a frozen object of the two product colors [herdr/theme.toml](../../herdr/theme.toml) restates that are neither roles nor status-bar colors: `signalOrange` `#ff5c00`, the Marathon signal orange (Herdr's `overlay1`), and `signalOrange30` `#4d1c00`, `mixOver(signalOrange, 0.3)`, 30% of it over the field (Herdr's `surface1`). The other Herdr theme values are roles or `SIGNAL_COLORS.ghost`. They are not part of Acid / Black and status-bar does not mirror or import them. `signalOrange` has the same value as `SIGNAL_COLORS.cld` and the IndustrialOS collection's `Signal orange`, in a separate role: a Herdr chrome color, not the Claude provider's ink. They are kept out of `SIGNAL_COLORS` because status-bar maps every value there to a footer alias (`pi/status-bar/test/footer-colors.test.ts`); these colors have a different consumer, so they get their own object rather than an unused status-bar alias. The SIGNAL COLORS story shows `SIGNAL_COLORS` only.
+
 ## Seeded randomness
 
 [seeded.mjs](seeded.mjs) gives decorations that vary a repeatable source of chance: `random(seed)` returns a generator of numbers in [0, 1) (mulberry32, ported from status-bar's footer), `hash(a, b, c)` a stateless number in [0, 1) for three integers, and `between`, `pick`, `shuffle`, and `seedFrom` draw from a generator. The same seed always gives the same plan. A non-integer seed throws `RangeError`; status-bar preserves its previous seed coercion by passing `seed | 0` before this boundary, and keeps the original draw order/cursor memory. Nothing here reads a clock or calls `Math.random`.
@@ -81,4 +85,4 @@ Status-bar's consumed element, token, seeded and motion subpaths also have decla
 
 ## Checks
 
-`node --test foundation/*.test.mjs` covers seeded determinism and bounds, the signal colors' format and `mixOver`'s rounding, range and declared mixes, sanitization, truncation, exact line widths, unchanged named-role SGR, literal RGB and invalid-style boundaries, color/plain equivalence for all 110 color/ramp swatches, the 22 color records (unique ids, uppercase hex, families) and their immutability, exact ramp centers and all 256 channel values. Full validation remains in [Contributing](../CONTRIBUTING.md).
+`node --test foundation/*.test.mjs` covers seeded determinism and bounds, the signal colors' format and `mixOver`'s rounding, range and declared mixes, the Herdr chrome colors' format and 30% mix, sanitization, truncation, exact line widths, unchanged named-role SGR, literal RGB and invalid-style boundaries, color/plain equivalence for all 110 color/ramp swatches, the 22 color records (unique ids, uppercase hex, families) and their immutability, exact ramp centers and all 256 channel values. Full validation remains in [Contributing](../CONTRIBUTING.md).

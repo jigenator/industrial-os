@@ -1,5 +1,6 @@
-// Signal colors: the source of the product colors the Pi extensions use beside the nine Acid / Black roles.
-// status-bar's `C` palette (../../pi/status-bar/src/footer.ts) mirrors every value here until it imports them, as
+// Signal colors: the source of the product colors the Pi extensions use beside the nine Acid / Black roles, and of
+// the Herdr chrome colors.
+// status-bar's `C` palette (../../pi/status-bar/src/footer.ts) mirrors every SIGNAL_COLORS value here until it imports them, as
 // it mirrors palette.mjs for the roles. Contract: README.md#signal-colors.
 import { ACID_BLACK } from './palette.mjs';
 import { resolveColor } from './cells.mjs';
@@ -42,6 +43,15 @@ export const SIGNAL_COLORS = Object.freeze({
   kmi: '#2555fc',
   kmiUsed: '#071132',
   kmiMid: '#132b7e',
+});
+
+// Herdr chrome colors: product colors herdr/theme.toml restates, kept apart from SIGNAL_COLORS because status-bar
+// maps every SIGNAL_COLORS value to a footer alias and does not use these. Contract: README.md#herdr-chrome-colors.
+export const HERDR_CHROME = Object.freeze({
+  // The Marathon signal orange: theme.custom overlay1. The same value as SIGNAL_COLORS.cld, a separate role.
+  signalOrange: '#ff5c00',
+  // mixOver(signalOrange, 0.3), 30% over the field: theme.custom surface1.
+  signalOrange30: '#4d1c00',
 });
 
 // Mixes declared as signal colors, matching status-bar's current computed values. The extension computed some of
