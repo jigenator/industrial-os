@@ -56,6 +56,19 @@ test('activity excludes pane.updated/moved, includes closed and focus; persists 
   assert.equal(previous.a.last, 1);
   assert.equal(advanceHistory(h, ws, [], new Set(), now + 1000).a.last, now);
 });
+test('a Pi pane running units is activity even when Herdr reports its root agent idle', () => {
+  const now = 10 * DAY_MS;
+  const ids = ['sub', 'zero', 'unknown', 'conflict', 'other'];
+  const ws = ids.map((id) => workspace(id));
+  const previous = Object.fromEntries(ids.map((id) => [id, { last: 1, seen: 1 }]));
+  const pane = (workspace_id, agent, tokens) => ({ workspace_id, agent, agent_status: 'idle', tokens });
+  const h = advanceHistory(previous, ws, [
+    pane('sub', 'pi', { g2_au: '02AU' }), pane('zero', 'pi', { g2_au0: '00AU' }), pane('unknown', 'pi', { g2_au0: '??AU' }),
+    pane('conflict', 'pi', { g2_au: '02AU', g2_au0: '00AU' }), pane('other', 'claude', { g2_au: '02AU' }),
+  ], new Set(), now);
+  assert.equal(h.sub.last, now);
+  for (const id of ['zero', 'unknown', 'conflict', 'other']) assert.equal(h[id].last, 1);
+});
 test('worktree grouping exactly matches Herdr, parent first; all members must be quiet', () => {
   const tree = (linked) => ({ repo_key: 'repo', is_linked_worktree: linked });
   const ws = [workspace('child', { worktree: tree(true) }), workspace('single'), workspace('parent', { worktree: tree(false) })];

@@ -64,9 +64,11 @@ export function activityWorkspace(event) {
   if (!ACTIVITY_EVENTS.has(event.event)) return null;
   return event.data?.workspace_id ?? event.data?.pane?.workspace_id ?? event.data?.workspace?.workspace_id ?? null;
 }
+// Herdr tracks only Pi's root agent, which can be idle while its subagents run; the sidebar's AU token still counts them.
+const runsUnits = (p) => p.agent === 'pi' && p.tokens?.g2_au0 === undefined && /^\d{2}AU$/.test(p.tokens?.g2_au ?? '') && Number(p.tokens.g2_au.slice(0, 2)) >= 1;
 export function advanceHistory(history, workspaces, panes, activity, now) {
   const next = Object.assign(Object.create(null), structuredClone(history));
-  const busy = new Set(panes.filter((p) => ['working', 'blocked'].includes(p.agent_status)).map((p) => p.workspace_id));
+  const busy = new Set(panes.filter((p) => ['working', 'blocked'].includes(p.agent_status) || runsUnits(p)).map((p) => p.workspace_id));
   for (const w of workspaces) {
     const prev = next[w.workspace_id];
     const last = !prev || w.focused || busy.has(w.workspace_id) || activity.has(w.workspace_id) ? now : Math.min(now, prev.last);

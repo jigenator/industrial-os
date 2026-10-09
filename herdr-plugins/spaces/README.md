@@ -79,7 +79,8 @@ inode until recovery. Inspect before manual removal; never remove a live endpoin
 
 - Quiet means at least 48 hours without observed activity. First-seen spaces
   start at now. Events while disconnected are not reconstructed; working,
-  blocked and focused spaces refresh activity on the next authoritative read.
+  blocked and focused spaces, and spaces with a Pi pane running one or more
+  units (subagents included), refresh activity on the next authoritative read.
 - A quiet space sends only panes, stale name and age. It collapses to one row
   unless Herdr's built-in `git_status` has ahead/behind counts, which retain a
   second git-only row. Indented worktree children suppress git details in Herdr.

@@ -105,6 +105,8 @@ test('fake socket subscribe/read/report; TTL renew, quiet clears, activity, meta
   f.emit('workspace_metadata_updated', { workspace_id: 'w1' }); await wait(20); assert.equal(f.calls.filter((m) => m.method === 'workspace.report_metadata').length, 2);
   now += 40; await until(() => f.calls.filter((m) => m.method === 'workspace.report_metadata').length >= 4);
   f.setWorkspace([{ workspace_id: 'w1', label: 'space', pane_count: 1, focused: false, agent_status: 'idle' }]);
+  // Running units are activity; the space can only go quiet once its Pi pane reports none.
+  f.setPanes([{ pane_id: 'w1:p1', workspace_id: 'w1', agent_status: 'idle', agent: 'pi', tokens: { g2_au0: '00AU' } }]);
   now += 2 * DAY_MS; f.emit('pane_updated', { pane: { workspace_id: 'w1' } });
   await until(() => f.metadata.get('w1')?.sp_quiet?.endsWith('2d'));
   assert.equal(f.metadata.get('w1').sp_agents, undefined); assert.equal(f.metadata.get('w1').sp_au, undefined);
@@ -341,14 +343,16 @@ test('a transient pane count mismatch succeeds on exactly one immediate retry', 
   assert.equal(daemon.metrics.readFailures, 0);
 });
 
-test('pane.updated is not activity but working or blocked pane.list status refreshes activity', async (t) => {
+test('pane.updated is not activity but working, blocked or running-units pane.list state refreshes activity', async (t) => {
   const f = await fixture(t), now = 10 * DAY_MS;
   f.setWorkspace([{ workspace_id: 'w1', label: 'space', pane_count: 1, focused: false, agent_status: 'idle' }]);
+  f.setPanes([{ pane_id: 'w1:p1', workspace_id: 'w1', agent: 'pi', agent_status: 'idle', tokens: { g2_au0: '00AU' } }]);
   await atomicWrite(f.dest.history, { version: 1, entries: { w1: { last: 0, seen: now } } });
   const daemon = await runDaemon(f.dest, { ...fast, tickMs: 60_000, now: () => now }); f.cleanup.push(() => daemon.stop());
   await until(() => f.metadata.get('w1')?.sp_quiet);
-  for (const agent_status of ['working', 'blocked']) {
-    f.setPanes([{ pane_id: 'w1:p1', workspace_id: 'w1', agent: 'pi', agent_status, tokens: { g2_au: '02AU' } }]);
+  // First, from quiet: Herdr's root agent is idle while subagents run.
+  for (const [agent_status, tokens] of [['idle', { g2_au: '02AU' }], ['working', { g2_au0: '00AU' }], ['blocked', { g2_au0: '00AU' }]]) {
+    f.setPanes([{ pane_id: 'w1:p1', workspace_id: 'w1', agent: 'pi', agent_status, tokens }]);
     const reads = daemon.metrics.reads;
     f.emit('pane_updated', { pane: { workspace_id: 'w1' } });
     await until(() => daemon.metrics.reads > reads && f.metadata.get('w1')?.sp_name === 'space');

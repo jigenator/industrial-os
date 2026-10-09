@@ -39,7 +39,8 @@ flowchart LR
 Subscribe first to the dotted request kinds in `transport.mjs` (never
 metadata_updated or pane-scoped agent_status_changed). Herdr lifecycle events
 arrive snake_case; the transport maps them to one dotted internal form. Busy
-panes come from `pane.list`; agent changes invalidate through `pane.updated`.
+panes come from `pane.list`: working/blocked status, or a Pi pane's `g2_au` of
+one or more units; agent and token changes invalidate through `pane.updated`.
 After `subscription_started`, and after a bounded 500 ms event coalescing window,
 read `workspace.list` and `pane.list` concurrently. One reconciliation at a time;
 each request opens its own socket and waits at most one second. Events are
