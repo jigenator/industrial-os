@@ -33,17 +33,17 @@ Opening the pane directly uses the manifest's default, a split of the focused pa
 herdr plugin pane open --plugin industrial-os.whiteboard --entrypoint board --placement split --direction down
 ```
 
-The board is a normal Herdr pane once open: resize, move, zoom or swap it like any other, and it redraws at its new size. To bind keys, add this to Herdr's `config.toml`:
+The board is a normal Herdr pane once open: resize, move, zoom or swap it like any other, and it redraws at its new size. To bind keys, add this to Herdr's `config.toml`. Both keys are free in Herdr 0.9.3's defaults, where `prefix+w` is the workspace picker; check your own bindings first.
 
 ```toml
 [[keys.command]]
-key = "prefix+w"
+key = "prefix+i"
 type = "plugin_action"
 command = "industrial-os.whiteboard.open"
 description = "whiteboard beside this pane"
 
 [[keys.command]]
-key = "prefix+W"
+key = "prefix+shift+i"
 type = "plugin_action"
 command = "industrial-os.whiteboard.open-tab"
 description = "whiteboard in a new tab"
