@@ -15,7 +15,7 @@ Seven projects are here. They share code only through the private design-system 
 - [pi/herdr-sidebar](pi/herdr-sidebar/README.md): a Pi extension that reports each Pi session's state to Herdr's agents sidebar as tokens.
 - [herdr](herdr/README.md): Herdr agents and Spaces sidebar configuration, merged by hand.
 - [herdr-plugins/spaces](herdr-plugins/spaces/README.md): one Node daemon per Herdr socket reports space counts/names/quiet ages and moves quiet units below current work.
-- [herdr-plugins/whiteboard](herdr-plugins/whiteboard/README.md): a Rust whiteboard in a Herdr tab, with sticky notes and text, driven by the mouse, one board per workspace.
+- [herdr-plugins/whiteboard](herdr-plugins/whiteboard/README.md): a Rust whiteboard in a Herdr split or tab, with sticky notes and text, driven by the mouse, one board per workspace.
 
 Other Herdr tooling still lives in separate repositories and is planned to move in.
 
@@ -34,7 +34,7 @@ industrial-os/
 ├── herdr/                    Herdr agents and Spaces configuration, merged by hand
 ├── herdr-plugins/            Herdr plugins, each its own project
 │   ├── spaces/              workspace tokens, quiet history and ordering daemon
-│   └── whiteboard/          sticky notes and text in a Herdr tab, in Rust
+│   └── whiteboard/          sticky notes and text in a Herdr pane, in Rust
 ├── docs/
 │   ├── mission.md            product scope and constraints
 │   ├── design.md             the shared visual and interaction language

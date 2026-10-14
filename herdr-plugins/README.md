@@ -6,7 +6,7 @@ checks and guides; shared rules are in [AGENTS.md](AGENTS.md).
 | Plugin | Purpose | Runtime |
 | --- | --- | --- |
 | [Spaces](spaces/README.md) | Per-space counts, quiet ages and quiet-unit ordering | Node 22, standard library only |
-| [Whiteboard](whiteboard/README.md) | Sticky notes and text on a mouse-driven board, one per workspace, in a tab | Rust, built with Cargo |
+| [Whiteboard](whiteboard/README.md) | Sticky notes and text on a mouse-driven board, one per workspace, in a split or a tab | Rust, built with Cargo |
 
 ## Install
 

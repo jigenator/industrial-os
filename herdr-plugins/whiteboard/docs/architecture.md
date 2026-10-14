@@ -6,8 +6,8 @@ Status: current. Evidence: the full source and tests in this directory, the mani
 
 | Module | Owns | Depends on |
 | --- | --- | --- |
-| `herdr-plugin.toml` | The `cargo build` step, the `board` tab pane and the `open` action | Herdr 0.9.3 plugin manifest |
-| `bin/whiteboard.sh` | `pane`: run the binary, or print how to build it. `open`: ask Herdr to open the pane | POSIX `sh`, `HERDR_BIN_PATH` |
+| `herdr-plugin.toml` | The `cargo build` step, the `board` pane (a split by default) and the `open` and `open-tab` actions | Herdr 0.9.3 plugin manifest |
+| `bin/whiteboard.sh` | `pane`: run the binary, or print how to build it. `open` and `open-tab`: ask Herdr to open the pane in a split or a tab | POSIX `sh`, `HERDR_BIN_PATH` |
 | `src/main.rs` | Board path, load, terminal setup and restore (raw mode, alternate screen, mouse capture), the event loop, failure messages | `board`, `app`, `ui`, ratatui's crossterm |
 | `src/app.rs` | `App`: selection, editing, drags, double-click timing, buttons, saving and quitting | `board`, crossterm event types |
 | `src/board.rs` | `Item` and `Board`, word wrap, hit tests, JSON load and atomic save, `board_path` | serde, `unicode-width` |
@@ -18,7 +18,7 @@ Dependencies point down the table; nothing imports `main.rs`, and `ui.rs` never 
 
 ## Flows
 
-**Opening.** The `open` action runs `herdr plugin pane open --plugin industrial-os.whiteboard --entrypoint board --focus`. Herdr starts `sh bin/whiteboard.sh pane` in a new tab, from the plugin directory, with `HERDR_PLUGIN_STATE_DIR`, `HERDR_SOCKET_PATH` and `HERDR_WORKSPACE_ID` set. The script `exec`s `target/release/whiteboard`.
+**Opening.** The `open` action runs `herdr plugin pane open --plugin industrial-os.whiteboard --entrypoint board --placement split --direction right --focus`; `open-tab` passes `--placement tab` instead. The manifest's own placement is `split`, for a direct `pane open` without one. Herdr starts `sh bin/whiteboard.sh pane` in the new pane, from the plugin directory, with `HERDR_PLUGIN_STATE_DIR`, `HERDR_SOCKET_PATH` and `HERDR_WORKSPACE_ID` set. The script `exec`s `target/release/whiteboard`.
 
 **Board path.** `board_path` takes the first of: a path argument; `$HERDR_PLUGIN_STATE_DIR/boards/<fnv1a64(HERDR_SOCKET_PATH)>/<workspace-id>.json`, with every character outside `[A-Za-z0-9_-]` replaced by `_` and `default` for a missing value; or `./whiteboard.json`. The socket hash partitions boards by Herdr session, because Herdr shares one plugin state directory across sessions.
 
@@ -28,7 +28,7 @@ Dependencies point down the table; nothing imports `main.rs`, and `ui.rs` never 
 
 **Saving.** `Board::save` creates the directory, writes `<name>.json.tmp` and renames it over the board. `App` remembers the file's modification time from its last load or save. If the file changed since then, the first save is refused with an error, and a second save overwrites. Quitting saves first and stays open if that fails.
 
-**Exit.** Mouse capture is disabled and the terminal restored on a normal exit, on an error, and from the panic hook. Herdr closes the tab when the process exits.
+**Exit.** Mouse capture is disabled and the terminal restored on a normal exit, on an error, and from the panic hook. Herdr closes the board's pane when the process exits; a tab placement closes with it.
 
 ## Invariants
 

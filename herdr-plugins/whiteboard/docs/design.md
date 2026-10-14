@@ -17,7 +17,7 @@ The [shared visual language](../../../docs/design.md) applied to a whiteboard pa
 
 | Part | Look | Role |
 | --- | --- | --- |
-| Toolbar | `WHITEBOARD` plate, then buttons; buttons that do not fit are dropped, never overlapped | Plate: field on accent. Bar: secondary on surface. Buttons: primary on structural |
+| Toolbar | `WHITEBOARD` plate, then buttons. When not everything fits, the plate goes first, then the buttons that do not fit; nothing overlaps | Plate: field on accent. Bar: secondary on surface. Buttons: primary on structural |
 | Board | Black field with a dot every 6 columns and 3 rows, anchored to the board so panning shows | Field; dots structural |
 | Note | Rounded border, word-wrapped text, a one-cell shadow | Paper is the note's color; ink is field; border structural; shadow surface |
 | Selected note | Heavy border and a `◢` resize handle | Shape, not color, marks selection |
@@ -44,8 +44,8 @@ The five note colors are accent, warning, critical, primary and secondary. They 
 
 The full mouse and keyboard table is in the [README](../README.md#use). Every mouse action has a keyboard path. Terminals report single clicks only, so a double-click is two clicks on the same cell within 400 ms. A new item opens under the mouse, or in the middle of the view when the mouse is outside the board. Clicking an item brings it to the front; `Tab` selects in drawing order without reordering. An empty text item is removed when editing ends.
 
-The pane captures the mouse while it runs, as its interaction contract; Herdr's own keys and chrome are unaffected. There is no motion. Toolbar clicks, typing, dragging and double-clicks were checked through a Herdr 0.9.3 client; see [contributing](../CONTRIBUTING.md#verification-records).
+The board opens in a split to the right of the focused pane by default, or in a new tab, so it can sit beside agents. Clicking another pane moves focus there, as usual in Herdr; clicking back into the board focuses it and the click also acts on the board. The pane captures the mouse while it runs, as its interaction contract; Herdr's own keys and chrome are unaffected. There is no motion. Toolbar clicks, typing, dragging, double-clicks and focus between split panes were checked through a Herdr 0.9.3 client; see [contributing](../CONTRIBUTING.md#verification-records).
 
 ## Narrow and small terminals
 
-The toolbar drops what does not fit and hints are clipped; every action keeps its key. Items outside the view are clipped at the board's edge, cell by cell, and wide characters that would straddle the edge are not drawn. A terminal of one row still renders without failing.
+A split pane is often narrow. The toolbar drops the title plate first, then buttons that do not fit, and hints are clipped; every action keeps its key. The board redraws at its new size whenever Herdr resizes the pane. Items outside the view are clipped at the board's edge, cell by cell, and wide characters that would straddle the edge are not drawn. A terminal of one row still renders without failing.

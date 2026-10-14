@@ -11,10 +11,15 @@ command = ["cargo", "build", "--release", "--locked"]
 [[panes]]
 id = "board"
 title = "Whiteboard"
-placement = "tab"
+placement = "split"
 command = ["sh", "bin/whiteboard.sh", "pane"]
 
 [[actions]]
 id = "open"
-title = "Open whiteboard"
+title = "Open whiteboard beside this pane"
 command = ["sh", "bin/whiteboard.sh", "open"]
+
+[[actions]]
+id = "open-tab"
+title = "Open whiteboard in a new tab"
+command = ["sh", "bin/whiteboard.sh", "open-tab"]

@@ -48,9 +48,12 @@ fn toolbar(buf: &mut Buffer, area: Rect, color: usize) -> Vec<(Rect, Button)> {
         parts.push((label.into(), key, Some(button)));
     }
 
+    // In a narrow pane the title plate goes first, so the buttons stay clickable.
+    let full: usize = parts.iter().map(|(text, _, _)| text.width()).sum();
+    let skip = if full > area.width as usize { 2 } else { 0 };
     let mut regions = Vec::new();
     let mut x = area.x;
-    for (text, style, button) in parts {
+    for (text, style, button) in parts.into_iter().skip(skip) {
         let w = text.width() as u16;
         if x + w > area.right() {
             break;
@@ -227,15 +230,15 @@ mod tests {
         let mut app = App::new(Board { items: vec![note, label] }, "wb.json".into());
 
         let rows = screen(&mut app);
-        assert!(rows[0].starts_with(" WHITEBOARD    + NOTE "));
+        // At 60 columns every button fits only without the title plate.
+        assert!(rows[0].starts_with(" + NOTE   + TEXT ") && rows[0].ends_with(" QUIT "));
         assert_eq!(&rows[2][2..], "╭──────────╮                                              ");
         assert!(rows[3].contains("│buy milk  │"));
         assert!(rows[4].contains("│and eggs  │"));
         assert!(rows[6].ends_with("offscree"));
         assert_eq!(app.canvas, Rect::new(0, 1, 60, 10));
-        // At 60 columns the toolbar drops buttons that do not fit rather than overlapping.
-        assert!(!app.buttons.iter().any(|(_, b)| *b == Button::Quit));
-        assert!(app.buttons.contains(&(Rect::new(14, 0, 8, 1), Button::Note)));
+        assert!(app.buttons.contains(&(Rect::new(0, 0, 8, 1), Button::Note)));
+        assert!(app.buttons.contains(&(Rect::new(54, 0, 6, 1), Button::Quit)));
     }
 
     #[test]
@@ -252,6 +255,23 @@ mod tests {
         app.status = Status::Saved;
         app.dirty = false;
         assert!(screen(&mut app)[11].ends_with(" SAVED "));
+    }
+
+    #[test]
+    fn narrow_toolbar_drops_the_title_before_buttons() {
+        let mut app = App::new(Board::default(), "wb.json".into());
+        let mut term = Terminal::new(TestBackend::new(20, 5)).unwrap();
+        term.draw(|f| render(f, &mut app)).unwrap();
+        let buf = term.backend().buffer();
+        let top: String = (0..20).map(|x| buf[(x, 0)].symbol().to_string()).collect();
+        assert_eq!(top, " + NOTE   + TEXT    ");
+        assert_eq!(app.buttons, [(Rect::new(0, 0, 8, 1), Button::Note), (Rect::new(9, 0, 8, 1), Button::Text)]);
+
+        let mut term = Terminal::new(TestBackend::new(90, 5)).unwrap();
+        term.draw(|f| render(f, &mut app)).unwrap();
+        let buf = term.backend().buffer();
+        let top: String = (0..22).map(|x| buf[(x, 0)].symbol().to_string()).collect();
+        assert_eq!(top, " WHITEBOARD    + NOTE ", "the title returns when everything fits");
     }
 
     #[test]

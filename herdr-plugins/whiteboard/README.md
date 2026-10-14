@@ -1,6 +1,6 @@
 # Industrial OS Whiteboard
 
-A Herdr 0.9.3+ plugin: a mouse-driven whiteboard with sticky notes and free text, drawn in Acid / Black with [ratatui](https://ratatui.rs). It opens in its own Herdr tab, and each workspace has its own board.
+A Herdr 0.9.3+ plugin: a mouse-driven whiteboard with sticky notes and free text, drawn in Acid / Black with [ratatui](https://ratatui.rs). It opens in a split beside the pane you are in, or in its own tab, and each workspace has its own board.
 
 Rust and Cargo build it; it has no Node runtime. Linux and macOS only. Why a Herdr plugin here may use another runtime is recorded in [the decision](../../docs/decisions/herdr-plugin-runtimes.md).
 
@@ -17,21 +17,36 @@ If the binary is missing, the pane says how to build it and waits for Enter.
 
 ## Open a board
 
-Invoke the `open` action, or open the pane directly:
+| Action | Opens the board |
+| --- | --- |
+| `industrial-os.whiteboard.open` | In a split to the right of the focused pane |
+| `industrial-os.whiteboard.open-tab` | In a new tab |
 
 ```sh
 herdr plugin action invoke industrial-os.whiteboard.open
-herdr plugin pane open --plugin industrial-os.whiteboard --entrypoint board
+herdr plugin action invoke industrial-os.whiteboard.open-tab
 ```
 
-To bind a key, add this to Herdr's `config.toml`:
+Opening the pane directly uses the manifest's default, a split of the focused pane; `--placement` and `--direction` override it:
+
+```sh
+herdr plugin pane open --plugin industrial-os.whiteboard --entrypoint board --placement split --direction down
+```
+
+The board is a normal Herdr pane once open: resize, move, zoom or swap it like any other, and it redraws at its new size. To bind keys, add this to Herdr's `config.toml`:
 
 ```toml
 [[keys.command]]
 key = "prefix+w"
 type = "plugin_action"
 command = "industrial-os.whiteboard.open"
-description = "whiteboard"
+description = "whiteboard beside this pane"
+
+[[keys.command]]
+key = "prefix+W"
+type = "plugin_action"
+command = "industrial-os.whiteboard.open-tab"
+description = "whiteboard in a new tab"
 ```
 
 Outside Herdr, run `target/release/whiteboard [board.json]`; it defaults to `./whiteboard.json`.
@@ -52,7 +67,7 @@ Outside Herdr, run `target/release/whiteboard [board.json]`; it defaults to `./w
 | Save | `SAVE` | `Ctrl+S` |
 | Quit, saving first | `QUIT` | `q` or `Ctrl+C`; `Ctrl+Q` quits without saving |
 
-Quitting closes the tab. If a save fails, the board stays open and says why.
+Quitting closes the board's pane and leaves the others. If a save fails, the board stays open and says why.
 
 ## Storage
 
