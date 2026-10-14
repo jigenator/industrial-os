@@ -82,10 +82,10 @@ pi = [
     { token = "$mthink_d2", fg = "#555555" }, # structural
     { token = "$mthink_d3", fg = "#333333" }, # ghost
   ],
-  # Row 5: phase, question or finished, and its age; then the question's continuation rows.
+  # Row 5: pane name, question or finished, and its age; then the question's continuation rows.
   [
     { token = "$g5", fg = "#717171" },                  # decorative
-    { token = "$ev_act", fg = "#cfcfcf" },              # secondary
+    { token = "$pane", fg = "#cfcfcf" },                # secondary
     { token = "$ask_l1", fg = "#f24723", bold = true }, # critical
     { token = "$ev_rdy_text", fg = "#ffffff" },         # primary
     { token = "$ph_age", fg = "#717171" },              # decorative

@@ -150,3 +150,15 @@ test('exactly one ACT alternative resolves at every stage, with unchanged text o
   }
   assert.deepEqual(actRows.map((row) => row.filter(() => false)).filter((row) => row.length), []);
 });
+
+test('row 5 pane label is secondary, gutter decorative, without decay or phase target', () => {
+  const row = configuredRows()[5];
+  assert.deepEqual(row, ['g5', 'pane', 'ask_l1', 'ev_rdy_text', 'ph_age']);
+  for (const [key, role] of [['pane', 'secondary'], ['g5', 'decorative']]) {
+    const entry = new RegExp(`\\{\\s*token\\s*=\\s*"\\$${key}"([^}]+)\\}`).exec(piRows());
+    assert.ok(entry);
+    assert.match(entry[1], new RegExp(`fg\\s*=\\s*"${ACID_BLACK[role]}"`));
+    assert.doesNotMatch(entry[1], /bold|rules|dim/);
+  }
+  assert.doesNotMatch(piRows(), /ev_act|pane_d[123]/);
+});
