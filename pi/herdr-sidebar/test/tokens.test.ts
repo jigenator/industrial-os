@@ -272,36 +272,43 @@ test("row 5 question: wrapped to 24 cells, (+N), three lines at most, continuati
 	assert.deepEqual(wrapQuestion("漢字漢字漢字漢字漢字漢字漢字"), ["漢字漢字漢字漢字漢字漢字", "漢字"]);
 	// The question replaces phase and finished rows.
 	t = build({ question: { text: "Go?", more: 0, since: NOW }, root: { working: true, lastSettledAt: NOW - 1000 }, phase: { kind: "thinking", since: NOW } }, "done");
-	assert.equal(t.ev_act, undefined); assert.equal(t.ph_age, undefined); assert.equal(t.ev_rdy_text, undefined);
+	assert.equal(t.pane, undefined); assert.equal(t.ph_age, undefined); assert.equal(t.ev_rdy_text, undefined);
 	t = build({ question: { text: "", more: 4, since: NOW } });
 	assert.equal(t.ask_l1, "(+4)");
 });
 
-test("row 5 phase: codes, targets and fallbacks, and the age in the right slot", () => {
-	const working = (phase: object) => build({ root: { working: true, lastSettledAt: null }, phase });
-	const tools: [string, string][] = [["read", "RD"], ["edit", "ED"], ["write", "WR"], ["bash", "SH"], ["web_search", "WB"], ["fetch_content", "WB"], ["subagent", "AG"], ["grep", "TL"]];
-	for (const [tool, code] of tools) {
-		const t = working({ kind: "tool", tool, target: null, since: NOW - 5_000 });
-		assert.equal(t.g5, code.padEnd(4, B));
-		assert.equal(t.ev_act, tool.padEnd(15, B));
-		assert.equal(t.ph_age, `${B.repeat(4)}5s`);
+test("row 5 pane name: present in every state, absent without a label, fitted beside phase age", () => {
+	const input = { snapshot: snap(), herdr: "idle", now: NOW, home: HOME };
+	for (const herdr of ["idle", "unknown", "working", "blocked", null]) {
+		const t = buildTokens({ ...input, herdr, paneLabel: "Updating sidebar pane name" });
+		assert.equal(t.g5, `PNE${B}`); assert.equal(t.pane, "Updating sidebar pane n…");
+		assert.equal(t.ph_age, undefined);
 	}
-	for (const [kind, code] of [["waiting", "WAI"], ["thinking", "THK"], ["writing", "WRT"]]) {
-		const t = working({ kind, since: NOW - 125_000 });
-		assert.equal(t.g5, `${code}${B}`);
-		assert.equal(t.ev_act, kind.padEnd(15, B));
-		assert.equal(t.ph_age, `${B.repeat(4)}2m`);
+	for (const paneLabel of [null, undefined, "", " \x07\u202e "]) {
+		const t = buildTokens({ ...input, paneLabel, snapshot: snap({ root: { working: true }, phase: { kind: "thinking", since: NOW } }) });
+		for (const key of ["g5", "pane", "ph_age"]) assert.equal(t[key], undefined);
+		assert.equal(nextTokenChange({ ...input, paneLabel, snapshot: snap({ root: { working: true }, phase: { kind: "thinking", since: NOW } }) }), null);
 	}
-	let t = working({ kind: "tool", tool: "read", target: "src/extension.ts", since: NOW });
-	assert.equal(t.ev_act, "src/extension.…");
-	assert.equal(t.ph_age, `${B.repeat(4)}0s`);
-	t = working({ kind: "tool", tool: "bash", target: "\x1b[2Jnpm\ttest", since: NOW });
-	assert.equal(t.ev_act, `[2Jnpmtest${B.repeat(5)}`);
-	t = working({ kind: "tool", tool: "edit", target: "\x07", since: NOW });
-	assert.equal(t.ev_act, "edit".padEnd(15, B));
-	// No phase while the root is not working, whatever the payload says.
-	t = build({ root: { working: false, lastSettledAt: null }, phase: { kind: "thinking", since: NOW } });
-	assert.equal(t.g5, undefined); assert.equal(t.ev_act, undefined);
+	for (const phase of [{ kind: "tool", tool: "bash", target: "secret command", since: NOW - 125_000 },
+		{ kind: "thinking", since: NOW - 125_000 }]) {
+		const t = buildTokens({ ...input, paneLabel: "Updating sidebar pane name", snapshot: snap({ root: { working: true }, phase }) });
+		assert.equal(t.g5, `PNE${B}`); assert.equal(t.pane, "Updating sideb…"); assert.equal(t.ph_age, `${B.repeat(4)}2m`);
+	}
+	const t = buildTokens({ ...input, paneLabel: "Pane", snapshot: snap({ root: { working: false }, phase: { kind: "thinking", since: NOW } }) });
+	assert.equal(t.pane, "Pane"); assert.equal(t.ph_age, undefined);
+	const noSnapshot = buildTokens({ ...input, herdr: "done", snapshot: null, paneLabel: "Pane" });
+	assert.equal(noSnapshot.g5, `PNE${B}`); assert.equal(noSnapshot.pane, "Pane"); assert.equal(noSnapshot.ph_age, undefined);
+	assert.equal(noSnapshot.ev_rdy_text, undefined);
+});
+
+test("row 5 ASK and RDY take precedence over pane name and never decay", () => {
+	const input = { paneLabel: "Pane", herdr: "done", visible: false, lastAccessAt: NOW - 86_400_000, now: NOW, home: HOME };
+	const done = buildTokens({ ...input, snapshot: snap({ root: { working: true, lastSettledAt: NOW - 61_000 }, phase: { kind: "writing", since: NOW } }) });
+	assert.equal(done.g5, `RDY${B}`); assert.equal(done.pane, undefined); assert.equal(done.ph_age, `${B.repeat(4)}1m`);
+	const ask = buildTokens({ ...input, snapshot: snap({ question: { text: "Proceed?", more: 0, since: NOW } }) });
+	assert.equal(ask.g5, `ASK${B}`); assert.equal(ask.pane, undefined); assert.equal(ask.ph_age, undefined);
+	const idle = buildTokens({ ...input, herdr: "idle", snapshot: snap() });
+	assert.equal(idle.g5, `PNE${B}`); assert.equal(idle.pane, "Pane");
 });
 
 test("row 5 done: RDY and finished, with the settle age when known", () => {
@@ -311,7 +318,7 @@ test("row 5 done: RDY and finished, with the settle age when known", () => {
 	assert.equal(t.ev_rdy_text, "finished"); assert.equal(t.ph_age, undefined);
 	for (const herdr of ["idle", "working", "blocked", "unknown", null]) {
 		t = build({ root: { working: false, lastSettledAt: NOW } }, herdr);
-		for (const key of ["g5", "ev_act", "ev_rdy_text", "ph_age", "ask_l1"]) assert.equal(t[key], undefined, `${herdr} ${key}`);
+		for (const key of ["g5", "pane", "ev_rdy_text", "ph_age", "ask_l1"]) assert.equal(t[key], undefined, `${herdr} ${key}`);
 	}
 });
 
@@ -357,8 +364,8 @@ test("every built value fits its cell budget and Herdr's limits", () => {
 		raw({ active: `/w/${long}`, goal: { status: "active", usedSeconds: 1e7, activeSince: NOW }, question: { text: `${wide} ${long}`, more: 999, since: NOW } }),
 		raw({ active: `/w/${wide}`, workspace: { git: { kind: "repository", active: { branch: wide, dirty: true } }, github: { kind: "repository" } }, pr: { kind: "open", number: 9_999_999 }, model: { provider: "p", id: long }, thinking: long, root: { working: true, lastSettledAt: 0 }, phase: { kind: "tool", tool: long, target: wide, since: 0 } }),
 	];
-	for (const data of snapshots) {
-		const t = buildTokens({ snapshot: readSnapshot(data, SESSION), herdr: "done", now: NOW, home: HOME });
+	for (const data of snapshots) for (const herdr of ["working", "idle", "done"]) {
+		const t = buildTokens({ snapshot: readSnapshot(data, SESSION), herdr, paneLabel: wide, now: NOW, home: HOME });
 		for (const [key, value] of Object.entries(t) as [string, string][]) {
 			assert.ok(TOKEN_KEYS.includes(key), key);
 			assert.ok([...value].length <= 80, key);
@@ -370,7 +377,7 @@ test("every built value fits its cell budget and Herdr's limits", () => {
 });
 
 test("nextTokenChange: when a shown duration's text next changes", () => {
-	const at = (overrides: Record<string, unknown>, herdr = "working", now = NOW) => nextTokenChange({ snapshot: snap(overrides), herdr, now, home: HOME });
+	const at = (overrides: Record<string, unknown>, herdr = "working", now = NOW) => nextTokenChange({ snapshot: snap(overrides), herdr, paneLabel: "Pane", now, home: HOME });
 	assert.equal(at({}), null);
 	assert.equal(at({ goal: { status: "paused", usedSeconds: 10, activeSince: null } }), null);
 	assert.equal(at({ goal: { status: "active", usedSeconds: 10, activeSince: NOW - 400 } }), NOW + 601);
@@ -411,7 +418,8 @@ test("bidi and invisible controls are removed at token sinks while U+2800 paddin
 	assert.equal(clean(` ${controls}safe${B}${controls} `), `safe${B}`);
 	const tokens = build({ active: `/work/${controls}project`, model: { provider: "fixture", id: `${controls}model` }, thinking: `${controls}high`,
 		root: { working: true }, phase: { kind: "tool", tool: "bash", target: `${controls}npm test`, since: NOW } });
-	assert.equal(tokens.proj, "project"); assert.equal(tokens.ev_act, `npm test${B.repeat(7)}`);
+	assert.equal(tokens.proj, "project");
+	assert.equal(buildTokens({ snapshot: snap(), herdr: "idle", paneLabel: `${controls}Pane`, now: NOW, home: HOME }).pane, "Pane");
 	for (const value of Object.values(tokens)) assert.doesNotMatch(value as string, /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/);
 	assert.equal(build({ question: { text: `${controls}Which?`, more: 0, since: NOW } }).ask_l1, "Which?");
 });
@@ -449,7 +457,7 @@ test("IDL/UNK known context is bar_idle regardless of zone; attention states kee
 test("README bounds Herdr compatibility and records token egress and partial-report limitations", async () => {
 	const readme = await readFile("README.md", "utf8");
 	assert.match(readme, /Tested with Herdr 0\.9\.3/); assert.doesNotMatch(readme, /0\.9\.3 or newer/);
-	assert.match(readme, /first line of bash commands and tool paths[\s\S]*in-memory pane tokens as `ev_act`/);
+	assert.match(readme, /pane labels[\s\S]*in-memory pane tokens as `pane`/);
 	assert.match(readme, /half-applied for up to one retry interval/);
 });
 

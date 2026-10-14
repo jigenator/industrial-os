@@ -1,5 +1,5 @@
 // Herdr's local socket API: newline-delimited JSON over a Unix socket (a named pipe on Windows). One short-lived
-// connection per request, and one long-lived subscription for this pane's status, workspace label and visibility. Every wait is bounded and
+// connection per request, and one long-lived subscription for this pane's status, pane/workspace labels and visibility. Every wait is bounded and
 // every failure is returned or reported as unknown; nothing here throws into Pi.
 import { createConnection, type Socket } from "node:net";
 import type { HerdrStatus } from "./tokens.ts";
@@ -65,10 +65,10 @@ export function herdrRequest(socketPath: string, method: string, params: Record<
 // requestTimeoutMs bounds connection/subscription acknowledgement as well as each reconciliation request.
 export type PaneWatchOptions = { requestTimeoutMs?: number; minBackoffMs?: number; maxBackoffMs?: number };
 // `visible`: the pane's tab is the active tab of Herdr's focused workspace, which Herdr 0.9.3 treats as seen; null is unknown.
-export type PaneState = { status: HerdrStatus | null; workspaceLabel: string | null; visible: boolean | null };
-const UNKNOWN: PaneState = { status: null, workspaceLabel: null, visible: null };
+export type PaneState = { status: HerdrStatus | null; workspaceLabel: string | null; paneLabel: string | null; visible: boolean | null };
+const UNKNOWN: PaneState = { status: null, workspaceLabel: null, paneLabel: null, visible: null };
 const FOCUS_EVENTS = ["workspace.focused", "tab.focused", "pane.focused"];
-const LIFECYCLE_EVENTS = ["workspace.renamed", "workspace.updated", "pane.moved", ...FOCUS_EVENTS];
+const LIFECYCLE_EVENTS = ["workspace.renamed", "workspace.updated", "pane.updated", "pane.moved", ...FOCUS_EVENTS];
 // Herdr 0.9.3 schema/events.rs: Subscription request types are dotted, but EventKind envelopes serialize
 // as snake_case. SubscriptionEventKind keeps pane.agent_status_changed dotted. Normalize only known kinds.
 const WIRE_EVENTS = new Map([
@@ -77,7 +77,7 @@ const WIRE_EVENTS = new Map([
 ]);
 
 /**
- * Subscribes before reading pane.get and workspace.get. Workspace, focus and pane-move events invalidate reads;
+ * Subscribes before reading pane.get and workspace.get. Workspace, focus and pane-update/move events invalidate reads;
  * every reconnect re-resolves them. Herdr 0.9.3 schema/events.rs, schema/panes.rs and schema/workspaces.rs define
  * these shapes; app/api.rs emits the three focus events together whenever the focused pane changes.
  */
@@ -122,7 +122,7 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 	}
 
 	const report = (next: PaneState) => {
-		if (closed || (next.status === state.status && next.workspaceLabel === state.workspaceLabel && next.visible === state.visible)) return;
+		if (closed || (next.status === state.status && next.workspaceLabel === state.workspaceLabel && next.paneLabel === state.paneLabel && next.visible === state.visible)) return;
 		state = next;
 		onState({ ...next });
 	};
@@ -154,7 +154,7 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 					if (typeof workspace?.label === "string") workspaceLabel = workspace.label.slice(0, 200);
 					if (tabId && typeof workspace?.focused === "boolean" && typeof workspace.active_tab_id === "string") visible = workspace.focused && workspace.active_tab_id === tabId;
 				}
-				report({ status: herdrStatus(pane.agent_status), workspaceLabel, visible });
+				report({ status: herdrStatus(pane.agent_status), workspaceLabel, paneLabel: typeof pane.label === "string" ? pane.label.slice(0, 200) : null, visible });
 				if (!complete) { scheduleReadRetry(owner); return; }
 				cancelReadRetry();
 				readBackoff = minBackoffMs;
@@ -224,7 +224,8 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 			} else if (event === "pane.agent_status_changed" && data.pane_id === paneId) {
 				if (reading?.owner === owner) reading.stale = true;
 				report({ ...state, status: herdrStatus(data.agent_status) });
-			} else if ((event === "workspace.renamed" && (workspaceId === undefined || data.workspace_id === workspaceId)) ||
+			} else if ((event === "pane.updated" && record(data.pane) && data.pane.pane_id === paneId) ||
+				(event === "workspace.renamed" && (workspaceId === undefined || data.workspace_id === workspaceId)) ||
 				(event === "workspace.updated" && record(data.workspace) && (workspaceId === undefined || data.workspace.workspace_id === workspaceId)) ||
 				FOCUS_EVENTS.includes(event)) {
 				// Any focus change can make this pane seen or unseen; the reads are authoritative, the payloads only invalidate.
@@ -238,11 +239,12 @@ export function watchPaneState(target: HerdrTarget, onState: (state: PaneState) 
 	return {
 		get status() { return state.status; },
 		get workspaceLabel() { return state.workspaceLabel; },
+		get paneLabel() { return state.paneLabel; },
 		get visible() { return state.visible; },
 		get paneId() { return paneId; },
 		/**
 		 * Re-reads the pane and workspace on the live subscription. Herdr recomputes an automatic SPACE label from the
-		 * workspace's Git state without any workspace event; the caller refreshes on its report-renewal cycle.
+		 * workspace's Git state without an event; pane.rename also emits none. Refresh on the report-renewal cycle.
 		 */
 		refresh() {
 			if (!closed && live === connection) void reconcile(live);

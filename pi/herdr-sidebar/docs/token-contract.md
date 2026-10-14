@@ -47,11 +47,13 @@ nor the collector contract.
 
 ## Row 5 and its continuation rows
 
-At most one of these; otherwise no row-5 tokens.
+The first applicable form wins: pending question, DNE finished marker, then known pane name. No label known means no pane-name row; there is no fallback. This row never access-decays.
 
 - Question pending: `g5` = `ASK` + U+2800; `ask_l1`…`ask_l3` = the question text, plus ` (+N)` when `more > 0`, word-wrapped to 24 cells, at most 3 lines, the last cut with `…`. `ask_l2` and `ask_l3` start with 7 U+2800 so they align under the text column.
-- Working with a phase: `g5` = phase code padded to 4 cells: waiting `WAI`, thinking `THK`, writing `WRT`, tools `read` `RD`, `edit` `ED`, `write` `WR`, `bash` `SH`, `web_search`/`fetch_content` `WB`, `subagent` `AG`, any other tool `TL`. `ev_act` = the target, or when there is none: `waiting`, `thinking`, `writing`, or the tool name. `ph_age` = time since `phase.since`, in pi-goal's format, right slot.
-- State `DNE`: `g5` = `RDY` + U+2800; `ev_rdy_text` = `finished`; `ph_age` = time since the subagents-finished flag was set when it is set, otherwise since `root.lastSettledAt` (absent when unknown).
+- State `DNE` (with a snapshot): `g5` = `RDY` + U+2800; `ev_rdy_text` = `finished`; `ph_age` = time since the subagents-finished flag was set when it is set, otherwise since `root.lastSettledAt` (absent when unknown).
+- Otherwise, in every state including IDL/UNK: `g5` = `PNE` + U+2800; `pane` = the non-empty Herdr pane `label` from `pane.get` → `result.pane.label`, sanitized and fitted to the available width with `…` on truncation. `ph_age` = time since `phase.since`, in pi-goal's format, right slot, only while the snapshot has a working phase. Without a phase there is no right slot and the label has all 24 cells. Without a known label neither `g5`, `pane` nor phase age is reported. Phase codes, targets and fallback phase/tool text are not reported.
+
+Re-read on `pane.updated` (wire `pane_updated`), reconnect and the existing 20-second renewal. Herdr 0.9.3's `pane.rename` emits no event, so an unannounced rename can lag by one renewal cycle, like an automatic SPACE label. Source: [rename handler](https://github.com/herdrdev/herdr/blob/v0.9.3/src/app/api/panes.rs#L1479-L1503); [event schema](https://github.com/herdrdev/herdr/blob/v0.9.3/src/api/schema/events.rs).
 
 ## ACT / MDL access decay
 
@@ -82,13 +84,13 @@ Thresholds have one executable source, `DECAY_THRESHOLDS_MS` in
 
 Every report sets the applicable keys and clears the rest of this list across bounded requests (clears first), so stale keys never linger. Herdr limits: 32 tokens per pane, 16 per request, 80 characters per value. The 52-key contract is not 52 stored tokens: at most 15 are simultaneously applicable, and null clears remove stored keys. Other reporters share the pane's 32-token budget.
 
-Full key list: `g1 proj proj_idle gt gt_off g2_au g2_au0 bar bar_warn bar_crit bar_idle bar_unk cmpx g3 br br_dirty dir prn prn_off g4 mthink g5 ev_act ask_l1 ask_l2 ask_l3 ev_rdy_text ph_age g3_d1 br_d1 br_dirty_d1 dir_d1 prn_d1 prn_off_d1 g4_d1 mthink_d1 g3_d2 br_d2 br_dirty_d2 dir_d2 prn_d2 prn_off_d2 g4_d2 mthink_d2 g3_d3 br_d3 br_dirty_d3 dir_d3 prn_d3 prn_off_d3 g4_d3 mthink_d3` (52 keys).
+Full key list: `g1 proj proj_idle gt gt_off g2_au g2_au0 bar bar_warn bar_crit bar_idle bar_unk cmpx g3 br br_dirty dir prn prn_off g4 mthink g5 pane ask_l1 ask_l2 ask_l3 ev_rdy_text ph_age g3_d1 br_d1 br_dirty_d1 dir_d1 prn_d1 prn_off_d1 g4_d1 mthink_d1 g3_d2 br_d2 br_dirty_d2 dir_d2 prn_d2 prn_off_d2 g4_d2 mthink_d2 g3_d3 br_d3 br_dirty_d3 dir_d3 prn_d3 prn_off_d3 g4_d3 mthink_d3` (52 keys).
 
 ## How the builder resolves what the contract leaves open
 
 These follow from the rules above and are pinned by `test/tokens.test.ts`; they are this extension's reading, not additions to the contract.
 
-- **No snapshot.** Without a collector, or before its first snapshot, the report is row 1's `g1` (and SPACE title when Herdr supplies it) and row 2's unknowns: `??AU`, `bar_unk` and `CMP×??`. Rows 3 to 5 report nothing rather than a guess.
+- **No snapshot.** Without a collector, or before its first snapshot, the report is row 1's `g1` (and SPACE title when Herdr supplies it) and row 2's unknowns: `??AU`, `bar_unk` and `CMP×??`, plus PNE when the pane label is known (no age). Rows 3 and 4 report nothing rather than a guess. ASK and RDY remain inapplicable before the first snapshot, even when Herdr reports done.
 - **Gutters follow their row.** `g3` and `g4` are reported only when their row has a value, so no label stands alone.
 - **Sanitizing.** Control characters (C0, DEL and C1) and bidi controls (U+061C, U+200E/F, U+202A–U+202E, U+2066–U+2069) are removed and surrounding whitespace trimmed before a value is measured, so Herdr's own trim cannot shift alignment. In the question text, whitespace, including line breaks, separates words.
 - **Cutting.** A cut keeps whole grapheme clusters. When a wide character does not fit before the `…`, the fitted 15-cell value pads with U+2800 before the `…`, so the `…` stays in the last cell. A cut segment also keeps at most 60 code points, so no value reaches Herdr's 80-character cap.
@@ -96,4 +98,4 @@ These follow from the rules above and are pinned by `test/tokens.test.ts`; they 
 - **Directory.** As status-bar shows it: `~` for home, `~/name` for a folder directly under home, the full path when the parent is the filesystem root (`/work/tatsu-cli`), otherwise `parent/current`.
 - **A cut dirty branch keeps its `*`** after the `…`, so dirtiness never rests on color alone.
 - **Short model.** `N` is one digit, so a dated ID such as `claude-sonnet-4-20250514` keeps its date. A thinking level outside the table is shown verbatim.
-- **Phase.** A phase is shown only while the snapshot says the root agent is working, and a pending question takes precedence over it.
+- **Phase age.** Only the age remains, beside a known pane name while the snapshot says the root agent is working with a phase. Question and finished rows take precedence.

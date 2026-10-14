@@ -12,7 +12,7 @@ Scope reviewed: the complete source and tests at the revision that added the pro
 
 **Rule:** dependency direction is `extension → snapshot, tokens, sender, herdr-client`; `sender` takes a request function and imports only the key list and reply type; `tokens` imports only `snapshot` types, Node `path` and Pi TUI's `visibleWidth`; `snapshot` and `herdr-client` import no Pi module. **Reason:** the builder and sender stay testable without Pi or a socket. **Check:** review imports.
 
-**Rule:** display only. The extension's inputs are the snapshot channels and Herdr's status for its own pane. It never spawns a process, reads a file, or writes anything except Herdr pane tokens and `herdr:blocked`. **Reason:** collection belongs to the signals-collector, once per session; a second collector would duplicate work and disagree. **Check:** `grep -n "child_process\|node:fs" src/*.ts` finds nothing.
+**Rule:** display only. The extension's inputs are the snapshot channels and Herdr's status, labels and visibility for its own pane. It never spawns a process, reads a file, or writes anything except Herdr pane tokens and `herdr:blocked`. **Reason:** collection belongs to the signals-collector, once per session; a second collector would duplicate work and disagree. **Check:** `grep -n "child_process\|node:fs" src/*.ts` finds nothing.
 
 **Rule:** the collector is another project, so its snapshot type is not imported; `src/snapshot.ts` restates the consumed subset and validates it. **Check:** review imports against the [snapshot inputs](architecture.md#inputs).
 

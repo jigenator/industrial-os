@@ -24,6 +24,7 @@ type Runtime = {
 	snapshot: SidebarSnapshot | null;
 	herdr: HerdrStatus | null;
 	workspaceLabel: string | null;
+	paneLabel: string | null;
 	visible: boolean | null;
 	subagentsFinishedAt: number | null;
 	question: boolean;
@@ -37,7 +38,7 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 	let runtime: Runtime | undefined;
 
 	const inputAt = (r: Runtime, now: number): SidebarInput => ({
-		snapshot: r.snapshot, herdr: r.herdr, workspaceLabel: r.workspaceLabel, visible: r.visible,
+		snapshot: r.snapshot, herdr: r.herdr, workspaceLabel: r.workspaceLabel, paneLabel: r.paneLabel, visible: r.visible,
 		lastAccessAt: r.lastAccessAt, subagentsFinishedAt: r.subagentsFinishedAt, now, home: homedir(),
 	});
 	// Capture the end of a seen/working/unknown interval before changing its inputs.
@@ -79,7 +80,7 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 		const sender = createTokenSender({
 			paneId: target.paneId,
 			request: (params, timeoutMs) => herdrRequest(target.socketPath, "pane.report_metadata", { ...params, pane_id: watch?.paneId ?? target.paneId }, timeoutMs),
-			// Herdr changes an automatic SPACE label without an event; re-read it with each renewal.
+			// Automatic SPACE labels and pane.rename can change labels without events; re-read with each renewal.
 			onRenew: () => {
 				// Also refresh access even when watch inputs have not changed; no extra interval.
 				if (runtime === r) render(r, send);
@@ -89,7 +90,7 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 		const send = (tokens: ReturnType<typeof buildTokens>) => sender.update(tokens);
 		const unsubscribe: (() => void)[] = [];
 		const r: Runtime = {
-			sessionId: ctx.sessionManager.getSessionId(), snapshot: null, herdr: null, workspaceLabel: null, visible: null, subagentsFinishedAt: null, question: false, lastRender: 0, lastAccessAt: Date.now(),
+			sessionId: ctx.sessionManager.getSessionId(), snapshot: null, herdr: null, workspaceLabel: null, paneLabel: null, visible: null, subagentsFinishedAt: null, question: false, lastRender: 0, lastAccessAt: Date.now(),
 			async dispose() {
 				if (r.timer) clearTimeout(r.timer);
 				r.timer = undefined;
@@ -123,6 +124,7 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 			updateAccess(r);
 			r.herdr = state.status;
 			r.workspaceLabel = state.workspaceLabel;
+			r.paneLabel = state.paneLabel;
 			r.visible = state.visible;
 			updateFinished(r, r.snapshot?.units ?? null);
 			render(r, send);

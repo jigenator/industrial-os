@@ -2,7 +2,7 @@
 // home path in; the sidebar token map out. The canonical rules are in docs/token-contract.md; this module performs no I/O.
 import { basename, dirname, isAbsolute, relative, sep } from "node:path";
 import { visibleWidth } from "@earendil-works/pi-tui";
-import type { Phase, SidebarSnapshot } from "./snapshot.ts";
+import type { SidebarSnapshot } from "./snapshot.ts";
 
 // Only rows 3 and 4 have stage variants. Thresholds are the single executable source.
 export const DECAY_FAMILIES = ["g3", "br", "br_dirty", "dir", "prn", "prn_off", "g4", "mthink"] as const;
@@ -14,7 +14,7 @@ const stageKeys = (stage: 1 | 2 | 3): StagedKey[] => DECAY_FAMILIES.map((key) =>
 
 export const TOKEN_KEYS = [
 	"g1", "proj", "proj_idle", "gt", "gt_off", "g2_au", "g2_au0", "bar", "bar_warn", "bar_crit", "bar_idle", "bar_unk", "cmpx", "g3", "br",
-	"br_dirty", "dir", "prn", "prn_off", "g4", "mthink", "g5", "ev_act", "ask_l1", "ask_l2", "ask_l3", "ev_rdy_text", "ph_age",
+	"br_dirty", "dir", "prn", "prn_off", "g4", "mthink", "g5", "pane", "ask_l1", "ask_l2", "ask_l3", "ev_rdy_text", "ph_age",
 	...stageKeys(1), ...stageKeys(2), ...stageKeys(3),
 ] as const;
 export type TokenKey = (typeof TOKEN_KEYS)[number];
@@ -22,7 +22,7 @@ export type TokenMap = Partial<Record<TokenKey, string>>;
 
 export type HerdrStatus = "idle" | "working" | "blocked" | "done" | "unknown";
 // `subagentsFinishedAt` is this extension's own "subagents finished unseen" flag: when it was set, or null.
-export type SidebarInput = { snapshot: SidebarSnapshot | null; herdr: HerdrStatus | null; workspaceLabel?: string | null; visible?: boolean | null; lastAccessAt?: number; subagentsFinishedAt?: number | null; now: number; home: string };
+export type SidebarInput = { snapshot: SidebarSnapshot | null; herdr: HerdrStatus | null; workspaceLabel?: string | null; paneLabel?: string | null; visible?: boolean | null; lastAccessAt?: number; subagentsFinishedAt?: number | null; now: number; home: string };
 
 // Herdr trims ASCII whitespace but keeps U+2800, so every padding cell is U+2800.
 export const BLANK = "\u2800";
@@ -40,8 +40,6 @@ const STATES = {
 } as const;
 type DisplayState = keyof typeof STATES;
 const THINKING: Record<string, string> = { off: "off", minimal: "mn", low: "lo", medium: "md", high: "hi", xhigh: "xh", max: "mx" };
-const TOOL_CODES: Record<string, string> = { read: "RD", edit: "ED", write: "WR", bash: "SH", web_search: "WB", fetch_content: "WB", subagent: "AG" };
-const PHASE_CODES = { waiting: "WAI", thinking: "THK", writing: "WRT" } as const;
 
 const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 const graphemes = (text: string) => Array.from(segmenter.segment(text), (part) => part.segment);
@@ -200,20 +198,9 @@ function goalClock(snapshot: SidebarSnapshot): Clock | null {
 function ageClock(input: SidebarInput): Clock | null {
 	const snapshot = input.snapshot;
 	if (!snapshot || snapshot.question) return null;
-	if (snapshot.phase) return { base: 0, start: snapshot.phase.since };
-	if (displayState(input) !== "done") return null;
+	if (displayState(input) !== "done") return snapshot.phase && clean(input.paneLabel ?? "") ? { base: 0, start: snapshot.phase.since } : null;
 	const finished = input.subagentsFinishedAt ?? snapshot.lastSettledAt;
 	return finished === null ? null : { base: 0, start: finished };
-}
-
-function phaseCode(phase: Phase): string {
-	return phase.kind === "tool" ? TOOL_CODES[phase.tool] ?? "TL" : PHASE_CODES[phase.kind];
-}
-
-function phaseText(phase: Phase): string {
-	const target = phase.kind === "tool" && phase.target !== null ? clean(phase.target) : "";
-	if (target) return target;
-	return phase.kind === "tool" ? clean(phase.tool) || "tool" : phase.kind;
 }
 
 // A left value: fitted to 15 cells beside a right value, otherwise cut to the 24-cell text area.
@@ -248,48 +235,51 @@ export function buildTokens(input: SidebarInput): TokenMap {
 	const compactions = snapshot?.compactions ?? null;
 	set("cmpx", `CMP×${compactions === null ? "??" : twoDigits(compactions)}`);
 
-	if (!snapshot) return tokens;
+	if (snapshot) {
+		// Row 3: branch or directory, PR number.
+		const pr = snapshot.pr;
+		const prText = pr?.kind === "open" ? rightSlot(`#${pr.number}`) : pr?.kind === "unavailable" ? rightSlot("#?") : undefined;
+		if (prText) set(pr!.kind === "open" ? "prn" : "prn_off", prText);
+		// status-bar shows `⑂ branch` exactly when Git and GitHub are both known and HEAD is on a branch.
+		const git = snapshot.workspace?.git;
+		if (git?.kind === "repository" && git.branch !== null && snapshot.workspace!.githubRepository) {
+			const branch = clean(git.branch);
+			// A cut dirty branch keeps its `*`, so the state never rests on color alone.
+			if (git.dirty === true) set("br_dirty", prText === undefined ? `${cut(branch, TEXT_CELLS - 1)}*` : fitLeft(`${cut(branch, LEFT_CELLS - 1)}*`));
+			else set("br", left(branch, prText));
+		} else if (snapshot.active) set("dir", left(clean(displayPath(snapshot.active, input.home)), prText));
+		if (tokens.br || tokens.br_dirty || tokens.dir) tokens.g3 = gutter("ACT");
 
-	// Row 3: branch or directory, PR number.
-	const pr = snapshot.pr;
-	const prText = pr?.kind === "open" ? rightSlot(`#${pr.number}`) : pr?.kind === "unavailable" ? rightSlot("#?") : undefined;
-	if (prText) set(pr!.kind === "open" ? "prn" : "prn_off", prText);
-	// status-bar shows `⑂ branch` exactly when Git and GitHub are both known and HEAD is on a branch.
-	const git = snapshot.workspace?.git;
-	if (git?.kind === "repository" && git.branch !== null && snapshot.workspace!.githubRepository) {
-		const branch = clean(git.branch);
-		// A cut dirty branch keeps its `*`, so the state never rests on color alone.
-		if (git.dirty === true) set("br_dirty", prText === undefined ? `${cut(branch, TEXT_CELLS - 1)}*` : fitLeft(`${cut(branch, LEFT_CELLS - 1)}*`));
-		else set("br", left(branch, prText));
-	} else if (snapshot.active) set("dir", left(clean(displayPath(snapshot.active, input.home)), prText));
-	if (tokens.br || tokens.br_dirty || tokens.dir) tokens.g3 = gutter("ACT");
-
-	// Row 4: model and thinking level.
-	if (snapshot.model) {
-		const model = clean(shortModel(snapshot.model.id));
-		const thinking = snapshot.thinking === null ? "" : THINKING[snapshot.thinking] ?? clean(snapshot.thinking);
-		set("mthink", model && cut(thinking ? `${model}/${thinking}` : model, TEXT_CELLS));
-		if (tokens.mthink) tokens.g4 = gutter("MDL");
+		// Row 4: model and thinking level.
+		if (snapshot.model) {
+			const model = clean(shortModel(snapshot.model.id));
+			const thinking = snapshot.thinking === null ? "" : THINKING[snapshot.thinking] ?? clean(snapshot.thinking);
+			set("mthink", model && cut(thinking ? `${model}/${thinking}` : model, TEXT_CELLS));
+			if (tokens.mthink) tokens.g4 = gutter("MDL");
+		}
 	}
 
-	// Row 5: the pending question, the working phase, or the finished marker.
+	// Row 5: question, finished marker, otherwise the known pane name.
 	const age = ageClock(input);
 	const ageText = age ? rightSlot(formatDuration(seconds(age, now))) : undefined;
-	if (snapshot.question) {
+	if (snapshot?.question) {
 		tokens.g5 = gutter("ASK");
 		const more = snapshot.question.more > 0 ? ` (+${snapshot.question.more})` : "";
 		const [l1, l2, l3] = wrapQuestion(`${snapshot.question.text}${more}`);
 		set("ask_l1", l1);
 		set("ask_l2", l2 && BLANK.repeat(7) + l2);
 		set("ask_l3", l3 && BLANK.repeat(7) + l3);
-	} else if (snapshot.phase) {
-		tokens.g5 = gutter(phaseCode(snapshot.phase));
-		set("ev_act", left(phaseText(snapshot.phase), ageText));
-		set("ph_age", ageText);
-	} else if (state === "done") {
+	} else if (snapshot && state === "done") {
 		tokens.g5 = gutter("RDY");
 		set("ev_rdy_text", left("finished", ageText));
 		set("ph_age", ageText);
+	} else {
+		const label = clean(input.paneLabel ?? "");
+		if (label) {
+			tokens.g5 = gutter("PNE");
+			set("pane", left(label, ageText));
+			set("ph_age", ageText);
+		}
 	}
 	// Build the unchanged text first, then select exactly one key variant per applicable family.
 	const stage = decayStage(input);

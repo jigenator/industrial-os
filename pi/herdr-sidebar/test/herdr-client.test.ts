@@ -145,7 +145,7 @@ test("herdrRequest returns the reply, Herdr's error code, a timeout, or a connec
 	t.after(() => herdr.close());
 	herdr.setStatus("working", false);
 	const ok = await herdrRequest(herdr.socketPath, "pane.get", { pane_id: herdr.paneId }, 500);
-	assert.deepEqual(ok, { ok: true, result: { type: "pane_info", pane: { pane_id: herdr.paneId, workspace_id: "w1", tab_id: "w1:t1", agent_status: "working" } } });
+	assert.deepEqual(ok, { ok: true, result: { type: "pane_info", pane: { pane_id: herdr.paneId, workspace_id: "w1", tab_id: "w1:t1", agent_status: "working", label: null } } });
 	assert.deepEqual(await herdrRequest(herdr.socketPath, "pane.get", { pane_id: "w9:p9" }, 500), { ok: false, error: "pane.get: pane_not_found" });
 	herdr.setPaneGetMode("silent");
 	const started = Date.now();
@@ -269,7 +269,7 @@ for (const move of ["same-ID", "cross-workspace"]) {
 
 test("fake Herdr rejects dotted lifecycle wire events", async (t) => {
 	const herdr = await startFakeHerdr(); t.after(() => herdr.close());
-	for (const event of ["workspace.renamed", "workspace.updated", "pane.moved", "workspace.focused", "tab.focused", "pane.focused"]) {
+	for (const event of ["workspace.renamed", "workspace.updated", "pane.updated", "pane.moved", "workspace.focused", "tab.focused", "pane.focused"]) {
 		assert.throws(() => herdr.emit(event, {}), /Lifecycle wire event must be snake_case/);
 	}
 });
@@ -279,7 +279,7 @@ test("workspace label resolves via workspace.get, follows rename/update/move, an
 	const watch = watchPaneState({ socketPath: herdr.socketPath, paneId: herdr.paneId }, () => {}, { minBackoffMs: 20, maxBackoffMs: 80 }); t.after(() => watch.close());
 	await until(() => watch.workspaceLabel === "Initial SPACE");
 	assert.deepEqual(herdr.log.find((r) => r.method === "workspace.get")!.params, { workspace_id: "w1" });
-	assert.deepEqual(herdr.log.find((r) => r.method === "events.subscribe")!.params.subscriptions.map((s: any) => s.type), ["pane.agent_status_changed", "workspace.renamed", "workspace.updated", "pane.moved", "workspace.focused", "tab.focused", "pane.focused"]);
+	assert.deepEqual(herdr.log.find((r) => r.method === "events.subscribe")!.params.subscriptions.map((s: any) => s.type), ["pane.agent_status_changed", "workspace.renamed", "workspace.updated", "pane.updated", "pane.moved", "workspace.focused", "tab.focused", "pane.focused"]);
 	herdr.setWorkspaceLabel("Renamed SPACE"); await until(() => watch.workspaceLabel === "Renamed SPACE");
 	herdr.setWorkspaceLabel("Updated SPACE", "updated"); await until(() => watch.workspaceLabel === "Updated SPACE");
 	const reads = herdr.log.filter((r) => r.method === "workspace.get").length;
@@ -390,4 +390,31 @@ test("a transient pane.get or workspace.get failure is retried with backoff, wit
 	const settled = herdr.log.length; await new Promise((done) => setTimeout(done, 200));
 	assert.equal(herdr.log.length, settled);
 	assert.equal(herdr.log.filter((r) => r.method === "events.subscribe").length, 1);
+});
+
+test("pane_updated re-reads pane label immediately; unannounced rename waits for refresh", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close());
+	herdr.setPaneLabel("Before");
+	const states: any[] = [];
+	const watch = watchPaneState({ socketPath: herdr.socketPath, paneId: herdr.paneId }, (state: any) => states.push(state)); t.after(() => watch.close());
+	await until(() => watch.paneLabel === "Before");
+	herdr.setPaneLabel("Announced", true);
+	await until(() => watch.paneLabel === "Announced", "pane_updated", 1000);
+	const reads = herdr.log.filter((r) => r.method === "pane.get").length;
+	herdr.emit("pane_updated", { pane: { pane_id: "other", label: "Other" } });
+	await new Promise((resolve) => setTimeout(resolve, 50));
+	assert.equal(herdr.log.filter((r) => r.method === "pane.get").length, reads);
+	herdr.setPaneLabel("Unannounced");
+	assert.equal(watch.paneLabel, "Announced");
+	watch.refresh();
+	await until(() => watch.paneLabel === "Unannounced");
+	const count = states.length;
+	watch.refresh();
+	await until(() => herdr.log.filter((r) => r.method === "workspace.get").length >= reads + 2);
+	await new Promise((resolve) => setTimeout(resolve, 50));
+	assert.equal(states.length, count, "unchanged refresh publishes nothing");
+	herdr.setPaneLabel(42, true);
+	await until(() => watch.paneLabel === null, "malformed label is unknown");
+	herdr.setPaneLabel("After reconnect"); herdr.dropSubscribers();
+	await until(() => watch.paneLabel === "After reconnect");
 });
