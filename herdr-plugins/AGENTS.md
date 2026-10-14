@@ -1,12 +1,17 @@
 # Agent guide
 
 Herdr plugin group. Follow the [root guide](../AGENTS.md) and the owning
-plugin's guide; [Spaces](spaces/AGENTS.md) is the first maintained plugin.
+plugin's guide: [Spaces](spaces/AGENTS.md) or [Whiteboard](whiteboard/AGENTS.md).
 
 ## Shared rules
 
-- Plain Node 22 ES modules and standard library only; no build or dependency
-  installation. Each plugin owns its manifest and `node --test` checks.
+- Each plugin owns its runtime, manifest and checks. The default is plain
+  Node 22 ES modules, standard library only, with no build. Another runtime
+  declares its build in `[[build]]`, locks its dependencies and documents its
+  toolchain, as the [runtime decision](../docs/decisions/herdr-plugin-runtimes.md)
+  requires; `plugin link` builds nothing.
+- Colors are design-system values. A plugin that cannot import the package
+  mirrors them in one file and checks them against it with a Node test.
 - Tests use temporary state and fake Unix sockets, never live Herdr. Parser
   checks use `HERDR_CONFIG_PATH` on a worktree file or temporary copy.
 - Startup/event hooks must return promptly: detach a daemon with no inherited
