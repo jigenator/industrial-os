@@ -20,7 +20,7 @@ Scan the supporting-documents map and read every document whose condition applie
 | --- | --- |
 | Work in the design system | [The design-system guide](design-system/AGENTS.md) and its routes |
 | Work on a Pi extension | [The Pi guide](pi/AGENTS.md), then the extension's own guide, for example [claude-interrupt](pi/claude-interrupt/AGENTS.md), [signals-collector](pi/signals-collector/AGENTS.md), [status-bar](pi/status-bar/AGENTS.md) or [herdr-sidebar](pi/herdr-sidebar/AGENTS.md) |
-| Work on a Herdr plugin | [Plugin group guide](herdr-plugins/AGENTS.md), then [Spaces guide](herdr-plugins/spaces/AGENTS.md) and its routes |
+| Work on a Herdr plugin | [Plugin group guide](herdr-plugins/AGENTS.md), then the plugin's guide, [Spaces](herdr-plugins/spaces/AGENTS.md) or [Whiteboard](herdr-plugins/whiteboard/AGENTS.md), and its routes |
 | Work on the Herdr configuration | [The Herdr guide](herdr/AGENTS.md) and its routes |
 | Change the visual language or a palette value | [Design](docs/design.md), [the package decision](docs/decisions/in-repo-design-system-package.md), the design-system guide, then each extension that mirrors the value |
 | Import the design system from another project | [Conventions](docs/conventions.md#module-and-dependency-rules), [the package decision](docs/decisions/in-repo-design-system-package.md#migrating-an-extension), then the importing project's guide |
@@ -39,6 +39,7 @@ Scan the supporting-documents map and read every document whose condition applie
 | A new Pi extension | `pi/<name>/` with the [project document set](docs/architecture.md#contracts-between-the-root-and-a-project) | Its own manifest, checks, and license; the design system only by package name |
 | Shared experience or scope | `docs/design.md`, `docs/mission.md` | Then each project separately |
 | Spaces reporting, activity history or quiet sorting | `herdr-plugins/spaces/`; [Spaces contract](herdr-plugins/spaces/docs/token-contract.md) | Node 22 stdlib only; one detached daemon per socket; tests never touch live Herdr |
+| Whiteboard input, drawing or board storage | `herdr-plugins/whiteboard/`; placement in [its architecture](herdr-plugins/whiteboard/docs/architecture.md) | Rust with locked crates; colors only in `src/palette.rs`, checked against the design system; tests never touch live Herdr |
 | Herdr configuration, such as the agents-sidebar rows | `herdr/`; placement in [its architecture](herdr/docs/architecture.md) | Valid Herdr TOML merged by hand; design-system colors; tokens from the owning reporter's contract |
 
 ## Implement and verify
@@ -144,3 +145,12 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [herdr-plugins/spaces/docs/mission.md](herdr-plugins/spaces/docs/mission.md) | Spaces goals and non-goals | Choosing Spaces scope |
 | [herdr-plugins/spaces/docs/token-contract.md](herdr-plugins/spaces/docs/token-contract.md) | Canonical Spaces key list, values, width and TTL | Changing Spaces values or Herdr rows |
 | [docs/decisions/spaces-plugin-daemon.md](docs/decisions/spaces-plugin-daemon.md) | Why Spaces has one socket-keyed plugin daemon | Changing plugin ownership or daemon design |
+| [docs/decisions/herdr-plugin-runtimes.md](docs/decisions/herdr-plugin-runtimes.md) | Why a Herdr plugin may use a runtime other than Node, and what that requires | Adding a plugin in another language or changing a plugin's build |
+| [herdr-plugins/whiteboard/README.md](herdr-plugins/whiteboard/README.md) | Whiteboard install, opening, controls, storage and limits | Using the whiteboard or changing its public surface |
+| [herdr-plugins/whiteboard/AGENTS.md](herdr-plugins/whiteboard/AGENTS.md) | Whiteboard rules, routes and placement | Working anywhere in herdr-plugins/whiteboard |
+| [herdr-plugins/whiteboard/CLAUDE.md](herdr-plugins/whiteboard/CLAUDE.md) | Runtime import of the whiteboard guide | Checking agent entry points |
+| [herdr-plugins/whiteboard/CONTRIBUTING.md](herdr-plugins/whiteboard/CONTRIBUTING.md) | Whiteboard toolchain, validation sequence, isolated Herdr check and evidence | Making or verifying a whiteboard change |
+| [herdr-plugins/whiteboard/docs/architecture.md](herdr-plugins/whiteboard/docs/architecture.md) | Whiteboard modules, Herdr entrypoints, board paths, saving and invariants | Changing whiteboard behavior, storage or dependencies |
+| [herdr-plugins/whiteboard/docs/conventions.md](herdr-plugins/whiteboard/docs/conventions.md) | Whiteboard Rust rules and gaps | Writing or reviewing whiteboard code |
+| [herdr-plugins/whiteboard/docs/design.md](herdr-plugins/whiteboard/docs/design.md) | Whiteboard layout, colors, states and interaction | Changing anything a whiteboard user sees |
+| [herdr-plugins/whiteboard/docs/mission.md](herdr-plugins/whiteboard/docs/mission.md) | Whiteboard goals and non-goals | Choosing whiteboard scope |

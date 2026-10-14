@@ -14,6 +14,7 @@ The desired experience is an instrument that is clear and useful—not decoratio
 
 - Keep Pi and Herdr visualization, user experience, and tooling in one repository, built on the shared design system.
 - Curate polished, reusable terminal elements, with Herdr as the primary target.
+- Provide small Herdr workspace tools in the same visual language, such as the whiteboard plugin.
 - Establish Acid / Black as the default visual direction.
 - Deliver a reference kit first: clear specifications, useful specimens, and a terminal storybook that people and agents can browse, before committing to a general-purpose framework.
 - Make element behavior, constraints, and supported terminal conditions explicit.
