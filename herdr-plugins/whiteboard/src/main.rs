@@ -1,5 +1,6 @@
 mod app;
 mod board;
+mod markdown;
 mod palette;
 mod ui;
 

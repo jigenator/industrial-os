@@ -133,3 +133,20 @@ Use a throwaway Herdr that shares nothing with a live session, as in the [Spaces
 - The release binary in a private tmux session drew the operator's reported layout before and after: the bend that had been hidden under a note now runs clear of it.
 
 **Not run:** an isolated or live Herdr check, Linux, other terminals.
+
+### Markdown display and mouse edit cursor
+
+2026-10-15, macOS, rustc 1.97.1, Node 22.23.0, Python 3.14.5. Automated checks only; no Herdr server was contacted.
+
+**Passed**
+
+- `cargo test --locked`: **61 passed**, 0 failed. Twelve added tests cover the Markdown subset, nested styles, escapes, unmatched markers, snake_case, literal code, wide characters and width budgets; styled note wrapping; rendered/raw text geometry and unchanged JSON; mouse cursor placement across raw, wrapped and wide rows, past row ends and below the final row; no move drag; unchanged border/handle behavior; end-of-source double-click entry; and glyphs, modifiers and raw editing through `TestBackend`. The existing 100,000-character regression now also measures rendered display rows under its 200 ms debug bound; a separate long unmatched-input parser test passes.
+- `cargo clippy --all-targets --locked`: no warnings.
+- `node --test`: **2/2 passed**. The documented root `npm install` linked the design-system package; root manifests are unchanged.
+- `cargo build --release --locked && python3 test/pty_smoke.py`: `PTY SMOKE OK`. This is the existing launcher/input/persistence regression, not a Herdr check of Markdown or cursor placement.
+- Repository-wide checks: all local links and anchors in changed Markdown documents, the guidance inventory/map and exact `CLAUDE.md` entrypoints passed; `git diff --check` and `git diff --cached --check` passed. Contributor reading and publication review found no private material, dependency/palette changes or generated files in the diff; nothing staged.
+- Simplification pass against `origin/main`: reused word-wrap ranges and one raw cell-to-byte mapping; removed redundant delimiter metadata. Reran steps 1–4 successfully afterward.
+
+**Failed, then fixed:** the first unit run exposed an existing test expectation that omitted the new transient edit flag; updated it. A new mouse test initially clicked outside the raw text rectangle rather than past a short row inside it; corrected its coordinate. Clippy initially reported a collapsible `if`; collapsed it. The first palette run lacked the root package link; the documented setup above fixed it without manifest changes. Independent review then found `foo___bar___baz` rendering `bar` as bold italic and `____` rendering as an empty line, both confirmed with a throwaway parser test; intraword underscore runs and empty pairs (including empty code) now stay literal, pinned in the literals test, and steps 1–4 passed again with the same counts.
+
+**Not run:** isolated or live Herdr, plugin installation/linking, manual terminal/font/Option-as-Meta checks, Linux. Earlier Herdr records do not verify these new interactions. No commit, push or PR was made.

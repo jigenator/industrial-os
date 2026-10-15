@@ -141,13 +141,11 @@ fn note(buf: &mut Buffer, clip: Rect, x: i32, y: i32, item: &Item, selected: boo
     put(buf, clip, x, y + h - 1, &format!("{bl}{span}{br}"), edge);
 
     let inner = intersect(clip, x + 1, y + 1, w - 2, h - 2);
-    for (r, line) in item.lines().iter().enumerate() {
-        put(buf, inner, x + 1, y + 1 + r as i32, line, body);
-    }
+    styled_lines(buf, inner, x + 1, y + 1, item, body);
 }
 
 fn text(buf: &mut Buffer, clip: Rect, x: i32, y: i32, item: &Item, selected: bool) {
-    let mut style = Style::new().fg(PAPER[item.color % COLORS]).bold();
+    let mut style = Style::new().fg(PAPER[item.color % COLORS]).bg(FIELD);
     if selected {
         style = style.bg(SURFACE);
         let (w, h) = item.size();
@@ -155,8 +153,30 @@ fn text(buf: &mut Buffer, clip: Rect, x: i32, y: i32, item: &Item, selected: boo
             put(buf, clip, x, y + r, &" ".repeat(w as usize), style);
         }
     }
-    for (r, line) in item.lines().iter().enumerate() {
-        put(buf, clip, x, y + r as i32, line, style);
+    styled_lines(buf, clip, x, y, item, style);
+}
+
+fn styled_lines(buf: &mut Buffer, clip: Rect, x: i32, y: i32, item: &Item, base: Style) {
+    for (r, line) in item.display_lines().iter().enumerate() {
+        let mut col = x;
+        for span in line {
+            let flags = span.style;
+            let mut style = base;
+            for (enabled, modifier) in [
+                (flags.bold || flags.heading, Modifier::BOLD),
+                (flags.italic, Modifier::ITALIC),
+                (flags.strike, Modifier::CROSSED_OUT),
+                (flags.link || flags.heading, Modifier::UNDERLINED),
+                (flags.code, Modifier::REVERSED),
+                (flags.quote, Modifier::DIM),
+            ] {
+                if enabled {
+                    style = style.add_modifier(modifier);
+                }
+            }
+            put(buf, clip, col, y + r as i32, &span.text, style);
+            col += span.text.chars().map(|c| c.width().unwrap_or(0) as i32).sum::<i32>();
+        }
     }
 }
 
@@ -237,6 +257,7 @@ fn put(buf: &mut Buffer, clip: Rect, x: i32, y: i32, text: &str, style: Style) {
 mod tests {
     use super::*;
     use crate::board::{Arrow, Board};
+    use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
     use ratatui::{
         Terminal,
         backend::{Backend, TestBackend},
@@ -249,6 +270,66 @@ mod tests {
         (0..buf.area.height)
             .map(|y| (0..buf.area.width).map(|x| buf[(x, y)].symbol().to_string()).collect())
             .collect()
+    }
+
+    #[test]
+    fn markdown_glyphs_modifiers_and_raw_editing_match_the_drawn_cells() {
+        let mut app = App::new(Board {
+            items: vec![Item { text: "# Head\n**b** *i* `c` ~~s~~ [l](url) plain\n- [x] done\n> quote".into(), ..Item::text(2, 0, 0) }],
+            ..Board::default()
+        }, "wb.json".into());
+        let mut term = Terminal::new(TestBackend::new(60, 12)).unwrap();
+        term.draw(|f| render(f, &mut app)).unwrap();
+        let buf = term.backend().buffer();
+        assert_eq!(buf[(2, 1)].symbol(), "H");
+        assert!(buf[(2, 1)].modifier.contains(Modifier::BOLD | Modifier::UNDERLINED));
+        for (x, glyph, modifier) in [(2, "b", Modifier::BOLD), (4, "i", Modifier::ITALIC), (6, "c", Modifier::REVERSED), (8, "s", Modifier::CROSSED_OUT), (10, "l", Modifier::UNDERLINED)] {
+            assert_eq!(buf[(x, 2)].symbol(), glyph);
+            assert!(buf[(x, 2)].modifier.contains(modifier));
+            assert_eq!(buf[(x, 2)].fg, ACCENT);
+        }
+        assert_eq!(buf[(12, 2)].symbol(), "p");
+        assert!(buf[(12, 2)].modifier.is_empty(), "free text is regular weight");
+        assert_eq!(buf[(2, 3)].symbol(), "☑");
+        assert_eq!(buf[(2, 4)].symbol(), "│");
+        assert!(buf[(2, 4)].modifier.contains(Modifier::DIM));
+
+        app.selected = Some(0);
+        app.handle(Event::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)));
+        term.draw(|f| render(f, &mut app)).unwrap();
+        let buf = term.backend().buffer();
+        assert_eq!(buf[(2, 1)].symbol(), "#");
+        assert_eq!(buf[(2, 2)].symbol(), "*");
+        assert!(buf[(2, 2)].modifier.is_empty());
+        assert_eq!(buf[(2, 3)].symbol(), "-");
+        assert_eq!(buf[(2, 2)].bg, SURFACE);
+    }
+
+    #[test]
+    fn note_markdown_wrap_preserves_ink_and_styles_then_edit_shows_source() {
+        let mut app = App::new(Board {
+            items: vec![Item { w: 8, text: "**日本語** ab\n- [ ] x".into(), ..Item::note(2, 0, 1) }],
+            ..Board::default()
+        }, "wb.json".into());
+        let mut term = Terminal::new(TestBackend::new(60, 12)).unwrap();
+        term.draw(|f| render(f, &mut app)).unwrap();
+        let buf = term.backend().buffer();
+        for (x, glyph) in [(3, "日"), (5, "本"), (7, "語")] {
+            assert_eq!(buf[(x, 2)].symbol(), glyph);
+            assert!(buf[(x, 2)].modifier.contains(Modifier::BOLD));
+            assert_eq!(buf[(x, 2)].fg, FIELD);
+            assert_eq!(buf[(x, 2)].bg, WARNING);
+        }
+        assert_eq!(buf[(3, 3)].symbol(), "a");
+        assert!(!buf[(3, 3)].modifier.contains(Modifier::BOLD));
+        assert_eq!(buf[(3, 4)].symbol(), "☐");
+        app.selected = Some(0);
+        app.handle(Event::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)));
+        term.draw(|f| render(f, &mut app)).unwrap();
+        let buf = term.backend().buffer();
+        assert_eq!(buf[(3, 2)].symbol(), "*");
+        assert_eq!(buf[(5, 2)].symbol(), "日");
+        assert!(!buf[(5, 2)].modifier.contains(Modifier::BOLD));
     }
 
     #[test]
