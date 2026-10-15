@@ -1,6 +1,6 @@
 // A fake Herdr server on a temporary Unix socket, never the live Herdr. It models the parts of Herdr 0.9.3 this
 // extension depends on, as read in its source (src/metadata_tokens.rs, src/app/api/panes.rs,
-// src/terminal/metadata.rs, src/api/subscriptions.rs, src/api/schema/events.rs, src/api/schema/workspaces.rs): one token map per pane that any source can patch, per-source
+// src/terminal/metadata.rs, src/api/subscriptions.rs, src/api/schema/events.rs, src/api/schema/panes.rs, src/api/schema/workspaces.rs): one token map per pane that any source can patch, per-source
 // sequence freshness, at most 32 sequenced token sources per pane, 16 keys per report and 32 keys per pane. Focus follows
 // src/app/creation.rs (`workspace_info`: `focused`, `active_tab_id`) and src/app/api.rs (`emit_focus_api_events`).
 import assert from "node:assert/strict";
@@ -15,7 +15,7 @@ type Mode = "ok" | "error" | "silent";
 // EventEnvelope/EventKind uses snake_case, while SubscriptionEventKind keeps the status event dotted.
 const SUBSCRIPTION_WIRE_EVENTS = new Map([
 	["workspace.renamed", "workspace_renamed"], ["workspace.updated", "workspace_updated"],
-	["pane.moved", "pane_moved"], ["workspace.focused", "workspace_focused"],
+	["pane.updated", "pane_updated"], ["pane.moved", "pane_moved"], ["workspace.focused", "workspace_focused"],
 	["tab.focused", "tab_focused"], ["pane.focused", "pane_focused"],
 	["pane.agent_status_changed", "pane.agent_status_changed"],
 ]);
@@ -37,6 +37,7 @@ export async function startFakeHerdr(paneId = "w1:p1") {
 	const paneAliases = new Set([paneId]);
 	// Unknown label by default keeps existing fallback fixtures explicit.
 	let workspaceLabel: string | null = null;
+	let paneLabel: unknown = null;
 	let workspaceGetMode: Mode = "ok";
 	let workspaceGetDelayMs = 0;
 	let reportMode: Mode = "ok";
@@ -82,7 +83,7 @@ export async function startFakeHerdr(paneId = "w1:p1") {
 		} else if (method === "pane.get") {
 			if (paneGetMode === "silent") return;
 			if (paneGetMode === "error" || !paneAliases.has(params?.pane_id)) return error(socket, id, "pane_not_found");
-			reply(socket, id, { result: { type: "pane_info", pane: { pane_id: currentPaneId, workspace_id: workspaceId, tab_id: tabId, agent_status: status } } });
+			reply(socket, id, { result: { type: "pane_info", pane: { pane_id: currentPaneId, workspace_id: workspaceId, tab_id: tabId, agent_status: status, label: paneLabel } } });
 		} else if (method === "workspace.get") {
 			if (workspaceGetMode === "silent") return;
 			if (workspaceGetMode === "error" || params?.workspace_id !== workspaceId) return error(socket, id, "workspace_not_found");
@@ -138,6 +139,11 @@ export async function startFakeHerdr(paneId = "w1:p1") {
 			status = next;
 			if (push) emit("pane.agent_status_changed", { pane_id: currentPaneId, workspace_id: workspaceId, agent_status: next });
 		},
+		// v0.9.3 pane.rename has no event; pane.updated announces other pane changes.
+		setPaneLabel(label: unknown, push = false) {
+			paneLabel = label;
+			if (push) emit("pane_updated", { pane: { pane_id: currentPaneId, label } });
+		},
 		setWorkspaceLabel(label: string | null, push: "renamed" | "updated" | false = "renamed") {
 			workspaceLabel = label;
 			if (push === "renamed") emit("workspace_renamed", { workspace_id: workspaceId, label });
@@ -152,7 +158,7 @@ export async function startFakeHerdr(paneId = "w1:p1") {
 		movePaneToTab(nextTabId: string) {
 			const previous_tab_id = tabId;
 			tabId = nextTabId;
-			emit("pane_moved", { previous_pane_id: currentPaneId, previous_workspace_id: workspaceId, previous_tab_id, pane: { pane_id: currentPaneId, workspace_id: workspaceId, tab_id: tabId, agent_status: status } });
+			emit("pane_moved", { previous_pane_id: currentPaneId, previous_workspace_id: workspaceId, previous_tab_id, pane: { pane_id: currentPaneId, workspace_id: workspaceId, tab_id: tabId, agent_status: status, label: paneLabel } });
 		},
 		emit,
 		/**

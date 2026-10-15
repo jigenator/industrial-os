@@ -126,3 +126,14 @@ Record each run with its date, Node, Pi and Herdr versions and results, keeping 
 - Intermediate failures were resolved: the initial boundary fixture omitted model provider; an unchanged d0 focus assertion did not wait for reconciliation; Herdr checks initially lacked the root-linked package. None remains in the final run.
 - Separate CLI Pi load, live/interactive Pi/Herdr, Windows, later Herdr versions and Mermaid rendering: **not run** (diagrams unchanged). Type check, formatter, linter and build: **not run**, none configured. Every shell/test/parser run explicitly unset inherited `HERDR_*`; fake tests supplied only their temporary targets. No live socket/configuration, global Pi files, push, PR or Linear mutation.
 - Operator adoption: merge the complete updated Pi row override before loading the updated reporter. Old rows do not render later-stage keys. Age is memory only and resets on reload/restart; transport/backoff and partial multi-request reports retain their existing limitations.
+
+### Pane-name row
+
+2026-10-15, macOS, Node 22.23.0, installed Pi 1.2.0, Herdr 0.9.3:
+
+- Host prerequisite and full `PI_HOST_ROOT="$PI_HOST_ROOT" npm test`: **96/96 passed**, zero failures/skipped/cancelled, in two runs. Coverage includes present/absent labels, truncation/sanitizing/value budgets, IDL/UNK and no-snapshot PNE, ASK/RDY precedence, working-phase-only age, no decay, pane_updated re-read, unannounced rename via refresh, unchanged-refresh suppression and reconnect; real collector/sidebar composition still passes in both orders.
+- Isolated `printf '' | pi --mode rpc --no-extensions --extension .` with temporary `PI_CODING_AGENT_DIR` and `XDG_CACHE_HOME`, Herdr target variables unset: **exit 0**, no output. Package-load evidence, not interactive evidence.
+- Read-only `herdr api schema --json` and upstream `v0.9.3` source: **pane.updated** subscriptions use **pane_updated** envelopes with `{ pane: PaneInfo }`. `src/app/api/panes.rs::handle_pane_rename` emits no event. The existing 20-second renewal picks up these unannounced renames; no new polling timer. See [inputs](docs/architecture.md#inputs).
+- Initial focused tests: **57/60 passed, 3 failed**, resolved by updating reply/subscription fixtures and README egress documentation. Final full runs pass.
+- Repository checks: changed local links/anchors, guidance inventory, exact CLAUDE imports, both diff whitespace checks, new-contributor/publication/import/color review and simplification against origin/main **passed**. No consumer of the removed ev_act in Spaces or status-bar; Spaces still consumes only the unchanged AU keys.
+- Interactive Pi/Herdr, live rename/rendering, Windows, later Herdr versions and Mermaid rendering: **not run** (diagrams unchanged; no renderer on PATH). Type check/linter/build remain unconfigured. No live config/server mutation, Pi install, commit or push.

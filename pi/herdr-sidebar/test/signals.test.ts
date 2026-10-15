@@ -28,7 +28,7 @@ for (const order of [[resolve("."), resolve("../signals-collector")], [resolve("
 		await writeFile(join(project, "modified"), "fixture");
 		await writeFile(join(bin, "gh"), '#!/bin/sh\nprintf \'[{"number":42,"state":"open","head":{"ref":"main","repo":{"full_name":"fixture/project"}},"base":{"repo":{"full_name":"fixture/project"}},"html_url":"https://github.com/fixture/project/pull/42"}]\'\n'); await chmod(join(bin, "gh"), 0o755);
 		await writeFile(join(bin, "codexbar"), `#!/bin/sh\nprintf '[{"provider":"%s","usage":{"primary":{"windowMinutes":300,"usedPercent":25,"resetsAt":null}}}]' "$3"\n`); await chmod(join(bin, "codexbar"), 0o755);
-		herdr.setStatus("working", false); herdr.setWorkspaceLabel("Release SPACE", false);
+		herdr.setStatus("working", false); herdr.setWorkspaceLabel("Release SPACE", false); herdr.setPaneLabel("Running tests");
 		const events = host.createEventBus(), manager = host.SessionManager.inMemory(project);
 		manager.appendCustomEntry("root", {}); manager.appendCompaction("summary", manager.getLeafId(), 1000);
 		const loader = new host.DefaultResourceLoader({ eventBus: events, cwd: project, agentDir: join(directory, "agent"), settingsManager: host.SettingsManager.inMemory(), additionalExtensionPaths: order, noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true });
@@ -53,7 +53,7 @@ for (const order of [[resolve("."), resolve("../signals-collector")], [resolve("
 		assert.equal(herdr.tokens.get("mthink"), "opus-5.5/hi");
 		idle = false; await runner.emit({ type: "agent_start" });
 		await runner.emit({ type: "tool_execution_start", toolCallId: "sh", toolName: "bash", args: { command: "npm test\nsecond line" } });
-		await until(() => herdr.tokens.get("ev_act") === `npm test${B.repeat(7)}`); assert.equal(herdr.tokens.get("g5"), `SH${B.repeat(2)}`);
+		await until(() => herdr.tokens.get("pane") === `Running tests${B.repeat(2)}`); assert.equal(herdr.tokens.get("g5"), `PNE${B}`);
 		await runner.emit({ type: "tool_execution_start", toolCallId: "q", toolName: "ask_user_question", args: { questions: [{ question: "Continue?" }] } });
 		await until(() => herdr.tokens.get("ask_l1") === "Continue?"); assert.deepEqual(blocked, [true]);
 		await runner.emit({ type: "tool_execution_end", toolCallId: "q", toolName: "ask_user_question", result: {}, isError: false });

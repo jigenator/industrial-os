@@ -9,7 +9,7 @@ The agents sidebar in Herdr, as this configuration draws it: layout "B", one blo
    02AU · ━━━━━━━━─── 67% · CMP×18
    ACT  · feat/sidebar*   ·    #42
    MDL  · opus-5.5/hi
-   SH   · npm test        ·    12s
+   PNE  · Updating sideb… ·    12s
 ```
 
 | Row | Gutter | Left value | Right slot |
@@ -18,11 +18,11 @@ The agents sidebar in Herdr, as this configuration draws it: layout "B", one blo
 | 2 | `g2_au` / `g2_au0` | `bar` / `bar_warn` / `bar_crit` / `bar_idle` / `bar_unk` | `cmpx` |
 | 3 | `g3` | `br` / `br_dirty` / `dir` | `prn` / `prn_off` |
 | 4 | `g4` | `mthink` | |
-| 5 | `g5` | `ev_act` / `ask_l1` / `ev_rdy_text` | `ph_age` |
+| 5 | `g5` | `pane` / `ask_l1` / `ev_rdy_text` | `ph_age` |
 | 6 | | `ask_l2` | |
 | 7 | | `ask_l3` | |
 
-Herdr draws ` · ` between present values and drops a row whose tokens are all absent, so most blocks are four or five rows; a pending question can take seven. The rows override only `[ui.sidebar.agents.rows_by_agent] pi`; global `rows` is not set, so other agents retain their own/default layouts. `row_gap = 1` is panel-wide and leaves one blank row between all agents, including non-Pi agents. IDL and UNK use a decorative-grey, non-bold `bar_idle` with unchanged shape/used percentage, regardless of zone. Unknown context always uses `bar_unk`. Row 1 names the Herdr SPACE (Active basename while unknown); row 2 shows context used, warning from 70% and critical from 90%, not remaining context.
+Herdr draws ` · ` between present values and drops a row whose tokens are all absent, so most blocks are four or five rows; a pending question can take seven. The rows override only `[ui.sidebar.agents.rows_by_agent] pi`; global `rows` is not set, so other agents retain their own/default layouts. `row_gap = 1` is panel-wide and leaves one blank row between all agents, including non-Pi agents. IDL and UNK use a decorative-grey, non-bold `bar_idle` with unchanged shape/used percentage, regardless of zone. Unknown context always uses `bar_unk`. Row 5 shows the known pane label in every state, including IDL/UNK, unless ASK or DNE's RDY wins. No label means no pane-name row. Phase age is present only with a working phase; ASK/RDY are unchanged. Herdr 0.9.3 pane.rename emits no event, so its name update can lag by one 20-second renewal cycle; pane_updated triggers an immediate read (see [client inputs](../../pi/herdr-sidebar/docs/architecture.md#inputs)). Row 1 names the Herdr SPACE (Active basename while unknown); row 2 shows context used, warning from 70% and critical from 90%, not remaining context.
 
 ## Width
 
@@ -34,9 +34,9 @@ Every color is a design-system value. Bold marks the readings that matter most.
 
 | Role | Value | Used for |
 | --- | --- | --- |
-| Decorative | `#717171` | Gutters (`ACT`, `MDL`, phase codes), `IDL` and `UNK` states, `00AU`/`??AU`, IDL/UNK context bars, ages |
+| Decorative | `#717171` | Gutters (`ACT`, `MDL`, `PNE`), `IDL` and `UNK` states, `00AU`/`??AU`, IDL/UNK context bars, ages |
 | Primary | `#ffffff` | The working SPACE name (bold), `DNE`, `finished` |
-| Secondary | `#cfcfcf` | The idle SPACE name (bold), goal time, branch, directory, PR, model, phase target |
+| Secondary | `#cfcfcf` | The idle SPACE name (bold), goal time, branch, directory, PR, model, pane label |
 | Ghost (signal color) | `#333333` | A paused goal's time, `#?`, the unknown context bar |
 | Accent | `#c0fe04` | `WRK`, `SUB`, the context bar, active units ≥ 1 (bold) |
 | Warning | `#d79e52` | The context bar from 70% used, a branch with changes |
@@ -63,7 +63,7 @@ At d0 the unchanged base keys retain today's rendering. Later stages use
 `_d1`/`_d2`/`_d3`; absent variants disappear with their separators.
 Text, padding, width and the dirty star do not change. Everything on these
 rows fades, including dirty-branch amber; Herdr's ` · ` stays theme overlay0.
-The state/title/SPACE/goal, AU/context/CMP and phase/question/finished rows
+The state/title/SPACE/goal, AU/context/CMP and pane-name/question/finished rows
 never decay. Faint ACT/MDL values are historical detail, not a new state code.
 
 Herdr 0.9.3 permits at most 16 configured entries per row, so the ACT logical

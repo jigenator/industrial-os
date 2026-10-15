@@ -10,9 +10,9 @@ This extension decides what text each sidebar row carries; [the Herdr design](..
 | 2 | `02AU · ━━━━━━━━─── 67% · CMP×18` | Active units, context used toward compaction, compactions on this branch |
 | 3 | `ACT · feat/sidebar* · #42` | Active branch (`*` has changes) or directory; open pull request (`#?` when the lookup is unavailable) |
 | 4 | `MDL · opus-5.5/hi` | Model and thinking level |
-| 5 | `SH · npm test · 12s` | What the agent does now and for how long |
+| 5 | `PNE · Updating sideb… · 12s` | Herdr pane name; phase age only while working with a phase |
 
-Row 5 shows at most one of three things. While a question waits for you, `ASK` and the question over up to three rows, with `(+N)` when more questions follow. While the agent works, its phase: `WAI` waiting for the model, `THK` thinking, `WRT` writing, or the tool (`RD` `ED` `WR` `SH` `WB` `AG`, `TL` for others) with its file, command, query or agent. When the agent or its subagents finished and you have not seen the pane yet, `RDY · finished` and the time since they finished.
+Row 5 shows the known pane label as `PNE` in every state, including IDL/UNK, truncated to the available width. No known non-empty label means no pane-name row, with no fallback. A phase age appears beside the name only while the root agent works with a phase; phase codes and tool targets are not shown. A pending question wins (`ASK`, up to three rows, with `(+N)` when more follow), then DNE (`RDY · finished` and its completion age), otherwise the name. Without a collector snapshot, ASK/RDY remain absent and a known pane name still shows without an age. The name is secondary text with a decorative gutter and never access-decays.
 
 ## States
 
@@ -45,7 +45,7 @@ A pending question also raises Herdr's blocked state through `herdr:blocked`, so
 
 In IDL and UNK, known context is decorative grey, not zone-coloured; its shape and used percentage remain unchanged. WRK, SUB, QNS, BLK and DNE retain the zone colours. Unknown context stays `--%` in every state.
 
-Without the signals-collector the sidebar shows row 1 (including SPACE when known) and row 2's unknowns only. `99%` context means 99% or more used; `99AU` and `CMP×99` mean 99 or more.
+Without the signals-collector the sidebar shows row 1 (including SPACE when known) and row 2's unknowns, plus the pane-name row when known (no phase age). `99%` context means 99% or more used; `99AU` and `CMP×99` mean 99 or more.
 
 ## Access decay
 
@@ -66,7 +66,7 @@ starts d0, and no historical age is recovered.
 
 ## Timing
 
-Values change when the snapshot, Herdr's status, announced workspace label or pane visibility changes, usually within a fraction of a second. Connected lifecycle events trigger reads immediately; only an automatic SPACE label changed without an event waits for the 20-second renewal refresh. Durations follow pi-goal's format (`45s`, `12m`, `2h33m`); they tick each second under a minute and each minute after that. Duration-only diffs follow those changes; TTL renewals and decay-key changes are independent. The existing unref'd render timeout also schedules the next exact decay boundary (subject to the one-second render floor and transport/backoff). The 20-second renewal refreshes ongoing access even if inputs have not changed; leaving an accessed state captures that transition's time. No extra polling timer is added; shutdown clears the timeout. Nothing in the rows animates.
+Values change when the snapshot, Herdr's status, announced workspace/pane label or pane visibility changes, usually within a fraction of a second. Connected lifecycle events trigger reads immediately; an automatic SPACE label or an unannounced pane rename waits for the 20-second renewal refresh. Herdr 0.9.3 `pane.rename` emits no event, while `pane.updated` (wire `pane_updated`) triggers an immediate read; see [architecture](architecture.md#inputs). Durations follow pi-goal's format (`45s`, `12m`, `2h33m`); they tick each second under a minute and each minute after that. Duration-only diffs follow those changes; TTL renewals and decay-key changes are independent. The existing unref'd render timeout also schedules the next exact decay boundary (subject to the one-second render floor and transport/backoff). The 20-second renewal refreshes ongoing access even if inputs have not changed; leaving an accessed state captures that transition's time. No extra polling timer is added; shutdown clears the timeout. Nothing in the rows animates.
 
 ## Accessibility and limits
 

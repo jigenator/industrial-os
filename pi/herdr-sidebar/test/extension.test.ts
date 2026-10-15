@@ -266,6 +266,7 @@ test("Herdr status follows the subscription, is unknown while disconnected, and 
 
 test("time values re-render when their text changes, at most once a second", async (t) => {
 	const herdr = await startFakeHerdr();
+	herdr.setPaneLabel("Running tests");
 	t.after(() => herdr.close());
 	inside(t, herdr);
 	herdr.setStatus("working", false);
@@ -277,8 +278,8 @@ test("time values re-render when their text changes, at most once a second", asy
 	await until(() => herdr.tokens.get("ph_age") === `${B.repeat(4)}1m`, "1m", 2500);
 	const ages = herdr.reports().filter((r) => "ph_age" in r.params.tokens && Object.keys(r.params.tokens).length === 1);
 	for (let i = 1; i < ages.length; i++) assert.ok(ages[i].at - ages[i - 1].at >= 950, `${ages[i].at - ages[i - 1].at} ms apart`);
-	assert.equal(herdr.tokens.get("ev_act"), `npm test${B.repeat(7)}`);
-	assert.equal(herdr.tokens.get("g5"), `SH${B}${B}`);
+	assert.equal(herdr.tokens.get("pane"), `Running tests${B.repeat(2)}`);
+	assert.equal(herdr.tokens.get("g5"), `PNE${B}`);
 	// Once minutes show, nothing changes for the rest of the minute.
 	const count = herdr.reports().length;
 	await new Promise((done) => setTimeout(done, 1200));
@@ -488,4 +489,17 @@ test("access decay reports each boundary without a snapshot/focus change and cle
 	now = pending.due; pending.callback(); await sleep(30);
 	assert.equal(herdr.reports().length, count, "late callback cannot report");
 	assert.deepEqual(h.errors, []);
+});
+
+test("PNE shows while idle without a collector and follows pane_updated", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); inside(t, herdr);
+	herdr.setPaneLabel("Updating sidebar pane name");
+	const h = await harness(t, { collector: "none" });
+	await h.start();
+	await until(() => herdr.tokens.get("pane") === "Updating sidebar pane n…");
+	assert.equal(herdr.tokens.get("g5"), `PNE${B}`); assert.equal(herdr.tokens.has("ph_age"), false);
+	herdr.setPaneLabel("Renamed", true);
+	await until(() => herdr.tokens.get("pane") === "Renamed");
+	herdr.setPaneLabel("", true);
+	await until(() => !herdr.tokens.has("pane") && !herdr.tokens.has("g5"));
 });
