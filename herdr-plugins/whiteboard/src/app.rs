@@ -300,6 +300,7 @@ impl App {
         if let Some(i) = self.selected {
             self.editing = true;
             let item = &mut self.board.items[i];
+            item.editing = true;
             let old_height = item.h;
             item.fit_height();
             self.dirty |= item.h != old_height;
@@ -398,7 +399,8 @@ impl App {
     fn finish_edit(&mut self) {
         self.editing = false;
         if let Some(i) = self.selected {
-            let item = &self.board.items[i];
+            let item = &mut self.board.items[i];
+            item.editing = false;
             if item.kind == Kind::Text && item.text.trim().is_empty() {
                 self.board.remove(i);
                 self.selected = None;
@@ -446,6 +448,19 @@ impl App {
         self.last_click = if double { None } else { Some((Instant::now(), col, row)) };
 
         let (x, y) = self.to_world(col, row);
+        if self.editing
+            && let Some(i) = self.selected.filter(|&i| self.board.hit(x, y) == Some(i))
+        {
+            let item = &self.board.items[i];
+            if !item.is_border(x, y) {
+                let inset = i32::from(item.kind == Kind::Note);
+                self.cursor = item.cursor_at_cell((x - item.x - inset) as usize, (y - item.y - inset) as usize);
+                self.desired_column = None;
+                self.drag = None;
+                self.last_click = None;
+                return;
+            }
+        }
         if self.editing && self.board.hit(x, y) != self.selected {
             self.finish_edit();
         }
@@ -813,13 +828,69 @@ mod tests {
     }
 
     #[test]
+    fn editing_click_places_raw_cursor_without_starting_a_move() {
+        let mut app = app();
+        app.board.items.push(Item { text: "**a日本**\nshort\nlast row".into(), ..Item::text(4, 2, 0) });
+        app.selected = Some(0);
+        app.begin_edit();
+        assert!(app.board.items[0].editing);
+        for (col, row, byte) in [(8, 3, 3), (9, 3, 6), (12, 4, 17), (6, 5, 20)] {
+            click(&mut app, col, row);
+            assert_eq!(app.cursor, byte);
+            assert!(app.drag.is_none() && app.editing);
+        }
+        // Even a second press while editing places, rather than restarting at the end.
+        click(&mut app, 4, 3);
+        click(&mut app, 4, 3);
+        assert_eq!(app.cursor, 0);
+        mouse(&mut app, MouseEventKind::Drag(MouseButton::Left), 20, 9);
+        assert_eq!((app.board.items[0].x, app.board.items[0].y), (4, 2));
+        click(&mut app, 40, 20);
+        assert!(!app.editing && !app.board.items[0].editing);
+        assert_eq!(app.board.items[0].size(), (8, 3));
+    }
+
+    #[test]
+    fn editing_note_click_uses_wrapped_rows_and_leaves_border_drags_alone() {
+        let mut app = app();
+        app.board.items.push(Item { w: 8, h: 7, text: "abcdef gh日本".into(), ..Item::note(2, 2, 0) });
+        app.selected = Some(0);
+        app.begin_edit();
+        for (col, row, byte) in [(4, 4, 1), (6, 5, 9), (8, 5, 12), (5, 7, 15)] {
+            click(&mut app, col, row);
+            assert_eq!(app.cursor, byte);
+            assert!(app.drag.is_none());
+        }
+        mouse(&mut app, MouseEventKind::Down(MouseButton::Left), 2, 4);
+        assert!(app.arrow_drag());
+        mouse(&mut app, MouseEventKind::Up(MouseButton::Left), 2, 4);
+        mouse(&mut app, MouseEventKind::Down(MouseButton::Left), 9, 9);
+        assert!(matches!(app.drag, Some(Drag::Resize)));
+        assert!(app.editing);
+    }
+
+    #[test]
+    fn double_click_begins_at_raw_end_and_switches_text_geometry() {
+        let mut app = app();
+        app.board.items.push(Item { text: "**bold**".into(), ..Item::text(4, 2, 0) });
+        assert_eq!(app.board.items[0].size(), (4, 1));
+        click(&mut app, 5, 3);
+        click(&mut app, 5, 3);
+        assert_eq!(app.cursor, 8);
+        assert!(app.editing && app.board.items[0].editing);
+        assert_eq!(app.board.items[0].size(), (8, 1));
+        key(&mut app, KeyCode::Esc);
+        assert_eq!(app.board.items[0].size(), (4, 1));
+    }
+
+    #[test]
     fn toolbar_buttons_dispatch() {
         let mut app = app();
         app.buttons = vec![(Rect::new(0, 0, 5, 1), Button::Note), (Rect::new(6, 0, 3, 1), Button::Color(4))];
         click(&mut app, 7, 0);
         assert_eq!(app.color, 4);
         click(&mut app, 1, 0);
-        assert_eq!(app.board.items[0], Item { id: 1, ..Item::note(28, 8, 4) });
+        assert_eq!(app.board.items[0], Item { id: 1, editing: true, ..Item::note(28, 8, 4) });
         assert!(app.editing);
     }
 

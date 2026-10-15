@@ -58,18 +58,19 @@ Outside Herdr, run `target/release/whiteboard [board.json]`; it defaults to `./w
 | New sticky note | `+ NOTE` | `n` (at the mouse, else the middle of the view) |
 | New free text | double-click empty space, or `+ TEXT` | `t` |
 | Select an item or arrow | click an item (brings it to the front), or an uncovered arrow cell | `Tab` / `Shift+Tab`: items in drawing order, then arrows |
-| Move | drag the item's interior | arrows |
+| Move | drag the item's interior when not editing | arrows |
 | Connect with an arrow | drag a note's border onto another item; elsewhere cancels | select an item, `a`, `Tab` / `Shift+Tab` choose target, `Enter` connect/remove, `Esc` cancel |
 | Remove an arrow | select it, then `DELETE` | select it, then `Del` / `Backspace`; `Esc` deselects |
 | Resize a note | drag its `◢` corner | `Shift`+arrows |
 | Edit | double-click the item | `Enter` or `e`; `Esc` finishes |
+| Place edit cursor | left-click inside the item being edited | arrows or the editing keys below |
 | Color | click a swatch | `1`–`5` |
 | Delete | `DELETE` | `Del` / `Backspace` |
 | Pan | drag empty space, right- or middle-drag, scroll | arrows with nothing selected |
 | Save | `SAVE` | `Ctrl+S` |
 | Quit, saving first | `QUIT` | `q` or `Ctrl+C`; `Ctrl+Q` quits without saving |
 
-While editing, the cursor starts at the end; insertions happen at the cursor.
+Editing starts at the end and shows raw Markdown source; insertions happen at the cursor. Clicking inside the edited item places the cursor without moving the item; clicking outside finishes editing. Note borders and resize handles keep their usual actions. See [cursor placement details](docs/design.md#interaction).
 
 | Editing action | Keys |
 | --- | --- |
@@ -87,6 +88,18 @@ While editing, the cursor starts at the end; insertions happen at the cursor.
 
 Quitting closes the board's pane and leaves the others. If a save fails, the board stays open and says why.
 
+## Markdown
+
+Notes and free text render this line-local subset when not being edited:
+
+- Headings: `# ` through `###### `.
+- Bullets: `- `, `* `, `+ ` → `• `; ordered lists: `1. ` or `1) ` keep the number. Leading indentation on list items is preserved.
+- Tasks: `- [ ] ` → `☐ `; `- [x] ` or `- [X] ` → `☑ `. Display only, not clickable.
+- Quotes: `> ` → `│ `.
+- Inline: `**bold**` / `__bold__`, `*italic*` / `_italic_`, single-backtick code, `~~strike~~`, and `[text](url)` (underlined text, hidden URL).
+
+Inline styles can nest, including bold in links and italic in bold. Code keeps its contents literal. Backslash escapes punctuation; unmatched markers and underscores inside words such as `snake_case` stay literal. This is not full CommonMark: no multiline constructs, fenced code, images or nested link destinations. Links are display only. [Display and wrapping](docs/design.md#markdown-display) do not change the stored source.
+
 ## Storage
 
 Inside Herdr, a board is `$HERDR_PLUGIN_STATE_DIR/boards/<session>/<workspace-id>.json`. `<session>` is a hash of the Herdr socket path, because plugin state is shared by every named Herdr session. The files are plain JSON on your machine; nothing is sent anywhere. Uninstalling the plugin does not delete them.
@@ -94,7 +107,7 @@ Inside Herdr, a board is `$HERDR_PLUGIN_STATE_DIR/boards/<session>/<workspace-id
 ## Limits
 
 - Needs a terminal with 24-bit color and SGR mouse reporting.
-- Positions snap to whole cells. No undo, system clipboard (`Ctrl+Y` uses only the session's internal cut buffer), mouse cursor placement or freehand drawing.
+- Positions snap to whole cells. No undo, system clipboard (`Ctrl+Y` uses only the session's internal cut buffer) or freehand drawing.
 - Host keybindings take precedence. Inside Herdr, use `←` instead of `Ctrl+B` unless its default `Ctrl+B` prefix is changed.
 - Alt shortcuts need the terminal to send Option/Alt as Meta; macOS terminals often need this setting enabled.
 - Arrows follow their items but are hidden while the items overlap.

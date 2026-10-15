@@ -1,3 +1,4 @@
+use crate::markdown::{self, Line, Span};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::ffi::OsString;
@@ -34,25 +35,28 @@ pub struct Item {
     pub color: usize,
     #[serde(default)]
     pub text: String,
+    /// Raw source geometry while App owns an edit; never persisted.
+    #[serde(skip)]
+    pub editing: bool,
 }
 
 impl Item {
     pub fn note(x: i32, y: i32, color: usize) -> Self {
-        Self { id: 0, kind: Kind::Note, x, y, w: 24, h: 7, color, text: String::new() }
+        Self { id: 0, kind: Kind::Note, x, y, w: 24, h: 7, color, text: String::new(), editing: false }
     }
 
     pub fn text(x: i32, y: i32, color: usize) -> Self {
-        Self { id: 0, kind: Kind::Text, x, y, w: 0, h: 0, color, text: String::new() }
+        Self { id: 0, kind: Kind::Text, x, y, w: 0, h: 0, color, text: String::new(), editing: false }
     }
 
     pub fn size(&self) -> (i32, i32) {
         match self.kind {
             Kind::Note => (self.w as i32, self.h as i32),
             Kind::Text => {
-                let lines = self.lines();
+                let lines = self.display_lines();
                 let w = lines
                     .iter()
-                    .map(|l| l.chars().map(|c| c.width().unwrap_or(0)).sum::<usize>())
+                    .map(|l| l.iter().flat_map(|s| s.text.chars()).map(|c| c.width().unwrap_or(0)).sum::<usize>())
                     .max()
                     .unwrap_or(0)
                     .max(1);
@@ -117,6 +121,18 @@ impl Item {
         self.line_ranges().into_iter().map(|r| self.text[r].to_string()).collect()
     }
 
+    /// Styled display rows; editing and cursor mapping always use the unmodified source.
+    pub fn display_lines(&self) -> Vec<Line> {
+        if self.editing {
+            return self.lines().into_iter().map(|text| vec![Span { text, style: Default::default() }]).collect();
+        }
+        let lines = markdown::parse(&self.text);
+        if self.kind == Kind::Text {
+            return lines;
+        }
+        lines.into_iter().flat_map(|line| wrap_spans(line, self.w.saturating_sub(2).max(1) as usize)).collect()
+    }
+
     /// Drawn row and column for a byte boundary; shared by cursor drawing and vertical motion.
     pub fn cursor_cell(&self, cursor: usize) -> (usize, usize) {
         let ranges = self.line_ranges();
@@ -138,14 +154,25 @@ impl Item {
 
     pub fn vertical_cursor(&self, cursor: usize, direction: i32, col: usize) -> usize {
         let (_, row) = self.cursor_cell(cursor);
-        let ranges = self.line_ranges();
         let target = row as i32 + direction;
         // A full final row has a virtual empty row for the insertion cursor.
         let last = self.cursor_cell(self.text.len()).1;
         if target < 0 || target as usize > last {
             return cursor;
         }
-        let Some(range) = ranges.get(target as usize) else {
+        let end = self.cursor_at_cell(col, target as usize);
+        // Vertical motion stays on its target row at a hard wrap.
+        if self.cursor_cell(end).1 > target as usize {
+            self.text[..end].char_indices().next_back().map_or(end, |(i, _)| i)
+        } else {
+            end
+        }
+    }
+
+    /// Byte boundary at a drawn raw cell; a wide glyph's second cell chooses its start.
+    pub fn cursor_at_cell(&self, col: usize, row: usize) -> usize {
+        let ranges = self.line_ranges();
+        let Some(range) = ranges.get(row) else {
             return self.text.len();
         };
         let mut width = 0;
@@ -156,13 +183,7 @@ impl Item {
             }
             width = next;
         }
-        // At a hard wrap the end boundary belongs to the next row.
-        let end = range.end;
-        if self.cursor_cell(end).1 > target as usize {
-            self.text[..end].char_indices().next_back().map_or(range.start, |(i, _)| i)
-        } else {
-            end
-        }
+        range.end
     }
 
     /// Grows a note to fit the text and the insertion row after a full final line.
@@ -171,6 +192,32 @@ impl Item {
             self.h = self.h.max((self.cursor_cell(self.text.len()).1 + 3).min(u16::MAX as usize) as u16);
         }
     }
+}
+
+/// Reuse the raw word-wrap ranges, then slice spans in a single forward pass.
+fn wrap_spans(line: Line, width: usize) -> Vec<Line> {
+    let text: String = line.iter().map(|s| s.text.as_str()).collect();
+    let ranges = wrap_ranges(&text, width);
+    let mut out = vec![Line::new(); ranges.len()];
+    let mut row = 0;
+    let mut start = 0;
+    for span in line {
+        let end = start + span.text.len();
+        while row < ranges.len() && ranges[row].start < end {
+            let range = &ranges[row];
+            let lo = start.max(range.start);
+            let hi = end.min(range.end);
+            if lo < hi {
+                markdown::push(&mut out[row], &span.text[lo - start..hi - start], span.style);
+            }
+            if range.end >= end {
+                break;
+            }
+            row += 1;
+        }
+        start = end;
+    }
+    out
 }
 
 fn wrap_ranges(text: &str, width: usize) -> Vec<Range<usize>> {
@@ -808,6 +855,51 @@ mod tests {
     }
 
     #[test]
+    fn rendered_note_wraps_spans_using_the_raw_word_wrap_rules() {
+        for raw in ["**hello big** world", "- [x] 日本語 longwordhere", "[hello](url) _wide 日本_", "> a **b** c", "", "**abcdef** gh"] {
+            let item = Item { w: 8, text: raw.into(), ..Item::note(0, 0, 0) };
+            let flat: String = markdown::parse(raw)[0].iter().map(|s| s.text.as_str()).collect();
+            let rows = item.display_lines();
+            let actual: Vec<String> = rows.iter().map(|l| l.iter().map(|s| s.text.as_str()).collect()).collect();
+            assert_eq!(actual, wrap(&flat, 6), "{raw}");
+            assert_eq!(item.size(), (8, 7));
+        }
+        let item = Item { w: 8, text: "**hello big** world".into(), ..Item::note(0, 0, 0) };
+        let rows = item.display_lines();
+        assert!(rows[0][0].style.bold && rows[1][0].style.bold);
+        assert!(!rows[2][0].style.bold);
+    }
+
+    #[test]
+    fn text_geometry_tracks_display_state_without_changing_json() {
+        let mut item = Item { text: "# **日本**\n[text](destination)".into(), ..Item::text(0, 0, 0) };
+        assert_eq!(item.size(), (4, 2));
+        assert!(item.contains(3, 1));
+        assert!(!item.contains(4, 1));
+        let rendered_json = serde_json::to_string(&item).unwrap();
+        item.editing = true;
+        assert_eq!(item.size(), (19, 2));
+        assert!(item.contains(18, 1));
+        assert_eq!(serde_json::to_string(&item).unwrap(), rendered_json);
+        let loaded: Item = serde_json::from_str(&rendered_json).unwrap();
+        assert!(!loaded.editing);
+        assert_eq!(loaded.size(), (4, 2));
+    }
+
+    #[test]
+    fn raw_cell_mapping_clamps_rows_columns_and_wide_characters() {
+        let item = Item { text: "a日本\nxy\n".into(), ..Item::text(0, 0, 0) };
+        for (col, row, byte) in [(0, 0, 0), (1, 0, 1), (2, 0, 1), (3, 0, 4), (4, 0, 4), (99, 0, 7), (1, 1, 9), (99, 1, 10), (0, 2, 11), (0, 99, 11)] {
+            assert_eq!(item.cursor_at_cell(col, row), byte);
+            assert!(item.text.is_char_boundary(byte));
+        }
+        let note = Item { w: 8, text: "abcdef gh日本".into(), ..Item::note(0, 0, 0) };
+        assert_eq!(note.cursor_at_cell(99, 0), 6);
+        assert_eq!(note.cursor_at_cell(3, 1), 9);
+        assert_eq!(note.cursor_at_cell(0, 2), note.text.len());
+    }
+
+    #[test]
     fn long_text_and_note_lines_and_cursors_stay_linear() {
         for (kind, text) in
             [(Kind::Text, "x".repeat(100_000)), (Kind::Note, "x".repeat(100_000)), (Kind::Note, "word ".repeat(20_000))]
@@ -819,6 +911,8 @@ mod tests {
             let started = std::time::Instant::now();
             let lines = item.lines();
             let cursor = item.cursor_offset(item.text.len());
+            let display = item.display_lines();
+            assert_eq!(display.iter().flatten().map(|s| s.text.as_str()).collect::<String>(), text);
             let elapsed = started.elapsed();
             assert!(elapsed < std::time::Duration::from_millis(200), "{kind:?}: {elapsed:?}");
             assert_eq!(item.text, text);
