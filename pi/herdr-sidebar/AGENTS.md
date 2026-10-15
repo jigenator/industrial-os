@@ -4,7 +4,7 @@ Purpose: report this Pi session's state to Herdr's agents sidebar as tokens, dis
 
 ## Critical engineering rules
 
-- Display only. The inputs are the signals-collector snapshot on Pi's event bus and Herdr's agent status, labels and visibility for this pane; never run Git, `gh` or CodexBar, read session files, or write anything but Herdr pane tokens and the `herdr:blocked` event. Full rule: [conventions](docs/conventions.md#module-and-dependency-rules). Check: review imports; `test/extension.test.ts`.
+- Display only. The inputs are the signals-collector snapshot on Pi's event bus, Herdr's agent status, labels and visibility for this pane, and the session's own `/flag` reminder; never run Git, `gh` or CodexBar, read or write session files, or write anything but Herdr pane tokens, the `herdr:blocked` event and the `/flag` custom entry. The flag is saved and read only through Pi's public session API (`pi.appendEntry`, `ctx.sessionManager.getBranch()`), inside the reporting gate. Full rule: [conventions](docs/conventions.md#module-and-dependency-rules). Check: review imports; `test/extension.test.ts`.
 - The token contract is canonical in [docs/token-contract.md](docs/token-contract.md). Change it there first, then `src/tokens.ts`, then the rows in [herdr/](../../herdr/README.md). Unknown is never zero or clean. Check: `test/tokens.test.ts` reads the key list from the contract.
 - Report only from TUI mode inside Herdr; subagent child processes inherit Herdr's environment and must stay silent. Every socket wait is bounded, failures are swallowed for Pi but recorded as unsynced, never as success; timers are unref'd and disposed. Full rule: [architecture invariants](docs/architecture.md#critical-invariants). Check: `test/extension.test.ts`, `test/sender.test.ts`.
 - Every report uses the one source `industrial-os:herdr-sidebar` and a clock-based `seq`; never a per-runtime source. Rationale: [reporting to Herdr](docs/architecture.md#reporting-to-herdr). Check: `test/sender.test.ts`.
@@ -18,7 +18,7 @@ Start here and scan the supporting-documents map. Read every document whose `Rea
 | Task | Read before changing |
 | --- | --- |
 | A token, row rule, width or glyph | [Token contract](docs/token-contract.md), [design](docs/design.md), then the [Herdr design](../../herdr/docs/design.md) |
-| Lifecycle, gating, snapshot intake, `herdr:blocked` | [Architecture](docs/architecture.md), [conventions](docs/conventions.md), then [contributing](CONTRIBUTING.md#full-validation-sequence) |
+| Lifecycle, gating, snapshot intake, `herdr:blocked`, `/flag` persistence | [Architecture](docs/architecture.md), [conventions](docs/conventions.md), then [contributing](CONTRIBUTING.md#full-validation-sequence) |
 | Herdr socket, sequence, TTL or batching | [Reporting to Herdr](docs/architecture.md#reporting-to-herdr), then the Herdr version's socket API and source |
 | Product scope | [Mission](docs/mission.md) and [root mission](../../docs/mission.md) |
 | Packaging, Pi version or test-host wiring | [Contributing](CONTRIBUTING.md), then the [Pi guide](../AGENTS.md) |
@@ -31,7 +31,7 @@ Start here and scan the supporting-documents map. Read every document whose `Rea
 | Snapshot validation | `src/snapshot.ts` | Pure; the collector's types are not imported |
 | Herdr requests and the pane-state subscription | `src/herdr-client.ts` | Node `net` only; bounded, never throws into Pi |
 | Diffing, batching, sequence, TTL and the shutdown clear | `src/sender.ts` | Takes a request function; no Pi state |
-| Gating, event-bus intake, `herdr:blocked`, timers, lifecycle | `src/extension.ts` | Public Pi APIs; dispose on every exit |
+| Gating, event-bus intake, `herdr:blocked`, the `/flag` command and saved flag, timers, lifecycle | `src/extension.ts` | Public Pi APIs; dispose on every exit |
 | Regression coverage | Matching file in `test/` | Fake Herdr server; real installed Pi loader in `test/extension.test.ts` and `test/signals.test.ts` |
 
 ## Implement and verify

@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
-import { host } from "./host.ts";
+import { host, load } from "./host.ts";
 import { startFakeHerdr, until, type FakeHerdr } from "./fake-herdr.ts";
 
 const packageRoot = resolve(".");
@@ -419,7 +419,9 @@ test("reconnect re-resolves visibility: a pane seen while disconnected clears th
 test("access decay reports each boundary without a snapshot/focus change and clears its timer on shutdown", async (t) => {
 	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); inside(t, herdr);
 	herdr.focus("w2", "w2:t1", "w2:p1", false);
-	let now = 1_800_000_000_000;
+	// A past virtual clock: the sender's sequence floor is module state, and a future one would make Herdr ignore
+	// later tests' reports from a freshly loaded module.
+	let now = 1_700_000_000_000;
 	t.mock.method(Date, "now", () => now);
 	const scheduled: { callback: () => void; due: number; timer: NodeJS.Timeout }[] = [];
 	const original = globalThis.setTimeout;
@@ -502,4 +504,155 @@ test("PNE shows while idle without a collector and follows pane_updated", async 
 	await until(() => herdr.tokens.get("pane") === "Renamed");
 	herdr.setPaneLabel("", true);
 	await until(() => !herdr.tokens.has("pane") && !herdr.tokens.has("g5"));
+});
+
+// The manual flag through Pi's real session runtime: the command dispatch, appendEntry, session files in a temporary
+// directory, reload, new session, resume, fork and tree navigation, with no model call. The fake collector loads first.
+let sessionDirs = 0;
+async function piSession(t: any, options: { mode?: string; ui?: boolean } = {}) {
+	const host_ = host as any, agentDir = join(scratch, "agent"), sessionDir = join(scratch, `sessions-${++sessionDirs}`);
+	const settingsManager = host_.SettingsManager.inMemory(), events = host_.createEventBus();
+	const resourceLoaderOptions = { eventBus: events, additionalExtensionPaths: [collectorPath, packageRoot], noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true };
+	const create = async ({ cwd, sessionManager, sessionStartEvent }: any) => {
+		const services = await host_.createAgentSessionServices({ cwd, agentDir, settingsManager, resourceLoaderOptions });
+		return { ...(await host_.createAgentSessionFromServices({ services, sessionManager, sessionStartEvent })), services, diagnostics: services.diagnostics };
+	};
+	const runtime = await host_.createAgentSessionRuntime(create, { cwd: scratch, agentDir, sessionManager: host_.SessionManager.create(scratch, sessionDir) });
+	const notes: string[] = [], errors: unknown[] = [];
+	const ui = options.ui ?? true;
+	const bind = () => runtime.session.bindExtensions({ mode: options.mode ?? "tui", onError: (error: unknown) => errors.push(error), ...(ui ? { uiContext: { notify: (message: string, type = "info") => notes.push(`${type}: ${message}`), setStatus() {}, setWidget() {}, setFooter() {}, setTitle() {} } } : {}) });
+	runtime.setRebindSession(async () => { await bind(); });
+	await bind();
+	t.after(() => runtime.dispose());
+	const manager = () => runtime.session.sessionManager;
+	return {
+		runtime, notes, errors,
+		command: (text: string) => runtime.session.prompt(text),
+		set: (fields: object) => events.emit("collector:set", fields),
+		manager,
+		flags: () => manager().getBranch().filter((entry: any) => entry.type === "custom" && entry.customType === "industrial-os:herdr-sidebar:flag").map((entry: any) => entry.data.flagged),
+		// A user message, as a prompt would add, so Pi writes the session file; no model is called.
+		userMessage: (text: string) => manager().appendMessage({ role: "user", content: text, timestamp: Date.now() }),
+	};
+}
+
+const FLAG_WARNING = "warning: /flag needs Pi's terminal UI inside Herdr; nothing was flagged";
+// Waits for a complete report from the current runtime: `dir` is set after every flag key in the sender's order.
+const reported = (herdr: FakeHerdr) => until(() => herdr.tokens.get("dir") === "/work/tatsu-cli", "complete report");
+
+test("/flag toggles the current session's flag at once and saves it; state, focus, work and completion never clear it", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); inside(t, herdr);
+	herdr.setWorkspaceLabel("rpiv-mono", false);
+	const s = await piSession(t);
+	await reported(herdr);
+	assert.equal(herdr.tokens.get("proj_idle"), "rpiv-mono"); assert.equal(herdr.tokens.has("flag"), false); assert.deepEqual(s.flags(), []);
+	const before = herdr.reports().length;
+	await s.command("/flag");
+	assert.deepEqual(s.notes, ["info: Flagged"]); assert.deepEqual(s.flags(), [true]);
+	await until(() => herdr.tokens.get("flag") === "●", "flag reported");
+	assert.deepEqual(herdr.reports().slice(before).map((r) => r.params.tokens), [{ flag: "●" }], "one immediate diff");
+	const flagged = async (check: () => boolean, label: string) => { await until(check, label); assert.equal(herdr.tokens.get("flag"), "●", label); };
+	herdr.setStatus("working"); await flagged(() => herdr.tokens.get("g1") === `◐ WRK${B}`, "working");
+	s.set({ units: 2 }); herdr.setStatus("idle"); await flagged(() => herdr.tokens.get("g1") === `◐ SUB${B}`, "subagents");
+	herdr.focus("w2", "w2:t1", "w2:p1"); await new Promise((done) => setTimeout(done, 60));
+	s.set({ units: 0 }); await flagged(() => herdr.tokens.get("g1") === `✓ DNE${B}`, "finished unseen");
+	herdr.focus("w1", "w1:t1", herdr.paneId); await flagged(() => herdr.tokens.get("g1") === `○ IDL${B}`, "seen");
+	s.set({ question: { text: "Go?", more: 0, since: Date.now() } }); await flagged(() => herdr.tokens.get("g1") === `× QNS${B}`, "question");
+	s.set({ question: null }); herdr.setStatus("done"); await flagged(() => herdr.tokens.get("g1") === `✓ DNE${B}`, "done");
+	herdr.dropSubscribers(); await flagged(() => herdr.tokens.get("g1") === `· UNK${B}` || herdr.subscriberCount === 1, "disconnected");
+	// A goal takes the right slot: the project gives up the flag's cells and the goal keeps its column.
+	herdr.setStatus("idle", false);
+	s.set({ goal: { status: "paused", usedSeconds: 30, activeSince: null } });
+	await flagged(() => herdr.tokens.get("proj_idle") === `rpiv-mono${B.repeat(2)}` && herdr.tokens.get("gt_off") === `${B.repeat(3)}30s`, "with goal");
+	await s.command("/flag");
+	assert.deepEqual(s.notes, ["info: Flagged", "info: Flag cleared"]); assert.deepEqual(s.flags(), [true, false]);
+	await until(() => !herdr.tokens.has("flag") && herdr.tokens.get("proj_idle") === `rpiv-mono${B.repeat(6)}`, "flag cleared");
+	assert.deepEqual(s.errors, []);
+});
+
+test("the flag rehydrates on reload and resume, starts false in a new session and never leaks between sessions", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); inside(t, herdr);
+	const s = await piSession(t);
+	await s.command("/flag"); s.userMessage("first");
+	const first = s.runtime.session.sessionFile;
+	await until(() => herdr.tokens.get("flag") === "●", "flagged");
+	await s.runtime.session.reload();
+	await reported(herdr); assert.equal(herdr.tokens.get("flag"), "●", "after reload"); assert.deepEqual(s.flags(), [true]);
+	await s.runtime.newSession();
+	await reported(herdr); assert.equal(herdr.tokens.has("flag"), false, "a new session starts unflagged"); assert.deepEqual(s.flags(), []);
+	await s.runtime.switchSession(first);
+	await reported(herdr); assert.equal(herdr.tokens.get("flag"), "●", "resumed"); assert.deepEqual(s.flags(), [true]);
+	await s.command("/flag");
+	await until(() => !herdr.tokens.has("flag"), "cleared");
+	await s.runtime.newSession();
+	await s.command("/flag"); s.userMessage("other");
+	await until(() => herdr.tokens.get("flag") === "●", "the other session flagged");
+	await s.runtime.switchSession(first);
+	await reported(herdr); assert.equal(herdr.tokens.has("flag"), false, "the other session's flag does not leak"); assert.deepEqual(s.flags(), [true, false]);
+	await s.runtime.dispose();
+	assert.equal(herdr.tokens.size, 0, "Pi exiting clears the flag with every token");
+	assert.deepEqual(s.errors, []);
+});
+
+test("the flag follows the active branch: tree navigation rewinds it, and a fork or clone copies the value at its point", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); inside(t, herdr);
+	const s = await piSession(t);
+	s.userMessage("one");
+	await s.command("/flag");
+	const second = s.userMessage("two");
+	await s.command("/flag");
+	const cleared = s.manager().getLeafId();
+	await s.command("/flag");
+	const latest = s.manager().getLeafId(), file = s.runtime.session.sessionFile;
+	await until(() => herdr.tokens.get("flag") === "●", "flagged");
+	await s.runtime.session.navigateTree(cleared, { summarize: false });
+	await until(() => !herdr.tokens.has("flag"), "rewound to the cleared entry"); assert.deepEqual(s.flags(), [true, false]);
+	await s.runtime.session.navigateTree(latest, { summarize: false });
+	await until(() => herdr.tokens.get("flag") === "●", "back to the latest entry");
+	// Forking before the second message copies the path up to the first /flag.
+	await s.runtime.fork(second);
+	await reported(herdr); assert.equal(herdr.tokens.get("flag"), "●", "fork"); assert.deepEqual(s.flags(), [true]);
+	await s.runtime.switchSession(file);
+	await s.runtime.fork(cleared, { position: "at" });
+	await reported(herdr); assert.equal(herdr.tokens.has("flag"), false, "clone at the clear"); assert.deepEqual(s.flags(), [true, false]);
+	assert.deepEqual(s.errors, []);
+});
+
+test("/flag outside Pi's terminal UI inside Herdr saves nothing and reports nothing; it warns where Pi has a UI", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); inside(t, herdr);
+	for (const [mode, ui] of [["print", false], ["json", false], ["rpc", true]] as const) {
+		const s = await piSession(t, { mode, ui });
+		await s.command("/flag");
+		assert.deepEqual(s.flags(), [], mode);
+		assert.deepEqual(s.notes, ui ? [FLAG_WARNING] : [], mode);
+	}
+	assert.equal(herdr.log.length, 0);
+	herdrEnv(t, { HERDR_ENV: undefined, HERDR_PANE_ID: herdr.paneId, HERDR_SOCKET_PATH: herdr.socketPath });
+	const outside = await piSession(t);
+	await outside.command("/flag");
+	assert.deepEqual(outside.flags(), []); assert.deepEqual(outside.notes, [FLAG_WARNING]);
+	assert.equal(herdr.log.length, 0);
+	// Arguments are not modes: `/flag off` neither toggles nor saves.
+	inside(t, herdr);
+	const s = await piSession(t);
+	await s.command("/flag off");
+	assert.deepEqual(s.flags(), []); assert.deepEqual(s.notes, ["warning: Usage: /flag"]);
+});
+
+test("savedFlag: the latest valid boolean on the active branch wins; malformed and other entries are ignored", async () => {
+	const { savedFlag, FLAG_ENTRY } = await load("src/extension.ts");
+	assert.equal(FLAG_ENTRY, "industrial-os:herdr-sidebar:flag");
+	const m = host.SessionManager.inMemory(scratch);
+	assert.equal(savedFlag(m.getBranch()), false);
+	m.appendCustomEntry(FLAG_ENTRY, { flagged: true });
+	const on = m.getLeafId();
+	for (const data of [undefined, null, {}, { flagged: "false" }, { flagged: 0 }]) m.appendCustomEntry(FLAG_ENTRY, data);
+	m.appendCustomEntry("another-extension", { flagged: false });
+	m.appendMessage({ role: "user", content: "x", timestamp: 0 });
+	assert.equal(savedFlag(m.getBranch()), true);
+	m.appendCustomEntry(FLAG_ENTRY, { flagged: false });
+	assert.equal(savedFlag(m.getBranch()), false);
+	// The abandoned branch is still in the session but does not decide the active branch's value.
+	m.branch(on);
+	assert.equal(savedFlag(m.getBranch()), true);
 });

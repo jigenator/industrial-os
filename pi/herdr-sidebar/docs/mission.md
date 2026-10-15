@@ -13,6 +13,7 @@ Goals:
 - Show, per Pi pane, the agent state, the Herdr SPACE name and Active branch/directory, the open pull request, active units, the context used, the compaction count, the model and thinking level, the goal time, and the Herdr pane name and any pending question, as fixed in the [token contract](token-contract.md).
 - Stay truthful: unknown values look unknown, never zero, clean or absent.
 - Mark a pending question as Herdr's blocked state, so Herdr's attention and wait features see it.
+- Let the user mark a session with `/flag`, a red dot beside its SPACE name that stays until `/flag` clears it.
 - Never block or slow Pi, and leave nothing behind when Pi exits.
 
 Non-goals:
@@ -20,11 +21,11 @@ Non-goals:
 - Collecting data: Git, GitHub, CodexBar and session history belong to the signals-collector.
 - Rendering: the rows, colors and width are Herdr configuration in [herdr/](../../../herdr/README.md).
 - Showing agents other than Pi, or changing Herdr's agent state beyond the blocked question wait.
-- Settings, commands or interaction of its own.
+- Settings, commands or interaction of its own beyond the one `/flag` toggle: no aliases, modes, sorting, pinning or change to Herdr's state.
 
 ## Constraints
 
-- Inputs are only the signals-collector snapshot on Pi's event bus and Herdr's own agent status, SPACE label, pane label and visibility for the pane.
+- Inputs are only the signals-collector snapshot on Pi's event bus, Herdr's own agent status, SPACE label, pane label and visibility for the pane, and the session's saved `/flag` entry, read through Pi's public session API.
 - Reports only from Pi's interactive TUI mode inside a Herdr pane; subagent children and non-interactive runs stay silent.
 - Herdr's limits hold: 32 tokens per pane, 16 per request, 80 characters per value, and a 24-cell text area in a 36-column sidebar.
 - Runtime dependencies are Node's standard library and Pi's host peers.

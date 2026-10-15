@@ -58,6 +58,42 @@ test("later reports send only what changed, clear keys that stopped applying, an
 	assert.deepEqual(map(herdr.tokens), sorted({ g1: "◐ WRK⠀", g2_au0: "??AU", bar: "━━━━━━━━─── 67%", cmpx: "CMP×??", proj: "tatsu-cli" }));
 });
 
+const PLAIN = { g1: "◐ WRK⠀", proj: "tatsu-cli", gt: "⠀2h33m", g2_au: "02AU", bar: "━━━━━━━━─── 67%", cmpx: "CMP×18", g3: "ACT⠀", br: "main", prn: "⠀⠀⠀#42", g4: "MDL⠀", mthink: "opus-5.5/hi", g5: "ASK⠀", ask_l1: "a", ask_l2: "b", ask_l3: "c" };
+const FLAGGED = { ...PLAIN, proj: "tatsu-cli⠀⠀", flag: "●" };
+
+test("the flag sets and clears as a minimal diff, and the maximal flagged map fits beside another reporter's 16 keys", async (t) => {
+	const { herdr, sender } = await setup(t);
+	assert.equal(Object.keys(FLAGGED).length, 16);
+	for (let n = 0; n < 16; n++) herdr.tokens.set(`other${n}`, "x");
+	sender.update(PLAIN);
+	await until(() => sender.state.synced, "first report");
+	let before = herdr.reports().length;
+	sender.update(FLAGGED);
+	await until(() => herdr.tokens.get("flag") === "●" && sender.state.synced, "flag set");
+	assert.deepEqual(herdr.reports().slice(before).map((r) => r.params.tokens), [{ proj: "tatsu-cli⠀⠀", flag: "●" }]);
+	assert.equal(herdr.tokens.size, 32);
+	before = herdr.reports().length;
+	sender.update(PLAIN);
+	await until(() => !herdr.tokens.has("flag") && sender.state.synced, "flag cleared");
+	assert.deepEqual(herdr.reports().slice(before).map((r) => r.params.tokens), [{ flag: null, proj: "tatsu-cli" }]);
+	assert.equal(sender.state.lastError, undefined);
+});
+
+test("TTL renewal restores a flag Herdr dropped, in a full report of four requests of at most 16 keys", async (t) => {
+	const { herdr, sender } = await setup(t, { ttlMs: 600, renewMs: 120 });
+	sender.update(FLAGGED);
+	await until(() => herdr.tokens.get("flag") === "●", "flag set");
+	// Herdr expired the key, as after a missed renewal.
+	herdr.tokens.delete("flag");
+	const before = herdr.reports().length;
+	await until(() => herdr.tokens.get("flag") === "●", "renewed");
+	const renewal = herdr.reports().slice(before, before + 4);
+	assert.equal(renewal.flatMap((r) => Object.keys(r.params.tokens)).length, TOKEN_KEYS.length);
+	assert.ok(renewal.every((r) => Object.keys(r.params.tokens).length <= 16 && r.params.ttl_ms === 600));
+	await sender.shutdown();
+	assert.equal(herdr.tokens.has("flag"), false, "the shutdown clear removes the flag");
+});
+
 test("rapid updates coalesce: one request in flight, then the latest state", async (t) => {
 	const { herdr, sender } = await setup(t);
 	herdr.setReportDelay(40);
@@ -84,7 +120,7 @@ test("each TTL renewal calls onRenew, so unannounced inputs are re-read on the s
 	const { herdr, sender } = await setup(t, { ttlMs: 600, renewMs: 80, onRenew: () => { renewals++; } });
 	sender.update(FIRST);
 	await until(() => renewals >= 2, "two renewals");
-	// A full report is four requests (52 keys, 16 per request): the first, then one per renewal.
+	// A full report is four requests (53 keys, 16 per request): the first, then one per renewal.
 	await until(() => herdr.reports().length >= 4 * (renewals + 1), "a full report per renewal");
 	await sender.shutdown(); const count = renewals;
 	await new Promise((done) => setTimeout(done, 200));

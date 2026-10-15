@@ -6,13 +6,26 @@ This extension decides what text each sidebar row carries; [the Herdr design](..
 
 | Row | Reads as | Meaning |
 | --- | --- | --- |
-| 1 | `◐ WRK · release · 2h33m` | State, Herdr SPACE name, goal time (Active basename while SPACE is unknown). The goal time counts while the goal is active and stands still otherwise |
+| 1 | `◐ WRK · release · 2h33m` | State, Herdr SPACE name, the `/flag` dot when set, goal time (Active basename while SPACE is unknown). The goal time counts while the goal is active and stands still otherwise |
 | 2 | `02AU · ━━━━━━━━─── 67% · CMP×18` | Active units, context used toward compaction, compactions on this branch |
 | 3 | `ACT · feat/sidebar* · #42` | Active branch (`*` has changes) or directory; open pull request (`#?` when the lookup is unavailable) |
 | 4 | `MDL · opus-5.5/hi` | Model and thinking level |
 | 5 | `PNE · Updating sideb… · 12s` | Herdr pane name; phase age only while working with a phase |
 
 Row 5 shows the known pane label as `PNE` in every state, including IDL/UNK, truncated to the available width. No known non-empty label means no pane-name row, with no fallback. A phase age appears beside the name only while the root agent works with a phase; phase codes and tool targets are not shown. A pending question wins (`ASK`, up to three rows, with `(+N)` when more follow), then DNE (`RDY · finished` and its completion age), otherwise the name. Without a collector snapshot, ASK/RDY remain absent and a known pane name still shows without an age. The name is secondary text with a decorative gutter and never access-decays.
+
+## The manual flag
+
+`/flag` puts a red `●` beside the SPACE name, for a session you want to come back to; `/flag` again removes it. Pi confirms each toggle with `Flagged` or `Flag cleared`.
+
+```text
+ ○ IDL  · rpiv-mono · ●
+ ◐ WRK  · rpiv-mono   · ● ·  2h33m
+```
+
+It is your mark, not a state: it is independent of the state code, and no focus, visit, agent completion, work or age clears it. It does not sort, pin or change Herdr's own state. The dot takes four cells (Herdr's ` · ` and `●`) from the SPACE name, which is cut sooner while flagged; beside a goal time the name is fitted to 11 cells so the time keeps its column. The dot is a shape, so it reads without color; red only adds emphasis.
+
+The flag belongs to the Pi session and is saved in it. It shows again after `/reload` or when the session is resumed, follows `/tree` to the value at that point, and a fork or clone starts with the value at its fork point; a new session starts without it. When Pi exits the dot disappears with the other rows. A flag set before the session's first message is lost if Pi exits first, because Pi saves the session only then. Outside Pi's terminal UI inside Herdr `/flag` saves nothing and warns where Pi can show it. The exact rules are in [the contract](token-contract.md#row-1) and [architecture](architecture.md#the-manual-flag).
 
 ## States
 
@@ -70,4 +83,4 @@ Values change when the snapshot, Herdr's status, announced workspace/pane label 
 
 ## Accessibility and limits
 
-The rows are plain text in single-cell glyphs as measured by Pi TUI, padded with U+2800 so Herdr's trimming cannot shift the columns. Terminals that draw `◐`, `━` or `─` at ambiguous width, or fonts without U+2800, are unverified. Pi panes without this extension show no Industrial OS rows; other agents retain their own rows. No interactive check in Herdr has been recorded for this extension; the geometry was verified live with a throwaway script on 2026-10-08.
+The rows are plain text in single-cell glyphs as measured by Pi TUI, padded with U+2800 so Herdr's trimming cannot shift the columns. Terminals that draw `◐`, `●`, `━` or `─` at ambiguous width, or fonts without U+2800, are unverified. Pi panes without this extension show no Industrial OS rows; other agents retain their own rows. No interactive check in Herdr has been recorded for this extension; the geometry was verified live with a throwaway script on 2026-10-08.
