@@ -4,9 +4,10 @@ use ratatui::crossterm::event::{
 };
 use ratatui::layout::{Position, Rect};
 use std::path::PathBuf;
+use std::ops::Range;
 use std::time::{Duration, Instant, SystemTime};
 
-pub const COLORS: usize = 5;
+pub const COLORS: usize = 8;
 const DOUBLE_CLICK: Duration = Duration::from_millis(400);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -17,7 +18,11 @@ pub enum Button {
     Delete,
     Save,
     Quit,
+    Format(Format),
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Format { Copy, Bold, Italic, Strike, Code, Link, Heading, Bullet, Checkbox }
 
 /// The status line's message. Errors are worded, never shown by color alone.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -25,6 +30,8 @@ pub enum Status {
     #[default]
     None,
     Saved,
+    Copied,
+    Hint(String),
     Error(String),
 }
 
@@ -32,6 +39,8 @@ pub enum Status {
 enum Drag {
     Move { dx: i32, dy: i32 },
     Resize,
+    Select,
+    Scroll { id: u64, grab: usize },
     Arrow,
     Pan { col: u16, row: u16 },
 }
@@ -46,6 +55,10 @@ pub struct App {
     /// Byte offset on a UTF-8 boundary while editing.
     pub cursor: usize,
     cut_buffer: String,
+    pub anchor: Option<usize>,
+    pub format_pending: bool,
+    /// Raw UTF-8 clipboard requests, drained only by the terminal host.
+    pub clipboard_outbox: Vec<String>,
     desired_column: Option<usize>,
     pub selected_arrow: Option<usize>,
     pub connecting: bool,
@@ -79,6 +92,9 @@ impl App {
             editing: false,
             cursor: 0,
             cut_buffer: String::new(),
+            anchor: None,
+            format_pending: false,
+            clipboard_outbox: Vec::new(),
             desired_column: None,
             selected_arrow: None,
             connect_target: None,
@@ -98,12 +114,16 @@ impl App {
     }
 
     pub fn handle(&mut self, event: Event) {
+        if matches!(self.status, Status::Copied | Status::Hint(_)) && matches!(&event, Event::Key(_) | Event::Paste(_) | Event::Mouse(MouseEvent { kind: MouseEventKind::Down(_) | MouseEventKind::ScrollUp | MouseEventKind::ScrollDown, .. })) {
+            self.status = Status::None;
+        }
         match event {
             Event::Key(k) if k.kind == KeyEventKind::Press => self.key(k),
             Event::Mouse(m) => self.mouse(m),
             Event::Paste(text) if self.editing => self.paste(&text),
             _ => {}
         }
+        self.follow_cursor();
     }
 
     fn to_world(&self, col: u16, row: u16) -> (i32, i32) {
@@ -152,7 +172,7 @@ impl App {
             KeyCode::Char('q') => self.request_quit(),
             KeyCode::Char('n') => self.add(Kind::Note),
             KeyCode::Char('t') => self.add(Kind::Text),
-            KeyCode::Char(c @ '1'..='5') if self.selected_arrow.is_none() => self.set_color(c as usize - '1' as usize),
+            KeyCode::Char(c @ '1'..='8') if self.selected_arrow.is_none() => self.set_color(c as usize - '1' as usize),
             KeyCode::Char('a') if self.selected.is_some() => self.cycle_target(1),
             KeyCode::Enter | KeyCode::Char('e') => self.begin_edit(),
             KeyCode::Delete | KeyCode::Backspace => self.delete(),
@@ -163,6 +183,8 @@ impl App {
             }
             KeyCode::Tab => self.cycle(1),
             KeyCode::BackTab => self.cycle(-1),
+            KeyCode::PageUp => self.scroll_selected(-1),
+            KeyCode::PageDown => self.scroll_selected(1),
             KeyCode::Left => self.arrow(-1, 0, k.modifiers),
             KeyCode::Right => self.arrow(1, 0, k.modifiers),
             KeyCode::Up => self.arrow(0, -1, k.modifiers),
@@ -300,6 +322,8 @@ impl App {
     fn begin_edit(&mut self) {
         if let Some(i) = self.selected {
             self.editing = true;
+            self.anchor = None;
+            self.format_pending = false;
             let item = &mut self.board.items[i];
             item.editing = true;
             let old_height = item.h;
@@ -318,9 +342,35 @@ impl App {
             self.editing = false;
             return;
         };
+        if self.format_pending {
+            self.format_pending = false;
+            if let KeyCode::Char(c) = k.code {
+                let action = match c {
+                    'c' => Some(Format::Copy), 'b' => Some(Format::Bold),
+                    'i' => Some(Format::Italic), 's' => Some(Format::Strike),
+                    '`' => Some(Format::Code), 'l' => Some(Format::Link),
+                    'h' => Some(Format::Heading), '-' => Some(Format::Bullet),
+                    'x' => Some(Format::Checkbox), _ => None,
+                };
+                if let Some(action) = action { self.format(action); }
+            }
+            return;
+        }
+        if k.modifiers.contains(KeyModifiers::CONTROL) && k.code == KeyCode::Char('t') {
+            self.format_pending = self.selection().is_some();
+            return;
+        }
         if k.code == KeyCode::Esc {
             self.finish_edit();
             return;
+        }
+        let selection = self.selection();
+        let motion = matches!(k.code, KeyCode::Home | KeyCode::End | KeyCode::Left | KeyCode::Right | KeyCode::Up | KeyCode::Down)
+            || (k.modifiers.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) && matches!(k.code, KeyCode::Char('a' | 'e' | 'b' | 'f')));
+        if motion && k.modifiers.contains(KeyModifiers::SHIFT) {
+            self.anchor.get_or_insert(self.cursor);
+        } else if motion {
+            self.anchor = None;
         }
         let item = &mut self.board.items[i];
         let text = &item.text;
@@ -386,12 +436,14 @@ impl App {
         if !vertical {
             self.desired_column = None;
         }
-        if let Some((range, replacement)) = change {
+        if let Some((mut range, replacement)) = change {
+            if !cut && let Some(selection) = selection { range = selection; }
+            self.anchor = None;
             if cut {
                 self.cut_buffer = item.text[range.clone()].to_string();
             }
+            self.cursor = range.start + replacement.len();
             if item.text[range.clone()] != replacement {
-                self.cursor = range.start + replacement.len();
                 item.text.replace_range(range, &replacement);
                 item.fit_height();
                 self.dirty = true;
@@ -412,9 +464,11 @@ impl App {
         if text.is_empty() {
             return;
         }
+        let range = self.selection().unwrap_or(self.cursor..self.cursor);
+        self.anchor = None;
         let item = &mut self.board.items[i];
-        item.text.insert_str(self.cursor, &text);
-        self.cursor += text.len();
+        self.cursor = range.start + text.len();
+        item.text.replace_range(range, &text);
         self.desired_column = None;
         item.fit_height();
         self.dirty = true;
@@ -423,6 +477,8 @@ impl App {
     /// Leaves edit mode; a text item left empty is removed.
     fn finish_edit(&mut self) {
         self.editing = false;
+        self.anchor = None;
+        self.format_pending = false;
         if let Some(i) = self.selected {
             let item = &mut self.board.items[i];
             item.editing = false;
@@ -446,10 +502,11 @@ impl App {
                     let (x, y) = self.to_world(col, row);
                     self.connect_to(self.board.hit(x, y), false);
                 }
+                if matches!(self.drag, Some(Drag::Select)) { self.copy_selection(); }
                 self.drag = None;
             }
-            MouseEventKind::ScrollUp => self.cam.1 -= 2,
-            MouseEventKind::ScrollDown => self.cam.1 += 2,
+            MouseEventKind::ScrollUp => self.wheel(col, row, -2),
+            MouseEventKind::ScrollDown => self.wheel(col, row, 2),
             MouseEventKind::ScrollLeft => self.cam.0 -= 4,
             MouseEventKind::ScrollRight => self.cam.0 += 4,
             MouseEventKind::Moved => {}
@@ -461,8 +518,14 @@ impl App {
         self.connecting = false;
         let pos = Position::new(col, row);
         if let Some(&(_, button)) = self.buttons.iter().find(|(r, _)| r.contains(pos)) {
+            self.format_pending = false;
+            if !matches!(button, Button::Format(_)) {
+                self.anchor = None;
+            }
             return self.button(button);
         }
+        self.anchor = None;
+        self.format_pending = false;
         if !self.canvas.contains(pos) {
             return;
         }
@@ -473,15 +536,31 @@ impl App {
         self.last_click = if double { None } else { Some((Instant::now(), col, row)) };
 
         let (x, y) = self.to_world(col, row);
+        if let Some(i) = self.board.hit(x, y) {
+            let item = &self.board.items[i];
+            if x == item.x + item.w as i32 - 1 && y > item.y && y < item.y + item.h as i32 - 1
+                && let Some((start, len)) = item.scrollbar()
+            {
+                let at = (y - item.y - 1) as usize;
+                if (start..start + len).contains(&at) {
+                    self.drag = Some(Drag::Scroll { id: item.id, grab: at - start });
+                } else {
+                    self.scroll_note(i, if at < start { -(item.inner_height() as i32) } else { item.inner_height() as i32 });
+                    self.drag = None;
+                }
+                return;
+            }
+        }
         if self.editing
             && let Some(i) = self.selected.filter(|&i| self.board.hit(x, y) == Some(i))
         {
             let item = &self.board.items[i];
             if !item.is_border(x, y) {
                 let inset = i32::from(item.kind == Kind::Note);
-                self.cursor = item.cursor_at_cell((x - item.x - inset) as usize, (y - item.y - inset) as usize);
+                self.cursor = item.cursor_at_cell((x - item.x - inset) as usize, (y - item.y - inset) as usize + item.scroll_offset());
+                self.anchor = Some(self.cursor);
                 self.desired_column = None;
-                self.drag = None;
+                self.drag = Some(Drag::Select);
                 self.last_click = None;
                 return;
             }
@@ -521,6 +600,24 @@ impl App {
     fn drag_to(&mut self, col: u16, row: u16) {
         let (x, y) = self.to_world(col, row);
         match (self.drag, self.selected) {
+            (Some(Drag::Select), Some(i)) => {
+                let item = &self.board.items[i];
+                let inset = i32::from(item.kind == Kind::Note);
+                let row = (y - item.y - inset).max(0) as usize + item.scroll_offset();
+                self.cursor = item.cursor_at_cell((x - item.x - inset).max(0) as usize, row);
+                self.desired_column = None;
+            }
+            (Some(Drag::Scroll { id, grab }), _) => {
+                let Some(item) = self.board.items.iter_mut().find(|item| item.id == id) else {
+                    self.drag = None;
+                    return;
+                };
+                if let Some((_, len)) = item.scrollbar() {
+                    let travel = item.inner_height() - len;
+                    let at = (y - item.y - 1).max(0) as usize;
+                    item.scroll = at.saturating_sub(grab).min(travel) * item.max_scroll() / travel.max(1);
+                }
+            }
             (Some(Drag::Pan { col: c, row: r }), _) => {
                 self.cam.0 -= col as i32 - c as i32;
                 self.cam.1 -= row as i32 - r as i32;
@@ -552,6 +649,7 @@ impl App {
             Button::Delete => self.delete(),
             Button::Save => self.save(),
             Button::Quit => self.request_quit(),
+            Button::Format(action) => self.format(action),
         }
     }
 
@@ -616,6 +714,143 @@ impl App {
         }
     }
 
+    pub fn selection(&self) -> Option<Range<usize>> {
+        let anchor = self.anchor.filter(|&a| self.editing && a != self.cursor)?;
+        Some(anchor.min(self.cursor)..anchor.max(self.cursor))
+    }
+
+    fn copy_selection(&mut self) {
+        let (Some(i), Some(range)) = (self.selected, self.selection()) else {
+            return;
+        };
+        self.cut_buffer = self.board.items[i].text[range].to_string();
+        self.clipboard_outbox.push(self.cut_buffer.clone());
+    }
+
+    fn format(&mut self, action: Format) {
+        if action == Format::Copy {
+            self.copy_selection();
+            return;
+        }
+        let (Some(i), Some(mut range)) = (self.selected, self.selection()) else {
+            return;
+        };
+        if action == Format::Link && self.board.items[i].text[range.clone()].contains('\n') {
+            if !matches!(self.status, Status::Error(_)) {
+                self.status = Status::Hint("link needs a selection on one line".into());
+            }
+            return;
+        }
+        let text = &mut self.board.items[i].text;
+        let mut selected = None;
+        let replacement = match action {
+            Format::Bold | Format::Italic | Format::Strike | Format::Code => {
+                let mark = match action {
+                    Format::Bold => "**",
+                    Format::Italic => "*",
+                    Format::Strike => "~~",
+                    _ => "`",
+                };
+                let Some(replacement) = format_inline(text, &mut range, mark) else {
+                    if !matches!(self.status, Status::Error(_)) {
+                        self.status = Status::Hint("selection contains existing formatting markers".into());
+                    }
+                    return;
+                };
+                replacement
+            }
+            Format::Link => {
+                let raw = &text[range.clone()];
+                if raw.starts_with('[')
+                    && raw.ends_with(')')
+                    && let Some(end) = raw.find("](")
+                    && raw[end + 2..].find(')') == Some(raw.len() - end - 3)
+                    && !raw[end + 2..raw.len() - 1].chars().any(char::is_whitespace)
+                {
+                    raw[1..end].to_string()
+                } else if text[..range.start].ends_with('[')
+                    && text[range.end..].starts_with("](")
+                    && let Some(end) = text[range.end + 2..].find(')')
+                    && !text[range.end + 2..range.end + 2 + end].chars().any(char::is_whitespace)
+                {
+                    let raw = raw.to_string();
+                    range.start -= 1;
+                    range.end += end + 3;
+                    raw
+                } else {
+                    selected = Some(range.start + raw.len() + 3..range.start + raw.len() + 6);
+                    format!("[{raw}](url)")
+                }
+            }
+            Format::Heading | Format::Bullet | Format::Checkbox => {
+                range.start = text[..range.start].rfind('\n').map_or(0, |p| p + 1);
+                // An end at the next line's start does not include that line.
+                let end = if range.end > range.start && text[..range.end].ends_with('\n') {
+                    range.end - 1
+                } else {
+                    range.end
+                };
+                range.end = text[end..].find('\n').map_or(text.len(), |p| end + p);
+                format_prefixes(&text[range.clone()], action)
+            }
+            Format::Copy => unreachable!(),
+        };
+        if text[range.clone()] == replacement {
+            return;
+        }
+        let start = range.start;
+        text.replace_range(range, &replacement);
+        let selection = selected.unwrap_or(start..start + replacement.len());
+        self.anchor = Some(selection.start);
+        self.cursor = selection.end;
+        self.desired_column = None;
+        self.board.items[i].fit_height();
+        self.dirty = true;
+    }
+
+    fn scroll_note(&mut self, i: usize, delta: i32) {
+        let item = &mut self.board.items[i];
+        item.scroll = item.scroll_offset().saturating_add_signed(delta as isize).min(item.max_scroll());
+    }
+
+    fn scroll_selected(&mut self, direction: i32) {
+        if let Some(i) = self.selected {
+            self.scroll_note(i, direction * self.board.items[i].inner_height() as i32);
+        }
+    }
+
+    fn wheel(&mut self, col: u16, row: u16, delta: i32) {
+        let (x, y) = self.to_world(col, row);
+        if self.canvas.contains(Position::new(col, row))
+            && let Some(i) = self.board.hit(x, y)
+            && self.board.items[i].max_scroll() > 0
+        {
+            self.scroll_note(i, delta);
+        } else {
+            self.cam.1 += delta;
+        }
+    }
+
+    fn follow_cursor(&mut self) {
+        if !self.editing {
+            return;
+        }
+        if let Some(i) = self.selected {
+            let item = &mut self.board.items[i];
+            if item.kind == Kind::Note {
+                let row = item.cursor_cell(self.cursor).1;
+                let scroll = item.scroll_offset();
+                item.scroll = if row < scroll {
+                    row
+                } else if row >= scroll + item.inner_height() {
+                    row + 1 - item.inner_height()
+                } else {
+                    scroll
+                };
+            }
+        }
+    }
+
     /// Saves the board, unless another pane saved it since this one loaded it; then the first
     /// attempt is refused and a second one overwrites.
     fn save(&mut self) {
@@ -649,6 +884,116 @@ impl App {
             self.quit = true;
         }
     }
+}
+
+/// Replacement and content ranges when markers are inside or just outside the selected line.
+fn inline_wrapping(text: &str, range: Range<usize>, mark: &str) -> Option<(Range<usize>, Range<usize>)> {
+    let raw = &text[range.clone()];
+    let before = &text[..range.start];
+    let after = &text[range.end..];
+    if mark == "*" {
+        let opening_run = before.bytes().rev().take_while(|&b| b == b'*').count()
+            + raw.bytes().take_while(|&b| b == b'*').count();
+        let closing_run = after.bytes().take_while(|&b| b == b'*').count()
+            + raw.bytes().rev().take_while(|&b| b == b'*').count();
+        if opening_run % 2 == 0 || closing_run % 2 == 0 {
+            return None;
+        }
+    }
+    let opening_inside = raw.starts_with(mark);
+    let closing_inside = raw.ends_with(mark);
+    if (!opening_inside && !before.ends_with(mark)) || (!closing_inside && !after.starts_with(mark)) {
+        return None;
+    }
+    let content_start = range.start + if opening_inside { mark.len() } else { 0 };
+    let content_end = range.end.checked_sub(if closing_inside { mark.len() } else { 0 })?;
+    if content_start >= content_end || contains_inline_marker(&text[content_start..content_end], mark) {
+        return None;
+    }
+    let outer_start = if opening_inside { range.start } else { range.start - mark.len() };
+    let outer_end = if closing_inside { range.end } else { range.end + mark.len() };
+    Some((outer_start..outer_end, content_start..content_end))
+}
+
+fn contains_inline_marker(text: &str, mark: &str) -> bool {
+    if mark == "*" {
+        text.as_bytes().split(|&byte| byte != b'*').any(|run| run.len() % 2 == 1)
+    } else {
+        text.contains(mark)
+    }
+}
+
+fn format_inline(text: &str, selection: &mut Range<usize>, mark: &str) -> Option<String> {
+    let mut offset = selection.start;
+    let lines: Vec<_> = text[selection.clone()]
+        .split('\n')
+        .map(|line| {
+            let range = offset..offset + line.len();
+            offset = range.end + 1;
+            let wrapped = if line.is_empty() { None } else { inline_wrapping(text, range.clone(), mark) };
+            (range, wrapped)
+        })
+        .collect();
+    if lines.iter().any(|(range, wrapped)| wrapped.is_none() && contains_inline_marker(&text[range.clone()], mark)) {
+        return None;
+    }
+    let remove = lines.iter().filter(|(r, _)| !r.is_empty()).all(|(_, wrapped)| wrapped.is_some());
+    Some(
+        lines
+            .into_iter()
+            .map(|(range, wrapped)| {
+                if range.is_empty() {
+                    return String::new();
+                }
+                if let Some((outer, content)) = wrapped {
+                    selection.start = selection.start.min(outer.start);
+                    selection.end = selection.end.max(outer.end);
+                    text[if remove { content } else { outer }].to_string()
+                } else {
+                    format!("{mark}{}{mark}", &text[range])
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n"),
+    )
+}
+
+fn prefix_len(line: &str, action: Format) -> usize {
+    let task = ["- [ ] ", "- [x] ", "- [X] "].iter().any(|p| line.starts_with(p));
+    match action {
+        Format::Heading => {
+            let hashes = line.bytes().take_while(|&b| b == b'#').count();
+            if (1..=6).contains(&hashes) && line.as_bytes().get(hashes) == Some(&b' ') { hashes + 1 } else { 0 }
+        }
+        Format::Bullet if !task && line.starts_with("- ") => 2,
+        Format::Checkbox if task => 6,
+        _ => 0,
+    }
+}
+
+fn format_prefixes(raw: &str, action: Format) -> String {
+    let remove = raw.split('\n').filter(|line| !line.is_empty()).all(|line| prefix_len(line, action) > 0);
+    raw.split('\n')
+        .map(|line| {
+            if line.is_empty() {
+                return String::new();
+            }
+            let prefix = prefix_len(line, action);
+            if remove {
+                return line[prefix..].to_string();
+            }
+            if prefix > 0 {
+                return line.to_string();
+            }
+            match action {
+                Format::Heading => format!("# {line}"),
+                Format::Bullet => format!("- {}", &line[prefix_len(line, Format::Checkbox)..]),
+                Format::Checkbox => format!("- [ ] {}", &line[prefix_len(line, Format::Bullet)..]),
+                _ => unreachable!(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Readline skips separators first, then consumes the preceding word.
@@ -710,6 +1055,399 @@ mod tests {
 
     fn key(app: &mut App, code: KeyCode) {
         app.handle(Event::Key(KeyEvent::new(code, KeyModifiers::NONE)));
+    }
+
+    fn assert_separate_spans_preserved(action: Format, raw: &str) {
+        let mut app = editing(raw);
+        app.anchor = Some(0);
+        app.format(action);
+        assert_eq!(app.board.items[0].text, raw);
+        assert_eq!(app.selection(), Some(0..raw.len()));
+        assert!(!app.dirty);
+        assert!(matches!(app.status, Status::Hint(_)));
+    }
+
+    #[test]
+    fn rereview_bold_does_not_unwrap_separate_spans() {
+        assert_separate_spans_preserved(Format::Bold, "**a** and **b**");
+    }
+
+    #[test]
+    fn rereview_italic_does_not_unwrap_separate_spans() {
+        assert_separate_spans_preserved(Format::Italic, "*a* and *b*");
+    }
+
+    #[test]
+    fn rereview_strike_does_not_unwrap_separate_spans() {
+        assert_separate_spans_preserved(Format::Strike, "~~a~~ and ~~b~~");
+    }
+
+    #[test]
+    fn rereview_code_does_not_unwrap_separate_spans() {
+        assert_separate_spans_preserved(Format::Code, "`a` and `b`");
+    }
+
+    #[test]
+    fn review_scroll_drag_survives_removal_without_changing_target() {
+        let mut app = app();
+        app.board.items.push(Item { id: 1, text: "a".into(), ..Item::text(40, 2, 0) });
+        app.board.items.push(Item {
+            id: 2,
+            text: "0\n1\n2\n3\n4\n5\n6\n7\n8\n9".into(),
+            w: 8,
+            h: 6,
+            ..Item::note(2, 2, 0)
+        });
+        app.selected = Some(0);
+        app.begin_edit();
+        key(&mut app, KeyCode::Backspace);
+        mouse(&mut app, MouseEventKind::Down(MouseButton::Left), 9, 4);
+        key(&mut app, KeyCode::Esc);
+        mouse(&mut app, MouseEventKind::Drag(MouseButton::Left), 9, 6);
+        assert_eq!(app.board.items[0].id, 2);
+        assert_eq!(app.board.items[0].scroll, 4);
+    }
+
+    #[test]
+    fn review_scroll_drag_does_not_switch_to_a_shifted_note() {
+        let mut app = app();
+        app.board.items.push(Item { id: 1, text: "a".into(), ..Item::text(40, 2, 0) });
+        for (id, x) in [(2, 2), (3, 20)] {
+            app.board.items.push(Item {
+                id,
+                text: "0\n1\n2\n3\n4\n5\n6\n7\n8\n9".into(),
+                w: 8,
+                h: 6,
+                ..Item::note(x, 2, 0)
+            });
+        }
+        app.selected = Some(0);
+        app.begin_edit();
+        key(&mut app, KeyCode::Backspace);
+        mouse(&mut app, MouseEventKind::Down(MouseButton::Left), 9, 4);
+        key(&mut app, KeyCode::Esc);
+        mouse(&mut app, MouseEventKind::Drag(MouseButton::Left), 9, 6);
+        assert_eq!(app.board.items[0].scroll, 4);
+        assert_eq!(app.board.items[1].scroll, 0);
+        app.board.remove(0); // A vanished drag target must not redirect to its neighbour.
+        mouse(&mut app, MouseEventKind::Drag(MouseButton::Left), 9, 7);
+        assert_eq!(app.board.items[0].scroll, 0);
+    }
+
+    #[test]
+    fn review_italic_toggle_uses_marker_run_parity() {
+        for (raw, start, end, expected) in [
+            ("**x**", 2, 3, "***x***"),
+            ("**x**", 0, 5, "***x***"),
+            ("***x***", 3, 4, "**x**"),
+            ("***x***", 0, 7, "**x**"),
+            ("*a **b** c*", 0, 11, "a **b** c"),
+        ] {
+            let mut app = editing(raw);
+            app.anchor = Some(start);
+            app.cursor = end;
+            app.format(Format::Italic);
+            assert_eq!(app.board.items[0].text, expected, "{raw} {start}..{end}");
+        }
+    }
+
+    #[test]
+    fn review_prefix_toggles_recognize_headings_and_checkbox_lines() {
+        for (action, raw, expected) in [
+            (Format::Bullet, "- [ ] x", "- x"),
+            (Format::Bullet, "- [x] x", "- x"),
+            (Format::Bullet, "- x\ny\n", "- x\n- y\n"),
+            (Format::Checkbox, "- [x] x\n- y\n", "- [x] x\n- [ ] y\n"),
+            (Format::Heading, "## x", "x"),
+            (Format::Heading, "###### x\n\n# y", "x\n\ny"),
+            (Format::Heading, "## x\ny", "## x\n# y"),
+        ] {
+            let mut app = editing(raw);
+            app.anchor = Some(0);
+            app.format(action);
+            assert_eq!(app.board.items[0].text, expected, "{action:?}: {raw}");
+        }
+    }
+
+    #[test]
+    fn review_inline_toggles_are_line_local_and_preserve_blank_lines() {
+        for (action, mark) in [(Format::Bold, "**"), (Format::Italic, "*"), (Format::Strike, "~~"), (Format::Code, "`")]
+        {
+            let mut app = editing("a\n\n日本");
+            app.anchor = Some(0);
+            app.format(action);
+            assert_eq!(app.board.items[0].text, format!("{mark}a{mark}\n\n{mark}日本{mark}"));
+            app.format(action);
+            assert_eq!(app.board.items[0].text, "a\n\n日本");
+            app.board.items[0].text = format!("{mark}a{mark}\n\nb");
+            app.anchor = Some(0);
+            app.cursor = app.board.items[0].text.len();
+            app.format(action);
+            assert_eq!(app.board.items[0].text, format!("{mark}a{mark}\n\n{mark}b{mark}"));
+            let mut blank = editing("\n\n");
+            blank.anchor = Some(0);
+            blank.format(action);
+            assert_eq!(blank.board.items[0].text, "\n\n");
+            assert!(!blank.dirty);
+        }
+    }
+
+    #[test]
+    fn review_inline_partial_end_lines_keep_adjacent_markers_paired() {
+        let mut app = editing("**abc**\n**日本**");
+        app.anchor = Some(2);
+        app.cursor -= 2;
+        app.format(Format::Bold);
+        assert_eq!(app.board.items[0].text, "abc\n日本");
+        assert_eq!(app.selection(), Some(0..10));
+    }
+
+    #[test]
+    fn review_multiline_link_keeps_selection_and_gives_a_hint() {
+        let mut app = editing("a\nb");
+        app.anchor = Some(0);
+        app.format(Format::Link);
+        assert_eq!(app.board.items[0].text, "a\nb");
+        assert_eq!(app.selection(), Some(0..3));
+        assert!(!app.dirty);
+        assert!(format!("{:?}", app.status).contains("link needs a selection on one line"));
+        key(&mut app, KeyCode::Left);
+        assert_eq!(app.status, Status::None);
+    }
+
+    #[test]
+    fn mouse_selection_copies_raw_utf8_on_release_and_click_clears() {
+        let mut app = editing("abcdef gh日本");
+        app.board.items[0].kind = Kind::Note;
+        app.board.items[0].w = 8;
+        app.board.items[0].h = 6;
+        mouse(&mut app, MouseEventKind::Down(MouseButton::Left), 2, 2);
+        mouse(&mut app, MouseEventKind::Drag(MouseButton::Left), 4, 3);
+        assert_eq!(app.selection(), Some(1..9)); // second cell of 日 maps to its start
+        mouse(&mut app, MouseEventKind::Drag(MouseButton::Left), 6, 3);
+        assert_eq!(app.selection(), Some(1..12));
+        assert!(app.clipboard_outbox.is_empty());
+        mouse(&mut app, MouseEventKind::Up(MouseButton::Left), 6, 3);
+        assert_eq!(app.cut_buffer, "bcdef gh日");
+        assert_eq!(app.clipboard_outbox, ["bcdef gh日"]);
+        assert_eq!(app.status, Status::None); // main confirms only after sending the request
+        assert_eq!(app.board.items[0].x, 0);
+        click(&mut app, 1, 2);
+        assert_eq!(app.selection(), None);
+    }
+
+    #[test]
+    fn shift_motion_uses_wrapped_wide_rows_and_keeps_anchor() {
+        let mut app = editing("abcdef gh日本");
+        app.board.items[0].kind = Kind::Note;
+        app.board.items[0].w = 8;
+        app.cursor = 1;
+        modified_key(&mut app, KeyCode::Down, KeyModifiers::SHIFT);
+        assert_eq!(app.selection(), Some(1..8));
+        modified_key(&mut app, KeyCode::Right, KeyModifiers::SHIFT);
+        modified_key(&mut app, KeyCode::Right, KeyModifiers::SHIFT);
+        assert_eq!(app.selection(), Some(1..12));
+        modified_key(&mut app, KeyCode::Up, KeyModifiers::SHIFT);
+        assert_eq!(app.anchor, Some(1));
+        modified_key(&mut app, KeyCode::Home, KeyModifiers::SHIFT);
+        assert_eq!(app.selection(), Some(0..1));
+        modified_key(&mut app, KeyCode::End, KeyModifiers::SHIFT);
+        assert_eq!(app.selection(), Some(1..15));
+        assert!(app.clipboard_outbox.is_empty());
+        key(&mut app, KeyCode::Left);
+        assert_eq!(app.selection(), None);
+    }
+
+    #[test]
+    fn typing_paste_newline_and_deletes_replace_selection() {
+        for (code, expected) in
+            [(KeyCode::Char('X'), "aXb"), (KeyCode::Enter, "a\nb"), (KeyCode::Backspace, "ab"), (KeyCode::Delete, "ab")]
+        {
+            let mut app = editing("a日本b");
+            app.anchor = Some(1);
+            app.cursor = 7;
+            key(&mut app, code);
+            assert_eq!(app.board.items[0].text, expected);
+            assert_eq!(app.selection(), None);
+        }
+        let mut app = editing("a日本b");
+        app.anchor = Some(7);
+        app.cursor = 1;
+        app.handle(Event::Paste("x\r\ny".into()));
+        assert_eq!(app.board.items[0].text, "ax\nyb");
+        assert_eq!(app.cursor, 4);
+        let mut app = editing("a");
+        app.anchor = Some(1);
+        app.cursor = 0;
+        modified_key(&mut app, KeyCode::Char('r'), KeyModifiers::CONTROL);
+        assert_eq!(app.selection(), Some(0..1)); // ignored keys do not discard source selection
+        typ(&mut app, "a");
+        assert_eq!(app.cursor, 1);
+        assert_eq!(app.selection(), None);
+    }
+
+    #[test]
+    fn raw_copy_outbox_and_yank_preserve_utf8() {
+        let mut app = editing("日本");
+        app.anchor = Some(0);
+        app.format(Format::Copy);
+        assert_eq!(app.cut_buffer, "日本");
+        assert_eq!(app.clipboard_outbox, ["日本"]);
+        key(&mut app, KeyCode::End); // clears selection
+        modified_key(&mut app, KeyCode::Char('y'), KeyModifiers::CONTROL);
+        assert_eq!(app.board.items[0].text, "日本日本");
+    }
+
+    #[test]
+    fn inline_formatting_toggles_inside_and_outside_and_link_selects_url() {
+        for (action, mark) in [(Format::Bold, "**"), (Format::Italic, "*"), (Format::Strike, "~~"), (Format::Code, "`")]
+        {
+            let mut app = editing("a日本z");
+            app.anchor = Some(1);
+            app.cursor = 7;
+            app.format(action);
+            assert_eq!(app.board.items[0].text, format!("a{mark}日本{mark}z"));
+            let range = app.selection().unwrap();
+            assert_eq!(&app.board.items[0].text[range], format!("{mark}日本{mark}"));
+            app.format(action);
+            assert_eq!(app.board.items[0].text, "a日本z");
+            app.format(action);
+            app.anchor = Some(1 + mark.len());
+            app.cursor = 7 + mark.len();
+            app.format(action);
+            assert_eq!(app.board.items[0].text, "a日本z");
+            assert_eq!(app.selection(), Some(1..7));
+        }
+        let mut app = editing("日本");
+        app.anchor = Some(0);
+        app.format(Format::Link);
+        assert_eq!(app.board.items[0].text, "[日本](url)");
+        assert_eq!(&app.board.items[0].text[app.selection().unwrap()], "url");
+        app.anchor = Some(0);
+        app.cursor = app.board.items[0].text.len();
+        app.format(Format::Link);
+        assert_eq!(app.board.items[0].text, "日本");
+        app.format(Format::Link);
+        app.anchor = Some(1);
+        app.cursor = 7;
+        app.format(Format::Link);
+        assert_eq!(app.board.items[0].text, "日本");
+        let mut app = editing("[a](url) and [b](url)");
+        app.anchor = Some(0);
+        app.format(Format::Link);
+        assert_eq!(app.board.items[0].text, "[[a](url) and [b](url)](url)");
+    }
+
+    #[test]
+    fn line_prefix_toggles_multiline_and_excludes_next_line_start() {
+        for (action, prefix) in [(Format::Heading, "# "), (Format::Bullet, "- "), (Format::Checkbox, "- [ ] ")] {
+            let mut app = editing("first\n日本\nlast");
+            app.anchor = Some(2);
+            app.cursor = 13;
+            app.format(action);
+            assert_eq!(app.board.items[0].text, format!("{prefix}first\n{prefix}日本\nlast"));
+            app.format(action);
+            assert_eq!(app.board.items[0].text, "first\n日本\nlast");
+            assert_eq!(app.selection(), Some(0..12));
+        }
+        let mut app = editing("# first\nsecond");
+        app.anchor = Some(0);
+        app.format(Format::Heading);
+        assert_eq!(app.board.items[0].text, "# first\n# second");
+        app.format(Format::Heading);
+        assert_eq!(app.board.items[0].text, "first\nsecond");
+    }
+
+    #[test]
+    fn ctrl_t_dispatches_all_actions_and_escape_only_cancels_pending() {
+        for (letter, expected) in [
+            ('b', "**x**"),
+            ('i', "*x*"),
+            ('s', "~~x~~"),
+            ('`', "`x`"),
+            ('l', "[x](url)"),
+            ('h', "# x"),
+            ('-', "- x"),
+            ('x', "- [ ] x"),
+            ('c', "x"),
+        ] {
+            let mut app = editing("x");
+            app.anchor = Some(0);
+            modified_key(&mut app, KeyCode::Char('t'), KeyModifiers::CONTROL);
+            assert!(app.format_pending);
+            key(&mut app, KeyCode::Char(letter));
+            assert_eq!(app.board.items[0].text, expected);
+            assert!(!app.format_pending && app.editing && app.selection().is_some());
+            assert_eq!(app.clipboard_outbox.len(), usize::from(letter == 'c'));
+        }
+        let mut app = editing("x");
+        app.anchor = Some(0);
+        modified_key(&mut app, KeyCode::Char('t'), KeyModifiers::CONTROL);
+        key(&mut app, KeyCode::Esc);
+        assert!(!app.format_pending && app.editing && app.selection().is_some());
+    }
+
+    #[test]
+    fn note_wheel_pages_track_and_thumb_scroll_without_arrow_or_persistence() {
+        let mut app = app();
+        app.board.items.push(Item { text: "0\n1\n2\n3\n4\n5\n6\n7\n8\n9".into(), w: 8, h: 6, ..Item::note(2, 2, 0) });
+        let json = serde_json::to_string(&app.board).unwrap();
+        mouse(&mut app, MouseEventKind::ScrollDown, 3, 4);
+        assert_eq!(app.board.items[0].scroll, 2);
+        assert_eq!(app.cam, (0, 0));
+        app.selected = Some(0);
+        key(&mut app, KeyCode::PageDown);
+        assert_eq!(app.board.items[0].scroll, 6);
+        key(&mut app, KeyCode::PageUp);
+        assert_eq!(app.board.items[0].scroll, 2);
+        // Track at right border, then thumb at its new top.
+        click(&mut app, 9, 7);
+        assert_eq!(app.board.items[0].scroll, 6);
+        mouse(&mut app, MouseEventKind::Down(MouseButton::Left), 9, 7);
+        assert!(!app.arrow_drag());
+        mouse(&mut app, MouseEventKind::Drag(MouseButton::Left), 9, 4);
+        mouse(&mut app, MouseEventKind::Up(MouseButton::Left), 9, 4);
+        assert_eq!(app.board.items[0].scroll, 0);
+        assert_eq!(serde_json::to_string(&app.board).unwrap(), json);
+        assert!(!app.dirty);
+        // Resize corner is never scrollbar track.
+        mouse(&mut app, MouseEventKind::Down(MouseButton::Left), 9, 8);
+        assert!(matches!(app.drag, Some(Drag::Resize)));
+        mouse(&mut app, MouseEventKind::ScrollUp, 50, 10);
+        assert_eq!(app.cam, (0, -2));
+    }
+
+    #[test]
+    fn editing_scroll_follows_cursor_and_click_mapping_while_height_is_capped() {
+        let mut app = editing("0\n1\n2\n3\n4\n5");
+        let item = &mut app.board.items[0];
+        item.kind = Kind::Note;
+        item.w = 8;
+        item.h = 4;
+        key(&mut app, KeyCode::End);
+        assert_eq!(app.board.items[0].scroll, 4);
+        click(&mut app, 1, 2);
+        assert_eq!(app.cursor, 8);
+        modified_key(&mut app, KeyCode::Up, KeyModifiers::SHIFT);
+        assert_eq!(app.board.items[0].scroll, 3);
+        assert_eq!(app.selection(), Some(6..8));
+        let item = &app.board.items[0];
+        assert!(item.cursor_cell(app.cursor).1 - item.scroll_offset() < item.inner_height());
+        app.finish_edit();
+        app.board.items[0].kind = Kind::Text;
+        assert_eq!(app.board.items[0].max_scroll(), 0);
+    }
+
+    #[test]
+    fn all_eight_color_keys_select_the_corresponding_swatch() {
+        let mut app = app();
+        app.board.items.push(Item::note(0, 0, 0));
+        app.selected = Some(0);
+        for c in '1'..='8' {
+            key(&mut app, KeyCode::Char(c));
+            assert_eq!(app.color, c as usize - '1' as usize);
+            assert_eq!(app.board.items[0].color, app.color);
+        }
     }
 
     #[test]

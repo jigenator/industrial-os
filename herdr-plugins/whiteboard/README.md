@@ -64,16 +64,23 @@ Outside Herdr, run `target/release/whiteboard [board.json]`; it defaults to `./w
 | Resize a note | drag its `◢` corner | `Shift`+arrows |
 | Edit | double-click the item | `Enter` or `e`; `Esc` finishes |
 | Place edit cursor | left-click inside the item being edited | arrows or the editing keys below |
-| Color | click a swatch | `1`–`5` |
+| Select raw text (editing only) | press and drag inside the edited item | `Shift`+arrows / `Shift+Home` / `Shift+End` |
+| Copy selection | release a selection drag, or floating `COPY` | `Ctrl+T`, then `c` |
+| Format selection | floating formatting bar | `Ctrl+T`, then an action key below |
+| Scroll overflowing note text | wheel over it, click its scrollbar track or drag its thumb | select note outside editing, `PageUp` / `PageDown` |
+| Color | click a swatch | `1`–`8`; [swatches and inks](docs/design.md#layout-and-color) |
 | Delete | `DELETE` | `Del` / `Backspace` |
 | Pan | drag empty space, right- or middle-drag, scroll | arrows with nothing selected |
 | Save | `SAVE` | `Ctrl+S` |
 | Quit, saving first | `QUIT` | `q` or `Ctrl+C`; `Ctrl+Q` quits without saving |
 
-Editing starts at the end and shows raw Markdown source; insertions happen at the cursor. Clicking inside the edited item places the cursor without moving the item; clicking outside finishes editing. Note borders and resize handles keep their usual actions. See [cursor placement details](docs/design.md#interaction).
+Editing starts at the end and shows raw Markdown source; insertions happen at the cursor. Clicking inside the edited item places the cursor without moving the item; dragging selects raw source, and clicking outside finishes editing (except the formatting bar). Note borders and resize handles keep their usual actions. See [cursor placement details](docs/design.md#interaction).
 
 | Editing action | Keys |
 | --- | --- |
+| Extend raw-source selection | `Shift+←/→/↑/↓/Home/End`; unshifted motion or a plain click clears it |
+| Copy / bold / italic / strike / code | `Ctrl+T`, then `c` / `b` / `i` / `s` / backtick |
+| Link / heading / bullet / checkbox | `Ctrl+T`, then `l` / `h` / `-` / `x`; `Esc` cancels the pending command |
 | Logical-line start / end | `Ctrl+A` / `Ctrl+E`, or `Home` / `End` |
 | Character back / forward | `Ctrl+B` / `Ctrl+F`, or `←` / `→` |
 | Word back / forward (alphanumeric) | `Alt+B` / `Alt+F`, or `Alt+←` / `Alt+→` |
@@ -85,7 +92,7 @@ Editing starts at the end and shows raw Markdown source; insertions happen at th
 | Insert newline / two spaces | `Enter` or `Ctrl+J` / `Tab` |
 | Paste at the cursor, keeping line breaks | the terminal's paste |
 
-`Ctrl+C`, `Ctrl+S` and `Ctrl+Q` keep their global meanings in every mode.
+Typing, Enter, paste and character deletion replace/delete selected source. Formatting toggles the source markers and keeps the result selected; a new link selects its `url` placeholder. See [formatting details](docs/design.md#selection-and-formatting). `Ctrl+C`, `Ctrl+S` and `Ctrl+Q` keep their global meanings in every mode.
 
 Quitting closes the board's pane and leaves the others. If a save fails, the board stays open and says why.
 
@@ -101,14 +108,23 @@ Notes and free text render this line-local subset when not being edited:
 
 Inline styles can nest, including bold in links and italic in bold. Code keeps its contents literal. Backslash escapes punctuation; unmatched markers and underscores inside words such as `snake_case` stay literal. This is not full CommonMark: no multiline constructs, fenced code, images or nested link destinations. Links are display only. [Display and wrapping](docs/design.md#markdown-display) do not change the stored source.
 
+## Clipboard
+
+Copy always sets the session cut buffer (`Ctrl+Y`), sends an OSC 52 request to the terminal, and tries a local clipboard helper. On macOS the helper order is `pbcopy`, then `wl-copy`, then `xclip -selection clipboard`; on Linux it is `wl-copy`, then `xclip -selection clipboard`. Missing, failed and timed-out commands are skipped; the first helper that accepts stdin and exits successfully wins. Text is written as UTF-8 to stdin and stdin is closed. Helpers run off the input/render thread with stdout/stderr suppressed; missing helpers, failed writes or nonzero exits do not interrupt editing.
+
+`COPIED` confirms the internal buffer and a sent OSC 52 request, **not** system clipboard acknowledgement or helper success. The system clipboard needs a working local helper or OSC 52 forwarding/permission. Herdr 0.9.3 did not forward OSC 52 in the isolated check, so the local helper is needed there. Each helper has about two seconds, including stdin delivery; on timeout it is killed and reaped before trying the next. Clipboard work cannot stall input or drawing.
+
+For test isolation, `WHITEBOARD_CLIPBOARD_CMD` replaces the entire helper list with one executable path. It is invoked directly, with no arguments or shell parsing, and receives text on stdin. A missing or failing override never falls back to real clipboard helpers. All clipboard tests use a temporary-file writer, never the operator's clipboard.
+
 ## Storage
 
-Inside Herdr, a board is `$HERDR_PLUGIN_STATE_DIR/boards/<session>/<workspace-id>.json`. `<session>` is a hash of the Herdr socket path, because plugin state is shared by every named Herdr session. The files are plain JSON on your machine; nothing is sent anywhere. Uninstalling the plugin does not delete them.
+Inside Herdr, a board is `$HERDR_PLUGIN_STATE_DIR/boards/<session>/<workspace-id>.json`. `<session>` is a hash of the Herdr socket path, because plugin state is shared by every named Herdr session. The files are plain JSON on your machine; there is no network service. Uninstalling the plugin does not delete them.
 
 ## Limits
 
 - Needs a terminal with 24-bit color and SGR mouse reporting.
-- Positions snap to whole cells. No undo, system clipboard (`Ctrl+Y` uses only the session's internal cut buffer) or freehand drawing.
+- Positions snap to whole cells. No undo or freehand drawing.
+- Text selection exists only while editing raw source. The [system clipboard](#clipboard) needs an available local helper or host/terminal OSC 52 support; `COPIED` is not a clipboard acknowledgement.
 - Host keybindings take precedence. Inside Herdr, use `←` instead of `Ctrl+B` unless its default `Ctrl+B` prefix is changed.
 - Alt shortcuts need the terminal to send Option/Alt as Meta; macOS terminals often need this setting enabled.
 - Arrows follow their items but are hidden while the items overlap.

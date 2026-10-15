@@ -38,15 +38,17 @@ pub struct Item {
     /// Raw source geometry while App owns an edit; never persisted.
     #[serde(skip)]
     pub editing: bool,
+    #[serde(skip)]
+    pub scroll: usize,
 }
 
 impl Item {
     pub fn note(x: i32, y: i32, color: usize) -> Self {
-        Self { id: 0, kind: Kind::Note, x, y, w: 24, h: 7, color, text: String::new(), editing: false }
+        Self { id: 0, kind: Kind::Note, x, y, w: 24, h: 7, color, text: String::new(), editing: false, scroll: 0 }
     }
 
     pub fn text(x: i32, y: i32, color: usize) -> Self {
-        Self { id: 0, kind: Kind::Text, x, y, w: 0, h: 0, color, text: String::new(), editing: false }
+        Self { id: 0, kind: Kind::Text, x, y, w: 0, h: 0, color, text: String::new(), editing: false, scroll: 0 }
     }
 
     pub fn size(&self) -> (i32, i32) {
@@ -184,6 +186,34 @@ impl Item {
             width = next;
         }
         range.end
+    }
+
+    pub fn inner_height(&self) -> usize {
+        self.h.saturating_sub(2).max(1) as usize
+    }
+
+    pub fn max_scroll(&self) -> usize {
+        if self.kind == Kind::Text {
+            return 0;
+        }
+        let rows =
+            self.display_lines().len().max(if self.editing { self.cursor_cell(self.text.len()).1 + 1 } else { 0 });
+        rows.saturating_sub(self.inner_height())
+    }
+
+    pub fn scroll_offset(&self) -> usize {
+        self.scroll.min(self.max_scroll())
+    }
+
+    /// Thumb start and length within the right-border track.
+    pub fn scrollbar(&self) -> Option<(usize, usize)> {
+        let max = self.max_scroll();
+        if max == 0 {
+            return None;
+        }
+        let height = self.inner_height();
+        let thumb = (height * height / (height + max)).max(1);
+        Some((self.scroll.min(max) * (height - thumb) / max, thumb))
     }
 
     /// Grows a note to fit the text and the insertion row after a full final line.

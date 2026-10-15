@@ -4,7 +4,7 @@ Follow the [root](../../AGENTS.md) and [plugin group](../AGENTS.md) guides.
 
 ## Critical rules
 
-- Colors come only from `src/palette.rs`, which mirrors the design system's Acid / Black roles. Change `design-system/foundation/palette.mjs` first, then `palette.rs`; `test/palette.test.mjs` fails on any difference or any color written elsewhere.
+- Colors come only from `src/palette.rs`, which mirrors the design system's Acid / Black roles and chosen signal colors (the swatch/ink contract is in [design](docs/design.md#layout-and-color)). Change values in the design system first, then `palette.rs`; `test/palette.test.mjs` fails on any difference or any color written elsewhere.
 - Never overwrite a board that failed to load, and never report a failed save as saved. Errors are worded in the status line, not shown by color alone.
 - Every mouse action keeps a keyboard path. Interaction changes update the table in the README and [design](docs/design.md) together.
 - Rendering (`src/ui.rs`) is pure: it reads `App` and writes only the frame and the hit regions it drew. File I/O stays in `board.rs` and is called from `app.rs`.

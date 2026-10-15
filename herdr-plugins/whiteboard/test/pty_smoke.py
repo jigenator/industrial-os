@@ -16,6 +16,14 @@ env = {
     "HERDR_SOCKET_PATH": "/nonexistent/herdr.sock",
     "HERDR_WORKSPACE_ID": "w-smoke",
 }
+# Never invoke the operator's clipboard, including when clipboard utilities are installed.
+clipboard_file = os.path.join(state, "copied.txt")
+clipboard_command = os.path.join(state, "clipboard-writer")
+with open(clipboard_command, "w") as script:
+    script.write('#!/bin/sh\ncat > "$WHITEBOARD_TEST_CLIPBOARD_FILE"\n')
+os.chmod(clipboard_command, 0o700)
+env["WHITEBOARD_CLIPBOARD_CMD"] = clipboard_command
+env["WHITEBOARD_TEST_CLIPBOARD_FILE"] = clipboard_file
 out = b""
 
 
@@ -71,6 +79,20 @@ try:
     assert b"empty board" in out, "empty state not shown"
     click(fd, 17, 1)  # + NOTE, toolbar columns 15-22
     send(fd, "hello note")
+    # Editing raw selection: release copies to OSC 52; floating B wraps and keeps selection.
+    drag(fd, [(40, 14), (45, 14)])
+    assert b"\x1b]52;c;aGVsbG8=\x07" in out, "selection did not emit OSC 52"
+    deadline = time.monotonic() + 2
+    while time.monotonic() < deadline:
+        if os.path.exists(clipboard_file) and open(clipboard_file, "rb").read() == b"hello":
+            break
+        pump(fd, 0.05)
+    else:
+        raise AssertionError("clipboard override did not receive the selected text")
+    assert b"COPIED" in out, "clipboard request status not shown"
+    assert out.index(b"\x1b]52;c;aGVsbG8=\x07") < out.index(b"COPIED"), "status preceded the sent OSC request"
+    assert b"COPY" in out, "floating formatting bar not shown"
+    click(fd, 47, 13)
     send(fd, "\x1b", 0.3)
     # A 100x30 terminal has canvas rows 2-29; the note opens at world (38, 11), screen (39, 13).
     drag(fd, [(41, 14), (51, 18), (61, 20)])
@@ -100,9 +122,9 @@ try:
     board = os.path.join(state, "boards", sessions[0], "w-smoke.json")
     saved = json.load(open(board))
     items = saved["items"]
-    note = next(i for i in items if i["text"] == "hello note")
+    note = next(i for i in items if i["text"] == "**hello** note")
     text = next(i for i in items if i["kind"] == "text")
-    assert note["text"] == "hello note" and (note["x"], note["y"]) == (58 + 2, 17), note
+    assert note["text"] == "**hello** note" and (note["x"], note["y"]) == (58 + 2, 17), note
     assert text["text"] == "free text" and (text["x"], text["y"]) == (4, 23), text
 
     second = next(i for i in items if i["text"].startswith("hello world"))
@@ -114,7 +136,7 @@ try:
     out = b""
     pid, fd = start()
     pump(fd, 0.8)
-    assert b"hello note" in out and b"empty board" not in out
+    assert b"hello" in out and b"empty board" not in out
     send(fd, "q", 0.5)
     finish(pid, fd)
     print("PTY SMOKE OK")

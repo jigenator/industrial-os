@@ -1,4 +1,4 @@
-//! Acid / Black roles, mirrored from `design-system/foundation/palette.mjs`.
+//! Acid / Black roles and chosen signal colors, mirrored from the design system.
 //! Rust cannot import the design-system package, so `test/palette.test.mjs` compares these
 //! values with it. Change the design system first, then these constants.
 use ratatui::style::Color;
@@ -12,3 +12,8 @@ pub const DECORATIVE: Color = Color::Rgb(0x71, 0x71, 0x71);
 pub const STRUCTURAL: Color = Color::Rgb(0x55, 0x55, 0x55);
 pub const WARNING: Color = Color::Rgb(0xd7, 0x9e, 0x52);
 pub const CRITICAL: Color = Color::Rgb(0xf2, 0x47, 0x23);
+
+// Product colors from foundation/signal-colors.mjs.
+pub const VIOLET: Color = Color::Rgb(0x52, 0x00, 0xff);
+pub const COBALT: Color = Color::Rgb(0x00, 0x4f, 0xe8);
+pub const PINK: Color = Color::Rgb(0xff, 0x15, 0xbd);
