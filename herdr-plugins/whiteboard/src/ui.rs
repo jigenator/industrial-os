@@ -1,6 +1,6 @@
-use crate::app::{App, Button, COLORS, Status};
+use crate::app::{App, Button, COLORS, Format, Status};
 use crate::board::{Item, Kind, merge_arrow_glyph};
-use crate::palette::{ACCENT, CRITICAL, DECORATIVE, FIELD, PRIMARY, SECONDARY, STRUCTURAL, SURFACE, WARNING};
+use crate::palette::{ACCENT, CRITICAL, DECORATIVE, FIELD, PRIMARY, SECONDARY, STRUCTURAL, SURFACE, WARNING, VIOLET, COBALT, PINK};
 use ratatui::Frame;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Layout, Position, Rect};
@@ -9,7 +9,7 @@ use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 /// Note paper, and the ink of text items. These are labels a person chooses, not states:
 /// a warning- or critical-colored note means nothing to the app.
-pub const PAPER: [Color; COLORS] = [ACCENT, WARNING, CRITICAL, PRIMARY, SECONDARY];
+pub const PAPER: [Color; COLORS] = [ACCENT, WARNING, CRITICAL, PRIMARY, SECONDARY, VIOLET, COBALT, PINK];
 
 pub fn render(frame: &mut Frame, app: &mut App) {
     let [top, canvas, bottom] =
@@ -19,6 +19,8 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     let buf = frame.buffer_mut();
     app.buttons = toolbar(buf, top, app.color);
     board(buf, canvas, app);
+    highlight(buf, app);
+    app.buttons.extend(format_bar(buf, app));
     status(buf, bottom, app);
     if let Some(pos) = cursor(app) {
         frame.set_cursor_position(pos);
@@ -119,7 +121,8 @@ fn board(buf: &mut Buffer, area: Rect, app: &App) {
 
 fn note(buf: &mut Buffer, clip: Rect, x: i32, y: i32, item: &Item, selected: bool) {
     let (w, h) = (item.w as i32, item.h as i32);
-    let body = Style::new().fg(FIELD).bg(PAPER[item.color % COLORS]);
+    let ink = if matches!(item.color % COLORS, 5 | 6) { PRIMARY } else { FIELD };
+    let body = Style::new().fg(ink).bg(PAPER[item.color % COLORS]);
     let shadow = Style::new().bg(SURFACE);
     for r in 1..=h {
         put(buf, clip, x + w, y + r, " ", shadow);
@@ -129,7 +132,8 @@ fn note(buf: &mut Buffer, clip: Rect, x: i32, y: i32, item: &Item, selected: boo
     let (edge, [tl, tr, bl, br, hz, vt]) = if selected {
         (body.add_modifier(Modifier::BOLD), ['┏', '┓', '┗', '◢', '━', '┃'])
     } else {
-        (body.fg(STRUCTURAL), ['╭', '╮', '╰', '╯', '─', '│'])
+        let border = if matches!(item.color % COLORS, 5 | 6) { SECONDARY } else { STRUCTURAL };
+        (body.fg(border), ['╭', '╮', '╰', '╯', '─', '│'])
     };
     let span = hz.to_string().repeat((w - 2).max(0) as usize);
     put(buf, clip, x, y, &format!("{tl}{span}{tr}"), edge);
@@ -142,6 +146,12 @@ fn note(buf: &mut Buffer, clip: Rect, x: i32, y: i32, item: &Item, selected: boo
 
     let inner = intersect(clip, x + 1, y + 1, w - 2, h - 2);
     styled_lines(buf, inner, x + 1, y + 1, item, body);
+    if let Some((start, len)) = item.scrollbar() {
+        for row in 0..item.inner_height() {
+            let thumb = (start..start + len).contains(&row);
+            put(buf, clip, x + w - 1, y + 1 + row as i32, if thumb { "█" } else { "░" }, body);
+        }
+    }
 }
 
 fn text(buf: &mut Buffer, clip: Rect, x: i32, y: i32, item: &Item, selected: bool) {
@@ -157,7 +167,7 @@ fn text(buf: &mut Buffer, clip: Rect, x: i32, y: i32, item: &Item, selected: boo
 }
 
 fn styled_lines(buf: &mut Buffer, clip: Rect, x: i32, y: i32, item: &Item, base: Style) {
-    for (r, line) in item.display_lines().iter().enumerate() {
+    for (r, line) in item.display_lines().iter().skip(item.scroll_offset()).enumerate() {
         let mut col = x;
         for span in line {
             let flags = span.style;
@@ -180,11 +190,108 @@ fn styled_lines(buf: &mut Buffer, clip: Rect, x: i32, y: i32, item: &Item, base:
     }
 }
 
+fn highlight(buf: &mut Buffer, app: &App) {
+    let (Some(i), Some(selection)) = (app.selected, app.selection()) else {
+        return;
+    };
+    let item = &app.board.items[i];
+    let inset = i32::from(item.kind == Kind::Note);
+    let x = item.x - app.cam.0 + app.canvas.x as i32 + inset;
+    let y = item.y - app.cam.1 + app.canvas.y as i32 + inset;
+    let clip = if item.kind == Kind::Note {
+        intersect(app.canvas, x, y, item.w as i32 - 2, item.h as i32 - 2)
+    } else {
+        app.canvas
+    };
+    let scroll = item.scroll_offset();
+    for (row, range) in item.line_ranges().iter().enumerate().skip(scroll) {
+        let mut col = x;
+        for (offset, ch) in item.text[range.clone()].char_indices() {
+            let width = ch.width().unwrap_or(0) as i32;
+            let at = range.start + offset;
+            if selection.contains(&at) {
+                for cell in 0..width {
+                    let px = col + cell;
+                    let py = y + (row - scroll) as i32;
+                    if px >= clip.x as i32
+                        && px < clip.right() as i32
+                        && py >= clip.y as i32
+                        && py < clip.bottom() as i32
+                    {
+                        buf[(px as u16, py as u16)].set_style(Style::new().fg(FIELD).bg(ACCENT));
+                    }
+                }
+            }
+            col += width;
+        }
+        // Give selected newlines (and spaces omitted at a wrap) one visible cell.
+        if selection.contains(&range.end) && range.end < item.text.len() {
+            let py = y + (row - scroll) as i32;
+            if col >= clip.x as i32 && col < clip.right() as i32 && py >= clip.y as i32 && py < clip.bottom() as i32 {
+                buf[(col as u16, py as u16)].set_style(Style::new().fg(FIELD).bg(ACCENT));
+            }
+        }
+    }
+}
+
+/// A single row, with whole buttons only; keys retain actions in tiny canvases.
+fn format_bar(buf: &mut Buffer, app: &App) -> Vec<(Rect, Button)> {
+    let (Some(i), Some(selection)) = (app.selected, app.selection()) else {
+        return Vec::new();
+    };
+    let area = app.canvas;
+    if area.is_empty() {
+        return Vec::new();
+    }
+    let item = &app.board.items[i];
+    let inset = i32::from(item.kind == Kind::Note);
+    let (col, row) = item.cursor_cell(selection.start);
+    let first_y = item.y + inset + row as i32 - item.scroll_offset() as i32 - app.cam.1 + area.y as i32;
+    let y = if first_y > area.y as i32 { first_y - 1 } else { first_y + 1 }
+        .clamp(area.y as i32, area.bottom() as i32 - 1) as u16;
+    let parts = [
+        (" COPY ", Format::Copy),
+        (" B ", Format::Bold),
+        (" I ", Format::Italic),
+        (" S ", Format::Strike),
+        (" ` ", Format::Code),
+        (" LINK ", Format::Link),
+        (" H ", Format::Heading),
+        (" - ", Format::Bullet),
+        (" [ ] ", Format::Checkbox),
+    ];
+    let width = parts.iter().map(|(label, _)| label.width()).sum::<usize>().min(area.width as usize) as u16;
+    let first_x = item.x + inset + col as i32 - app.cam.0 + area.x as i32;
+    let mut x = first_x.clamp(area.x as i32, (area.right() - width) as i32) as u16;
+    let style = Style::new().fg(PRIMARY).bg(STRUCTURAL);
+    let mut regions = Vec::new();
+    for (label, action) in parts {
+        let width = label.width() as u16;
+        if x + width > area.right() {
+            break;
+        }
+        let style = match action {
+            Format::Bold => style.bold(),
+            Format::Italic => style.italic(),
+            Format::Strike => style.crossed_out(),
+            _ => style,
+        };
+        buf.set_string(x, y, label, style);
+        regions.push((Rect::new(x, y, width, 1), Button::Format(action)));
+        x += width;
+    }
+    regions
+}
+
 fn status(buf: &mut Buffer, area: Rect, app: &App) {
     let bar = Style::new().fg(SECONDARY).bg(SURFACE);
     buf.set_style(area, bar);
     let (mode, hints) = if app.arrow_drag() {
         (" ARROW ", " release on an item to connect · elsewhere cancels")
+    } else if app.format_pending {
+        (" FORMAT ", " c copy · b bold · i italic · s strike · ` code · l link · h heading · - bullet · x checkbox · Esc cancel")
+    } else if app.selection().is_some() {
+        (" SELECT ", " Ctrl+T then c b i s ` l h - x · type replaces · Shift+arrows extend")
     } else if app.editing {
         (" EDIT ", " type · Enter new line · Esc or click away to finish")
     } else if app.connecting {
@@ -197,7 +304,7 @@ fn status(buf: &mut Buffer, area: Rect, app: &App) {
             " drag or arrows to move · drag border or a to connect · drag ◢ or Shift+arrows to resize · Enter edit · Del · Esc",
         )
     } else {
-        (" BOARD ", " double-click: write · drag empty space, scroll or arrows to pan · Tab select · n t 1-5 q")
+        (" BOARD ", " double-click: write · drag empty space, scroll or arrows to pan · Tab select · n t 1-8 q")
     };
     let plate = Style::new().fg(FIELD).bg(if app.editing { ACCENT } else { SECONDARY }).bold();
     buf.set_stringn(area.x, area.y, mode, area.width as usize, plate);
@@ -207,6 +314,8 @@ fn status(buf: &mut Buffer, area: Rect, app: &App) {
     // Saved state and errors are worded plates on the right, drawn over the hints.
     let right = match &app.status {
         Status::Error(message) => Some((format!(" ERROR {message} "), CRITICAL)),
+        Status::Copied => Some((" COPIED ".to_string(), ACCENT)),
+        Status::Hint(message) => Some((format!(" {message} "), SECONDARY)),
         _ if app.dirty => Some((" UNSAVED ".to_string(), WARNING)),
         Status::Saved => Some((" SAVED ".to_string(), DECORATIVE)),
         Status::None => None,
@@ -221,7 +330,7 @@ fn cursor(app: &App) -> Option<Position> {
     let item = &app.board.items[app.selected.filter(|_| app.editing)?];
     let (dx, dy) = item.cursor_offset(app.cursor);
     let x = item.x + dx - app.cam.0 + app.canvas.x as i32;
-    let y = item.y + dy - app.cam.1 + app.canvas.y as i32;
+    let y = item.y + dy - item.scroll_offset() as i32 - app.cam.1 + app.canvas.y as i32;
     let pos = Position::new(u16::try_from(x).ok()?, u16::try_from(y).ok()?);
     app.canvas.contains(pos).then_some(pos)
 }
@@ -270,6 +379,148 @@ mod tests {
         (0..buf.area.height)
             .map(|y| (0..buf.area.width).map(|x| buf[(x, y)].symbol().to_string()).collect())
             .collect()
+    }
+
+    #[test]
+    fn rereview_link_bar_hint_survives_its_release_and_mouse_motion() {
+        use ratatui::crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+        let item = Item { text: "a\nb".into(), editing: true, ..Item::text(2, 2, 0) };
+        let mut app = App::new(Board { items: vec![item], ..Board::default() }, "wb.json".into());
+        app.selected = Some(0);
+        app.editing = true;
+        app.anchor = Some(0);
+        app.cursor = 3;
+        screen(&mut app);
+        let &(region, _) = app.buttons.iter().find(|(_, b)| *b == Button::Format(Format::Link)).unwrap();
+        for kind in
+            [MouseEventKind::Down(MouseButton::Left), MouseEventKind::Up(MouseButton::Left), MouseEventKind::Moved]
+        {
+            app.handle(Event::Mouse(MouseEvent {
+                kind,
+                column: region.x,
+                row: region.y,
+                modifiers: KeyModifiers::NONE,
+            }));
+            assert!(matches!(app.status, Status::Hint(_)), "{kind:?} cleared hint");
+        }
+        assert!(screen(&mut app)[11].contains("link needs a selection on one line"));
+        assert_eq!(app.board.items[0].text, "a\nb");
+        assert_eq!(app.selection(), Some(0..3));
+        app.handle(Event::Key(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE)));
+        assert_eq!(app.status, Status::None);
+    }
+
+    #[test]
+    fn review_dark_paper_borders_use_secondary_without_changing_selection() {
+        for color in [5, 6] {
+            let item = Item { w: 8, h: 4, ..Item::note(2, 0, color) };
+            let mut app = App::new(Board { items: vec![item], ..Board::default() }, "wb.json".into());
+            let mut term = Terminal::new(TestBackend::new(60, 12)).unwrap();
+            term.draw(|f| render(f, &mut app)).unwrap();
+            assert_eq!(term.backend().buffer()[(2, 2)].fg, SECONDARY);
+            assert_eq!(term.backend().buffer()[(2, 2)].symbol(), "│");
+            app.selected = Some(0);
+            term.draw(|f| render(f, &mut app)).unwrap();
+            assert_eq!(term.backend().buffer()[(2, 2)].fg, PRIMARY);
+            assert_eq!(term.backend().buffer()[(2, 2)].symbol(), "┃");
+        }
+    }
+
+    #[test]
+    fn selection_highlight_covers_wrapped_wide_cells_and_bar_hits_format() {
+        let item = Item { text: "abcdef gh日本".into(), w: 8, h: 6, editing: true, ..Item::note(2, 2, 0) };
+        let mut app = App::new(Board { items: vec![item], ..Board::default() }, "wb.json".into());
+        app.selected = Some(0);
+        app.editing = true;
+        app.anchor = Some(1);
+        app.cursor = 12;
+        let mut term = Terminal::new(TestBackend::new(60, 12)).unwrap();
+        term.draw(|f| render(f, &mut app)).unwrap();
+        let buf = term.backend().buffer();
+        for (x, y) in [(4, 4), (8, 4), (3, 5), (5, 5)] {
+            assert_eq!(buf[(x, y)].bg, ACCENT);
+        }
+        assert_eq!(buf[(3, 4)].bg, PAPER[0]);
+        let &(region, _) = app.buttons.iter().find(|(_, b)| *b == Button::Format(Format::Bold)).unwrap();
+        assert_eq!(region.y, 3);
+        app.format_pending = true;
+        app.handle(Event::Mouse(ratatui::crossterm::event::MouseEvent {
+            kind: ratatui::crossterm::event::MouseEventKind::Down(ratatui::crossterm::event::MouseButton::Left),
+            column: region.x,
+            row: region.y,
+            modifiers: KeyModifiers::NONE,
+        }));
+        assert!(app.editing && !app.arrow_drag() && !app.format_pending);
+        assert_eq!(app.board.items[0].text, "a**bcdef gh日**本");
+    }
+
+    #[test]
+    fn format_bar_is_below_top_selection_and_clamped_in_tiny_canvases() {
+        for (x, y, w, h) in [(58, 0, 60, 12), (-4, -5, 20, 5), (0, 20, 10, 3), (0, 0, 1, 1)] {
+            let item = Item { text: "abc".into(), editing: true, ..Item::text(x, y, 0) };
+            let mut app = App::new(Board { items: vec![item], ..Board::default() }, "wb.json".into());
+            app.selected = Some(0);
+            app.editing = true;
+            app.anchor = Some(0);
+            app.cursor = 3;
+            let mut term = Terminal::new(TestBackend::new(w, h)).unwrap();
+            term.draw(|f| render(f, &mut app)).unwrap();
+            let regions: Vec<_> = app.buttons.iter().filter(|(_, b)| matches!(b, Button::Format(_))).collect();
+            for (r, _) in &regions {
+                assert!(
+                    r.x >= app.canvas.x
+                        && r.right() <= app.canvas.right()
+                        && r.y >= app.canvas.y
+                        && r.bottom() <= app.canvas.bottom()
+                );
+            }
+            if w == 60 {
+                assert_eq!(regions.len(), 9);
+                assert_eq!(regions[0].0.y, 2);
+            }
+            if w < 6 {
+                assert!(regions.is_empty());
+            }
+        }
+    }
+
+    #[test]
+    fn scrollbars_draw_only_overflow_and_colors_preserve_note_and_text_inks() {
+        for (color, paper) in PAPER.iter().enumerate() {
+            let item = Item { text: "a\nb\nc\nd\ne".into(), w: 8, h: 4, scroll: 2, ..Item::note(2, 0, color) };
+            let mut app = App::new(Board { items: vec![item], ..Board::default() }, "wb.json".into());
+            let mut term = Terminal::new(TestBackend::new(100, 12)).unwrap();
+            term.draw(|f| render(f, &mut app)).unwrap();
+            let buf = term.backend().buffer();
+            assert_eq!(buf[(3, 2)].symbol(), "c");
+            assert_eq!(buf[(3, 2)].fg, if matches!(color, 5 | 6) { PRIMARY } else { FIELD });
+            assert_eq!(buf[(3, 2)].bg, *paper);
+            assert!(matches!(buf[(9, 2)].symbol(), "█" | "░"));
+            assert_eq!(app.buttons.iter().filter(|(_, b)| matches!(b, Button::Color(_))).count(), 8);
+            app.board.items[0].text = "fits".into();
+            term.draw(|f| render(f, &mut app)).unwrap();
+            assert_eq!(term.backend().buffer()[(9, 2)].symbol(), "│");
+            app.board.items[0].kind = Kind::Text;
+            term.draw(|f| render(f, &mut app)).unwrap();
+            assert_eq!(term.backend().buffer()[(2, 1)].fg, *paper);
+        }
+    }
+
+    #[test]
+    fn selection_newline_and_scrolled_cursor_use_visible_raw_rows() {
+        let item = Item { text: "0\n1\n2\n3\n4\n5".into(), h: 4, editing: true, scroll: 4, ..Item::note(2, 1, 0) };
+        let mut app = App::new(Board { items: vec![item], ..Board::default() }, "wb.json".into());
+        app.selected = Some(0);
+        app.editing = true;
+        app.anchor = Some(9);
+        app.cursor = 10;
+        let mut term = Terminal::new(TestBackend::new(60, 12)).unwrap();
+        term.draw(|f| render(f, &mut app)).unwrap();
+        let buf = term.backend().buffer();
+        assert_eq!(buf[(3, 3)].symbol(), "4");
+        assert_eq!(buf[(4, 3)].bg, ACCENT); // selected newline after 4
+        assert_eq!(cursor(&app), Some(Position::new(3, 4)));
+        assert_eq!(term.backend_mut().get_cursor_position().unwrap(), Position::new(3, 4));
     }
 
     #[test]
@@ -343,15 +594,15 @@ mod tests {
         let mut app = App::new(Board { items: vec![note, label], ..Board::default() }, "wb.json".into());
 
         let rows = screen(&mut app);
-        // At 60 columns every button fits only without the title plate.
-        assert!(rows[0].starts_with(" + NOTE   + TEXT ") && rows[0].ends_with(" QUIT "));
+        // At 60 columns the title and trailing buttons are dropped.
+        assert!(rows[0].starts_with(" + NOTE   + TEXT ") && rows[0].contains(" DELETE "));
         assert_eq!(&rows[2][2..], "╭──────────╮                                              ");
         assert!(rows[3].contains("│buy milk  │"));
         assert!(rows[4].contains("│and eggs  │"));
         assert!(rows[6].ends_with("offscree"));
         assert_eq!(app.canvas, Rect::new(0, 1, 60, 10));
         assert!(app.buttons.contains(&(Rect::new(0, 0, 8, 1), Button::Note)));
-        assert!(app.buttons.contains(&(Rect::new(54, 0, 6, 1), Button::Quit)));
+        assert!(!app.buttons.iter().any(|(_, b)| *b == Button::Quit));
     }
 
     #[test]

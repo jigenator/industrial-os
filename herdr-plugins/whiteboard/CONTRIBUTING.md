@@ -8,8 +8,8 @@ Follow the [root workflow](../../CONTRIBUTING.md). Toolchain: Rust stable with C
 | --- | --- | --- | --- |
 | 1 | `herdr-plugins/whiteboard/` | `cargo test --locked` | Wrapping, wide characters, sizes, hit tests, board paths, load errors, atomic save, synthetic mouse and key input, save conflicts and failures, rendering and clipping through `TestBackend`. Writes only to the temporary directory |
 | 2 | `herdr-plugins/whiteboard/` | `cargo clippy --all-targets --locked` | No warnings |
-| 3 | `herdr-plugins/whiteboard/` | `node --test` | `palette.rs` matches `@industrial-os/design-system/foundation/palette`; no color is written elsewhere |
-| 4 | `herdr-plugins/whiteboard/` | `cargo build --release --locked && python3 test/pty_smoke.py` | The built binary through `bin/whiteboard.sh pane` in a pseudo-terminal, with Herdr variables pointing at a temporary directory: mouse capture and bracketed paste on and off, empty state, toolbar click, typing, bracketed and line-feed pastes, drag, double-click, keyboard move, the per-workspace board file, and reopening it |
+| 3 | `herdr-plugins/whiteboard/` | `node --test` | `palette.rs` matches the exported design-system `foundation/palette` and selected `foundation/signal-colors`; no color is written elsewhere |
+| 4 | `herdr-plugins/whiteboard/` | `cargo build --release --locked && python3 test/pty_smoke.py` | The built binary through `bin/whiteboard.sh pane` in a pseudo-terminal, with Herdr variables pointing at a temporary directory: mouse capture and bracketed paste on and off, empty state, toolbar click, typing, bracketed and line-feed pastes, drag, double-click, keyboard move, OSC 52 plus a temporary-file clipboard override (never the real clipboard), the per-workspace board file, and reopening it |
 | 5 | Root | [Repository-wide checks](../../CONTRIBUTING.md#repository-wide-checks) | Links, guide map, entry points, whitespace, publication review |
 | 6 | Isolated Herdr | [Isolated Herdr check](#isolated-herdr-check) | Manifest, both actions, split and tab panes, mouse and focus through a Herdr client, resize, storage, reopen |
 | 7 | Live Herdr | Interactive use in the operator's own session | Requires the operator to link or install the plugin; not a development check |
@@ -17,6 +17,8 @@ Follow the [root workflow](../../CONTRIBUTING.md). Toolchain: Rust stable with C
 ### Isolated Herdr check
 
 Use a throwaway Herdr that shares nothing with a live session, as in the [Spaces procedure](../spaces/CONTRIBUTING.md#throwaway-server-check): run every `herdr` command under `env -i` with a temporary `HOME`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME` and an explicit `HERDR_SOCKET_PATH` in a short directory. Record checksums of the live `config.toml` and `plugins.json` first.
+
+Clipboard checks must never touch the operator's clipboard. Use a temporary-file writer as `WHITEBOARD_CLIPBOARD_CMD`; explicitly inject it into a temporary copy of the manifest's pane command (for example `[/usr/bin/env, WHITEBOARD_CLIPBOARD_CMD=<temp-writer>, sh, bin/whiteboard.sh, pane]`, with each value quoted in TOML). This guarantees the override even if Herdr filters inherited environment variables. Copy the launcher and point its release binary at the worktree build, then link only that temporary plugin. Do not change the source manifest or live installation.
 
 1. Start `herdr server`, `herdr plugin link` this directory, then `herdr workspace create`.
 2. `herdr plugin action invoke industrial-os.whiteboard.open`; `herdr pane layout` shows a `Whiteboard` pane split to the right in the current tab, and `herdr pane read` shows the empty board. `open-tab` adds a new tab instead.
@@ -166,3 +168,74 @@ Use a throwaway Herdr that shares nothing with a live session, as in the [Spaces
 **Failed, then fixed:** the first new unit test checked note growth on a text item, which has no stored height; it now uses a note. The first PTY paste put `Ctrl+E` inside the bracketed paste, where it is pasted content, not a key; it now precedes the paste.
 
 **Not run:** the operator's live session and terminal, Linux. The spaces in the operator's report were not reproduced; the line-feed and bracketed-paste losses were.
+
+### Selection, formatting, scrolling and eight swatches
+
+2026-10-15, macOS, rustc 1.97.1, Node 22.23.0, Python 3.14.5, Herdr 0.9.3.
+
+**Passed — automated**
+
+- `cargo test --locked`: **76 passed**, 0 failed. Fourteen added regressions cover mouse and Shift selection on wrapped/wide source, selection replacement, UTF-8 base64/OSC 52 and cut-buffer yank, every format action and inside/outside toggles, multi-line prefixes, Ctrl+T dispatch/cancel, bar placement/hits, wheel/page/track/thumb scrolling, cursor-follow/click mapping and drawing with offsets, transient JSON, scrollbar/connector/resize precedence, eight color keys, contrasting note inks and unchanged free-text swatch inks. Existing narrow-toolbar and 100,000-character linear tests pass.
+- `cargo clippy --all-targets --locked`: no warnings; `node --test`: **2/2 passed**, comparing roles plus violet/cobalt/pink through the exported signal-colors subpath. Root `npm install` supplied the package link; root manifests are unchanged.
+- `cargo build --release --locked && python3 test/pty_smoke.py`: `PTY SMOKE OK`. The extended standalone PTY test drags over `hello`, sees the exact OSC 52 payload and floating bar, clicks B, and verifies `**hello** note` in saved JSON; existing paste, connector, movement and reopening checks still pass. This proves emission by the pane, not system clipboard receipt.
+- Offline repository checks: changed local Markdown links/anchors, guide inventory/map, exact `CLAUDE.md` entrypoints, `git diff --check` and `git diff --cached --check`. Publication review found only whiteboard source/tests/docs, no generated files or private content; nothing staged.
+
+**Passed — isolated Herdr client**
+
+- Every Herdr command ran with `env -i`, temporary HOME/XDG directories and an explicit temporary socket. Linked only into this throwaway server. Through an attached 220×45 client, dragged a raw selection, saw `COPY`/`SELECT`, clicked B on the floating bar, pasted eight lines, finished editing and shrank the note. Wheel over the overflowing note changed the first visible content from `hello copy` to `line2`, without moving the note. Saving retained `**hello** copy` plus every line, the same position and a height of 3, with no scroll field in JSON.
+- Stopped the isolated server and deleted its temporary state; live `config.toml` and `plugins.json` checksums were unchanged.
+
+**Failed / limits**
+
+- OSC 52 forwarding: **not forwarded** by Herdr 0.9.3 in the attached-client output, despite the standalone PTY's verified emission. The internal cut buffer works; the system clipboard depends on the host/terminal. At this checkpoint no workaround, host change or clipboard subprocess had been added; the approved local-helper follow-up is recorded below.
+- Fixed during development: a toolbar test still expected QUIT at 60 columns after adding three swatches; updated for the existing dropping rule. A test inspected a wide glyph's continuation cell, which ratatui's test backend resets; it now checks the styled glyph's leading cell. Clippy's test-loop warning was fixed. Palette setup initially lacked the root package link; the documented install fixed it. The first isolated harness used an unsupported `--pane` read flag and then expected a track glyph with a one-cell track (entirely thumb); corrected the harness. An initial client cleanup waited on SIGTERM and timed out; subsequent harnesses killed only their own client and the server was explicitly stopped.
+
+**Simplification pass**
+
+Reviewed the full diff against `origin/main`: reused the raw cursor/range mapping and existing button hit list, stored only one selection anchor and one skipped scroll field, kept clipboard I/O in main, and added no dependencies, caches or persistent format state. Follow-up tightened selection clearing on non-bar clicks, retained selection for ignored keys, cancelled pending Ctrl+T on bar clicks, kept same-text replacement cursor placement correct and gave selected newlines a visible cell. Review also pinned full-link toggle recognition so selecting multiple links never discards trailing source. Kept formatting helpers private, formatted only new blocks, and used the note ink for both scrollbar glyphs so the track remains readable on violet/cobalt. Reran automated and offline checks afterward; the isolated host check predates these small input/UI/toggle follow-ups.
+
+**Not run:** the operator's live session, installation, Linux, physical terminal/font/Option-as-Meta checks or system clipboard acknowledgement. No commit, push or PR was made. Root `AGENTS.md` already states the generic palette-file rule, not an Acid-only restriction, so it did not need editing.
+
+
+### Local clipboard helper follow-up
+
+2026-10-15, same macOS/Rust/Node/Python toolchain and Herdr 0.9.3 as above. Approved because Herdr does not forward OSC 52. Copy now keeps raw UTF-8 in App's outbox; main sends OSC 52 and starts a best-effort local helper on a detached worker. The helper/override and status contract is in [README](README.md#clipboard).
+
+**Passed — automated**
+
+- `cargo test --locked`: **81 passed**, 0 failed. The App copy tests now verify raw UTF-8 requests rather than encoded sequences; main tests cover base64, platform helper order/arguments, an executable-only override, missing-command fallback, the then-current nonzero-exit policy (superseded by the review fixes below), a missing override with no fallback, exact UTF-8 through stdin with EOF, and a payload larger than a pipe whose reader waits for a release file. All process tests use injected fake commands, never real clipboard helpers.
+- `cargo clippy --all-targets --locked`: no warnings; `node --test`: **2/2 passed**.
+- `cargo build --release --locked && python3 test/pty_smoke.py`: `PTY SMOKE OK`. The smoke sets an executable temporary-file writer override, checks the selected `hello` bytes in that file and the exact OSC 52 request, and sees `COPIED`. Existing formatting, paste, connector and persistence checks pass. No test accesses the real clipboard.
+- Offline repository checks and simplification rerun: changed local Markdown links/anchors, full root guide-map inventory, exact CLAUDE entrypoints, both whitespace checks and unchanged root manifests. Only whiteboard files changed; nothing staged.
+
+**Passed — isolated Herdr client**
+
+- Every command used `env -i`, temporary HOME/XDG directories and an explicit temporary socket. Linked a temporary plugin copy whose pane command explicitly injects the fake clipboard executable and whose binary points to the worktree release build. Through an attached 220×45 client, drag-selection wrote exactly `hello` to its temporary file; Shift+Home then Ctrl+T/c wrote `hello 日本` intact. The selection/bar and `COPIED` plate remained visible.
+- Killed only the throwaway client, stopped the isolated server, deleted temporary state, and confirmed the live `config.toml` and `plugins.json` SHA-256 checksums were unchanged.
+
+**Failed, then fixed:** the fresh Herdr client's input initially did not reach the board after dismissing onboarding, matching the prior focus discrepancy; reattaching the isolated client resolved it. The harness always cleaned up its server/state and used the explicit fake override, including failed attempts. No implementation validation failures occurred.
+
+**Simplification pass:** kept the existing raw-text outbox type, moved base64 to its I/O owner, used `std::process::Command` directly for helper selection, and ran spawn/write/close/wait in one worker. No asynchronous acknowledgement channel, new status enum, shell parsing, dependency or clipboard abstraction. `COPIED` is set only after OSC output succeeds and never hides a save error. Reran the full automated and offline checks afterward.
+
+**Not run:** actual `pbcopy`, `wl-copy` or `xclip`, the operator's clipboard/live Herdr, Linux or physical-terminal checks. OSC 52 forwarding remains the previously recorded Herdr limit; the new isolated check proves subprocess delivery to the fake sink, not an OS clipboard acknowledgement. This checkpoint had no helper deadline; the review fixes below supersede that limit. No commit, push, PR or live installation.
+
+
+### Review fixes
+
+2026-10-15, same automated toolchain as the clipboard follow-up. Independent review findings were reproduced before production fixes.
+
+**Passed**
+
+- `cargo test --locked`: **91 passed**, 0 failed. Ten new review regressions cover the stale scrollbar index panic and wrong-note variant, removed-target safety, italic/bold marker parity, checkbox/heading and mixed-prefix toggles, line-local inline formatting with empty/mixed/partially selected end lines, multi-line link rejection/hint, dark-paper borders, clipboard nonzero-exit failover and timeout of a helper that never reads a pipe-sized payload. The timeout test also probes the helper PID after return to check kill/reap. Existing performance, paste, UTF-8, override-isolation and rendering regressions remain green.
+- `cargo clippy --all-targets --locked`: no warnings; `node --test`: **2/2 passed**; `cargo build --release --locked && python3 test/pty_smoke.py`: `PTY SMOKE OK`, using only the fake clipboard executable.
+- Changed Markdown links/anchors, guide map/entrypoints and both whitespace checks passed. The toolbar mockup now has eight swatches; Storage no longer repeats clipboard behavior. Measured the unchanged free-text contrast from palette constants and recorded the limit only in [design](docs/design.md#layout-and-color), without claiming those inks readable.
+- Re-review nits: all five new regressions failed first (real LINK bar release and separate bold/italic/strike/code spans), then passed after shared hint clearing and conservative multi-span no-op handling; nested bold inside italic remains supported. Clipboard quit/order limits are documented in architecture. Final full rerun: **96 Rust tests**, clean Clippy, **2 Node tests**, release/PTY smoke and offline checks passed.
+
+**Failed, then fixed**
+
+- The first nine `review_` tests all failed before production changes: scrollbar panic/wrong target, italic stripping bold, checkbox prefix stripping, markers across newlines, multi-line links, structural borders on dark paper, missing nonzero-exit fallback and a blocked-stdin helper taking about 3.01 s instead of timing out. The additional partial-end-line marker test also failed before its fix; the line-local test then caught a blank-only no-op unnecessarily marking the board dirty, which was fixed before the final rerun. The five-swatch mockup and repeated Storage sentence were confirmed by read-only checks.
+- Audited every other Drag variant: none holds an item index. Updated superseded helper tests/docs to the approved timeout-and-fallback policy; explicit overrides still cannot reach real clipboard tools.
+
+**Simplification pass:** reviewed the full diff against `origin/main`; reused byte ranges and one small prefix classifier rather than a Markdown re-parser. Kept timeout policy in main and documented the test-override descendant exception in architecture. Removed the duplicate nonzero-exit test setup, and kept blank-only formatting a no-op. No crate, persistent state or palette values added; free-text ink unchanged. Skipped the requested render re-parse optimization because the performance regression passes. Reran all affected automated/offline checks afterward.
+
+**Not run:** a new isolated/live Herdr check for these review fixes, real clipboard utilities, Linux or physical-terminal checks. Earlier isolated fake-clipboard evidence remains separate. No commit, push, PR, live install or real clipboard write.
