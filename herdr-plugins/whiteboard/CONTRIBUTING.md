@@ -59,3 +59,65 @@ Use a throwaway Herdr that shares nothing with a live session, as in the [Spaces
 **Failed, then explained:** a first double-click went to Herdr's first-run welcome dialog in the fresh isolated home; dismissing it is now step 3. In one resize run, a `q` typed through the client did not reach the board although Herdr reported it focused; `herdr pane send-keys` closed it. Not reproduced in the split-focus run, where the client's `q` worked.
 
 **Not run:** the operator's live session, `--direction down`, scroll and right-drag panning through Herdr, Linux.
+
+### Connectors and readline editing
+
+2026-10-15, macOS, rustc 1.97.1, Node 22.23.0, Python 3.14.5. Automated checks only; no Herdr server was contacted.
+
+**Passed**
+
+- `cargo test --locked`: **42 passed**, 0 failed. Includes legacy ids and arrow cleanup, exact routes, bounded routing across distant coordinates, mouse and keyboard connectors, selection and deletion, every editing binding, wrapped/wide cursor placement, layering, heavy selection and small terminals.
+- `cargo clippy --all-targets --locked`: no warnings.
+- `node --test`: **2/2 passed**.
+- `cargo build --release --locked && python3 test/pty_smoke.py`: `PTY SMOKE OK`; the saved JSON contains a border-drag connector between two notes and `hello world` inserted using `Ctrl+A`.
+- Repository-wide checks: changed local Markdown links and anchors, guide inventory/map, exact `CLAUDE.md` entrypoints, both whitespace checks, contributor reading and publication review. No palette values or dependencies changed; nothing staged.
+
+**Failed, then fixed during development:** an initial preview test expected a visible arrow while the cursor was still inside its source; corrected to expect no route until outside. Clippy found a redundant test struct update; removed. The palette check initially lacked the root package link; ran the documented `npm install` setup, leaving both root manifests unchanged. The first extended PTY drag pressed a border covered by the other note; separated the notes and used the uncovered source border.
+
+**Not run:** the optional isolated Herdr check, the operator's live session, Linux, other terminals/fonts, manual Option/Alt-as-Meta behavior. Earlier Herdr records above do not verify these new interactions.
+
+### Arrow junction and clearance follow-up
+
+2026-10-15, same toolchain and automated-only scope as the connector record above.
+
+**Passed**
+
+- `cargo test --locked`: **45 passed**, 0 failed. Three added regressions cover direction-union junctions and head precedence, the exact 80×18 repro (then a crossing extension), selected-arrow draw order, real-rectangle middles, the note-to-text L route and gaps consumed by shadows. Existing distant-coordinate and clipping tests still pass.
+- `cargo clippy --all-targets --locked`: no warnings; `node --test`: **2/2 passed**.
+- `cargo build --release --locked && python3 test/pty_smoke.py`: `PTY SMOKE OK`.
+- `git diff --check` and `git diff --cached --check`: passed; nothing staged.
+
+**Failed, then fixed:** no validation failures during this follow-up. The reported overwriting and shadow-classification defects are fixed and pinned by regressions.
+
+**Not run:** new isolated/live Herdr or manual terminal checks by this implementation run; the supervisor's tmux reproduction is separate evidence.
+
+### Isolated Herdr-client connectors and editing
+
+2026-10-15, Herdr 0.9.3. Supervisor-provided end-to-end evidence, captured before the review fixes below; separate from automated test counts. All Herdr commands used `env -i`, temporary HOME/XDG directories and an explicit temporary socket. Client: 220×45, board origin column 125, row 3.
+
+**Passed**
+
+- Through the client, `+ NOTE` created two notes. A border drag showed both free and snapped previews before release, created an arrow, and moving the target rerouted it.
+- `a` / `Tab` / `Enter` created the reverse arrow; `Tab` selected it and `Delete` removed it.
+- Readline `Ctrl+A`, `ESC-f`, `Ctrl+K`, `Ctrl+E`, `Ctrl+Y` produced `PRE Beta one two`, with the cursor one cell after the text. Herdr intercepted `Ctrl+B` as its default prefix; use `←` unless the prefix is changed.
+- `q` saved and closed only the board pane. Saved JSON had ids 1,2 and arrow 1→2; reopening rendered the same board. Resizing redrew at 66 columns; `open-tab` rendered the board in a new tab.
+- Live `config.toml` and `plugins.json` checksums were unchanged.
+
+**Failed/unexplained:** after the CLI `open-tab` action, a client `q` closed the earlier split pane while Herdr reported the tab pane focused. This matches the earlier focus-discrepancy note; it is not attributed to these changes.
+
+**Not run:** physical Option-as-Meta, Linux, other terminals, the live session. This implementation run did not repeat the supervisor's isolated-client check.
+
+### Performance and cursor review fixes
+
+2026-10-15, same automated toolchain as above.
+
+**Passed**
+
+- `cargo test --locked`: **48 passed**, 0 failed. Three added tests cover 100,000-character text and note `lines()`/cursor calls under 200 ms in debug with preserved contents, per-character ZWJ/CJK/combining-mark widths, and editing, reopening and corner-resizing exactly-full 8×3 and 24×7 notes with the cursor inside the bottom border.
+- `cargo clippy --all-targets --locked`: no warnings; `node --test`: **2/2 passed**.
+- `cargo build --release --locked && python3 test/pty_smoke.py`: `PTY SMOKE OK`.
+- `git diff --check` and `git diff --cached --check`: passed; nothing staged.
+
+**Failed, then fixed:** no validation failures during this review-fix run. Removed quadratic prefix measurement and reserved the virtual insertion row. Widths now sum `UnicodeWidthChar` cells, matching drawing, as approved during review. An independent re-review found that corner-resizing a note while editing could still put the cursor on the border; resizing now refits the note while editing, and the cursor test fails without that fix. The re-review compared wrapping with the previous implementation over 503,883 ASCII, CJK and combining-mark cases with no differences; loaded control characters such as tabs now wrap at their drawn width of zero.
+
+**Not run:** a fresh isolated-client check after these fixes, live Herdr, Linux or manual terminal/Option-as-Meta checks. The separate client evidence above predates these fixes.

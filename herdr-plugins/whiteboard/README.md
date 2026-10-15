@@ -1,6 +1,6 @@
 # Industrial OS Whiteboard
 
-A Herdr 0.9.3+ plugin: a mouse-driven whiteboard with sticky notes and free text, drawn in Acid / Black with [ratatui](https://ratatui.rs). It opens in a split beside the pane you are in, or in its own tab, and each workspace has its own board.
+A Herdr 0.9.3+ plugin: a mouse-driven whiteboard with sticky notes, free text and connecting arrows, drawn in Acid / Black with [ratatui](https://ratatui.rs). It opens in a split beside the pane you are in, or in its own tab, and each workspace has its own board.
 
 Rust and Cargo build it; it has no Node runtime. Linux and macOS only. Why a Herdr plugin here may use another runtime is recorded in [the decision](../../docs/decisions/herdr-plugin-runtimes.md).
 
@@ -57,8 +57,10 @@ Outside Herdr, run `target/release/whiteboard [board.json]`; it defaults to `./w
 | --- | --- | --- |
 | New sticky note | `+ NOTE` | `n` (at the mouse, else the middle of the view) |
 | New free text | double-click empty space, or `+ TEXT` | `t` |
-| Select | click an item (brings it to the front) | `Tab` / `Shift+Tab` |
-| Move | drag the item | arrows |
+| Select an item or arrow | click an item (brings it to the front), or an uncovered arrow cell | `Tab` / `Shift+Tab`: items in drawing order, then arrows |
+| Move | drag the item's interior | arrows |
+| Connect with an arrow | drag a note's border onto another item; elsewhere cancels | select an item, `a`, `Tab` / `Shift+Tab` choose target, `Enter` connect/remove, `Esc` cancel |
+| Remove an arrow | select it, then `DELETE` | select it, then `Del` / `Backspace`; `Esc` deselects |
 | Resize a note | drag its `◢` corner | `Shift`+arrows |
 | Edit | double-click the item | `Enter` or `e`; `Esc` finishes |
 | Color | click a swatch | `1`–`5` |
@@ -66,6 +68,22 @@ Outside Herdr, run `target/release/whiteboard [board.json]`; it defaults to `./w
 | Pan | drag empty space, right- or middle-drag, scroll | arrows with nothing selected |
 | Save | `SAVE` | `Ctrl+S` |
 | Quit, saving first | `QUIT` | `q` or `Ctrl+C`; `Ctrl+Q` quits without saving |
+
+While editing, the cursor starts at the end; insertions happen at the cursor.
+
+| Editing action | Keys |
+| --- | --- |
+| Logical-line start / end | `Ctrl+A` / `Ctrl+E`, or `Home` / `End` |
+| Character back / forward | `Ctrl+B` / `Ctrl+F`, or `←` / `→` |
+| Word back / forward (alphanumeric) | `Alt+B` / `Alt+F`, or `Alt+←` / `Alt+→` |
+| Drawn row up / down (wrapped in notes) | `↑` / `↓`, keeping the column where possible |
+| Cut to logical-line end / start | `Ctrl+K` / `Ctrl+U`; `Ctrl+K` at line end cuts the newline |
+| Cut previous word | `Ctrl+W` (whitespace-delimited), `Alt+Backspace` (alphanumeric) |
+| Cut next word / insert last cut | `Alt+D` / `Ctrl+Y` |
+| Delete character after / before | `Ctrl+D` or `Delete` / `Ctrl+H` or `Backspace` |
+| Insert newline / two spaces | `Enter` / `Tab` |
+
+`Ctrl+C`, `Ctrl+S` and `Ctrl+Q` keep their global meanings in every mode.
 
 Quitting closes the board's pane and leaves the others. If a save fails, the board stays open and says why.
 
@@ -76,7 +94,10 @@ Inside Herdr, a board is `$HERDR_PLUGIN_STATE_DIR/boards/<session>/<workspace-id
 ## Limits
 
 - Needs a terminal with 24-bit color and SGR mouse reporting.
-- Positions snap to whole cells. Text is edited only at its end: no cursor movement, undo, clipboard or drawing.
+- Positions snap to whole cells. No undo, system clipboard (`Ctrl+Y` uses only the session's internal cut buffer), mouse cursor placement or freehand drawing.
+- Host keybindings take precedence. Inside Herdr, use `←` instead of `Ctrl+B` unless its default `Ctrl+B` prefix is changed.
+- Alt shortcuts need the terminal to send Option/Alt as Meta; macOS terminals often need this setting enabled.
+- Arrows follow their items but are hidden while the items overlap.
 - Two panes on the same workspace share one file. A save that would overwrite another pane's newer save is refused once; saving again overwrites it.
 - A board follows its Herdr workspace ID, such as `w2`. IDs survive session restore, but Herdr can give a closed workspace's ID to a new one, which then opens the old board.
 - Wide characters are measured with `unicode-width`, which can disagree with some terminals.

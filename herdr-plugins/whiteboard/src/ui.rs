@@ -1,5 +1,5 @@
 use crate::app::{App, Button, COLORS, Status};
-use crate::board::{Item, Kind};
+use crate::board::{Item, Kind, merge_arrow_glyph};
 use crate::palette::{ACCENT, CRITICAL, DECORATIVE, FIELD, PRIMARY, SECONDARY, STRUCTURAL, SURFACE, WARNING};
 use ratatui::Frame;
 use ratatui::buffer::Buffer;
@@ -86,10 +86,30 @@ fn board(buf: &mut Buffer, area: Rect, app: &App) {
         let x = area.x as i32 + (area.width as i32 - hint.width() as i32).max(0) / 2;
         put(buf, area, x, area.y as i32 + area.height as i32 / 2, hint, Style::new().fg(SECONDARY).bg(FIELD));
     }
+    let style = Style::new().fg(SECONDARY).bg(FIELD);
+    let arrows = app
+        .board
+        .arrows
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| app.selected_arrow != Some(*i))
+        .flat_map(|(_, arrow)| app.board.arrow_cells(*arrow, false, app.world_clip()))
+        .chain(app.preview());
+    for (x, y, glyph) in arrows {
+        let (x, y) = (x - cx + area.x as i32, y - cy + area.y as i32);
+        let existing = buf[(x as u16, y as u16)].symbol().chars().next().unwrap_or(' ');
+        let glyph = merge_arrow_glyph(existing, glyph);
+        put(buf, area, x, y, &glyph.to_string(), style);
+    }
+    if let Some(i) = app.selected_arrow {
+        for (x, y, glyph) in app.board.arrow_cells(app.board.arrows[i], true, app.world_clip()) {
+            put(buf, area, x - cx + area.x as i32, y - cy + area.y as i32, &glyph.to_string(), style);
+        }
+    }
     for (i, item) in app.board.items.iter().enumerate() {
         let x = item.x - cx + area.x as i32;
         let y = item.y - cy + area.y as i32;
-        let selected = app.selected == Some(i);
+        let selected = app.selected == Some(i) || app.arrow_target() == Some(i);
         match item.kind {
             Kind::Note => note(buf, area, x, y, item, selected),
             Kind::Text => text(buf, area, x, y, item, selected),
@@ -143,10 +163,19 @@ fn text(buf: &mut Buffer, clip: Rect, x: i32, y: i32, item: &Item, selected: boo
 fn status(buf: &mut Buffer, area: Rect, app: &App) {
     let bar = Style::new().fg(SECONDARY).bg(SURFACE);
     buf.set_style(area, bar);
-    let (mode, hints) = if app.editing {
+    let (mode, hints) = if app.arrow_drag() {
+        (" ARROW ", " release on an item to connect · elsewhere cancels")
+    } else if app.editing {
         (" EDIT ", " type · Enter new line · Esc or click away to finish")
+    } else if app.connecting {
+        (" ARROW ", " Tab choose target · Enter connect/remove · Esc cancel")
+    } else if app.selected_arrow.is_some() {
+        (" ARROW ", " Del remove · Tab next · Esc")
     } else if app.selected.is_some() {
-        (" MOVE ", " drag or arrows to move · drag ◢ or Shift+arrows to resize · Enter edit · Del · Esc")
+        (
+            " MOVE ",
+            " drag or arrows to move · drag border or a to connect · drag ◢ or Shift+arrows to resize · Enter edit · Del · Esc",
+        )
     } else {
         (" BOARD ", " double-click: write · drag empty space, scroll or arrows to pan · Tab select · n t 1-5 q")
     };
@@ -170,7 +199,7 @@ fn status(buf: &mut Buffer, area: Rect, app: &App) {
 
 fn cursor(app: &App) -> Option<Position> {
     let item = &app.board.items[app.selected.filter(|_| app.editing)?];
-    let (dx, dy) = item.end_offset();
+    let (dx, dy) = item.cursor_offset(app.cursor);
     let x = item.x + dx - app.cam.0 + app.canvas.x as i32;
     let y = item.y + dy - app.cam.1 + app.canvas.y as i32;
     let pos = Position::new(u16::try_from(x).ok()?, u16::try_from(y).ok()?);
@@ -207,8 +236,11 @@ fn put(buf: &mut Buffer, clip: Rect, x: i32, y: i32, text: &str, style: Style) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::board::Board;
-    use ratatui::{Terminal, backend::TestBackend};
+    use crate::board::{Arrow, Board};
+    use ratatui::{
+        Terminal,
+        backend::{Backend, TestBackend},
+    };
 
     fn screen(app: &mut App) -> Vec<String> {
         let mut term = Terminal::new(TestBackend::new(60, 12)).unwrap();
@@ -227,7 +259,7 @@ mod tests {
         note.text = "buy milk and eggs".into();
         let mut label = Item::text(52, 5, 1);
         label.text = "offscreen tail".into();
-        let mut app = App::new(Board { items: vec![note, label] }, "wb.json".into());
+        let mut app = App::new(Board { items: vec![note, label], ..Board::default() }, "wb.json".into());
 
         let rows = screen(&mut app);
         // At 60 columns every button fits only without the title plate.
@@ -278,7 +310,17 @@ mod tests {
     fn tiny_terminals_render_without_panicking() {
         let mut note = Item::note(-2, -1, 3);
         note.text = "日本語 text".into();
-        let mut app = App::new(Board { items: vec![note] }, "wb.json".into());
+        let mut app = App::new(
+            Board {
+                arrows: vec![Arrow { from: 1, to: 2 }, Arrow { from: 3, to: 2 }],
+                items: vec![
+                    Item { id: 1, ..note },
+                    Item { id: 2, ..Item::note(30, 3, 0) },
+                    Item { id: 3, text: "x".into(), ..Item::text(-4, 0, 0) },
+                ],
+            },
+            "wb.json".into(),
+        );
         app.selected = Some(0);
         app.editing = true;
         for (w, h) in [(1, 1), (3, 2), (10, 3), (5, 10)] {
@@ -289,9 +331,139 @@ mod tests {
 
     #[test]
     fn panned_note_is_clipped_at_the_canvas_edge() {
-        let mut app = App::new(Board { items: vec![Item::note(0, 0, 0)] }, "wb.json".into());
+        let mut app = App::new(Board { items: vec![Item::note(0, 0, 0)], ..Board::default() }, "wb.json".into());
         app.cam = (5, 0);
         let rows = screen(&mut app);
         assert!(rows[1].starts_with("───"));
+    }
+
+    #[test]
+    fn arrows_draw_below_notes_use_heavy_selection_and_show_connect_state() {
+        let mut board = Board {
+            items: vec![
+                Item { w: 8, h: 3, ..Item::note(0, 0, 0) },
+                Item { w: 8, h: 3, ..Item::note(25, 0, 0) },
+                Item { w: 8, h: 3, ..Item::note(14, 0, 0) },
+            ],
+            ..Board::default()
+        };
+        board.normalize().unwrap();
+        board.arrows.push(Arrow { from: 1, to: 2 });
+        let mut app = App::new(board, "wb.json".into());
+        let mut term = Terminal::new(TestBackend::new(60, 12)).unwrap();
+        term.draw(|f| render(f, &mut app)).unwrap();
+        let buf = term.backend().buffer();
+        assert_eq!(buf[(9, 2)].symbol(), "─");
+        assert_eq!(buf[(24, 2)].symbol(), "▶");
+        assert_eq!(buf[(14, 2)].symbol(), "│");
+        assert_eq!(buf[(15, 2)].symbol(), " ");
+        assert_eq!(buf[(9, 2)].fg, SECONDARY);
+        assert_eq!(buf[(9, 2)].bg, FIELD);
+        app.selected_arrow = Some(0);
+        term.draw(|f| render(f, &mut app)).unwrap();
+        assert_eq!(term.backend().buffer()[(9, 2)].symbol(), "━");
+        assert!(screen(&mut app)[11].starts_with(" ARROW "));
+        app.selected_arrow = None;
+        app.selected = Some(0);
+        app.connect_target = Some(1);
+        app.connecting = true;
+        assert!(screen(&mut app)[1].contains("┏━━━━━━┓"));
+        assert!(screen(&mut app)[11].contains("Tab choose target"));
+        app.board.items[1].y = 6;
+        app.selected_arrow = Some(0);
+        app.selected = None;
+        app.connect_target = None;
+        app.connecting = false;
+        let cells = app.board.arrow_cells(app.board.arrows[0], true, app.world_clip());
+        assert!(cells.iter().any(|c| c.2 == '┓'));
+        term.draw(|f| render(f, &mut app)).unwrap();
+        let (x, y, _) = cells.iter().find(|c| c.2 == '┓').unwrap();
+        assert_eq!(term.backend().buffer()[(*x as u16, *y as u16 + 1)].symbol(), "┓");
+    }
+
+    #[test]
+    fn edit_cursor_uses_wrapped_byte_position_and_wide_character_cells() {
+        let mut item = Item::note(2, 1, 0);
+        item.w = 8;
+        item.text = "abcdef gh日本".into();
+        let mut app = App::new(Board { items: vec![item], ..Board::default() }, "wb.json".into());
+        app.canvas = Rect::new(0, 1, 60, 10);
+        app.selected = Some(0);
+        app.editing = true;
+        for (byte, pos) in [(5, (8, 3)), (6, (3, 4)), (7, (3, 4)), (12, (7, 4)), (15, (3, 5))] {
+            app.cursor = byte;
+            assert_eq!(cursor(&app), Some(Position::new(pos.0, pos.1)));
+            let mut term = Terminal::new(TestBackend::new(60, 12)).unwrap();
+            term.draw(|f| render(f, &mut app)).unwrap();
+            assert_eq!(term.backend_mut().get_cursor_position().unwrap(), Position::new(pos.0, pos.1));
+        }
+    }
+
+    #[test]
+    fn distant_endpoints_render_and_hit_test_only_visible_cells() {
+        let mut board = Board {
+            items: vec![Item::note(-1_000_000_000, 0, 0), Item::note(1_000_000_000, 0, 0)],
+            ..Board::default()
+        };
+        board.normalize().unwrap();
+        board.arrows.push(Arrow { from: 1, to: 2 });
+        assert_eq!(board.hit_arrow(0, 3), Some(0));
+        assert_eq!(board.hit_arrow(0, 4), None);
+        let mut app = App::new(board, "wb.json".into());
+        let rows = screen(&mut app);
+        assert_eq!(rows[4], "─".repeat(60));
+        app.selected_arrow = Some(0);
+        assert_eq!(screen(&mut app)[4], "━".repeat(60));
+        for (w, h) in [(1, 1), (3, 2), (5, 5)] {
+            let mut term = Terminal::new(TestBackend::new(w, h)).unwrap();
+            term.draw(|f| render(f, &mut app)).unwrap();
+        }
+    }
+
+    #[test]
+    fn repro_scene_merges_shared_runs_crossings_and_draws_selected_arrow_last() {
+        let board = Board {
+            items: vec![
+                Item { id: 1, w: 16, h: 4, text: "plan the thing".into(), ..Item::note(2, 1, 0) },
+                Item { id: 2, w: 16, h: 4, text: "ship".into(), ..Item::note(30, 8, 0) },
+                Item { id: 3, w: 14, h: 4, text: "review".into(), ..Item::note(50, 1, 0) },
+                Item { id: 4, text: "free text".into(), ..Item::text(4, 12, 0) },
+            ],
+            arrows: vec![Arrow { from: 1, to: 2 }, Arrow { from: 1, to: 3 }, Arrow { from: 2, to: 4 }],
+        };
+        let mut app = App::new(board, "wb.json".into());
+        let mut term = Terminal::new(TestBackend::new(80, 18)).unwrap();
+        term.draw(|f| render(f, &mut app)).unwrap();
+        let buf = term.backend().buffer();
+        assert_eq!(buf[(37, 3)].symbol(), "┬");
+        assert_eq!(buf[(37, 4)].symbol(), "│");
+        assert_eq!(buf[(37, 8)].symbol(), "▼");
+        assert_eq!(buf[(8, 10)].symbol(), "╭");
+        assert_eq!(buf[(8, 11)].symbol(), "│");
+        assert_eq!(buf[(8, 12)].symbol(), "▼");
+
+        // Extend the exact repro with a straight run crossing the downward branch.
+        app.board.items.push(Item { id: 5, text: "x".into(), ..Item::text(20, 5, 0) });
+        app.board.items.push(Item { id: 6, text: "x".into(), ..Item::text(45, 5, 0) });
+        app.board.arrows.push(Arrow { from: 5, to: 6 });
+        term.draw(|f| render(f, &mut app)).unwrap();
+        assert_eq!(term.backend().buffer()[(37, 6)].symbol(), "┼");
+        app.selected_arrow = Some(0);
+        term.draw(|f| render(f, &mut app)).unwrap();
+        assert_eq!(term.backend().buffer()[(37, 3)].symbol(), "┓");
+        assert_eq!(term.backend().buffer()[(37, 6)].symbol(), "┃");
+        app.selected_arrow = Some(3);
+        term.draw(|f| render(f, &mut app)).unwrap();
+        assert_eq!(term.backend().buffer()[(37, 6)].symbol(), "━");
+
+        // A normal head still wins when a later normal run crosses it.
+        app.selected_arrow = None;
+        app.board.items[4].y = 7;
+        app.board.items[5].y = 7;
+        term.draw(|f| render(f, &mut app)).unwrap();
+        assert_eq!(term.backend().buffer()[(37, 8)].symbol(), "▼");
+        app.board.arrows.reverse();
+        term.draw(|f| render(f, &mut app)).unwrap();
+        assert_eq!(term.backend().buffer()[(37, 8)].symbol(), "▼");
     }
 }

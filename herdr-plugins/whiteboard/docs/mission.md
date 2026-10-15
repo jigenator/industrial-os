@@ -1,6 +1,6 @@
 # Mission
 
-Give people working in Herdr a place to think beside their agents: sticky notes and free text on a board that belongs to the workspace, opened beside your panes or in its own tab, driven by the mouse, with a keyboard path for everything.
+Give people working in Herdr a place to think beside their agents: sticky notes, free text and arrows connecting them on a board that belongs to the workspace, opened beside your panes or in its own tab, driven by the mouse, with a keyboard path for everything.
 
 ## Non-goals
 
