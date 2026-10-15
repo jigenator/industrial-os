@@ -1,0 +1,25 @@
+id = "industrial-os.whiteboard"
+name = "Industrial OS Whiteboard"
+version = "0.1.0"
+min_herdr_version = "0.9.3"
+description = "Sticky notes and text on a mouse-driven board, one per workspace"
+platforms = ["linux", "macos"]
+
+[[build]]
+command = ["cargo", "build", "--release", "--locked"]
+
+[[panes]]
+id = "board"
+title = "Whiteboard"
+placement = "split"
+command = ["sh", "bin/whiteboard.sh", "pane"]
+
+[[actions]]
+id = "open"
+title = "Open whiteboard beside this pane"
+command = ["sh", "bin/whiteboard.sh", "open"]
+
+[[actions]]
+id = "open-tab"
+title = "Open whiteboard in a new tab"
+command = ["sh", "bin/whiteboard.sh", "open-tab"]

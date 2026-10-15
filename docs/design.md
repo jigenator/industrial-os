@@ -1,6 +1,6 @@
 # Design
 
-This is the visual and interaction language of every project in the repository: the design system, the Pi extensions, and the Herdr configuration. It holds only what they share. Each project's own design doc describes that project's experience and must agree with this one: [the design system](../design-system/docs/design.md), [claude-interrupt](../pi/claude-interrupt/docs/design.md), [status-bar](../pi/status-bar/docs/design.md), [herdr-sidebar](../pi/herdr-sidebar/docs/design.md), and [the Herdr sidebar](../herdr/docs/design.md).
+This is the visual and interaction language of every project in the repository: the design system, the Pi extensions, the Herdr configuration, and the Herdr plugins. It holds only what they share. Each project's own design doc describes that project's experience and must agree with this one: [the design system](../design-system/docs/design.md), [claude-interrupt](../pi/claude-interrupt/docs/design.md), [status-bar](../pi/status-bar/docs/design.md), [herdr-sidebar](../pi/herdr-sidebar/docs/design.md), [the Herdr sidebar](../herdr/docs/design.md), [Spaces](../herdr-plugins/spaces/docs/design.md), and [the whiteboard](../herdr-plugins/whiteboard/docs/design.md).
 
 ## Experience
 
@@ -55,6 +55,10 @@ Separate focus, selection, active work, saved state, and historical state. A tra
 ### Herdr configuration
 
 Herdr draws its own chrome from configuration, so a project there has no Pi styling API: it sets colors by value in Herdr's config, and those values are design-system roles checked against the design system. Text reported into Herdr follows the same rules as text Pi draws: fixed cell budgets, U+2800 for padding Herdr must not trim, and state carried by a code and shape, not color alone. [The Herdr sidebar](../herdr/docs/design.md) is the first example: layout B, filled with tokens by [herdr-sidebar](../pi/herdr-sidebar/docs/design.md).
+
+### Herdr plugin panes
+
+A plugin pane is a full-screen terminal application in a pane Herdr gives it, so it owns its cells, keys and mouse while it runs; that is its interaction contract, stated in its design doc. It uses the design-system colors, keeps a keyboard path for every mouse action, restores the terminal on every exit, and keeps a failure on screen rather than letting the pane vanish. [The whiteboard](../herdr-plugins/whiteboard/docs/design.md) is the first.
 
 ## Accessibility and platform behavior
 

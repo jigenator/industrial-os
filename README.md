@@ -15,6 +15,7 @@ Seven projects are here. They share code only through the private design-system 
 - [pi/herdr-sidebar](pi/herdr-sidebar/README.md): a Pi extension that reports each Pi session's state to Herdr's agents sidebar as tokens.
 - [herdr](herdr/README.md): Herdr agents and Spaces sidebar configuration, merged by hand.
 - [herdr-plugins/spaces](herdr-plugins/spaces/README.md): one Node daemon per Herdr socket reports space counts/names/quiet ages and moves quiet units below current work.
+- [herdr-plugins/whiteboard](herdr-plugins/whiteboard/README.md): a Rust whiteboard in a Herdr split or tab, with sticky notes and text, driven by the mouse, one board per workspace.
 
 Other Herdr tooling still lives in separate repositories and is planned to move in.
 
@@ -32,7 +33,8 @@ industrial-os/
 │   └── herdr-sidebar/        this session's state as Herdr agents-sidebar tokens
 ├── herdr/                    Herdr agents and Spaces configuration, merged by hand
 ├── herdr-plugins/            Herdr plugins, each its own project
-│   └── spaces/              workspace tokens, quiet history and ordering daemon
+│   ├── spaces/              workspace tokens, quiet history and ordering daemon
+│   └── whiteboard/          sticky notes and text in a Herdr pane, in Rust
 ├── docs/
 │   ├── mission.md            product scope and constraints
 │   ├── design.md             the shared visual and interaction language
@@ -63,4 +65,4 @@ In a checkout, run `npm install` once at the root to link the design-system pack
 
 ## Licensing
 
-A project license has not been selected. Public visibility alone does not grant a reuse license. The exception is [claude-interrupt](pi/claude-interrupt/README.md), which keeps the MIT license in its [LICENSE](pi/claude-interrupt/LICENSE) from before it moved here. [status-bar](pi/status-bar/README.md) had no license before it moved here and has none now; [signals-collector](pi/signals-collector/README.md) likewise has none.
+A project license has not been selected. Public visibility alone does not grant a reuse license. The exception is [claude-interrupt](pi/claude-interrupt/README.md), which keeps the MIT license in its [LICENSE](pi/claude-interrupt/LICENSE) from before it moved here. [status-bar](pi/status-bar/README.md) had no license before it moved here and has none now; [signals-collector](pi/signals-collector/README.md) likewise has none, and neither does [the whiteboard](herdr-plugins/whiteboard/README.md).
