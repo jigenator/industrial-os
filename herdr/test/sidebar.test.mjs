@@ -162,3 +162,12 @@ test('row 5 pane label is secondary, gutter decorative, without decay or phase t
   }
   assert.doesNotMatch(piRows(), /ev_act|pane_d[123]/);
 });
+
+test('row 1 draws the manual flag in critical red after the SPACE name and before the goal time', () => {
+  assert.match(contract, /^- `flag`: `●` while/m, 'the token contract defines the flag');
+  assert.deepEqual(configuredRows()[0], ['g1', 'proj', 'proj_idle', 'flag', 'gt', 'gt_off']);
+  const entry = /\{\s*token\s*=\s*"\$flag"([^}]+)\}/.exec(piRows());
+  assert.ok(entry);
+  assert.match(entry[1], new RegExp(`fg\\s*=\\s*"${ACID_BLACK.critical}"`));
+  assert.doesNotMatch(entry[1], /rules|dim/);
+});

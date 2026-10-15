@@ -14,7 +14,7 @@ The agents sidebar in Herdr, as this configuration draws it: layout "B", one blo
 
 | Row | Gutter | Left value | Right slot |
 | --- | --- | --- | --- |
-| 1 | `g1` state | `proj` / `proj_idle` | `gt` / `gt_off` |
+| 1 | `g1` state | `proj` / `proj_idle`, then `flag` | `gt` / `gt_off` |
 | 2 | `g2_au` / `g2_au0` | `bar` / `bar_warn` / `bar_crit` / `bar_idle` / `bar_unk` | `cmpx` |
 | 3 | `g3` | `br` / `br_dirty` / `dir` | `prn` / `prn_off` |
 | 4 | `g4` | `mthink` | |
@@ -22,7 +22,7 @@ The agents sidebar in Herdr, as this configuration draws it: layout "B", one blo
 | 6 | | `ask_l2` | |
 | 7 | | `ask_l3` | |
 
-Herdr draws ` · ` between present values and drops a row whose tokens are all absent, so most blocks are four or five rows; a pending question can take seven. The rows override only `[ui.sidebar.agents.rows_by_agent] pi`; global `rows` is not set, so other agents retain their own/default layouts. `row_gap = 1` is panel-wide and leaves one blank row between all agents, including non-Pi agents. IDL and UNK use a decorative-grey, non-bold `bar_idle` with unchanged shape/used percentage, regardless of zone. Unknown context always uses `bar_unk`. Row 5 shows the known pane label in every state, including IDL/UNK, unless ASK or DNE's RDY wins. No label means no pane-name row. Phase age is present only with a working phase; ASK/RDY are unchanged. Herdr 0.9.3 pane.rename emits no event, so its name update can lag by one 20-second renewal cycle; pane_updated triggers an immediate read (see [client inputs](../../pi/herdr-sidebar/docs/architecture.md#inputs)). Row 1 names the Herdr SPACE (Active basename while unknown); row 2 shows context used, warning from 70% and critical from 90%, not remaining context.
+Herdr draws ` · ` between present values and drops a row whose tokens are all absent, so most blocks are four or five rows; a pending question can take seven. The rows override only `[ui.sidebar.agents.rows_by_agent] pi`; global `rows` is not set, so other agents retain their own/default layouts. `row_gap = 1` is panel-wide and leaves one blank row between all agents, including non-Pi agents. IDL and UNK use a decorative-grey, non-bold `bar_idle` with unchanged shape/used percentage, regardless of zone. Unknown context always uses `bar_unk`. Row 5 shows the known pane label in every state, including IDL/UNK, unless ASK or DNE's RDY wins. No label means no pane-name row. Phase age is present only with a working phase; ASK/RDY are unchanged. Herdr 0.9.3 pane.rename emits no event, so its name update can lag by one 20-second renewal cycle; pane_updated triggers an immediate read (see [client inputs](../../pi/herdr-sidebar/docs/architecture.md#inputs)). Row 1 names the Herdr SPACE (Active basename while unknown), followed by the `/flag` reminder `●` in critical red when the session is flagged (` ○ IDL  · rpiv-mono · ●`); Herdr's own ` · ` separates it, and the reporter shortens the name by those four cells so a goal time keeps its column. Row 2 shows context used, warning from 70% and critical from 90%, not remaining context.
 
 ## Width
 
@@ -40,7 +40,7 @@ Every color is a design-system value. Bold marks the readings that matter most.
 | Ghost (signal color) | `#333333` | A paused goal's time, `#?`, the unknown context bar |
 | Accent | `#c0fe04` | `WRK`, `SUB`, the context bar, active units ≥ 1 (bold) |
 | Warning | `#d79e52` | The context bar from 70% used, a branch with changes |
-| Critical | `#f24723` | `QNS`, `BLK`, the context bar from 90% used (bold), the question text (bold) |
+| Critical | `#f24723` | `QNS`, `BLK`, the context bar from 90% used (bold), the question text (bold), the `/flag` dot `●` |
 | Structural, violet, pink, critical | `#555555`, `#5200ff`, `#ff15bd`, `#f24723` | `CMP×00` and `CMP×??`; `01`–`02`; `03`–`04`; `05` and more; all bold |
 
 The theme block sets the sidebar field black (`sidebar_bg`) and the focused and selected rows to the surface grey (`active_row_bg`, `selection_bg`).
@@ -78,7 +78,7 @@ resolution tests are recorded separately from live rendering evidence.
 
 ## States
 
-Every state is readable without color: the state code and shape in row 1 (`× QNS`, `× BLK`, `◐ WRK`, `◐ SUB`, `✓ DNE`, `○ IDL`, `· UNK`; `SUB` shares `WRK`'s shape and accent, and its code tells it apart), `*` on a changed branch, `--%`, `??` and `#?` for unknowns. Color adds emphasis only. The meanings are in [herdr-sidebar's design](../../pi/herdr-sidebar/docs/design.md#states).
+Every state is readable without color: the state code and shape in row 1 (`× QNS`, `× BLK`, `◐ WRK`, `◐ SUB`, `✓ DNE`, `○ IDL`, `· UNK`; `SUB` shares `WRK`'s shape and accent, and its code tells it apart), `*` on a changed branch, `●` for a flagged session, `--%`, `??` and `#?` for unknowns. Color adds emphasis only. The meanings are in [herdr-sidebar's design](../../pi/herdr-sidebar/docs/design.md#states).
 
 ## Accessibility and limits
 
