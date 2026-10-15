@@ -9,7 +9,7 @@ Follow the [root workflow](../../CONTRIBUTING.md). Toolchain: Rust stable with C
 | 1 | `herdr-plugins/whiteboard/` | `cargo test --locked` | Wrapping, wide characters, sizes, hit tests, board paths, load errors, atomic save, synthetic mouse and key input, save conflicts and failures, rendering and clipping through `TestBackend`. Writes only to the temporary directory |
 | 2 | `herdr-plugins/whiteboard/` | `cargo clippy --all-targets --locked` | No warnings |
 | 3 | `herdr-plugins/whiteboard/` | `node --test` | `palette.rs` matches `@industrial-os/design-system/foundation/palette`; no color is written elsewhere |
-| 4 | `herdr-plugins/whiteboard/` | `cargo build --release --locked && python3 test/pty_smoke.py` | The built binary through `bin/whiteboard.sh pane` in a pseudo-terminal, with Herdr variables pointing at a temporary directory: mouse capture on and off, empty state, toolbar click, typing, drag, double-click, keyboard move, the per-workspace board file, and reopening it |
+| 4 | `herdr-plugins/whiteboard/` | `cargo build --release --locked && python3 test/pty_smoke.py` | The built binary through `bin/whiteboard.sh pane` in a pseudo-terminal, with Herdr variables pointing at a temporary directory: mouse capture and bracketed paste on and off, empty state, toolbar click, typing, bracketed and line-feed pastes, drag, double-click, keyboard move, the per-workspace board file, and reopening it |
 | 5 | Root | [Repository-wide checks](../../CONTRIBUTING.md#repository-wide-checks) | Links, guide map, entry points, whitespace, publication review |
 | 6 | Isolated Herdr | [Isolated Herdr check](#isolated-herdr-check) | Manifest, both actions, split and tab panes, mouse and focus through a Herdr client, resize, storage, reopen |
 | 7 | Live Herdr | Interactive use in the operator's own session | Requires the operator to link or install the plugin; not a development check |
@@ -150,3 +150,19 @@ Use a throwaway Herdr that shares nothing with a live session, as in the [Spaces
 **Failed, then fixed:** the first unit run exposed an existing test expectation that omitted the new transient edit flag; updated it. A new mouse test initially clicked outside the raw text rectangle rather than past a short row inside it; corrected its coordinate. Clippy initially reported a collapsible `if`; collapsed it. The first palette run lacked the root package link; the documented setup above fixed it without manifest changes. Independent review then found `foo___bar___baz` rendering `bar` as bold italic and `____` rendering as an empty line, both confirmed with a throwaway parser test; intraword underscore runs and empty pairs (including empty code) now stay literal, pinned in the literals test, and steps 1–4 passed again with the same counts.
 
 **Not run:** isolated or live Herdr, plugin installation/linking, manual terminal/font/Option-as-Meta checks, Linux. Earlier Herdr records do not verify these new interactions. No commit, push or PR was made.
+
+### Pasting line breaks
+
+2026-10-15, macOS, rustc 1.97.1, Node 22.23.0, Python 3.14.5, Herdr 0.9.3. Pasting multi-line text into a note lost its line breaks: a raw line feed arrives as `Ctrl+J`, which editing ignored, and a bracketed paste was dropped entirely. The board now enables bracketed paste, inserts pasted text at the cursor with `\r\n` and `\r` as newlines, tabs as two spaces and other control characters removed, and treats `Ctrl+J` as a newline. A paste outside editing changes nothing.
+
+**Passed**
+
+- Before the fix, the release binary in a pseudo-terminal saved `a\nb\n\nc` typed with line feeds as `abc` and as `""` when bracketed; with carriage returns it kept the breaks. After the fix all three saved `a\nb\n\nc`.
+- `cargo test --locked`: **62 passed**, 0 failed. New: paste at a mid-text cursor normalizes line endings, tabs and control characters, grows the note, and `Ctrl+J` inserts a newline; a paste outside editing changes nothing.
+- `cargo clippy --all-targets --locked`: no warnings; `node --test`: **2/2 passed** after the documented root `npm install`.
+- `cargo build --release --locked && python3 test/pty_smoke.py`: `PTY SMOKE OK`, now also checking bracketed paste is enabled and disabled on exit and that a bracketed paste and a raw line feed keep their breaks.
+- Isolated Herdr 0.9.3 with an attached 160×40 client: the board's bracketed-paste request reached the client's terminal, and a bracketed paste of a heading, blank line, numbered item and two bullets saved with every line break. Live `config.toml` and `plugins.json` checksums were unchanged.
+
+**Failed, then fixed:** the first new unit test checked note growth on a text item, which has no stored height; it now uses a note. The first PTY paste put `Ctrl+E` inside the bracketed paste, where it is pasted content, not a key; it now precedes the paste.
+
+**Not run:** the operator's live session and terminal, Linux. The spaces in the operator's report were not reproduced; the line-feed and bracketed-paste losses were.

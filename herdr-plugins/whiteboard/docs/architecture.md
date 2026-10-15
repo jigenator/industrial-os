@@ -8,7 +8,7 @@ Status: current. Evidence: the full source and tests in this directory, the mani
 | --- | --- | --- |
 | `herdr-plugin.toml` | The `cargo build` step, the `board` pane (a split by default) and the `open` and `open-tab` actions | Herdr 0.9.3 plugin manifest |
 | `bin/whiteboard.sh` | `pane`: run the binary, or print how to build it. `open` and `open-tab`: ask Herdr to open the pane in a split or a tab | POSIX `sh`, `HERDR_BIN_PATH` |
-| `src/main.rs` | Board path, load, terminal setup and restore (raw mode, alternate screen, mouse capture), the event loop, failure messages | `board`, `app`, `ui`, ratatui's crossterm |
+| `src/main.rs` | Board path, load, terminal setup and restore (raw mode, alternate screen, mouse capture, bracketed paste), the event loop, failure messages | `board`, `app`, `ui`, ratatui's crossterm |
 | `src/app.rs` | `App`: item/arrow selection, byte-boundary edit cursor and session cut buffer, drags, connect mode, double-click timing, buttons, saving and quitting | `board`, crossterm event types |
 | `src/board.rs` | `Item` ids, `Board` and arrows, shared pure connector routing clipped before cell iteration, byte-range word wrap for raw and rendered spans, raw cursor mapping, edit-aware text geometry, hit tests, JSON load and atomic save, `board_path` | `markdown`, serde, `unicode-width` |
 | `src/markdown.rs` | Pure line-local Markdown parser returning text spans with abstract style flags | Standard library |
@@ -33,7 +33,7 @@ Nothing imports `main.rs`; the model consumes the pure Markdown parser, and `ui.
 
 **Saving.** `Board::save` creates the directory, writes `<name>.json.tmp` and renames it over the board. `App` remembers the file's modification time from its last load or save. If the file changed since then, the first save is refused with an error, and a second save overwrites. Quitting saves first and stays open if that fails.
 
-**Exit.** Mouse capture is disabled and the terminal restored on a normal exit, on an error, and from the panic hook. Herdr closes the board's pane when the process exits; a tab placement closes with it.
+**Exit.** Mouse capture and bracketed paste are disabled and the terminal restored on a normal exit, on an error, and from the panic hook. Herdr closes the board's pane when the process exits; a tab placement closes with it.
 
 ## Invariants
 
@@ -46,7 +46,7 @@ Nothing imports `main.rs`; the model consumes the pure Markdown parser, and `ui.
 | Removing an item removes all its arrows, including empty text discarded after editing | `Board::remove` | `deleting_items_and_empty_text_removes_all_touching_arrows` |
 | Drawing never writes outside the frame, at any size | `ui::put`, `ui::intersect` | `tiny_terminals_render_without_panicking`, clipping tests |
 | Display geometry matches rendered/raw edit state; editing state never enters board JSON | `Item::display_lines`, `Item::size`, `App::begin_edit`, `App::finish_edit` | `text_geometry_tracks_display_state_without_changing_json`, UI Markdown tests |
-| The terminal is restored on every exit path | `main.rs` | `test/pty_smoke.py` checks mouse capture is disabled |
+| The terminal is restored on every exit path | `main.rs` | `test/pty_smoke.py` checks mouse capture and bracketed paste are disabled |
 
 ## Evolution and limits
 

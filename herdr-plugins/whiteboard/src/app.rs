@@ -101,6 +101,7 @@ impl App {
         match event {
             Event::Key(k) if k.kind == KeyEventKind::Press => self.key(k),
             Event::Mouse(m) => self.mouse(m),
+            Event::Paste(text) if self.editing => self.paste(&text),
             _ => {}
         }
     }
@@ -374,7 +375,10 @@ impl App {
                 change = Some((prev..cursor, String::new()))
             }
             KeyCode::Char('y') if ctrl => change = Some((cursor..cursor, self.cut_buffer.clone())),
-            KeyCode::Enter => change = Some((cursor..cursor, "\n".into())),
+            // Ctrl+J is how a raw line feed arrives, including from an unbracketed paste.
+            KeyCode::Enter | KeyCode::Char('j') if k.code == KeyCode::Enter || ctrl => {
+                change = Some((cursor..cursor, "\n".into()))
+            }
             KeyCode::Tab => change = Some((cursor..cursor, "  ".into())),
             KeyCode::Char(c) if !ctrl && !alt => change = Some((cursor..cursor, c.to_string())),
             _ => {}
@@ -393,6 +397,27 @@ impl App {
                 self.dirty = true;
             }
         }
+    }
+
+    /// Inserts pasted text at the cursor, keeping its line breaks; tabs become two spaces, like `Tab`.
+    fn paste(&mut self, text: &str) {
+        let Some(i) = self.selected else { return };
+        let text: String = text
+            .replace("\r\n", "\n")
+            .replace('\r', "\n")
+            .replace('\t', "  ")
+            .chars()
+            .filter(|&c| c == '\n' || !c.is_control())
+            .collect();
+        if text.is_empty() {
+            return;
+        }
+        let item = &mut self.board.items[i];
+        item.text.insert_str(self.cursor, &text);
+        self.cursor += text.len();
+        self.desired_column = None;
+        item.fit_height();
+        self.dirty = true;
     }
 
     /// Leaves edit mode; a text item left empty is removed.
@@ -825,6 +850,25 @@ mod tests {
         assert_eq!(app.board.items[0].color, 2);
         key(&mut app, KeyCode::Delete);
         assert!(app.board.items.is_empty());
+    }
+
+    #[test]
+    fn paste_and_ctrl_j_keep_line_breaks_at_the_cursor() {
+        let mut app = app();
+        app.spawn(Item { w: 10, h: 3, ..Item::note(0, 0, 0) });
+        typ(&mut app, "ab");
+        key(&mut app, KeyCode::Left);
+        app.handle(Event::Paste("# h\r\n\r\n- x\ry\tz\x07".into()));
+        assert_eq!(app.board.items[0].text, "a# h\n\n- x\ny  zb");
+        assert_eq!(app.cursor, "a# h\n\n- x\ny  z".len());
+        assert!(app.dirty && app.board.items[0].h as usize >= app.board.items[0].lines().len() + 2);
+        modified_key(&mut app, KeyCode::Char('j'), KeyModifiers::CONTROL);
+        assert_eq!(app.board.items[0].text, "a# h\n\n- x\ny  z\nb");
+
+        // Outside editing a paste changes nothing.
+        key(&mut app, KeyCode::Esc);
+        app.handle(Event::Paste("ignored".into()));
+        assert!(!app.board.items[0].text.contains("ignored"));
     }
 
     #[test]

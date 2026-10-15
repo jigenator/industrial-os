@@ -82,7 +82,10 @@ try:
     send(fd, "\x1b[C\x1b[C", 0.2)
     # Second note: readline inserts at the logical-line start, not at the end.
     click(fd, 17, 1)
+    assert b"\x1b[?2004h" in out, "bracketed paste not enabled"
     send(fd, "world\x01hello ")
+    # Bracketed and raw line-feed pastes both keep their line breaks.
+    send(fd, "\x05\x1b[200~\nline\r\nb\x1b[201~\nc")
     send(fd, "\x1b", 0.3)
     # Separate the notes, then drag the first note's right border onto the second.
     drag(fd, [(41, 14), (11, 6)])
@@ -90,6 +93,7 @@ try:
     send(fd, "q", 0.5)
     finish(pid, fd)
     assert b"\x1b[?1000l" in out, "mouse capture not disabled on exit"
+    assert b"\x1b[?2004l" in out, "bracketed paste not disabled on exit"
 
     sessions = os.listdir(os.path.join(state, "boards"))
     assert len(sessions) == 1 and sessions[0] != "default", sessions
@@ -101,7 +105,8 @@ try:
     assert note["text"] == "hello note" and (note["x"], note["y"]) == (58 + 2, 17), note
     assert text["text"] == "free text" and (text["x"], text["y"]) == (4, 23), text
 
-    second = next(i for i in items if i["text"] == "hello world")
+    second = next(i for i in items if i["text"].startswith("hello world"))
+    assert second["text"] == "hello world\nline\nb\nc", second
     assert saved["arrows"] == [{"from": note["id"], "to": second["id"]}], saved
     assert len({i["id"] for i in items}) == 3 and all(i["id"] for i in items)
 

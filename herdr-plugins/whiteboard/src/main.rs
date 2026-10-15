@@ -5,7 +5,7 @@ mod palette;
 mod ui;
 
 use app::App;
-use ratatui::crossterm::event::{self, DisableMouseCapture, EnableMouseCapture};
+use ratatui::crossterm::event::{self, DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture};
 use ratatui::crossterm::execute;
 use std::io::{self, BufRead, IsTerminal};
 use std::{env, process::ExitCode};
@@ -19,15 +19,16 @@ fn main() -> ExitCode {
     };
     let mut app = App::new(board, path);
 
-    // ratatui's panic hook restores the screen, then calls this one to stop mouse reporting.
+    // ratatui's panic hook restores the screen, then calls this one to stop mouse and paste reporting.
     let hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
-        let _ = execute!(io::stdout(), DisableMouseCapture);
+        let _ = execute!(io::stdout(), DisableMouseCapture, DisableBracketedPaste);
         hook(info);
     }));
     let mut terminal = ratatui::init();
-    let result = execute!(io::stdout(), EnableMouseCapture).and_then(|()| run(&mut terminal, &mut app));
-    let _ = execute!(io::stdout(), DisableMouseCapture);
+    let result =
+        execute!(io::stdout(), EnableMouseCapture, EnableBracketedPaste).and_then(|()| run(&mut terminal, &mut app));
+    let _ = execute!(io::stdout(), DisableMouseCapture, DisableBracketedPaste);
     ratatui::restore();
     match result {
         Ok(()) => ExitCode::SUCCESS,
