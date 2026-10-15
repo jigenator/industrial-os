@@ -82,7 +82,8 @@ Editing starts at the end and shows raw Markdown source; insertions happen at th
 | Cut previous word | `Ctrl+W` (whitespace-delimited), `Alt+Backspace` (alphanumeric) |
 | Cut next word / insert last cut | `Alt+D` / `Ctrl+Y` |
 | Delete character after / before | `Ctrl+D` or `Delete` / `Ctrl+H` or `Backspace` |
-| Insert newline / two spaces | `Enter` / `Tab` |
+| Insert newline / two spaces | `Enter` or `Ctrl+J` / `Tab` |
+| Paste at the cursor, keeping line breaks | the terminal's paste |
 
 `Ctrl+C`, `Ctrl+S` and `Ctrl+Q` keep their global meanings in every mode.
 
