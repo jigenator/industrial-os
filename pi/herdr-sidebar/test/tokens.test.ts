@@ -35,7 +35,7 @@ test("the key list matches the canonical contract document", async () => {
 	assert.ok(line, "docs/token-contract.md states the full key list");
 	assert.deepEqual([...TOKEN_KEYS], line[1].split(" "));
 	assert.equal(TOKEN_KEYS.length, Number(line[2]));
-	assert.equal(TOKEN_KEYS.length, 52);
+	assert.equal(TOKEN_KEYS.length, 53);
 });
 
 test("the spike's verified rows: state, fitted project and goal time; bar and CMP", () => {
@@ -124,6 +124,64 @@ test("row 1 project: full basename, cut to 24 cells alone or fitted to 15 beside
 	assert.equal(width(fitted.proj), 15);
 	assert.equal(build({ active: "/work/trailing/" }).proj, "trailing");
 	assert.equal(build({ active: "/" }).proj, "/");
+});
+
+test("row 1 flag: ● after the project, which gives up ` · ●` so the goal time keeps its column", () => {
+	const goal = { status: "active", usedSeconds: 9120, activeSince: NOW - 60_000 };
+	const at = (overrides: Record<string, unknown>, extra: Record<string, unknown> = {}) => buildTokens({ snapshot: snap(overrides), herdr: "working", now: NOW, home: HOME, ...extra });
+	// Unflagged rows are unchanged.
+	assert.deepEqual(at({ goal }, { flagged: false }), at({ goal }));
+	assert.equal(at({ goal }).flag, undefined);
+	// Text area 24: project · ● · goal, or project · ● alone.
+	const withGoal = at({ goal }, { flagged: true });
+	assert.equal(withGoal.flag, "●"); assert.equal(withGoal.proj, `tatsu-cli${B.repeat(2)}`); assert.equal(withGoal.gt, `${B}2h33m`);
+	assert.equal(width(withGoal.proj) + 3 + width(withGoal.flag) + 3 + width(withGoal.gt), 24);
+	// The goal time and the separator before it sit where they do unflagged.
+	assert.equal(width(withGoal.proj) + 3 + width(withGoal.flag), width(at({ goal }).proj));
+	const alone = at({}, { flagged: true });
+	assert.equal(alone.flag, "●"); assert.equal(alone.proj, "tatsu-cli");
+	// Long, wide and combining names are cut to at most 20 cells alone or fitted to exactly 11 beside the goal.
+	const cases: [string, string, string][] = [
+		["a-very-long-project-name-that-overflows", "a-very-long-project…", "a-very-lon…"],
+		["漢字漢字漢字漢字漢字漢字", "漢字漢字漢字漢字漢…", "漢字漢字漢…"],
+		["a漢字漢字漢字漢字漢字漢字", "a漢字漢字漢字漢字漢…", `a漢字漢字${B}…`],
+		["e\u0301".repeat(30), `${"e\u0301".repeat(19)}…`, `${"e\u0301".repeat(10)}…`],
+		["👩‍💻".repeat(12), `${"👩‍💻".repeat(9)}…`, `${"👩‍💻".repeat(5)}…`],
+	];
+	for (const [name, cutAlone, fitted] of cases) {
+		const solo = at({}, { flagged: true, workspaceLabel: name }), beside = at({ goal }, { flagged: true, workspaceLabel: name });
+		assert.equal(solo.proj, cutAlone, name); assert.ok(width(solo.proj) <= 20, name);
+		assert.equal(beside.proj, fitted, name); assert.equal(width(beside.proj), 11, name);
+		assert.equal(beside.gt, `${B}2h33m`); assert.equal(solo.flag, "●"); assert.equal(beside.flag, "●");
+	}
+	// IDL/UNK use proj_idle with the same cells; a paused goal keeps the column too.
+	const idle = buildTokens({ snapshot: snap({ goal: { status: "paused", usedSeconds: 30, activeSince: null } }), herdr: "idle", flagged: true, now: NOW, home: HOME });
+	assert.equal(idle.proj_idle, `tatsu-cli${B.repeat(2)}`); assert.equal(idle.gt_off, `${B.repeat(3)}30s`); assert.equal(idle.flag, "●");
+	// Unknown project and no snapshot: the flag follows the state code.
+	assert.deepEqual(buildTokens({ snapshot: null, herdr: null, flagged: true, now: NOW, home: HOME }), { g1: `· UNK${B}`, flag: "●", g2_au0: "??AU", bar_unk: "─────────── --%", cmpx: "CMP×??" });
+	const noProject = at({ active: null, goal }, { flagged: true });
+	assert.equal(noProject.proj, undefined); assert.equal(noProject.flag, "●"); assert.equal(noProject.gt, `${B}2h33m`);
+	const labelOnly = buildTokens({ snapshot: null, herdr: "idle", workspaceLabel: "A SPACE whose name is long", flagged: true, now: NOW, home: HOME });
+	assert.equal(labelOnly.proj_idle, "A SPACE whose name …"); assert.equal(labelOnly.flag, "●");
+});
+
+test("the flag is independent of state, the subagents-finished flag, visibility, question, decay and timing", () => {
+	const base = { herdr: "idle", visible: false, lastAccessAt: NOW, home: HOME };
+	const snapshots = [snap(), snap({ units: 2 }), snap({ question: { text: "Go?", more: 0 } }), snap({ root: { working: false, lastSettledAt: NOW } }), null];
+	for (const snapshot of snapshots) for (const herdr of ["working", "blocked", "done", "idle", "unknown", null]) for (const visible of [true, false, null])
+		for (const subagentsFinishedAt of [null, NOW - 1000]) for (const elapsed of [0, 3_600_000, 86_400_000]) {
+			const input = { ...base, snapshot, herdr, visible, subagentsFinishedAt, now: NOW + elapsed };
+			const flagged = buildTokens({ ...input, flagged: true }), plain = buildTokens(input);
+			assert.equal(flagged.flag, "●");
+			assert.equal(plain.flag, undefined);
+			assert.equal(flagged.g1, plain.g1);
+			// Only row 1's project changes; every other row is identical.
+			const { flag, proj, proj_idle, ...rest } = flagged;
+			const { proj: p, proj_idle: pi, ...plainRest } = plain;
+			assert.deepEqual(rest, plainRest);
+			assert.equal(nextTokenChange({ ...input, flagged: true }), nextTokenChange(input));
+			assert.equal(nextLastAccessAt({ ...input, flagged: true }), nextLastAccessAt(input));
+		}
 });
 
 test("row 1 goal: active and paused keys, pi-goal's duration format, and no goal", () => {
@@ -364,8 +422,8 @@ test("every built value fits its cell budget and Herdr's limits", () => {
 		raw({ active: `/w/${long}`, goal: { status: "active", usedSeconds: 1e7, activeSince: NOW }, question: { text: `${wide} ${long}`, more: 999, since: NOW } }),
 		raw({ active: `/w/${wide}`, workspace: { git: { kind: "repository", active: { branch: wide, dirty: true } }, github: { kind: "repository" } }, pr: { kind: "open", number: 9_999_999 }, model: { provider: "p", id: long }, thinking: long, root: { working: true, lastSettledAt: 0 }, phase: { kind: "tool", tool: long, target: wide, since: 0 } }),
 	];
-	for (const data of snapshots) for (const herdr of ["working", "idle", "done"]) {
-		const t = buildTokens({ snapshot: readSnapshot(data, SESSION), herdr, paneLabel: wide, now: NOW, home: HOME });
+	for (const data of snapshots) for (const herdr of ["working", "idle", "done"]) for (const flagged of [false, true]) {
+		const t = buildTokens({ snapshot: readSnapshot(data, SESSION), herdr, paneLabel: wide, flagged, now: NOW, home: HOME });
 		for (const [key, value] of Object.entries(t) as [string, string][]) {
 			assert.ok(TOKEN_KEYS.includes(key), key);
 			assert.ok([...value].length <= 80, key);
@@ -373,6 +431,9 @@ test("every built value fits its cell budget and Herdr's limits", () => {
 			assert.ok(width(value) <= cells, `${key} ${width(value)}`);
 			assert.equal(value, value.trim(), key);
 		}
+		// Row 1 with Herdr's separators fits the 24-cell text area.
+		const row1 = [t.proj ?? t.proj_idle, t.flag, t.gt ?? t.gt_off].filter((value) => value !== undefined);
+		assert.ok(row1.reduce((cells, value) => cells + width(value), 3 * (row1.length - 1)) <= 24);
 	}
 });
 
@@ -526,13 +587,15 @@ test("all eight decay families select one variant with identical text/width; oth
 	assert.deepEqual([...covered].sort(), [...DECAY_FAMILIES].sort());
 });
 
-test("the maximal applicable snapshot stores 15 tokens, not the 52-key contract", () => {
+test("the maximal applicable snapshot stores 15 tokens, 16 with the flag, not the 53-key contract", () => {
 	const snapshot = snap({
 		pr: { kind: "open", number: 42 }, goal: { status: "paused", usedSeconds: 12 },
 		question: { text: "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen", more: 1 },
 	});
 	for (const elapsed of [0, 3_600_000, 14_400_000, 86_400_000]) {
-		const tokens = buildTokens({ snapshot, herdr: "idle", visible: false, lastAccessAt: NOW, now: NOW + elapsed, home: HOME });
-		assert.equal(Object.keys(tokens).length, 15);
+		for (const flagged of [false, true]) {
+			const tokens = buildTokens({ snapshot, herdr: "idle", visible: false, lastAccessAt: NOW, flagged, now: NOW + elapsed, home: HOME });
+			assert.equal(Object.keys(tokens).length, flagged ? 16 : 15);
+		}
 	}
 });

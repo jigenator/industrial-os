@@ -10,7 +10,7 @@ A Pi extension that fills Herdr's agents sidebar with this Pi session's state: o
    PNE  · Updating sideb… ·    12s
 ```
 
-- **Row 1:** the agent state (`QNS` while a question waits for you, `BLK`, `WRK`, `SUB` while subagents run and the main agent does not, `DNE` when it or its subagents finished unseen, `IDL`, `UNK`), the Herdr SPACE name (workspace label; Active folder basename while unknown) and, with a [pi-goal](https://www.npmjs.com/package/@narumitw/pi-goal) goal, its time.
+- **Row 1:** the agent state (`QNS` while a question waits for you, `BLK`, `WRK`, `SUB` while subagents run and the main agent does not, `DNE` when it or its subagents finished unseen, `IDL`, `UNK`), the Herdr SPACE name (workspace label; Active folder basename while unknown), a red `●` while the session is [flagged](#flag) and, with a [pi-goal](https://www.npmjs.com/package/@narumitw/pi-goal) goal, its time.
 - **Row 2:** active units (`AU`), the context used toward compaction as a bar and percentage, and the compaction count (`CMP`).
 - **Row 3:** the Active branch, with `*` when it has changes, or its directory; an open pull request's number.
 - **Row 4:** the model and thinking level.
@@ -18,7 +18,7 @@ A Pi extension that fills Herdr's agents sidebar with this Pi session's state: o
 
 Unknown values show as unknown (`??AU`, `--%`, `CMP×??`), never as zero. The exact tokens, widths and rules are in the [token contract](docs/token-contract.md); the experience is in the [design](docs/design.md).
 
-The extension only displays. It reads the snapshot that the separate signals-collector extension publishes inside Pi, and Herdr's own agent status, SPACE label and pane label for its pane; it runs no Git, GitHub or CodexBar command and reads no session file. It also reports the question wait to Herdr's blocked state, which rpiv's ask-user-question did before.
+The extension only displays, apart from the `/flag` reminder below. It reads the snapshot that the separate signals-collector extension publishes inside Pi, and Herdr's own agent status, SPACE label and pane label for its pane; it runs no Git, GitHub or CodexBar command and reads no session file. It also reports the question wait to Herdr's blocked state, which rpiv's ask-user-question did before.
 
 ACT and MDL alone fade after 1 hour, 4 hours and 1 day without access.
 Access means visible in the focused workspace's active tab or row 1 showing
@@ -27,6 +27,16 @@ but text, widths and all other rows stay unchanged. Age is memory only and
 resets on `/reload` or Pi restart. See [the design](docs/design.md).
 Update the reporter and the complete Pi row override together; an old fragment
 cannot render the new stage keys.
+
+## Flag
+
+Type `/flag` in Pi to mark the session with a red dot beside its SPACE name, and `/flag` again to clear it. Pi answers `Flagged` or `Flag cleared`.
+
+```text
+ ○ IDL  · rpiv-mono · ●
+```
+
+The flag is yours: it stays through focus, visits, work and completion until you clear it, and it does not sort, pin or change Herdr's state. It is saved in the Pi session as a custom entry through Pi's session API, so it returns after `/reload` and when you resume the session, follows `/tree`, and a fork or clone starts with the value at the fork point; a new session starts without it. Pi saves a new session only at its first message, so a flag set before that is lost if Pi exits first. The dot leaves the sidebar when Pi exits. Outside Pi's terminal UI inside Herdr, `/flag` saves nothing and warns where Pi can show a message. See [the design](docs/design.md#the-manual-flag).
 
 ## Install
 

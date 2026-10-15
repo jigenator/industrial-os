@@ -12,13 +12,13 @@ Scope reviewed: the complete source and tests at the revision that added the pro
 
 **Rule:** dependency direction is `extension → snapshot, tokens, sender, herdr-client`; `sender` takes a request function and imports only the key list and reply type; `tokens` imports only `snapshot` types, Node `path` and Pi TUI's `visibleWidth`; `snapshot` and `herdr-client` import no Pi module. **Reason:** the builder and sender stay testable without Pi or a socket. **Check:** review imports.
 
-**Rule:** display only. The extension's inputs are the snapshot channels and Herdr's status, labels and visibility for its own pane. It never spawns a process, reads a file, or writes anything except Herdr pane tokens and `herdr:blocked`. **Reason:** collection belongs to the signals-collector, once per session; a second collector would duplicate work and disagree. **Check:** `grep -n "child_process\|node:fs" src/*.ts` finds nothing.
+**Rule:** display only. The extension's inputs are the snapshot channels, Herdr's status, labels and visibility for its own pane, and the session's `/flag` reminder. It never spawns a process, reads or writes a file, or writes anything except Herdr pane tokens, `herdr:blocked` and the `/flag` custom entry. The one exception to display-only is that explicit user preference: it is saved with `pi.appendEntry` and read from `ctx.sessionManager.getBranch()`, Pi's public session API, only inside the reporting gate; never by opening session files. **Reason:** collection belongs to the signals-collector, once per session; a second collector would duplicate work and disagree. The flag is not collected data but the user's own choice for this session. **Check:** `grep -n "child_process\|node:fs" src/*.ts` finds nothing; `test/extension.test.ts`.
 
 **Rule:** the collector is another project, so its snapshot type is not imported; `src/snapshot.ts` restates the consumed subset and validates it. **Check:** review imports against the [snapshot inputs](architecture.md#inputs).
 
 ## Functions and state
 
-**Rule:** `buildTokens`, `nextTokenChange`, `nextLastAccessAt` and `decayStage` are pure functions of their input; the clock, home directory, last-access timestamp and Herdr state are arguments. Decay thresholds live only in `DECAY_THRESHOLDS_MS` in `src/tokens.ts`; runtime state is memory only. **Check:** `test/tokens.test.ts` passes fixed times.
+**Rule:** `buildTokens`, `nextTokenChange`, `nextLastAccessAt` and `decayStage` are pure functions of their input; the clock, home directory, last-access timestamp and Herdr state are arguments. Decay thresholds live only in `DECAY_THRESHOLDS_MS` in `src/tokens.ts`; runtime state is memory only, apart from the `/flag` value, which Pi's session holds and the runtime rebuilds with `savedFlag`. **Check:** `test/tokens.test.ts` passes fixed times.
 
 **Rule:** one runtime per session owns every subscription, connection and timer, and `dispose` releases them all on shutdown, reload and replacement. Asynchronous callbacks check that their runtime is still current. Timers are unref'd; the status socket is unref'd. **Check:** `test/extension.test.ts` asserts no request and no subscription after shutdown.
 
@@ -36,7 +36,7 @@ Scope reviewed: the complete source and tests at the revision that added the pro
 
 - `test/tokens.test.ts`: every rule of the token contract, the snapshot validation, and the key list read from [the contract](token-contract.md).
 - `test/sender.test.ts` and `test/herdr-client.test.ts`: the modules against `test/fake-herdr.ts`.
-- `test/extension.test.ts`: the real installed Pi loader, runner and event bus, a fake collector extension loaded before or after, and the fake Herdr server.
+- `test/extension.test.ts`: the real installed Pi loader, runner and event bus, a fake collector extension loaded before or after, and the fake Herdr server; for `/flag`, Pi's real session runtime with session files in a temporary directory (command dispatch, reload, new, resume, fork and tree navigation), with no model call.
 - `test/signals.test.ts`: both real collector/sidebar package load orders through Pi's loader, offline Git/gh/CodexBar fixtures, real usage/context shapes and lifecycle-to-token assertions. Test-only sibling package paths follow status-bar's composition precedent; production imports never cross project boundaries.
 
 **Rule:** no test contacts a live Herdr. Each extension case sets the Herdr environment to the fake server and restores it. **Rule:** `test/fake-herdr.ts` models only behavior read in the Herdr source of the version in use, and cites it.

@@ -1,5 +1,5 @@
-// Pure token builder: a snapshot, Herdr's agent status for this pane, the subagents-finished flag, a clock and the
-// home path in; the sidebar token map out. The canonical rules are in docs/token-contract.md; this module performs no I/O.
+// Pure token builder: a snapshot, Herdr's agent status for this pane, the subagents-finished flag, the manual flag, a
+// clock and the home path in; the sidebar token map out. The canonical rules are in docs/token-contract.md; this module performs no I/O.
 import { basename, dirname, isAbsolute, relative, sep } from "node:path";
 import { visibleWidth } from "@earendil-works/pi-tui";
 import type { SidebarSnapshot } from "./snapshot.ts";
@@ -13,7 +13,7 @@ type StagedKey = `${DecayKey}_d${1 | 2 | 3}`;
 const stageKeys = (stage: 1 | 2 | 3): StagedKey[] => DECAY_FAMILIES.map((key) => `${key}_d${stage}`);
 
 export const TOKEN_KEYS = [
-	"g1", "proj", "proj_idle", "gt", "gt_off", "g2_au", "g2_au0", "bar", "bar_warn", "bar_crit", "bar_idle", "bar_unk", "cmpx", "g3", "br",
+	"g1", "proj", "proj_idle", "flag", "gt", "gt_off", "g2_au", "g2_au0", "bar", "bar_warn", "bar_crit", "bar_idle", "bar_unk", "cmpx", "g3", "br",
 	"br_dirty", "dir", "prn", "prn_off", "g4", "mthink", "g5", "pane", "ask_l1", "ask_l2", "ask_l3", "ev_rdy_text", "ph_age",
 	...stageKeys(1), ...stageKeys(2), ...stageKeys(3),
 ] as const;
@@ -22,7 +22,8 @@ export type TokenMap = Partial<Record<TokenKey, string>>;
 
 export type HerdrStatus = "idle" | "working" | "blocked" | "done" | "unknown";
 // `subagentsFinishedAt` is this extension's own "subagents finished unseen" flag: when it was set, or null.
-export type SidebarInput = { snapshot: SidebarSnapshot | null; herdr: HerdrStatus | null; workspaceLabel?: string | null; paneLabel?: string | null; visible?: boolean | null; lastAccessAt?: number; subagentsFinishedAt?: number | null; now: number; home: string };
+// `flagged` is the session's manual `/flag` reminder.
+export type SidebarInput = { snapshot: SidebarSnapshot | null; herdr: HerdrStatus | null; workspaceLabel?: string | null; paneLabel?: string | null; visible?: boolean | null; lastAccessAt?: number; subagentsFinishedAt?: number | null; flagged?: boolean; now: number; home: string };
 
 // Herdr trims ASCII whitespace but keeps U+2800, so every padding cell is U+2800.
 export const BLANK = "\u2800";
@@ -30,6 +31,9 @@ const TEXT_CELLS = 24;
 const LEFT_CELLS = 15;
 const RIGHT_CELLS = 6;
 const BAR_CELLS = 11;
+// The manual flag and Herdr's separator before it, ` · ●`, taken from the project's cells.
+const FLAG = "●";
+const FLAG_CELLS = 4;
 const ASK_LINES = 3;
 // Herdr caps a token value at 80 characters. A cut segment keeps at most this many code points, so padding and the
 // ask-line indent always fit; only text with many combining marks per cell reaches it.
@@ -64,11 +68,11 @@ export function cut(text: string, cells: number): string {
 
 const padEnd = (text: string, cells: number) => text + BLANK.repeat(Math.max(0, cells - visibleWidth(text)));
 
-/** The left value beside a right value: exactly 15 cells, padded or cut to 14 plus `…` in the last cell. */
-export function fitLeft(text: string): string {
-	if (visibleWidth(text) <= LEFT_CELLS && codePoints(text) <= SEGMENT_CODE_POINTS) return padEnd(text, LEFT_CELLS);
-	const kept = cut(text, LEFT_CELLS).slice(0, -1);
-	return padEnd(kept, LEFT_CELLS - 1) + "…";
+/** The left value beside a right value: exactly `cells` (15) cells, padded or cut with `…` in the last cell. */
+export function fitLeft(text: string, cells = LEFT_CELLS): string {
+	if (visibleWidth(text) <= cells && codePoints(text) <= SEGMENT_CODE_POINTS) return padEnd(text, cells);
+	const kept = cut(text, cells).slice(0, -1);
+	return padEnd(kept, cells - 1) + "…";
 }
 
 /** A right-aligned value in the 6-cell slot, padded on the left. A longer value is cut. */
@@ -214,13 +218,18 @@ export function buildTokens(input: SidebarInput): TokenMap {
 	const state = displayState(input);
 	const [icon, code] = STATES[state];
 
-	// Row 1: state, Herdr SPACE (Active basename while unknown), goal time.
+	// Row 1: state, Herdr SPACE (Active basename while unknown), manual flag, goal time.
 	tokens.g1 = `${icon} ${code}${BLANK}`;
 	const goal = snapshot && goalClock(snapshot);
 	const goalTime = goal ? rightSlot(formatDuration(seconds(goal, now))) : undefined;
 	if (goalTime) set(snapshot!.goal!.status === "active" ? "gt" : "gt_off", goalTime);
+	if (input.flagged) tokens.flag = FLAG;
 	const project = clean(input.workspaceLabel ?? "") || (snapshot?.active ? clean(basename(snapshot.active) || snapshot.active) : "");
-	if (project) set(state === "idle" || state === "unknown" ? "proj_idle" : "proj", left(project, goalTime));
+	if (project) {
+		// The flag takes its cells from the project, so the goal time keeps its column.
+		const flagCells = input.flagged ? FLAG_CELLS : 0;
+		set(state === "idle" || state === "unknown" ? "proj_idle" : "proj", goalTime === undefined ? cut(project, TEXT_CELLS - flagCells) : fitLeft(project, LEFT_CELLS - flagCells));
+	}
 
 	// Row 2: units, used context, compactions. Always all three; unknown is never zero.
 	const units = snapshot?.units ?? null;

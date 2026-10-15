@@ -1,15 +1,27 @@
 import { homedir } from "node:os";
 import { isAbsolute } from "node:path";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, SessionEntry } from "@earendil-works/pi-coding-agent";
 import { herdrRequest, watchPaneState, type HerdrTarget } from "./herdr-client.ts";
 import { createTokenSender } from "./sender.ts";
 import { READY_CHANNEL, REQUEST_CHANNEL, SNAPSHOT_CHANNEL, readSnapshot, type SidebarSnapshot } from "./snapshot.ts";
-import { buildTokens, nextLastAccessAt, nextSubagentsFinishedAt, nextTokenChange, type HerdrStatus, type SidebarInput } from "./tokens.ts";
+import { buildTokens, nextLastAccessAt, nextSubagentsFinishedAt, nextTokenChange, type HerdrStatus, type SidebarInput, type TokenMap } from "./tokens.ts";
 
 // The blocked-state signal Herdr's Pi integration (herdr-agent-state.ts) counts: one true per question wait, one false.
 export const BLOCKED_CHANNEL = "herdr:blocked";
 // Time-based values re-render when their text changes, but never more than once a second.
 const MIN_RENDER_INTERVAL_MS = 1_000;
+// The custom session entry type `/flag` appends, with data `{ flagged: boolean }`.
+export const FLAG_ENTRY = "industrial-os:herdr-sidebar:flag";
+
+/** The session's manual flag: the latest valid saved entry on the active branch, otherwise false. */
+export function savedFlag(branch: readonly SessionEntry[]): boolean {
+	for (let i = branch.length - 1; i >= 0; i--) {
+		const entry = branch[i];
+		const flagged = entry.type === "custom" && entry.customType === FLAG_ENTRY ? (entry.data as { flagged?: unknown } | undefined)?.flagged : undefined;
+		if (typeof flagged === "boolean") return flagged;
+	}
+	return false;
+}
 
 /** The pane this process runs in, when it runs inside Herdr; otherwise undefined and the extension stays inert. */
 export function herdrTarget(env: NodeJS.ProcessEnv): HerdrTarget | undefined {
@@ -27,10 +39,12 @@ type Runtime = {
 	paneLabel: string | null;
 	visible: boolean | null;
 	subagentsFinishedAt: number | null;
+	flagged: boolean;
 	question: boolean;
 	lastRender: number;
 	lastAccessAt: number;
 	timer?: NodeJS.Timeout;
+	send(tokens: TokenMap): void;
 	dispose(): Promise<void>;
 };
 
@@ -39,12 +53,12 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 
 	const inputAt = (r: Runtime, now: number): SidebarInput => ({
 		snapshot: r.snapshot, herdr: r.herdr, workspaceLabel: r.workspaceLabel, paneLabel: r.paneLabel, visible: r.visible,
-		lastAccessAt: r.lastAccessAt, subagentsFinishedAt: r.subagentsFinishedAt, now, home: homedir(),
+		lastAccessAt: r.lastAccessAt, subagentsFinishedAt: r.subagentsFinishedAt, flagged: r.flagged, now, home: homedir(),
 	});
 	// Capture the end of a seen/working/unknown interval before changing its inputs.
 	const updateAccess = (r: Runtime) => { r.lastAccessAt = nextLastAccessAt(inputAt(r, Date.now())); };
 
-	function render(r: Runtime, send: (tokens: ReturnType<typeof buildTokens>) => void) {
+	function render(r: Runtime) {
 		if (runtime !== r) return;
 		if (r.timer) clearTimeout(r.timer);
 		r.timer = undefined;
@@ -52,10 +66,10 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 		r.lastRender = now;
 		r.lastAccessAt = nextLastAccessAt(inputAt(r, now));
 		const input = inputAt(r, now);
-		send(buildTokens(input));
+		r.send(buildTokens(input));
 		const due = nextTokenChange(input);
 		if (due === null) return;
-		r.timer = setTimeout(() => render(r, send), Math.max(due - now, r.lastRender + MIN_RENDER_INTERVAL_MS - now));
+		r.timer = setTimeout(() => render(r), Math.max(due - now, r.lastRender + MIN_RENDER_INTERVAL_MS - now));
 		r.timer.unref();
 	}
 
@@ -83,14 +97,15 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 			// Automatic SPACE labels and pane.rename can change labels without events; re-read with each renewal.
 			onRenew: () => {
 				// Also refresh access even when watch inputs have not changed; no extra interval.
-				if (runtime === r) render(r, send);
+				if (runtime === r) render(r);
 				watch?.refresh();
 			},
 		});
-		const send = (tokens: ReturnType<typeof buildTokens>) => sender.update(tokens);
 		const unsubscribe: (() => void)[] = [];
 		const r: Runtime = {
-			sessionId: ctx.sessionManager.getSessionId(), snapshot: null, herdr: null, workspaceLabel: null, paneLabel: null, visible: null, subagentsFinishedAt: null, question: false, lastRender: 0, lastAccessAt: Date.now(),
+			sessionId: ctx.sessionManager.getSessionId(), snapshot: null, herdr: null, workspaceLabel: null, paneLabel: null, visible: null, subagentsFinishedAt: null,
+			flagged: savedFlag(ctx.sessionManager.getBranch()), question: false, lastRender: 0, lastAccessAt: Date.now(),
+			send: (tokens) => sender.update(tokens),
 			async dispose() {
 				if (r.timer) clearTimeout(r.timer);
 				r.timer = undefined;
@@ -111,7 +126,7 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 			r.snapshot = snapshot;
 			updateFinished(r, previousUnits);
 			setQuestion(r, snapshot.question !== null);
-			render(r, send);
+			render(r);
 		};
 		const request = () => pi.events.emit(REQUEST_CHANNEL, { reply: (snapshot: unknown) => apply(snapshot, true) });
 		unsubscribe.push(pi.events.on(SNAPSHOT_CHANNEL, (data) => apply(data, false)));
@@ -127,11 +142,11 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 			r.paneLabel = state.paneLabel;
 			r.visible = state.visible;
 			updateFinished(r, r.snapshot?.units ?? null);
-			render(r, send);
+			render(r);
 		});
 		// The collector may load before or after this extension; one that loads later announces itself with ready.
 		request();
-		if (runtime === r && !r.snapshot) render(r, send);
+		if (runtime === r && !r.snapshot) render(r);
 	}
 
 	async function stop() {
@@ -142,4 +157,31 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 
 	pi.on("session_start", (_event, ctx) => start(ctx));
 	pi.on("session_shutdown", () => stop());
+	// Tree navigation moves the active branch, and with it the latest saved flag.
+	pi.on("session_tree", (_event, ctx) => {
+		const r = runtime;
+		if (!r) return;
+		r.flagged = savedFlag(ctx.sessionManager.getBranch());
+		render(r);
+	});
+
+	pi.registerCommand("flag", {
+		description: "Toggle this session's red reminder dot beside its SPACE name in Herdr's sidebar",
+		async handler(args, ctx) {
+			if (args.trim()) {
+				if (ctx.hasUI) ctx.ui.notify("Usage: /flag", "warning");
+				return;
+			}
+			const r = runtime;
+			// Only a reporting runtime saves the flag, so nothing is saved where it cannot show.
+			if (!r) {
+				if (ctx.hasUI) ctx.ui.notify("/flag needs Pi's terminal UI inside Herdr; nothing was flagged", "warning");
+				return;
+			}
+			r.flagged = !r.flagged;
+			pi.appendEntry(FLAG_ENTRY, { flagged: r.flagged });
+			render(r);
+			ctx.ui.notify(r.flagged ? "Flagged" : "Flag cleared", "info");
+		},
+	});
 }
