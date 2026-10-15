@@ -260,18 +260,19 @@ impl App {
             return Vec::new();
         }
         let from = &self.board.items[source];
-        let (to, to_outer) = self
+        let (to, to_outer, to_id) = self
             .arrow_target()
             .map(|i| {
                 let target = &self.board.items[i];
-                (target.rect(), target.outer_box())
+                (target.rect(), target.outer_box(), target.id)
             })
             .unwrap_or_else(|| {
                 let (x, y) = self.to_world(self.mouse.0, self.mouse.1);
                 let point = (x, y, x.saturating_add(1), y.saturating_add(1));
-                (point, point)
+                (point, point, from.id)
             });
-        board::route(from.rect(), to, from.outer_box(), to_outer, false, self.world_clip())
+        let obstacles = self.board.obstacles(&[from.id, to_id]);
+        board::route(from.rect(), to, from.outer_box(), to_outer, &obstacles, false, self.world_clip())
     }
 
     /// Arrows move the selected item, Shift+arrows resize a selected note, and with nothing
@@ -858,6 +859,7 @@ mod tests {
                 app.board.items[0].rect(),
                 app.board.items[1].outer_box(),
                 app.board.items[0].outer_box(),
+                &[],
                 false,
                 app.world_clip()
             )

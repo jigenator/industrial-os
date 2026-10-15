@@ -121,3 +121,15 @@ Use a throwaway Herdr that shares nothing with a live session, as in the [Spaces
 **Failed, then fixed:** no validation failures during this review-fix run. Removed quadratic prefix measurement and reserved the virtual insertion row. Widths now sum `UnicodeWidthChar` cells, matching drawing, as approved during review. An independent re-review found that corner-resizing a note while editing could still put the cursor on the border; resizing now refits the note while editing, and the cursor test fails without that fix. The re-review compared wrapping with the previous implementation over 503,883 ASCII, CJK and combining-mark cases with no differences; loaded control characters such as tabs now wrap at their drawn width of zero.
 
 **Not run:** a fresh isolated-client check after these fixes, live Herdr, Linux or manual terminal/Option-as-Meta checks. The separate client evidence above predates these fixes.
+
+### Bends around other items
+
+2026-10-15, same toolchain. An arrow with one bend now takes the other bend when the usual one would pass under a third item.
+
+**Passed**
+
+- `cargo test --locked`: **49 passed**, 0 failed. New: a three-note layout where the usual bend sits under the first note routes down and in from the side, returns to the usual bend once the note moves away, and keeps the usual bend when both are blocked. One rendering test now expects the clear bend.
+- `cargo clippy --all-targets --locked`: no warnings; `node --test`: **2/2 passed**; `cargo build --release --locked && python3 test/pty_smoke.py`: `PTY SMOKE OK`.
+- The release binary in a private tmux session drew the operator's reported layout before and after: the bend that had been hidden under a note now runs clear of it.
+
+**Not run:** an isolated or live Herdr check, Linux, other terminals.

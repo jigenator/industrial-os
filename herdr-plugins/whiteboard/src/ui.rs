@@ -374,11 +374,11 @@ mod tests {
         app.selected = None;
         app.connect_target = None;
         app.connecting = false;
+        // The middle note blocks the usual bend, so the arrow drops first, then turns right.
         let cells = app.board.arrow_cells(app.board.arrows[0], true, app.world_clip());
-        assert!(cells.iter().any(|c| c.2 == '┓'));
+        assert!(cells.contains(&(3, 7, '┗')) && cells.last() == Some(&(24, 7, '▶')));
         term.draw(|f| render(f, &mut app)).unwrap();
-        let (x, y, _) = cells.iter().find(|c| c.2 == '┓').unwrap();
-        assert_eq!(term.backend().buffer()[(*x as u16, *y as u16 + 1)].symbol(), "┓");
+        assert_eq!(term.backend().buffer()[(3, 8)].symbol(), "┗");
     }
 
     #[test]

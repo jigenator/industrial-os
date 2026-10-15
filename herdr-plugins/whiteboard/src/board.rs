@@ -220,22 +220,26 @@ pub struct Arrow {
 
 pub type ArrowCell = (i32, i32, char);
 
+/// A box as (left, top, right, bottom), with exclusive right and bottom edges.
+pub type Bounds = (i32, i32, i32, i32);
+
+/// Light line glyphs by direction bits: north 1, east 2, south 4, west 8.
+const LINES: [(char, u8); 11] = [
+    ('─', 10),
+    ('│', 5),
+    ('╭', 6),
+    ('╮', 12),
+    ('╰', 3),
+    ('╯', 9),
+    ('├', 7),
+    ('┤', 13),
+    ('┬', 14),
+    ('┴', 11),
+    ('┼', 15),
+];
+
 /// Unions light line directions; arrowheads take precedence over lines.
 pub fn merge_arrow_glyph(existing: char, incoming: char) -> char {
-    // Bits are north, east, south, west.
-    const LINES: [(char, u8); 11] = [
-        ('─', 10),
-        ('│', 5),
-        ('╭', 6),
-        ('╮', 12),
-        ('╰', 3),
-        ('╯', 9),
-        ('├', 7),
-        ('┤', 13),
-        ('┬', 14),
-        ('┴', 11),
-        ('┼', 15),
-    ];
     if matches!(incoming, '▶' | '◀' | '▲' | '▼') {
         return incoming;
     }
@@ -248,15 +252,17 @@ pub fn merge_arrow_glyph(existing: char, incoming: char) -> char {
 }
 
 /// Classifies and centres on real rects; outer boxes place the shadow-clearing endpoints.
+/// With gaps on both axes, the bend that crosses no obstacle wins, horizontal exit first.
 pub fn route(
-    from: (i32, i32, i32, i32),
-    to: (i32, i32, i32, i32),
-    from_outer: (i32, i32, i32, i32),
-    to_outer: (i32, i32, i32, i32),
+    from: Bounds,
+    to: Bounds,
+    from_outer: Bounds,
+    to_outer: Bounds,
+    obstacles: &[Bounds],
     heavy: bool,
-    clip: (i32, i32, i32, i32),
+    clip: Bounds,
 ) -> Vec<ArrowCell> {
-    let widen = |(l, t, r, b): (i32, i32, i32, i32)| (i64::from(l), i64::from(t), i64::from(r), i64::from(b));
+    let widen = |(l, t, r, b): Bounds| (i64::from(l), i64::from(t), i64::from(r), i64::from(b));
     let (l, t, r, b) = widen(from);
     let (ll, tt, rr, bb) = widen(to);
     let (ol, ot, or, ob) = widen(from_outer);
@@ -265,34 +271,59 @@ pub fn route(
     if cl >= cr || ct >= cb {
         return Vec::new();
     }
+    // Start, bend and end cells, and the head.
+    type Candidate = ((i64, i64), (i64, i64), (i64, i64), char);
     let xgap = r <= ll || rr <= l;
     let ygap = b <= tt || bb <= t;
-    let (start, bend, end, head) = if xgap && !ygap {
+    let mut candidates: Vec<Candidate> = Vec::new();
+    if xgap && !ygap {
         let y = (t.max(tt) + b.min(bb) - 1).div_euclid(2);
         let (x, xx, head) = if r <= ll { (or, oll - 1, '▶') } else { (ol - 1, orr, '◀') };
-        ((x, y), (xx, y), (xx, y), head)
+        candidates.push(((x, y), (xx, y), (xx, y), head));
     } else if ygap && !xgap {
         let x = (l.max(ll) + r.min(rr) - 1).div_euclid(2);
         let (y, yy, head) = if b <= tt { (ob, ott - 1, '▼') } else { (ot - 1, obb, '▲') };
-        ((x, y), (x, yy), (x, yy), head)
+        candidates.push(((x, y), (x, yy), (x, yy), head));
     } else if xgap && ygap {
+        // Horizontal exit, vertical entry.
         let y = (t + b - 1).div_euclid(2);
         let x = if r <= ll { or } else { ol - 1 };
         let xx = (ll + rr - 1).div_euclid(2);
         let (yy, head) = if b <= tt { (ott - 1, '▼') } else { (obb, '▲') };
-        ((x, y), (xx, y), (xx, yy), head)
-    } else {
+        candidates.push(((x, y), (xx, y), (xx, yy), head));
+        // Vertical exit, horizontal entry.
+        let x = (l + r - 1).div_euclid(2);
+        let y = if b <= tt { ob } else { ot - 1 };
+        let yy = (tt + bb - 1).div_euclid(2);
+        let (xx, head) = if r <= ll { (oll - 1, '▶') } else { (orr, '◀') };
+        candidates.push(((x, y), (x, yy), (xx, yy), head));
+    }
+    fn crosses(&(start, bend, end, _): &Candidate, boxes: impl Iterator<Item = (i64, i64, i64, i64)> + Clone) -> bool {
+        [(start, bend), (bend, end)].into_iter().any(|(a, z)| {
+            boxes.clone().any(|(l, t, r, b)| {
+                a.0.min(z.0) < r && a.0.max(z.0) >= l && a.1.min(z.1) < b && a.1.max(z.1) >= t
+            })
+        })
+    }
+    // A route that would cross either item's own shadow is never drawn, rather than a broken fragment.
+    candidates.retain(|c| !crosses(c, [(ol, ot, or, ob), (oll, ott, orr, obb)].into_iter()));
+    let clear = candidates.iter().position(|c| !crosses(c, obstacles.iter().map(|&o| widen(o))));
+    let Some(&(start, bend, end, head)) = candidates.get(clear.unwrap_or(0)) else {
         return Vec::new();
     };
-    // If shadows leave no clear route, hide the whole arrow rather than a broken fragment.
-    for (a, z) in [(start, bend), (bend, end)] {
-        if [(ol, ot, or, ob), (oll, ott, orr, obb)]
-            .iter()
-            .any(|&(l, t, r, b)| a.0.min(z.0) < r && a.0.max(z.0) >= l && a.1.min(z.1) < b && a.1.max(z.1) >= t)
-        {
-            return Vec::new();
-        }
-    }
+    // A bend that lands on the start cell leaves a straight line.
+    let bend = if bend == start { end } else { bend };
+    let toward = |(x, y): (i64, i64), p: (i64, i64)| match () {
+        _ if p.1 < y => 1,
+        _ if p.0 > x => 2,
+        _ if p.1 > y => 4,
+        _ if p.0 < x => 8,
+        _ => 0,
+    };
+    let corner = LINES
+        .iter()
+        .find(|&&(_, bits)| bits == toward(bend, start) | toward(bend, end))
+        .map(|&(glyph, _)| glyph);
     let mut cells = Vec::new();
     // Clip the two segments before visiting cells, so distant endpoints cost no extra work.
     for (segment, (a, z)) in [(start, bend), (bend, end)].into_iter().enumerate() {
@@ -314,13 +345,8 @@ pub fn route(
             if !(segment == 1 && (x, y) == bend) {
                 let glyph = if (x, y) == end {
                     head
-                } else if (x, y) == bend && start.0 != bend.0 && end.1 != bend.1 {
-                    match (start.0 < x, end.1 > y) {
-                        (true, true) => '╮',
-                        (true, false) => '╯',
-                        (false, true) => '╭',
-                        (false, false) => '╰',
-                    }
+                } else if let Some(corner) = corner.filter(|_| (x, y) == bend) {
+                    corner
                 } else if horizontal {
                     '─'
                 } else {
@@ -400,13 +426,21 @@ impl Board {
         self.arrows.retain(|a| a.from != id && a.to != id);
     }
 
-    pub fn arrow_cells(&self, arrow: Arrow, heavy: bool, clip: (i32, i32, i32, i32)) -> Vec<ArrowCell> {
+    pub fn arrow_cells(&self, arrow: Arrow, heavy: bool, clip: Bounds) -> Vec<ArrowCell> {
         let from = self.items.iter().find(|i| i.id == arrow.from);
         let to = self.items.iter().find(|i| i.id == arrow.to);
         match (from, to) {
-            (Some(from), Some(to)) => route(from.rect(), to.rect(), from.outer_box(), to.outer_box(), heavy, clip),
+            (Some(from), Some(to)) => {
+                let obstacles = self.obstacles(&[from.id, to.id]);
+                route(from.rect(), to.rect(), from.outer_box(), to.outer_box(), &obstacles, heavy, clip)
+            }
             _ => Vec::new(),
         }
+    }
+
+    /// Outer boxes of every item except `skip`, for arrows to route around.
+    pub fn obstacles(&self, skip: &[u64]) -> Vec<Bounds> {
+        self.items.iter().filter(|i| !skip.contains(&i.id)).map(Item::outer_box).collect()
     }
 
     pub fn hit_arrow(&self, x: i32, y: i32) -> Option<usize> {
@@ -474,8 +508,8 @@ mod tests {
     use super::*;
 
     const CLIP: (i32, i32, i32, i32) = (-100, -100, 100, 100);
-    fn route(from: (i32, i32, i32, i32), to: (i32, i32, i32, i32), heavy: bool) -> Vec<ArrowCell> {
-        super::route(from, to, from, to, heavy, CLIP)
+    fn route(from: Bounds, to: Bounds, heavy: bool) -> Vec<ArrowCell> {
+        super::route(from, to, from, to, &[], heavy, CLIP)
     }
 
     #[test]
@@ -678,6 +712,7 @@ mod tests {
                 (2_000_000_000, 0, 2_000_000_003, 3),
                 (-2_000_000_000, 0, -1_999_999_997, 3),
                 (2_000_000_000, 0, 2_000_000_003, 3),
+                &[],
                 false,
                 (-2, 0, 3, 3)
             ),
@@ -712,6 +747,39 @@ mod tests {
         let cells = board.arrow_cells(arrow, false, CLIP);
         assert_eq!(cells.first(), Some(&(9, 1, '─')));
         assert_eq!(cells.last(), Some(&(19, 1, '▶')));
+    }
+
+    #[test]
+    fn l_route_bends_the_other_way_around_a_note_in_its_path() {
+        // A note on the left, a tall note to the right and a third note below the first.
+        let mut board = Board {
+            items: vec![
+                Item { id: 1, w: 24, h: 7, ..Item::note(16, 9, 0) },
+                Item { id: 2, w: 39, h: 14, ..Item::note(75, 5, 0) },
+                Item { id: 3, w: 24, h: 7, ..Item::note(24, 27, 0) },
+            ],
+            arrows: vec![Arrow { from: 2, to: 3 }],
+        };
+        // The usual bend, at column 35 on row 11, would sit under note 1; this one goes down,
+        // then left into note 3's side.
+        let cells = board.arrow_cells(board.arrows[0], false, CLIP);
+        let (l, t, r, b) = board.items[0].outer_box();
+        assert!(cells.iter().all(|&(x, y, _)| !(x >= l && x < r && y >= t && y < b)));
+        assert_eq!(cells.first(), Some(&(94, 20, '│')));
+        assert!(cells.contains(&(94, 30, '╯')));
+        assert_eq!(cells.last(), Some(&(49, 30, '◀')));
+
+        // With nothing in the way, the usual horizontal-exit bend returns.
+        board.items[0].x = 200;
+        let cells = board.arrow_cells(board.arrows[0], false, CLIP);
+        assert_eq!(cells.first(), Some(&(74, 11, '─')));
+        assert!(cells.contains(&(35, 11, '╭')));
+        assert_eq!(cells.last(), Some(&(35, 26, '▼')));
+
+        // When both bends are blocked, it keeps the usual one rather than vanishing.
+        board.items[0] = Item { id: 1, w: 80, h: 30, ..Item::note(20, 8, 0) };
+        let cells = board.arrow_cells(board.arrows[0], false, CLIP);
+        assert_eq!(cells.first(), Some(&(74, 11, '─')));
     }
 
     #[test]
