@@ -1,6 +1,6 @@
 # Herdr sidebar token contract
 
-Status: current. This is the canonical copy of the token contract between this extension, which reports the tokens, and the [Herdr configuration](../../../herdr/README.md), whose rows render them. The geometry was frozen on 2026-10-08 for the parallel signals-collector and herdr-sidebar work and verified live in Herdr 0.9.3 that day. The approved follow-up uses context used and the Herdr SPACE label; the later state follow-up adds `◐ SUB` and the subagents-finished `DNE` without new keys; the manual flag adds the one key `flag`. The collector snapshot contract is unchanged. Change it here first, then the builder in `src/tokens.ts`, then the rows in `herdr/sidebar.toml`; the checks in both projects read the key list below.
+Status: current. This is the canonical copy of the token contract between this extension, which reports the tokens, and the [Herdr configuration](../../../herdr/README.md), whose rows render them. The geometry was frozen on 2026-10-08 for the parallel signals-collector and herdr-sidebar work and verified live in Herdr 0.9.3 that day. The approved follow-up uses context used and the Herdr SPACE label; the state follow-ups add `◐ SUB`, `◐ RUN` and the unseen-work `DNE` without new keys; the manual flag adds the one key `flag`. The collector snapshot contract is unchanged. Change it here first, then the builder in `src/tokens.ts`, then the rows in `herdr/sidebar.toml`; the checks in both projects read the key list below.
 
 The snapshot fields named here (`snapshot.active`, `snapshot.question` and the rest) are the signals-collector's snapshot contract v1; [architecture](architecture.md#inputs) describes how this extension receives and validates it.
 
@@ -12,22 +12,23 @@ Herdr trims ASCII whitespace but keeps U+2800, so every padding cell is U+2800. 
 
 ## Row 1
 
-- `g1`: `<icon> <CODE>` + one U+2800. The first state that applies, from `snapshot.question`, Herdr's `agent_status` for this pane (which tracks only Pi's root agent) and `snapshot.units`:
+- `g1`: `<icon> <CODE>` + one U+2800. The first state that applies, from `snapshot.question`, Herdr's `agent_status` for this pane (which tracks only Pi's root agent) and `snapshot.units`, plus the validated pi-background-tasks running count:
   1. question `× QNS`: `snapshot.question` is non-null.
   2. blocked `× BLK`: Herdr reports blocked.
   3. working `◐ WRK`: Herdr reports working; the main agent supersedes its subagents.
   4. subagents `◐ SUB`: `snapshot.units` ≥ 1 while Herdr reports idle, done or unknown.
-  5. done `✓ DNE`: Herdr reports done, or the subagents-finished flag below is set.
-  6. idle `○ IDL` or unknown `· UNK`: Herdr reports idle, or unknown or not yet read.
-- The subagents-finished flag is the sidebar's own unseen completion, because Herdr makes `done` only from the root agent. It is set when `snapshot.units` falls from ≥ 1 to 0 between consecutive snapshots (unknown units never count and keep the flag as it is) while Herdr does not report working and the pane is not known to be seen. It is cleared when the pane is seen, when Herdr reports working, or when units rise to ≥ 1. Seen mirrors Herdr's rule: the pane's tab is the active tab of Herdr's focused workspace, from `pane.get` (`tab_id`) and `workspace.get` (`focused`, `active_tab_id`), re-resolved on `workspace.focused`, `tab.focused`, `pane.focused` and reconnect. Unknown visibility counts as not seen. [Architecture](architecture.md#seen-and-the-subagents-finished-flag) gives the sources and limits.
-- `proj` (WRK/SUB/QNS/BLK/DNE) or `proj_idle` (IDL/UNK): the Herdr SPACE name (the pane's workspace `label`), with the full basename of `snapshot.active` only while the label is unknown. Resolve with `pane.get` → `workspace_id` → `workspace.get`; re-resolve on `workspace.renamed`, `workspace.updated`, `pane.moved` and reconnect.
+  5. background tasks `◐ RUN`: at least one task is running in this session’s pi-background-tasks registry while Herdr reports idle, done or unknown and no subagents are active. Unknown background state never selects RUN.
+  6. done `✓ DNE`: Herdr reports done, or the unseen-work-finished flag below is set.
+  7. idle `○ IDL` or unknown `· UNK`: Herdr reports idle, or unknown or not yet read.
+- The unseen-work-finished flag is the sidebar's own unseen completion, because Herdr makes `done` only from the root agent. It is set when either `snapshot.units` or the background running count falls from ≥ 1 to 0 between consecutive known observations while Herdr does not report working and the pane is not known seen. Unknown counts never count as zero or create a completion. An unknown task count between running and zero loses that task completion, including any coincident subagent completion suppressed while the task was running. It is cleared when the pane is seen, Herdr reports working, or either count is ≥ 1; ongoing work in either source prevents a completion marker. Seen mirrors Herdr's rule: the pane's tab is the active tab of Herdr's focused workspace, from `pane.get` (`tab_id`) and `workspace.get` (`focused`, `active_tab_id`), re-resolved on `workspace.focused`, `tab.focused`, `pane.focused` and reconnect. Unknown visibility counts as not seen. [Architecture](architecture.md#seen-and-the-unseen-work-finished-flag) gives the sources and limits.
+- `proj` (WRK/SUB/RUN/QNS/BLK/DNE) or `proj_idle` (IDL/UNK): the Herdr SPACE name (the pane's workspace `label`), with the full basename of `snapshot.active` only while the label is unknown. Resolve with `pane.get` → `workspace_id` → `workspace.get`; re-resolve on `workspace.renamed`, `workspace.updated`, `pane.moved` and reconnect.
 - `flag`: `●` while this Pi session's manual reminder is set with `/flag`, otherwise absent. It comes after `proj`/`proj_idle` and before `gt`/`gt_off`, so Herdr separates it with its own ` · `; the project gives up those 4 cells as [geometry](#geometry) states. It is independent of `g1`: no state, focus, visibility, work, completion or age sets or clears it, and it never decays. Without a project it follows `g1`. The value is the latest valid saved flag on Pi's active session branch; [architecture](architecture.md#the-manual-flag) gives the persistence.
 - `gt` (goal status active) or `gt_off` (any other goal status): pi-goal's own duration format (`<60s → Ns`, `<60m → Nm`, else `HhMm`) of `usedSeconds` plus, when active, `now − activeSince`. Right slot. Absent when `goal` is null.
 
 ## Row 2 (always all three present)
 
 - `g2_au` (units ≥ 1) or `g2_au0` (units 0 or unknown): two-digit `NNAU`, capped at `99AU`; unknown is `??AU`.
-- `bar` / `bar_warn` / `bar_crit` / `bar_idle` / `bar_unk`: 11-cell bar of context used, `━` lit and `─` unlit, lit = ceil(used × 11 / 100), then one space, then the used percent as two digits and `%`. used = max(0, min(99, floor(usedPercent))), so `99%` means 99% or more. Warning from 70% used and critical from 90% used. At the compaction budget the collector holds `usedPercent` at 100, giving a fully lit critical bar. IDL and UNK use `bar_idle` instead of a zone token, with identical text/shape in decorative grey (#717171), not bold. WRK, SUB, QNS, BLK and DNE keep the zone tokens. Unknown context: `bar_unk` = 11 × `─` + space + `--%`.
+- `bar` / `bar_warn` / `bar_crit` / `bar_idle` / `bar_unk`: 11-cell bar of context used, `━` lit and `─` unlit, lit = ceil(used × 11 / 100), then one space, then the used percent as two digits and `%`. used = max(0, min(99, floor(usedPercent))), so `99%` means 99% or more. Warning from 70% used and critical from 90% used. At the compaction budget the collector holds `usedPercent` at 100, giving a fully lit critical bar. IDL and UNK use `bar_idle` instead of a zone token, with identical text/shape in decorative grey (#717171), not bold. WRK, SUB, RUN, QNS, BLK and DNE keep the zone tokens. Unknown context: `bar_unk` = 11 × `─` + space + `--%`.
 - `cmpx`: `CMP×NN`, two digits, capped at `CMP×99`; unknown `CMP×??`.
 
 The [Spaces plugin](../../../herdr-plugins/spaces/docs/token-contract.md) consumes
@@ -51,7 +52,7 @@ nor the collector contract.
 The first applicable form wins: pending question, DNE finished marker, then known pane name. No label known means no pane-name row; there is no fallback. This row never access-decays.
 
 - Question pending: `g5` = `ASK` + U+2800; `ask_l1`…`ask_l3` = the question text, plus ` (+N)` when `more > 0`, word-wrapped to 24 cells, at most 3 lines, the last cut with `…`. `ask_l2` and `ask_l3` start with 7 U+2800 so they align under the text column.
-- State `DNE` (with a snapshot): `g5` = `RDY` + U+2800; `ev_rdy_text` = `finished`; `ph_age` = time since the subagents-finished flag was set when it is set, otherwise since `root.lastSettledAt` (absent when unknown).
+- State `DNE` (with a snapshot): `g5` = `RDY` + U+2800; `ev_rdy_text` = `finished`; `ph_age` = time since the unseen-work-finished flag was set when it is set, otherwise since `root.lastSettledAt` (absent when unknown).
 - Otherwise, in every state including IDL/UNK: `g5` = `PNE` + U+2800; `pane` = the non-empty Herdr pane `label` from `pane.get` → `result.pane.label`, sanitized and fitted to the available width with `…` on truncation. `ph_age` = time since `phase.since`, in pi-goal's format, right slot, only while the snapshot has a working phase. Without a phase there is no right slot and the label has all 24 cells. Without a known label neither `g5`, `pane` nor phase age is reported. Phase codes, targets and fallback phase/tool text are not reported.
 
 Re-read on `pane.updated` (wire `pane_updated`), reconnect and the existing 20-second renewal. Herdr 0.9.3's `pane.rename` emits no event, so an unannounced rename can lag by one renewal cycle, like an automatic SPACE label. Source: [rename handler](https://github.com/herdrdev/herdr/blob/v0.9.3/src/app/api/panes.rs#L1479-L1503); [event schema](https://github.com/herdrdev/herdr/blob/v0.9.3/src/api/schema/events.rs).
@@ -61,7 +62,7 @@ Re-read on `pane.updated` (wire `pane_updated`), reconnect and the existing 20-s
 Rows 3 and 4 alone decay by time since last access: **d0 < 1 hour,
 d1 ≥ 1 hour, d2 ≥ 4 hours, d3 ≥ 1 day**. Access means the pane is
 visible (its tab is the active tab of the focused workspace) or row 1 shows
-WRK or SUB; access refreshes continuously while either holds. QNS and BLK
+WRK, SUB or RUN; access refreshes continuously while either holds. QNS and BLK
 alone do not count as work. Unknown visibility or Herdr status is never
 guessed old: load starts at d0 and unknown inputs keep it at d0, refreshing
 the conservative access baseline. Returning to known inactivity starts aging

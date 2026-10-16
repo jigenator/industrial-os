@@ -25,7 +25,7 @@ Non-goals:
 
 ## Constraints
 
-- Inputs are only the signals-collector snapshot on Pi's event bus, Herdr's own agent status, SPACE label, pane label and visibility for the pane, and the session's saved `/flag` entry, read through Pi's public session API.
+- Inputs are only the signals-collector snapshot on Pi's event bus, optional pi-background-tasks public EventBus status, Herdr's own agent status, SPACE label, pane label and visibility for the pane, and the session's saved `/flag` entry, read through Pi's public session API.
 - Reports only from Pi's interactive TUI mode inside a Herdr pane; subagent children and non-interactive runs stay silent.
 - Herdr's limits hold: 32 tokens per pane, 16 per request, 80 characters per value, and a 24-cell text area in a 36-column sidebar.
 - Runtime dependencies are Node's standard library and Pi's host peers.

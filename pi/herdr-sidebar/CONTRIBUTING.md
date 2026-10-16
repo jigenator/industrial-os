@@ -149,3 +149,29 @@ Record each run with its date, Node, Pi and Herdr versions and results, keeping 
 - Isolated `printf '' | pi --mode rpc --no-extensions --extension .` with temporary `PI_CODING_AGENT_DIR`/`XDG_CACHE_HOME`: **exit 0**. RPC `get_commands` lists `flag` from this extension; RPC `prompt` `/flag` with `--no-session` was `handled` and emitted only the gate warning, with no model call; that saving is skipped is shown by the automated gate test, not by this run. Package-load and gate evidence, not interactive evidence.
 - Spaces `node --test`: **44/44 passed**, unchanged code; it reads only `g2_au`/`g2_au0`.
 - Interactive Pi/Herdr (step 5), live rendering of the dot and alignment, fonts drawing `●` at ambiguous width: **not run**. No live socket, configuration, Pi install, commit or push. Type check, formatter, linter and build: **not run**, none configured. Mermaid rendering: **not run**, diagrams unchanged.
+
+### Background-task RUN state
+
+2026-10-17, macOS, Node 22.23.0, installed Pi 1.2.0; installed pi-background-tasks 2.6.9 source read only, Herdr 0.9.3 parser. Every `HERDR_*` variable was unset for validation; tests set only temporary fake-Herdr targets.
+
+**Passed (automated)**
+
+- Host discovery `export PI_HOST_ROOT="$(npm root -g)/@earendil-works/pi-coding-agent"` and `test -f "$PI_HOST_ROOT/dist/index.js"`: passed, no host installation.
+- Focused `node --experimental-strip-types --test test/background-tasks.test.ts test/tokens.test.ts test/extension.test.ts`: **67/67 passed**. Full `PI_HOST_ROOT="$PI_HOST_ROOT" npm test`: **111/111 passed**, 0 failed/skipped/cancelled, including a repeat after the simplification pass. Six new tests cover response/terminal validation, RUN precedence and token choices, shared unseen completion and age, clearing on seen/work/rise, unknown/error/absent producer/timeout, correlation and stale responses, one in-flight request with coalesced invalidation, all seven task-starting tools, terminal/reconnect/session-start/renewal triggers, runtime replacement/shutdown fencing and deadline disposal. The existing virtual-clock test now also proves RUN keeps ACT/MDL fresh across two unseen days and restarts a full hour on becoming unknown. The 53-key list remains unchanged; background tasks do not add AU.
+- Root `npm install`: linked the existing local design-system package, 0 vulnerabilities, no tracked manifest/lockfile change. Required only for Herdr's checks.
+- `cd herdr && node --test`: **20/20 passed**, including the updated RUN accent rule and unchanged key/row limits. `HERDR_CONFIG_PATH="$PWD/sidebar.toml" herdr config check`: **config: ok**, exit 0. `node check-config.mjs`: sidebar, Spaces, theme and both merges **config: ok**; invalid row and theme controls **rejected, exit 1**, as expected. Only checkout/temporary files were read; no server contacted.
+- Repository-wide changed local Markdown links/anchors, guide inventory, exact CLAUDE entrypoints, both whitespace checks, new-contributor documentation and exact-file publication/import/color reviews: passed. No new dependency, palette value, cross-project production import, task-file access or copied upstream code. Nothing staged.
+
+**Passed (non-interactive Pi load)**
+
+- `printf '' | pi --mode rpc --no-extensions --extension .` with temporary `PI_CODING_AGENT_DIR` and `XDG_CACHE_HOME`: **exit 0**, no output. This proves loading only, not live Pi or Herdr behavior.
+
+**Failed then fixed:** the initial implementation runs passed; the later expected failing retry regression and its fix are recorded below.
+
+**Not run:** live/interactive Pi or Herdr, live background-task producer, configuration merge/reload, installation, other platforms/fonts/color depths, Mermaid rendering (diagram unchanged; no renderer on PATH). Type check, formatter, linter and build remain unconfigured. No commit, push or PR.
+
+**Simplification pass:** reviewed the complete diff against `origin/main` (95154d8). Reused the existing render/renewal path and finished flag, renamed it rather than adding a parallel completion mechanism, removed a redundant stale-count conversion and a no-op test listener. No capabilities handshake, polling interval, new token keys or task-manager imports. Herdr changes are only the RUN color rule/check, design text and the README's WRK/SUB/RUN access correction. Required automated and parser/load checks were repeated after simplification.
+
+**Limits:** background-task scope, update lag and missed observations are documented in [architecture](docs/architecture.md#inputs); no live adoption was performed.
+
+**Review fixes (2026-10-17):** added one disposable 1-second retry for the producer's exact validated startup-unavailable refusal, with no retry loop; removed private repository URLs/local paths from the publication diff, documented request-id retention and unknown-gap completion loss, centralized lag guidance in architecture, and added the Herdr verification record. The new regression **failed before the fix** (exit 1: no delayed retry), then the focused retry/validation checks **passed 2/2**; final sidebar `npm test` **113/113**, Herdr `node --test` **20/20**, and `herdr config check` on a temporary sidebar copy **config: ok, exit 0**. Coverage also now includes subagents finishing during RUN followed by DNE when tasks end. No live Pi/Herdr check was run.

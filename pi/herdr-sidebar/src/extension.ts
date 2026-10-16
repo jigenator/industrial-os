@@ -1,10 +1,12 @@
+import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { isAbsolute } from "node:path";
 import type { ExtensionAPI, ExtensionContext, SessionEntry } from "@earendil-works/pi-coding-agent";
+import { BACKGROUND_REQUEST_CHANNEL, BACKGROUND_RESPONSE_CHANNEL, BACKGROUND_TERMINAL_CHANNEL, BACKGROUND_REQUEST_SCHEMA, BACKGROUND_START_TOOLS, BACKGROUND_TIMEOUT_MS, readBackgroundRunning, isBackgroundUnavailable, isBackgroundTerminal } from "./background-tasks.ts";
 import { herdrRequest, watchPaneState, type HerdrTarget } from "./herdr-client.ts";
 import { createTokenSender } from "./sender.ts";
 import { READY_CHANNEL, REQUEST_CHANNEL, SNAPSHOT_CHANNEL, readSnapshot, type SidebarSnapshot } from "./snapshot.ts";
-import { buildTokens, nextLastAccessAt, nextSubagentsFinishedAt, nextTokenChange, type HerdrStatus, type SidebarInput, type TokenMap } from "./tokens.ts";
+import { buildTokens, nextLastAccessAt, nextFinishedAt, nextTokenChange, type HerdrStatus, type SidebarInput, type TokenMap } from "./tokens.ts";
 
 // The blocked-state signal Herdr's Pi integration (herdr-agent-state.ts) counts: one true per question wait, one false.
 export const BLOCKED_CHANNEL = "herdr:blocked";
@@ -38,7 +40,9 @@ type Runtime = {
 	workspaceLabel: string | null;
 	paneLabel: string | null;
 	visible: boolean | null;
-	subagentsFinishedAt: number | null;
+	finishedAt: number | null;
+	backgroundRunning: number | null;
+	refreshBackground(): void;
 	flagged: boolean;
 	question: boolean;
 	lastRender: number;
@@ -53,7 +57,7 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 
 	const inputAt = (r: Runtime, now: number): SidebarInput => ({
 		snapshot: r.snapshot, herdr: r.herdr, workspaceLabel: r.workspaceLabel, paneLabel: r.paneLabel, visible: r.visible,
-		lastAccessAt: r.lastAccessAt, subagentsFinishedAt: r.subagentsFinishedAt, flagged: r.flagged, now, home: homedir(),
+		lastAccessAt: r.lastAccessAt, backgroundRunning: r.backgroundRunning, finishedAt: r.finishedAt, flagged: r.flagged, now, home: homedir(),
 	});
 	// Capture the end of a seen/working/unknown interval before changing its inputs.
 	const updateAccess = (r: Runtime) => { r.lastAccessAt = nextLastAccessAt(inputAt(r, Date.now())); };
@@ -73,9 +77,9 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 		r.timer.unref();
 	}
 
-	// Advances the "subagents finished unseen" flag from the units before this change to the current inputs.
-	function updateFinished(r: Runtime, previousUnits: number | null) {
-		r.subagentsFinishedAt = nextSubagentsFinishedAt({ previousUnits, units: r.snapshot?.units ?? null, herdr: r.herdr, visible: r.visible, subagentsFinishedAt: r.subagentsFinishedAt, now: Date.now() });
+	// Advance unseen completion from the two independently observed work counts.
+	function updateFinished(r: Runtime, previousUnits = r.snapshot?.units ?? null, previousBackgroundRunning = r.backgroundRunning) {
+		r.finishedAt = nextFinishedAt({ previousUnits, previousBackgroundRunning, backgroundRunning: r.backgroundRunning, units: r.snapshot?.units ?? null, herdr: r.herdr, visible: r.visible, finishedAt: r.finishedAt, now: Date.now() });
 	}
 
 	// Balanced: one true when a question becomes pending, one false when it clears or the runtime ends.
@@ -97,16 +101,24 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 			// Automatic SPACE labels and pane.rename can change labels without events; re-read with each renewal.
 			onRenew: () => {
 				// Also refresh access even when watch inputs have not changed; no extra interval.
-				if (runtime === r) render(r);
+				if (runtime === r) { render(r); r.refreshBackground(); }
 				watch?.refresh();
 			},
 		});
 		const unsubscribe: (() => void)[] = [];
+		let backgroundRequest: { id: string; stale: boolean; timer: NodeJS.Timeout } | undefined;
+		let backgroundRetry: NodeJS.Timeout | undefined;
+		let backgroundRetryUsed = false;
 		const r: Runtime = {
-			sessionId: ctx.sessionManager.getSessionId(), snapshot: null, herdr: null, workspaceLabel: null, paneLabel: null, visible: null, subagentsFinishedAt: null,
+			sessionId: ctx.sessionManager.getSessionId(), snapshot: null, herdr: null, workspaceLabel: null, paneLabel: null, visible: null, finishedAt: null, backgroundRunning: null,
+			refreshBackground,
 			flagged: savedFlag(ctx.sessionManager.getBranch()), question: false, lastRender: 0, lastAccessAt: Date.now(),
 			send: (tokens) => sender.update(tokens),
 			async dispose() {
+				if (backgroundRetry) clearTimeout(backgroundRetry);
+				backgroundRetry = undefined;
+				if (backgroundRequest) clearTimeout(backgroundRequest.timer);
+				backgroundRequest = undefined;
 				if (r.timer) clearTimeout(r.timer);
 				r.timer = undefined;
 				for (const off of unsubscribe) off();
@@ -116,6 +128,42 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 			},
 		};
 		runtime = r;
+		function finishBackground(count: number | null, unavailable = false) {
+			if (runtime !== r || !backgroundRequest) return;
+			const stale = backgroundRequest.stale;
+			clearTimeout(backgroundRequest.timer);
+			backgroundRequest = undefined;
+			if (!stale || count === null) {
+				const previous = r.backgroundRunning;
+				updateAccess(r);
+				r.backgroundRunning = count;
+				updateFinished(r, r.snapshot?.units ?? null, previous);
+				render(r);
+			}
+			if (unavailable && !backgroundRetryUsed) {
+				// One delayed retry lets a later-loaded producer finish session_start without adding a polling loop.
+				backgroundRetryUsed = true;
+				backgroundRetry = setTimeout(() => { backgroundRetry = undefined; refreshBackground(); }, 1_000);
+				backgroundRetry.unref();
+			} else if (stale) refreshBackground();
+		}
+		function refreshBackground() {
+			if (runtime !== r || backgroundRetry) return;
+			// Coalesce invalidations, but never accept an answer older than a trigger.
+			if (backgroundRequest) { backgroundRequest.stale = true; return; }
+			const id = randomUUID();
+			const timer = setTimeout(() => finishBackground(null), BACKGROUND_TIMEOUT_MS);
+			timer.unref();
+			backgroundRequest = { id, stale: false, timer };
+			pi.events.emit(BACKGROUND_REQUEST_CHANNEL, { schema_version: BACKGROUND_REQUEST_SCHEMA, request_id: id, operation: "status", payload: {} });
+		}
+		unsubscribe.push(pi.events.on(BACKGROUND_RESPONSE_CHANNEL, (data) => {
+			if (runtime !== r || !backgroundRequest || (data as { request_id?: unknown } | null)?.request_id !== backgroundRequest.id) return;
+			finishBackground(readBackgroundRunning(data), isBackgroundUnavailable(data));
+		}));
+		unsubscribe.push(pi.events.on(BACKGROUND_TERMINAL_CHANNEL, (data) => {
+			if (isBackgroundTerminal(data)) refreshBackground();
+		}));
 		const apply = (data: unknown, requested: boolean) => {
 			if (runtime !== r) return;
 			const snapshot = readSnapshot(data, r.sessionId);
@@ -136,16 +184,19 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 		}));
 		watch = watchPaneState(target, (state) => {
 			if (runtime !== r) return;
+			const reconnected = r.herdr === null && state.status !== null;
 			updateAccess(r);
 			r.herdr = state.status;
 			r.workspaceLabel = state.workspaceLabel;
 			r.paneLabel = state.paneLabel;
 			r.visible = state.visible;
-			updateFinished(r, r.snapshot?.units ?? null);
+			updateFinished(r);
 			render(r);
+			if (reconnected) refreshBackground();
 		});
 		// The collector may load before or after this extension; one that loads later announces itself with ready.
 		request();
+		refreshBackground();
 		if (runtime === r && !r.snapshot) render(r);
 	}
 
@@ -157,6 +208,9 @@ export default function herdrSidebar(pi: ExtensionAPI) {
 
 	pi.on("session_start", (_event, ctx) => start(ctx));
 	pi.on("session_shutdown", () => stop());
+	pi.on("tool_execution_end", (event) => {
+		if (BACKGROUND_START_TOOLS.includes(event.toolName)) runtime?.refreshBackground();
+	});
 	// Tree navigation moves the active branch, and with it the latest saved flag.
 	pi.on("session_tree", (_event, ctx) => {
 		const r = runtime;
