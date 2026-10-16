@@ -6,7 +6,7 @@ Status: checked by its own test and by Herdr 0.9.3's config parser; no interacti
 
 ACT and MDL alone fade after 1 hour, 4 hours and 1 day without access.
 Access means visible in the focused workspace's active tab or row 1 showing
-WRK/SUB; unknown visibility/status stays fresh. The dirty branch fades too,
+WRK/SUB/RUN; unknown visibility/status stays fresh. The dirty branch fades too,
 but text, widths and all other rows stay unchanged. Age is memory only and
 resets on `/reload` or Pi restart. See [the design](docs/design.md).
 Update the reporter and the complete Pi row override together; an old fragment

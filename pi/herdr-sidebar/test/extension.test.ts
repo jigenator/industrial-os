@@ -87,7 +87,9 @@ test("outside TUI mode nothing reports, subscribes or emits, even inside Herdr: 
 	t.after(() => herdr.close());
 	inside(t, herdr);
 	for (const mode of ["print", "json", "rpc"]) {
-		const h = await harness(t, { mode });
+		const events = host.createEventBus(); let backgroundRequests = 0;
+		events.on("pi-background-tasks:request:v1", () => { backgroundRequests++; });
+		const h = await harness(t, { mode, events });
 		await h.start();
 		h.events.emit("signals-collector:v1:snapshot", { version: 1, sessionId: h.sessionId(), seq: 1, active: "/w", question: { text: "q", more: 0, since: 0 } });
 		h.events.emit("signals-collector:v1:ready", { version: 1, sessionId: h.sessionId() });
@@ -95,6 +97,7 @@ test("outside TUI mode nothing reports, subscribes or emits, even inside Herdr: 
 		await h.stop();
 		assert.deepEqual(h.blocked, [], mode);
 		assert.deepEqual(h.errors, [], mode);
+		assert.equal(backgroundRequests, 0, "no background requests outside TUI");
 	}
 	assert.equal(herdr.log.length, 0);
 });
@@ -470,6 +473,16 @@ test("access decay reports each boundary without a snapshot/focus change and cle
 	boundary = scheduled.findLast((item) => item.due === now + 3_600_000)!;
 	now = boundary.due; boundary.callback();
 	await wait(() => herdr.tokens.has("dir_d1"));
+	// RUN refreshes access over a long unseen interval, then starts a full hour on becoming unknown.
+	let backgroundKnown = true;
+	h.events.on("pi-background-tasks:request:v1", (request: any) => h.events.emit("pi-background-tasks:response:v1", backgroundKnown ? bgResponse(request, ["running"]) : { ...bgResponse(request), ok: false }));
+	await endTool(h); await wait(() => herdr.tokens.get("g1") === `◐ RUN${B}` && herdr.tokens.has("mthink"));
+	now += 2 * 86_400_000;
+	backgroundKnown = false; await endTool(h);
+	await wait(() => herdr.tokens.get("g1") === `○ IDL${B}` && scheduled.some((item) => item.due === now + 3_600_000));
+	assert.equal(herdr.tokens.has("mthink_d1"), false, "RUN kept ACT/MDL fresh through the long interval");
+	boundary = scheduled.findLast((item) => item.due === now + 3_600_000)!;
+	now = boundary.due; boundary.callback(); await wait(() => herdr.tokens.has("mthink_d1"));
 	// Session replacement, the same start path as reload, discards memory-only age.
 	await h.start("reload");
 	await wait(() => herdr.tokens.has("dir") && !herdr.tokens.has("dir_d1"));
@@ -655,4 +668,163 @@ test("savedFlag: the latest valid boolean on the active branch wins; malformed a
 	// The abandoned branch is still in the session but does not decide the active branch's value.
 	m.branch(on);
 	assert.equal(savedFlag(m.getBranch()), true);
+});
+
+const BG_REQUEST = "pi-background-tasks:request:v1", BG_RESPONSE = "pi-background-tasks:response:v1", BG_TERMINAL = "pi-background-tasks:terminal:v1";
+const bgTerminal = { schema_version: "pi-background-tasks.extension-terminal.v1", task: { id: "task", status: "completed" } };
+const bgResponse = (request: any, statuses: string[] = []) => ({ schema_version: "pi-background-tasks.extension-response.v1", request_id: request.request_id, operation: "status", ok: true, result: { tasks: statuses.map((status, n) => ({ id: `task-${n}`, status })) } });
+const endTool = (h: any, toolName = "bg_run") => h.runner.emit({ type: "tool_execution_end", toolName, toolCallId: "call", input: {}, result: { content: [] }, isError: false });
+
+// Fake producer frames follow 2.6.9 core/extension-api.ts; no background-task package code is loaded.
+test("background status gives RUN, precedence, token choices, unseen completion and clears on seen/work/rise", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); inside(t, herdr);
+	herdr.focus("w2", "w2:t1", "w2:p1", false);
+	const h = await harness(t);
+	let statuses = ["running", "completed", "failed", "killed"];
+	let valid = true;
+	const requests: any[] = [];
+	h.events.on(BG_REQUEST, (request: any) => { requests.push(request); h.events.emit(BG_RESPONSE, valid ? bgResponse(request, statuses) : { ...bgResponse(request), ok: false }); });
+	await h.start(); h.set({ context: { usedPercent: 67 }, model: { id: "m", provider: "p" } });
+	await until(() => herdr.tokens.get("g1") === `◐ RUN${B}` && herdr.tokens.has("bar"), "RUN from status");
+	assert.equal(requests[0].schema_version, "pi-background-tasks.extension-request.v1");
+	assert.equal(requests[0].operation, "status"); assert.deepEqual(requests[0].payload, {});
+	assert.equal(herdr.tokens.get("proj"), "tatsu-cli"); assert.equal(herdr.tokens.has("proj_idle"), false);
+	assert.equal(herdr.tokens.has("bar_idle"), false); assert.equal(herdr.tokens.get("g2_au0"), "00AU", "background tasks do not invent subagent units");
+	h.set({ units: 2 }); await until(() => herdr.tokens.get("g1") === `◐ SUB${B}`, "SUB beats RUN");
+	herdr.setStatus("working"); await until(() => herdr.tokens.get("g1") === `◐ WRK${B}`, "WRK beats both");
+	h.set({ units: 0 }); herdr.setStatus("blocked"); await until(() => herdr.tokens.get("g1") === `× BLK${B}`, "BLK beats RUN");
+	h.set({ question: { text: "q", more: 0 } }); await until(() => herdr.tokens.get("g1") === `× QNS${B}`, "QNS beats RUN");
+	h.set({}); herdr.setStatus("idle"); await until(() => herdr.tokens.get("g1") === `◐ RUN${B}`, "RUN restored");
+	h.set({ units: 1 }); await until(() => herdr.tokens.get("g1") === `◐ SUB${B}`, "subagents alongside tasks");
+	h.set({ units: 0 }); await until(() => herdr.tokens.get("g1") === `◐ RUN${B}`, "subagents finish during RUN");
+	assert.equal(herdr.tokens.has("ev_rdy_text"), false, "ongoing tasks suppress the subagent completion");
+	statuses = ["completed"]; h.events.emit(BG_TERMINAL, bgTerminal);
+	await until(() => herdr.tokens.get("g1") === `✓ DNE${B}` && herdr.tokens.get("g5") === `RDY${B}`, "unseen background finish");
+	assert.ok(herdr.tokens.get("ev_rdy_text")?.startsWith("finished")); assert.equal(herdr.tokens.get("ph_age"), `${B.repeat(4)}0s`);
+	// Duplicate terminal frames only re-read; they cannot restart the finish age or decrement a count.
+	h.events.emit(BG_TERMINAL, bgTerminal);
+	herdr.focus("w1", "w1:t1", "w1:p1"); await until(() => herdr.tokens.get("g1") === `○ IDL${B}`, "seen clears");
+	herdr.focus("w2", "w2:t1", "w2:p1"); await visibilityRead(herdr, workspaceReads(herdr));
+	for (const clear of ["rise", "work"]) {
+		statuses = ["running"]; await endTool(h); await until(() => herdr.tokens.get("g1") === `◐ RUN${B}`, "running again");
+		statuses = []; h.events.emit(BG_TERMINAL, bgTerminal); await until(() => herdr.tokens.get("g1") === `✓ DNE${B}`, "finished again");
+		if (clear === "rise") {
+			statuses = ["running"]; await endTool(h); await until(() => herdr.tokens.get("g1") === `◐ RUN${B}`, "rise clears");
+			valid = false; await endTool(h); await until(() => herdr.tokens.get("g1") === `○ IDL${B}`, "rise removed the old flag, unknown is not another finish");
+			valid = true;
+		} else {
+			herdr.setStatus("working"); await until(() => herdr.tokens.get("g1") === `◐ WRK${B}`, "work clears");
+			herdr.setStatus("idle"); await until(() => herdr.tokens.get("g1") === `○ IDL${B}`, "no old completion");
+		}
+	}
+	assert.deepEqual(h.errors, []);
+});
+
+test("background requests coalesce, fence stale/wrong/late/runtime responses, and re-query all start tools and reconnect", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); inside(t, herdr);
+	const h = await harness(t); const requests: any[] = []; let automatic = true;
+	h.events.on(BG_REQUEST, (request: any) => { requests.push(request); if (automatic) h.events.emit(BG_RESPONSE, bgResponse(request)); });
+	await h.start(); await until(() => herdr.tokens.get("g1") === `○ IDL${B}` && herdr.subscriberCount === 1, "initial read");
+	for (const tool of ["bg_run", "bg_run_pi_attested", "bg_delegate", "fusion_reason", "fusion_investigate", "fusion_research", "fusion_validate"]) {
+		const before = requests.length; await endTool(h, tool); assert.equal(requests.length, before + 1, tool);
+	}
+	let before = requests.length; await endTool(h, "read"); assert.equal(requests.length, before);
+	h.events.emit(BG_TERMINAL, { ...bgTerminal, schema_version: "unknown" }); assert.equal(requests.length, before);
+	automatic = false; await endTool(h); const pending = requests.at(-1);
+	await endTool(h); h.events.emit(BG_TERMINAL, bgTerminal); assert.equal(requests.length, before + 1, "one in flight");
+	h.events.emit(BG_RESPONSE, { ...bgResponse(pending, ["running"]), request_id: "wrong" }); assert.equal(requests.length, before + 1);
+	h.events.emit(BG_RESPONSE, bgResponse(pending, ["running"])); assert.equal(requests.length, before + 2, "one coalesced follow-up");
+	await sleep(40); assert.equal(herdr.tokens.get("g1"), `○ IDL${B}`, "stale running count ignored");
+	h.events.emit(BG_RESPONSE, bgResponse(requests.at(-1), ["running"])); await until(() => herdr.tokens.get("g1") === `◐ RUN${B}`, "current response");
+	h.events.emit(BG_RESPONSE, bgResponse(pending)); await sleep(40); assert.equal(herdr.tokens.get("g1"), `◐ RUN${B}`);
+	automatic = true; before = requests.length; herdr.dropSubscribers();
+	await until(() => requests.length > before && herdr.subscriberCount === 1 && herdr.tokens.get("g1") === `○ IDL${B}`, "reconnect re-query");
+	automatic = false; await endTool(h); const old = requests.at(-1); await h.stop();
+	const replacement = await harness(t, { events: h.events }); await replacement.start();
+	await until(() => herdr.tokens.get("g1") === `○ IDL${B}`, "replacement runtime");
+	h.events.emit(BG_RESPONSE, bgResponse(old, ["running"])); await sleep(40); assert.equal(herdr.tokens.get("g1"), `○ IDL${B}`);
+	await replacement.stop(); before = requests.length;
+	h.events.emit(BG_TERMINAL, bgTerminal); await endTool(h); assert.equal(requests.length, before, "no requests after shutdown");
+});
+
+test("background unknown/absent/malformed/timeout never gives RUN or an inferred finish; renewal re-queries", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); inside(t, herdr);
+	herdr.focus("w2", "w2:t1", "w2:p1", false);
+	const scheduled: { callback: () => void; delay: number; timer: NodeJS.Timeout }[] = [];
+	const original = globalThis.setTimeout;
+	t.mock.method(globalThis, "setTimeout", (callback: () => void, delay: number, ...args: any[]) => {
+		const timer = original(callback, delay, ...args); scheduled.push({ callback, delay, timer }); return timer;
+	});
+	const h = await harness(t); const requests: any[] = []; let respond = true;
+	let frame: (request: any) => any = (request) => bgResponse(request);
+	let deadline: (typeof scheduled)[number];
+	h.events.on(BG_REQUEST, (request: any) => { requests.push(request); deadline = scheduled.at(-1)!; if (respond) h.events.emit(BG_RESPONSE, frame(request)); });
+	await h.start(); h.set({ model: { id: "m", provider: "p" } });
+	await until(() => herdr.tokens.get("g1") === `○ IDL${B}` && herdr.tokens.has("mthink"), "known idle");
+	for (const malformed of [(r: any) => ({ ...bgResponse(r, ["running"]), schema_version: "v2" }), (r: any) => ({ ...bgResponse(r), ok: false }), (r: any) => ({ ...bgResponse(r), result: { tasks: [{ id: "a", status: "queued" }] } }), (r: any) => ({ request_id: r.request_id })]) {
+		frame = malformed; await endTool(h); await sleep(20); assert.equal(herdr.tokens.get("g1"), `○ IDL${B}`);
+	}
+	respond = false; await endTool(h); const timedOut = requests.at(-1);
+	assert.equal(deadline!.delay, 1500); assert.equal(deadline!.timer.hasRef(), false); deadline!.callback();
+	h.events.emit(BG_RESPONSE, bgResponse(timedOut, ["running"])); await sleep(20); assert.equal(herdr.tokens.get("g1"), `○ IDL${B}`, "late response ignored");
+	respond = true; frame = (r) => bgResponse(r, ["running"]); await endTool(h);
+	await until(() => herdr.tokens.get("g1") === `◐ RUN${B}`, "running");
+	const before = requests.length;
+	const renewal = scheduled.findLast((item) => item.delay === 20_000)!;
+	assert.ok(renewal); assert.equal(renewal.timer.hasRef(), false); clearTimeout(renewal.timer); renewal.callback();
+	assert.equal(requests.length, before + 1, "renewal re-queries");
+	assert.equal(herdr.tokens.has("mthink_d1"), false);
+	// Losing the producer after a known running count is unknown, never a fabricated completion.
+	respond = false; await endTool(h); deadline!.callback();
+	await until(() => herdr.tokens.get("g1") === `○ IDL${B}`, "timeout removes RUN without DNE");
+	assert.equal(herdr.tokens.has("ev_rdy_text"), false);
+	await endTool(h); const onShutdown = deadline!; await h.stop();
+	assert.equal((onShutdown.timer as any)._destroyed, true, "request deadline disposed");
+	assert.deepEqual(h.errors, []);
+});
+
+test("background readiness refusal retries once after a short delay and disposes the retry on replacement/shutdown", async (t) => {
+	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); inside(t, herdr);
+	const retries: { callback: () => void; timer: NodeJS.Timeout }[] = [];
+	let handlingRefusal = false;
+	const original = globalThis.setTimeout;
+	t.mock.method(globalThis, "setTimeout", (callback: () => void, delay: number, ...args: any[]) => {
+		const timer = original(callback, delay, ...args);
+		if (handlingRefusal && delay === 1_000) retries.push({ callback, timer });
+		return timer;
+	});
+	const h = await harness(t); const requests: any[] = []; let ready = false;
+	h.events.on(BG_REQUEST, (request: any) => {
+		requests.push(request);
+		handlingRefusal = !ready;
+		h.events.emit(BG_RESPONSE, ready ? bgResponse(request, ["running"]) : {
+			schema_version: "pi-background-tasks.extension-response.v1", request_id: request.request_id,
+			operation: "status", ok: false, error: "pi-background-tasks EventBus service is unavailable before session_start",
+		});
+		handlingRefusal = false;
+	});
+	await h.start(); await until(() => herdr.tokens.get("g1") === `○ IDL${B}`, "initial refusal stays unknown");
+	assert.equal(retries.length, 1, "readiness refusal schedules a delayed retry");
+	assert.equal(retries[0].timer.hasRef(), false);
+	assert.equal(requests.length, 1, "reconnect trigger cannot bypass the pending retry");
+	ready = true; clearTimeout(retries[0].timer); retries[0].callback();
+	await until(() => herdr.tokens.get("g1") === `◐ RUN${B}`, "late-starting producer recovered without renewal");
+	assert.equal(requests.length, 2);
+
+	ready = false; await h.start("reload");
+	assert.equal(retries.length, 2, "replacement runtime gets its own single retry");
+	clearTimeout(retries[1].timer); retries[1].callback();
+	await sleep(30); assert.equal(retries.length, 2, "a second refusal cannot create a retry loop");
+	const beforeReplacement = requests.length;
+	await h.start("reload"); const replaced = retries.at(-1)!;
+	ready = true; await h.start("reload");
+	await until(() => herdr.tokens.get("g1") === `◐ RUN${B}`, "replacement running");
+	assert.ok(requests.length > beforeReplacement);
+	assert.equal((replaced.timer as any)._destroyed, true, "replacement clears the old retry");
+	let count = requests.length; replaced.callback(); assert.equal(requests.length, count, "old callback is fenced");
+	ready = false; await h.start("reload"); const stopped = retries.at(-1)!;
+	await h.stop(); count = requests.length;
+	assert.equal((stopped.timer as any)._destroyed, true, "shutdown clears the retry");
+	stopped.callback(); assert.equal(requests.length, count);
+	assert.deepEqual(h.errors, []);
 });

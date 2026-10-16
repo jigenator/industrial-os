@@ -4,15 +4,15 @@ The [repository-wide conventions](../../../docs/conventions.md) and the [Pi guid
 
 ## Project profile
 
-Pi Herdr Sidebar, in `pi/herdr-sidebar/`, is a TypeScript ESM Pi package for Node.js 22.19+, run by Node's type stripping. Runtime code is `src/extension.ts`, `src/tokens.ts`, `src/snapshot.ts`, `src/sender.ts` and `src/herdr-client.ts`. Pi supplies the host and TUI peers. Tests use Node's test runner against the globally installed Pi and a fake Herdr server.
+Pi Herdr Sidebar, in `pi/herdr-sidebar/`, is a TypeScript ESM Pi package for Node.js 22.19+, run by Node's type stripping. Runtime code is `src/extension.ts`, `src/tokens.ts`, `src/snapshot.ts`, `src/background-tasks.ts`, `src/sender.ts` and `src/herdr-client.ts`. Pi supplies the host and TUI peers. Tests use Node's test runner against the globally installed Pi and a fake Herdr server.
 
 Scope reviewed: the complete source and tests at the revision that added the project, Pi 1.0.4's installed extension types and event bus, and Herdr 0.9.3's source and socket documentation for every method used.
 
 ## Module and dependency rules
 
-**Rule:** dependency direction is `extension → snapshot, tokens, sender, herdr-client`; `sender` takes a request function and imports only the key list and reply type; `tokens` imports only `snapshot` types, Node `path` and Pi TUI's `visibleWidth`; `snapshot` and `herdr-client` import no Pi module. **Reason:** the builder and sender stay testable without Pi or a socket. **Check:** review imports.
+**Rule:** dependency direction is `extension → snapshot, background-tasks, tokens, sender, herdr-client`; `sender` takes a request function and imports only the key list and reply type; `tokens` imports only `snapshot` types, Node `path` and Pi TUI's `visibleWidth`; `snapshot` and `herdr-client` import no Pi module. **Reason:** the builder and sender stay testable without Pi or a socket. **Check:** review imports.
 
-**Rule:** display only. The extension's inputs are the snapshot channels, Herdr's status, labels and visibility for its own pane, and the session's `/flag` reminder. It never spawns a process, reads or writes a file, or writes anything except Herdr pane tokens, `herdr:blocked` and the `/flag` custom entry. The one exception to display-only is that explicit user preference: it is saved with `pi.appendEntry` and read from `ctx.sessionManager.getBranch()`, Pi's public session API, only inside the reporting gate; never by opening session files. **Reason:** collection belongs to the signals-collector, once per session; a second collector would duplicate work and disagree. The flag is not collected data but the user's own choice for this session. **Check:** `grep -n "child_process\|node:fs" src/*.ts` finds nothing; `test/extension.test.ts`.
+**Rule:** display only. The extension's inputs are the snapshot channels, optional pi-background-tasks public EventBus status, Herdr's status, labels and visibility for its own pane, and the session's `/flag` reminder. It never spawns a process, reads or writes a file, or writes anything except read-only background status requests, Herdr pane tokens, `herdr:blocked` and the `/flag` custom entry. The one exception to display-only is that explicit user preference: it is saved with `pi.appendEntry` and read from `ctx.sessionManager.getBranch()`, Pi's public session API, only inside the reporting gate; never by opening session files. **Reason:** collection belongs to the signals-collector, once per session; a second collector would duplicate work and disagree. The flag is not collected data but the user's own choice for this session. **Check:** `grep -n "child_process\|node:fs" src/*.ts` finds nothing; `test/extension.test.ts`.
 
 **Rule:** the collector is another project, so its snapshot type is not imported; `src/snapshot.ts` restates the consumed subset and validates it. **Check:** review imports against the [snapshot inputs](architecture.md#inputs).
 
@@ -26,7 +26,7 @@ Scope reviewed: the complete source and tests at the revision that added the pro
 
 ## Types and validation
 
-**Rule:** the snapshot and every Herdr reply are untrusted. Malformed fields become unknown; text is stripped of terminal/bidi controls and trimmed before it is measured; every value is bounded in cells and characters. **Check:** `test/tokens.test.ts` malformed, hostile and budget cases.
+**Rule:** the snapshot, background-task responses and every Herdr reply are untrusted. Malformed fields become unknown; text is stripped of terminal/bidi controls and trimmed before it is measured; every value is bounded in cells and characters. **Check:** `test/tokens.test.ts` malformed, hostile and budget cases.
 
 ## Errors and diagnostics
 
@@ -34,6 +34,7 @@ Scope reviewed: the complete source and tests at the revision that added the pro
 
 ## Tests
 
+- `test/background-tasks.test.ts`: public background-task response and terminal-event validation.
 - `test/tokens.test.ts`: every rule of the token contract, the snapshot validation, and the key list read from [the contract](token-contract.md).
 - `test/sender.test.ts` and `test/herdr-client.test.ts`: the modules against `test/fake-herdr.ts`.
 - `test/extension.test.ts`: the real installed Pi loader, runner and event bus, a fake collector extension loaded before or after, and the fake Herdr server; for `/flag`, Pi's real session runtime with session files in a temporary directory (command dispatch, reload, new, resume, fork and tree navigation), with no model call.

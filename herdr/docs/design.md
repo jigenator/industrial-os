@@ -38,7 +38,7 @@ Every color is a design-system value. Bold marks the readings that matter most.
 | Primary | `#ffffff` | The working SPACE name (bold), `DNE`, `finished` |
 | Secondary | `#cfcfcf` | The idle SPACE name (bold), goal time, branch, directory, PR, model, pane label |
 | Ghost (signal color) | `#333333` | A paused goal's time, `#?`, the unknown context bar |
-| Accent | `#c0fe04` | `WRK`, `SUB`, the context bar, active units ≥ 1 (bold) |
+| Accent | `#c0fe04` | `WRK`, `SUB`, `RUN`, the context bar, active units ≥ 1 (bold) |
 | Warning | `#d79e52` | The context bar from 70% used, a branch with changes |
 | Critical | `#f24723` | `QNS`, `BLK`, the context bar from 90% used (bold), the question text (bold), the `/flag` dot `●` |
 | Structural, violet, pink, critical | `#555555`, `#5200ff`, `#ff15bd`, `#f24723` | `CMP×00` and `CMP×??`; `01`–`02`; `03`–`04`; `05` and more; all bold |
@@ -49,7 +49,7 @@ The theme block sets the sidebar field black (`sidebar_bg`) and the focused and 
 
 ACT and MDL alone fade by time since last access, as
 [the contract](../../pi/herdr-sidebar/docs/token-contract.md#act--mdl-access-decay)
-defines. Visible panes and WRK/SUB refresh access; unknown stays d0.
+defines. Visible panes and WRK/SUB/RUN refresh access; unknown stays d0.
 `/reload` or Pi restart resets the memory-only timestamp.
 
 | Stage | Age | Labels `g3`/`g4` | Values `br`/`dir`/`prn`/`mthink` | `br_dirty` | `prn_off` |
@@ -78,7 +78,7 @@ resolution tests are recorded separately from live rendering evidence.
 
 ## States
 
-Every state is readable without color: the state code and shape in row 1 (`× QNS`, `× BLK`, `◐ WRK`, `◐ SUB`, `✓ DNE`, `○ IDL`, `· UNK`; `SUB` shares `WRK`'s shape and accent, and its code tells it apart), `*` on a changed branch, `●` for a flagged session, `--%`, `??` and `#?` for unknowns. Color adds emphasis only. The meanings are in [herdr-sidebar's design](../../pi/herdr-sidebar/docs/design.md#states).
+Every state is readable without color: the state code and shape in row 1 (`× QNS`, `× BLK`, `◐ WRK`, `◐ SUB`, `◐ RUN`, `✓ DNE`, `○ IDL`, `· UNK`; `SUB` and `RUN` share `WRK`'s shape and accent, and their codes tell them apart), `*` on a changed branch, `●` for a flagged session, `--%`, `??` and `#?` for unknowns. Color adds emphasis only. The meanings are in [herdr-sidebar's design](../../pi/herdr-sidebar/docs/design.md#states).
 
 ## Accessibility and limits
 

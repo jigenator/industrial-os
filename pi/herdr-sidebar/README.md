@@ -10,7 +10,7 @@ A Pi extension that fills Herdr's agents sidebar with this Pi session's state: o
    PNE  · Updating sideb… ·    12s
 ```
 
-- **Row 1:** the agent state (`QNS` while a question waits for you, `BLK`, `WRK`, `SUB` while subagents run and the main agent does not, `DNE` when it or its subagents finished unseen, `IDL`, `UNK`), the Herdr SPACE name (workspace label; Active folder basename while unknown), a red `●` while the session is [flagged](#flag) and, with a [pi-goal](https://www.npmjs.com/package/@narumitw/pi-goal) goal, its time.
+- **Row 1:** the agent state (`QNS` while a question waits for you, `BLK`, `WRK`, `SUB` while subagents run and the main agent does not, `RUN` while background tasks run without the main agent or subagents working, `DNE` when it or its off-agent work finished unseen, `IDL`, `UNK`), the Herdr SPACE name (workspace label; Active folder basename while unknown), a red `●` while the session is [flagged](#flag) and, with a [pi-goal](https://www.npmjs.com/package/@narumitw/pi-goal) goal, its time.
 - **Row 2:** active units (`AU`), the context used toward compaction as a bar and percentage, and the compaction count (`CMP`).
 - **Row 3:** the Active branch, with `*` when it has changes, or its directory; an open pull request's number.
 - **Row 4:** the model and thinking level.
@@ -18,11 +18,11 @@ A Pi extension that fills Herdr's agents sidebar with this Pi session's state: o
 
 Unknown values show as unknown (`??AU`, `--%`, `CMP×??`), never as zero. The exact tokens, widths and rules are in the [token contract](docs/token-contract.md); the experience is in the [design](docs/design.md).
 
-The extension only displays, apart from the `/flag` reminder below. It reads the snapshot that the separate signals-collector extension publishes inside Pi, and Herdr's own agent status, SPACE label and pane label for its pane; it runs no Git, GitHub or CodexBar command and reads no session file. It also reports the question wait to Herdr's blocked state, which rpiv's ask-user-question did before.
+The extension only displays, apart from the `/flag` reminder below. It reads the snapshot that the separate signals-collector extension publishes inside Pi, the optional pi-background-tasks public EventBus status API, and Herdr's own agent status, SPACE label and pane label for its pane; it runs no Git, GitHub or CodexBar command and reads no session file. It also reports the question wait to Herdr's blocked state, which rpiv's ask-user-question did before.
 
 ACT and MDL alone fade after 1 hour, 4 hours and 1 day without access.
 Access means visible in the focused workspace's active tab or row 1 showing
-WRK/SUB; unknown visibility/status stays fresh. The dirty branch fades too,
+WRK/SUB/RUN; unknown visibility/status stays fresh. The dirty branch fades too,
 but text, widths and all other rows stay unchanged. Age is memory only and
 resets on `/reload` or Pi restart. See [the design](docs/design.md).
 Update the reporter and the complete Pi row override together; an old fragment
@@ -66,7 +66,8 @@ It reports only from Pi's interactive terminal mode inside a Herdr pane (`HERDR_
 - A wall clock that steps backwards makes Herdr ignore the sidebar's reports until it catches up; see [architecture](docs/architecture.md#reporting-to-herdr).
 - A multi-request full report can be half-applied for up to one retry interval and self-heals with the next successful full report. Failure retries use exponential backoff with jitter from 5 to 60 seconds.
 - Data egress: pane labels are copied to Herdr's in-memory pane tokens as `pane` (bounded and sanitized for display). Phase targets and commands are no longer reported.
-- Herdr tracks only Pi's main agent. `SUB` and the subagents-finished `DNE` are this sidebar's own display and do not change Herdr's state, notifications or attention sorting. Herdr's own done state, finished notification, attention sorting and `agent.wait` follow the root agent alone: they fire when the root agent goes idle even while subagents still run and the sidebar shows `SUB`, and nothing in Herdr fires when the subagents finish and the sidebar shows `DNE`. Herdr 0.9.3 ignores another source's state reports while its Pi hook owns the pane, so an extension cannot change this; turn Herdr's notifications off if that early signal is unwanted. Whether you have seen the pane follows Herdr's focused workspace and its active tab; Herdr's knowledge of whether the terminal window itself has focus is not available to extensions, so subagents finishing in the active tab of an unfocused window go straight to `IDL`. See [architecture](docs/architecture.md#seen-and-the-subagents-finished-flag).
+- Herdr tracks only Pi's main agent. `SUB`, `RUN` and the unseen-work-finished `DNE` are this sidebar's own display and do not change Herdr's state, notifications or attention sorting. Herdr's own done state, finished notification, attention sorting and `agent.wait` follow the root agent alone: they fire when the root agent goes idle even while off-agent work still runs and the sidebar shows `SUB` or `RUN`, and nothing in Herdr fires when off-agent work finishes and the sidebar shows `DNE`. Herdr 0.9.3 ignores another source's state reports while its Pi hook owns the pane, so an extension cannot change this; turn Herdr's notifications off if that early signal is unwanted. Whether you have seen the pane follows Herdr's focused workspace and its active tab; Herdr's knowledge of whether the terminal window itself has focus is not available to extensions, so off-agent work finishing in the active tab of an unfocused window goes straight to `IDL`. See [architecture](docs/architecture.md#seen-and-the-unseen-work-finished-flag).
+- Background-task availability, startup retry, update lag and registry-scope limits are documented in [architecture](docs/architecture.md#inputs); merge the updated g1 RUN color rule with this reporter (53 keys unchanged).
 - No interactive check in Pi and Herdr has been recorded; see [contributing](CONTRIBUTING.md#verification-records).
 
 ## Project guides
