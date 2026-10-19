@@ -36,7 +36,7 @@ Pi 1.0.4's git install, as read in its source, clones the repository and runs `n
 - The design system stays standard-library-only and imports nothing from another project. Its elements and motions own no I/O. It is installable by name; both extensions now import it, as recorded under [current adoption](#current-adoption).
 - A new foundation module, element, or motion primitive needs an `exports` entry. `design-system/package.test.mjs` fails until it has one, and fails if an export names a test, an example, or `motions/frame.mjs`.
 - Pi extensions declare host packages as peers. Pane naming additionally declares pi-typesafe, also installed at the root under [its specific exception](pane-naming-root-dependency.md). Extensions reach the design system through the root install, never their own dependency declaration.
-- Color check: an extension that has not migrated compares its constants with `design-system/foundation/palette.mjs` and `signal-colors.mjs`, using [design](../design.md#acid--black) to map a constant to its role. No automated comparison exists. Both current extensions import their colors, so neither needs it.
+- Color check: an extension that has not migrated compares its constants with `design-system/foundation/palette.mjs` and `signal-colors.mjs`, using [design](../design.md#acid--black) to map a constant to its role. No automated comparison exists. Both rendering extensions import their colors, so neither needs it.
 - Automated and Pi-load verification are recorded in [the design-system contributing guide](../../design-system/CONTRIBUTING.md#package-verification). No interactive Pi or Herdr check has run against the package.
 
 ## Migrating an extension

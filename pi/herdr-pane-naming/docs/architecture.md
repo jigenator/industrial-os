@@ -32,7 +32,7 @@ No extension imports another extension or the design system. `pi-typesafe` is de
   arguments, results, streaming chunks, thinking, and aborted/error responses do
   not trigger checks. No polling and no per-tool requests.
 - Jev returns `keep`, `update`, `new_task`, or `uncertain`. Only `update` and
-  `new_task` call the title model; `keep` and `uncertain` leave the name alone.
+  `new_task` call the title model; `uncertain` leaves the name alone, while `keep` can re-render the existing title only to add a PR confirmed during the check.
 
 `session_start` restores the latest branch user text and saved preferences but never calls a model or Herdr. `name` resolves a title model, waits for earlier writes, reads the pane, asks Jev, and generates a title only for update/new-task decisions. `render` serializes another read and optional rename. See [design](design.md#pr-numbers) for allowed/confirmed PR handling.
 

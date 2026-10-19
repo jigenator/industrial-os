@@ -26,7 +26,7 @@ deliberately not parsed. Up to four PRs are shown.
 
 ## States and feedback
 
-A keep/uncertain decision leaves the label alone; identical labels avoid a write. A changed title is plain text, normally at most 55 Unicode code points, with a total label cap of 80 including its PR prefix. This is a character bound, not a terminal-cell width guarantee; Herdr owns truncation. No animation or custom keyboard/focus handling is added.
+An uncertain decision leaves the label alone; keep can add a newly confirmed PR to the existing title without a title call; identical labels avoid a write. A changed title is plain text, normally at most 55 Unicode code points, with a total label cap of 80 including its PR prefix. This is a character bound, not a terminal-cell width guarantee; Herdr owns truncation. No animation or custom keyboard/focus handling is added.
 
 On/off/status/cooldown/model use Pi notifications. Failure leaves the old label and naming enabled, with stage, elapsed time and a safe reason rather than success-shaped text; [diagnostics](../README.md#diagnosing-failures) defines the user contract. Text, not color, carries that feedback. Counts are request attempts, not proof of a renamed pane or provider success.
 

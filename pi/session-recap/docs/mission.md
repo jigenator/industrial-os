@@ -21,4 +21,4 @@ Non-goals:
 
 ## Constraints
 
-Generation, pickers and focus observation run only in Pi TUI mode; RPC/print/JSON do nothing. Pi owns input and rendering. A separate recap provider call can expose sensitive projected session data and incur costs; [privacy and cost](../README.md#model-selection-privacy-and-cost) is part of the usage contract. Preserve the upstream MIT license and attribution in [provenance](../README.md#provenance).
+Generation, pickers and focus observation run only in Pi TUI mode. Non-TUI lifecycle handlers still clear owned UI, without inference or preference I/O. Pi owns input and rendering. A separate recap provider call can expose sensitive projected session data and incur costs; [privacy and cost](../README.md#model-selection-privacy-and-cost) is part of the usage contract. Preserve the upstream MIT license and attribution in [provenance](../README.md#provenance).
