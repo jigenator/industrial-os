@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
-import { registerApiProvider } from "../node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/compat.js";
+import { registerApiProvider } from "@earendil-works/pi-ai/compat";
 import { loadExtensions } from "../node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/loader.js";
 import { SettingsManager } from "@earendil-works/pi-coding-agent";
 import { Container, visibleWidth } from "@earendil-works/pi-tui";
@@ -34,16 +34,18 @@ async function fixture(t, mode) {
 	const model = { provider: "retention", id: "fixture", api: API, name: "fixture", reasoning: false, input: ["text"], contextWindow: 100000, maxTokens: 1024, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } };
 	const manager = {
 		getCwd: () => root,
+		getSessionName: () => undefined,
 		getBranch: () => branch,
 		buildContextEntries: () => branch,
 		buildSessionProjection: () => ({ entries: branch.map((sourceEntry) => ({ sourceEntry, messages: [sourceEntry.message] })) }),
 	};
-	const terminal = { columns: 80, rows: 24, write: () => assert.fail("no terminal writes in offline probe") };
+	// Pi 1.2 reports program status through the terminal; the probe records none.
+	const terminal = { columns: 80, rows: 24, setProgramStatus() {}, write: () => assert.fail("no terminal writes in offline probe") };
 	const session = {
 		settingsManager: SettingsManager.inMemory({ theme: "dark", showCacheMissNotices: false }),
 		sessionManager: manager, autoCompactionEnabled: false,
 		resourceLoader: { getThemes: () => ({ themes: [] }) },
-		extensionRunner: { getMarkdownTransformers: () => [] },
+		extensionRunner: { getMarkdownTransformers: () => [], resolveToolRenderers: (_name, base) => base() },
 		modelRuntime: {},
 		getSteeringMessages: () => [], getFollowUpMessages: () => [], getToolDefinition: () => undefined,
 	};
