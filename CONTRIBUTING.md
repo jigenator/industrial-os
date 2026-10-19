@@ -9,10 +9,12 @@ This guide covers the workflow for every change and the checks that apply to the
 | `pi/signals-collector/` | Node.js 22 type stripping, installed Pi; offline cache/contract tests | [pi/signals-collector/CONTRIBUTING.md](pi/signals-collector/CONTRIBUTING.md) |
 | `pi/status-bar/` | Node.js 22, npm, TypeScript run by type stripping, the globally installed Pi for its tests and the load check | [pi/status-bar/CONTRIBUTING.md](pi/status-bar/CONTRIBUTING.md) |
 | `pi/herdr-sidebar/` | Node.js 22, npm, TypeScript run by type stripping, the globally installed Pi for its tests and the load check | [pi/herdr-sidebar/CONTRIBUTING.md](pi/herdr-sidebar/CONTRIBUTING.md) |
+| `pi/herdr-pane-naming/` | Node.js 22.19+, npm, installed Pi loader; mocked CLI/services | [pi/herdr-pane-naming/CONTRIBUTING.md](pi/herdr-pane-naming/CONTRIBUTING.md) |
+| `pi/session-recap/` | Node.js 22.19+, npm, TypeScript; pinned offline Pi host probes | [pi/session-recap/CONTRIBUTING.md](pi/session-recap/CONTRIBUTING.md) |
 | `herdr-plugins/spaces/` | Node.js 22 standard library; fake Unix socket tests | [herdr-plugins/spaces/CONTRIBUTING.md](herdr-plugins/spaces/CONTRIBUTING.md) |
 | `herdr/` | TOML; Node.js 22 for its check; an installed Herdr for the parser check | [herdr/CONTRIBUTING.md](herdr/CONTRIBUTING.md) |
 
-There is no root test command, script, or workspace. The root `package.json` lists the Pi extensions' entry points for Pi's git install, see [installing the Pi extensions](pi/README.md#install), and one `file:` dependency that links the design-system package. Running `node --test` from the root discovers the extensions' TypeScript tests, which need each extension's own setup; it is not a repository check. See [standalone packages](docs/decisions/standalone-packages.md) and [the in-repo design-system package](docs/decisions/in-repo-design-system-package.md).
+There is no root test command, script, or workspace. The root `package.json` lists the Pi extensions' entry points for Pi's git install, see [installing the Pi extensions](pi/README.md#install), and two runtime dependencies: the linked design-system package and pane naming's specific [pi-typesafe exception](docs/decisions/pane-naming-root-dependency.md). Running `node --test` from the root discovers the extensions' TypeScript tests, which need each extension's own setup; it is not a repository check. See [standalone packages](docs/decisions/standalone-packages.md) and [the in-repo design-system package](docs/decisions/in-repo-design-system-package.md).
 
 ## Setup
 
@@ -22,7 +24,25 @@ After cloning, run once from the repository root:
 npm install
 ```
 
-It links `node_modules/@industrial-os/design-system` to `design-system/`, so any project in the checkout can import the design system by name. It is the only shared setup step, and it is needed by any project that imports the package, including a Pi extension installed from this checkout. Pi's git install runs the equivalent itself. Run it again after a change to the root `package.json`. Each project's own setup is in its contributing guide.
+It links `node_modules/@industrial-os/design-system` to `design-system/` and installs `pi-typesafe` for pane naming. The committed root `.npmrc` sets `legacy-peer-deps=true`: do not remove or override it, because pi-typesafe's pre-1.0 Pi peers and typebox must not be installed alongside the host. See [the dependency decision](docs/decisions/pane-naming-root-dependency.md). It is the only shared setup step, and it is needed by projects importing the design system or pi-typesafe, including extensions loaded from this checkout. Pi's git install runs the equivalent itself. Run it again after a change to the root `package.json`. Each project's own setup is in its contributing guide.
+
+Check the root boundary after setup (not inside an extension's dev install):
+
+```sh
+npm ls --depth=0
+ls -ld node_modules/pi-typesafe node_modules/@industrial-os/design-system
+test ! -e node_modules/@earendil-works && test ! -e node_modules/typebox
+node --input-type=module - <<'JS'
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const { packages } = JSON.parse(readFileSync('package-lock.json', 'utf8'));
+assert.deepEqual(Object.keys(packages).filter(path =>
+  path.includes('node_modules/@earendil-works/') || /(^|\/)node_modules\/typebox$/.test(path)), []);
+console.log('PASS: no host package entries in root lockfile');
+JS
+```
+
+Peer declarations can remain in lockfile metadata; no installed package entries may exist. Recursive `npm ls --all` reports the intentionally unmet typebox peer, not a failed install.
 
 ## Making a change
 

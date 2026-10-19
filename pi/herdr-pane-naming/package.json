@@ -1,0 +1,19 @@
+{
+  "name": "pi-herdr-pane-naming",
+  "version": "0.2.0",
+  "description": "Event-driven Herdr pane naming for Pi, on by default, using Jev through pi-typesafe and a small title model.",
+  "type": "module",
+  "keywords": ["pi-package"],
+  "engines": { "node": ">=22.19.0" },
+  "pi": { "extensions": ["./index.ts"] },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jigenator/industrial-os",
+    "directory": "pi/herdr-pane-naming"
+  },
+  "files": ["index.ts", "models.ts", "README.md"],
+  "scripts": { "test": "node --experimental-strip-types --test test/*.test.ts" },
+  "dependencies": { "pi-typesafe": "^0.9.1" },
+  "peerDependencies": { "@earendil-works/pi-coding-agent": "*" },
+  "peerDependenciesMeta": { "@earendil-works/pi-coding-agent": { "optional": true } }
+}

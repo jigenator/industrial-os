@@ -6,7 +6,7 @@ This guide holds the rules for the whole repository. Each project is its own pro
 
 ## Critical engineering rules
 
-- No project imports another project's code, except that any project may import `@industrial-os/design-system` by package name through an exported subpath; never a relative path into `design-system/` or an unexported module. A Pi extension loads with the host's peer packages plus that package, resolved through the root install. Full rule: [conventions](docs/conventions.md#module-and-dependency-rules). Check: review imports; `design-system/package.test.mjs` checks the exports map; no automated cross-project check.
+- No project imports another project's code, except that any project may import `@industrial-os/design-system` by package name through an exported subpath; never a relative path into `design-system/` or an unexported module. A Pi extension loads with the host's peer packages and, where used, that root-linked package. Pane naming alone additionally requires root-installed `pi-typesafe`, retained in its own manifest too; [the specific exception](docs/decisions/pane-naming-root-dependency.md) mandates peer suppression and permits no other root runtime dependency. Full rule: [conventions](docs/conventions.md#module-and-dependency-rules). Check: review imports; `design-system/package.test.mjs` checks the exports map; no automated cross-project check.
 - The design system owns color values; until an extension migrates to the package, its color constants mirror the design system and must match it. Change the design system first, then each extension that still mirrors it. Full rule: [decision](docs/decisions/in-repo-design-system-package.md). Check: both rendering extensions import their colors from the package; review that no hex value is copied into them, and compare any extension that has not migrated against `design-system/foundation/palette.mjs` and `signal-colors.mjs`.
 - Claim only what the stated checks support. Do not invent an installed package, released API, or Herdr check that has not run; keep automated, Pi-load, and interactive evidence separate. Full rule: [conventions](docs/conventions.md#tests).
 - Do not publish private paths, data, credentials, or copied assets without rights and notices. Full rule: [conventions](docs/conventions.md#dependencies-and-generated-output).
@@ -20,6 +20,7 @@ Scan the supporting-documents map and read every document whose condition applie
 | --- | --- |
 | Work in the design system | [The design-system guide](design-system/AGENTS.md) and its routes |
 | Work on a Pi extension | [The Pi guide](pi/AGENTS.md), then the extension's own guide, for example [claude-interrupt](pi/claude-interrupt/AGENTS.md), [signals-collector](pi/signals-collector/AGENTS.md), [status-bar](pi/status-bar/AGENTS.md) or [herdr-sidebar](pi/herdr-sidebar/AGENTS.md) |
+| Work on pane naming or session recaps | [The Pi guide](pi/AGENTS.md), then [herdr-pane-naming](pi/herdr-pane-naming/AGENTS.md) or [session-recap](pi/session-recap/AGENTS.md) |
 | Work on a Herdr plugin | [Plugin group guide](herdr-plugins/AGENTS.md), then the plugin's guide, [Spaces](herdr-plugins/spaces/AGENTS.md) or [Whiteboard](herdr-plugins/whiteboard/AGENTS.md), and its routes |
 | Work on the Herdr configuration | [The Herdr guide](herdr/AGENTS.md) and its routes |
 | Change the visual language or a palette value | [Design](docs/design.md), [the package decision](docs/decisions/in-repo-design-system-package.md), the design-system guide, then each extension that mirrors the value |
@@ -36,6 +37,8 @@ Scan the supporting-documents map and read every document whose condition applie
 | status-bar footer, motion, or status integrations | `pi/status-bar/`; placement in [its architecture](pi/status-bar/docs/architecture.md) | Display-only snapshot consumer; no collection I/O; Pi/design-system exported subpaths only |
 | Session signals, Active selection, or shared quota cache | `pi/signals-collector/`; placement in [its architecture](pi/signals-collector/docs/architecture.md) | TUI-only collector; events only to consumers, no extension imports |
 | Herdr sidebar token values, reporting, `herdr:blocked` or `/flag` | `pi/herdr-sidebar/`; the [token contract](pi/herdr-sidebar/docs/token-contract.md), placement in [its architecture](pi/herdr-sidebar/docs/architecture.md) | Pi peer packages only; display-only apart from the `/flag` session reminder; reports only in TUI mode inside Herdr |
+| Herdr pane naming | `pi/herdr-pane-naming/`; [architecture](pi/herdr-pane-naming/docs/architecture.md) | Main TUI-only; runs Herdr CLI pane get/rename on its own inherited pane, calls TypeSafe/Jev and a title model; no extension imports |
+| Away or detailed session recaps | `pi/session-recap/`; [architecture](pi/session-recap/docs/architecture.md) | TUI-only; calls a recap model; output UI only, never saved or main-model history |
 | A new Pi extension | `pi/<name>/` with the [project document set](docs/architecture.md#contracts-between-the-root-and-a-project) | Its own manifest, checks, and license; the design system only by package name |
 | Shared experience or scope | `docs/design.md`, `docs/mission.md` | Then each project separately |
 | Spaces reporting, activity history or quiet sorting | `herdr-plugins/spaces/`; [Spaces contract](herdr-plugins/spaces/docs/token-contract.md) | Node 22 stdlib only; one detached daemon per socket; tests never touch live Herdr |
@@ -125,6 +128,23 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [pi/herdr-sidebar/docs/conventions.md](pi/herdr-sidebar/docs/conventions.md) | herdr-sidebar's TypeScript and Pi-extension rules and adoption gaps | Writing or reviewing herdr-sidebar code |
 | [pi/herdr-sidebar/docs/mission.md](pi/herdr-sidebar/docs/mission.md) | herdr-sidebar goals, non-goals, and constraints | Choosing or changing what herdr-sidebar does |
 | [pi/herdr-sidebar/docs/design.md](pi/herdr-sidebar/docs/design.md) | What each sidebar value and state means, truthfulness, and timing | Changing anything a herdr-sidebar user sees |
+| [pi/herdr-pane-naming/README.md](pi/herdr-pane-naming/README.md) | herdr-pane-naming purpose, status, install, commands and privacy/limits | Using herdr-pane-naming or changing its public surface |
+| [pi/herdr-pane-naming/AGENTS.md](pi/herdr-pane-naming/AGENTS.md) | herdr-pane-naming rules, routes and placement | Working anywhere in pi/herdr-pane-naming |
+| [pi/herdr-pane-naming/CLAUDE.md](pi/herdr-pane-naming/CLAUDE.md) | Runtime import of the herdr-pane-naming guide | Checking agent entry points |
+| [pi/herdr-pane-naming/CONTRIBUTING.md](pi/herdr-pane-naming/CONTRIBUTING.md) | herdr-pane-naming toolchain, exact checks and verification records | Making or verifying a herdr-pane-naming change |
+| [pi/herdr-pane-naming/docs/architecture.md](pi/herdr-pane-naming/docs/architecture.md) | herdr-pane-naming modules, flows, dependencies and invariants | Changing behavior, lifecycle, persistence or I/O |
+| [pi/herdr-pane-naming/docs/conventions.md](pi/herdr-pane-naming/docs/conventions.md) | herdr-pane-naming engineering rules and adoption gaps | Writing or reviewing code |
+| [pi/herdr-pane-naming/docs/design.md](pi/herdr-pane-naming/docs/design.md) | herdr-pane-naming presentation, interaction and states | Changing anything human-facing |
+| [pi/herdr-pane-naming/docs/mission.md](pi/herdr-pane-naming/docs/mission.md) | herdr-pane-naming goals, non-goals and constraints | Choosing or changing scope |
+| [pi/session-recap/README.md](pi/session-recap/README.md) | session-recap purpose, status, install, commands and privacy/limits | Using session-recap or changing its public surface |
+| [pi/session-recap/AGENTS.md](pi/session-recap/AGENTS.md) | session-recap rules, routes and placement | Working anywhere in pi/session-recap |
+| [pi/session-recap/CLAUDE.md](pi/session-recap/CLAUDE.md) | Runtime import of the session-recap guide | Checking agent entry points |
+| [pi/session-recap/CONTRIBUTING.md](pi/session-recap/CONTRIBUTING.md) | session-recap toolchain, exact checks and verification records | Making or verifying a session-recap change |
+| [pi/session-recap/docs/architecture.md](pi/session-recap/docs/architecture.md) | session-recap modules, flows, dependencies and invariants | Changing behavior, lifecycle, persistence or I/O |
+| [pi/session-recap/docs/conventions.md](pi/session-recap/docs/conventions.md) | session-recap engineering rules and adoption gaps | Writing or reviewing code |
+| [pi/session-recap/docs/design.md](pi/session-recap/docs/design.md) | session-recap presentation, interaction and states | Changing anything human-facing |
+| [pi/session-recap/docs/mission.md](pi/session-recap/docs/mission.md) | session-recap goals, non-goals and constraints | Choosing or changing scope |
+| [docs/decisions/pane-naming-root-dependency.md](docs/decisions/pane-naming-root-dependency.md) | Why pane naming needs root-installed pi-typesafe and peer suppression | Changing root dependencies, npm peer handling or pane-naming packaging |
 | [herdr/README.md](herdr/README.md) | Herdr configuration purpose, status, how to merge it, and limitations | Using the Herdr configuration |
 | [herdr/AGENTS.md](herdr/AGENTS.md) | Herdr configuration rules, routes, and placement | Working anywhere in `herdr/` |
 | [herdr/CLAUDE.md](herdr/CLAUDE.md) | Runtime import of the Herdr guide | Checking agent entry points |
