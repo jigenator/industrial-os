@@ -4,7 +4,7 @@ Purpose: keep the actual inherited Herdr pane label aligned with current work. T
 
 ## Critical engineering rules
 
-- Preserve the main-TUI/Herdr/subagent gate and inherited-pane/terminal checks; never rename a focused or model-selected pane. Flow and safeguards: [architecture](docs/architecture.md#critical-invariants); check `test/naming.test.ts`.
+- Preserve the main-TUI/Herdr/subagent gate and inherited-pane/terminal checks; never choose the target from focus or model output; rename only the inherited pane. Flow and safeguards: [architecture](docs/architecture.md#critical-invariants); check `test/naming.test.ts`.
 - Forward only the bounded payload documented in [privacy and cost](README.md#data-sharing-and-cost). Excerpts are not generally redacted; never log their content or raw SDK errors. Check hostile/failure tests and [conventions](docs/conventions.md#trust-and-state-boundaries).
 - Preserve epoch/signal cancellation and serialized writes. A stale result cannot rename; off stops this runtime even if its save fails. Check navigation, late-read and atomic-write cases.
 - Runtime pi-typesafe is the specific root-install exception, not permission to bundle Pi peers; see [the decision](../../docs/decisions/pane-naming-root-dependency.md). Tests never contact live TypeSafe, providers or Herdr.
