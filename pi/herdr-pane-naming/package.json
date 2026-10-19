@@ -6,6 +6,11 @@
   "keywords": ["pi-package"],
   "engines": { "node": ">=22.19.0" },
   "pi": { "extensions": ["./index.ts"] },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jigenator/industrial-os",
+    "directory": "pi/herdr-pane-naming"
+  },
   "files": ["index.ts", "models.ts", "README.md"],
   "scripts": { "test": "node --experimental-strip-types --test test/*.test.ts" },
   "dependencies": { "pi-typesafe": "^0.9.1" },

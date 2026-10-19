@@ -19,6 +19,8 @@ panes too until `/pane-naming on`.
 This is not an agent-callable rename tool. It does not route work, change Pi's
 main model, or modify Herdr's managed status extension.
 
+Status: moved with full history into industrial-os, with no behavior change. Automated and installed-Pi evidence is in [contributing](CONTRIBUTING.md#verification-records); live Herdr and provider behavior are not qualified by the move. No license has been selected.
+
 ## Requirements
 
 - Pi `1.0.4` or compatible; Herdr CLI/server `0.9.3` or compatible.
@@ -35,24 +37,18 @@ The only runtime dependency is `pi-typesafe`, which brings `@typesafe-ai/sdk`.
 
 ## Install
 
-```sh
-pi install git:github.com/jigenator/pi-herdr-pane-naming
+Use one filtered settings entry for industrial-os, as described in [Pi installation](../README.md#install):
+
+```json
+{
+  "source": "git:github.com/jigenator/industrial-os",
+  "extensions": ["pi/herdr-pane-naming/index.ts"]
+}
 ```
 
-Pi installs dependencies for npm and git sources. **A local checkout** (for
-example `pi install /absolute/path/to/pi-herdr-pane-naming`, or a relative path
-in `settings.json`) is loaded as-is, so run `npm install` in the checkout first
-and again whenever `package.json` changes. Then `/reload` or restart Pi.
+Merge this path into an existing industrial-os entry rather than adding a second source. For a local checkout, follow [root setup](../../CONTRIBUTING.md#setup) first, then `pi install <industrial-os checkout>/pi/herdr-pane-naming`. Pi loads local paths as-is; it installs no dependencies there. The root install supplies `pi-typesafe` for this subfolder ([decision](../../docs/decisions/pane-naming-root-dependency.md)). Do not configure the local and git copies together.
 
-To try a checkout without installing it:
-
-```sh
-npm install
-pi -e ./index.ts
-```
-
-Do not enable this in a session where the main agent is also told to rename
-panes; the two will fight over the label.
+Do not enable this in a session where the main agent is also told to rename panes; the two will fight over the label.
 
 ## Commands
 
@@ -82,67 +78,9 @@ Startup flags: `--pane-naming-model provider/model-id` overrides the saved model
 for that session; `--pane-naming` turns naming on for that session even when the
 saved default is off. Neither changes the saved file.
 
-## When it runs
+## Behavior and limits
 
-- Requires `HERDR_ENV=1`, an inherited `HERDR_PANE_ID`, `ctx.mode === "tui"`,
-  and no `PI_SUBAGENT_CHILD=1`. RPC, print, JSON, and subagent child sessions do
-  nothing, so children never fight their parent over the shared pane.
-- **Every delivered user message** with text starts a background check when it
-  is delivered (`message_start`). Queued steering/follow-ups are checked when
-  delivered, not when queued. Images are ignored; only text blocks are used.
-- **Assistant activity** also triggers checks: finalized assistant
-  `message_end` events with visible progress text or requested tool names can
-  reveal a shift from research to debugging or implementation without a new
-  prompt. Checks are anchored on the latest user message on the current branch,
-  which is recomputed at every session start (startup, reload, resume, new, fork)
-  and after `/tree` navigation, so naming continues after a reload or resume
-  without another prompt. Custom and extension messages do not end that scope.
-- Assistant checks wait until the cooldown after the last Jev check. During the
-  cooldown only the latest snapshot is kept; identical consecutive snapshots make
-  no call. Tool-only messages reuse the latest visible progress text. Tool
-  arguments, results, streaming chunks, thinking, and aborted/error responses do
-  not trigger checks. No polling and no per-tool requests.
-- Jev returns `keep`, `update`, `new_task`, or `uncertain`. Only `update` and
-  `new_task` call the title model; `keep` and `uncertain` leave the name alone.
-
-## Labels you set yourself
-
-Automation owns the label. An existing label (from an earlier session or typed by
-hand) is replaced at the next `update`/`new_task` decision, and renaming the pane
-by hand does not pause naming. Use `/pane-naming off` to keep a label of your own.
-Herdr has no conditional rename, so a manual rename racing an already-issued write
-is simply overwritten.
-
-## Safeguards
-
-- Renames use `herdr pane get/rename` with argument arrays, never a shell. Model
-  output can never choose the executable or the target pane; the target is always
-  the inherited `HERDR_PANE_ID`. The first terminal seen for that pane is
-  remembered; if the pane ID later reports a different terminal, every rename from
-  that process is refused (and reported) rather than touching someone else's pane.
-- Titles are validated plain text (no control or invisible characters, no
-  leading hyphen, no stray PR references). Titles over 55 characters are trimmed
-  to the last whole word that fits.
-- A new delivered message, a changed assistant snapshot, navigation, shutdown,
-  `off`, a model change, and agent cancellation invalidate pending model results.
-  Writes are serialized and rechecked after asynchronous reads. Shutdown waits
-  only for an already-issued, time-bounded CLI write.
-- Identical names cause no rename. Failures never block user input, inject
-  prompts, or ask the main model to recover.
-
-## PR numbers
-
-The title model may select only PRs from an allowed list: explicit `PR #123` or
-`PR 123` references and GitHub pull-request URLs in the current user request,
-plus, for an `update`, the PRs already in the pane's `PR #… ·` prefix. A
-`new_task` never inherits old PRs. Code adds the `PR #123 ·` prefix and removes
-redundant references to the same PRs from the title. Choosing which mentioned PR
-is relevant remains a model judgment, not a GitHub existence check.
-
-A successful, direct, single-line `gh pr create …` bash call whose entire text
-result is one GitHub PR URL adds that PR to the current title without a model
-call. Pipelines, wrappers, alternate hosts, JSON output, and other PR tools are
-deliberately not parsed. Up to four PRs are shown.
+Naming runs only in a main interactive Herdr pane, from delivered user text and finalized assistant activity. Assistant checks coalesce behind the cooldown; there is no polling. See [the event flow and safeguards](docs/architecture.md), and [label ownership and PR numbers](docs/design.md). A hand-set name does not pause automation; turn naming off to keep it.
 
 ## Data sharing and cost
 
@@ -203,21 +141,11 @@ up a later `/typesafe login` or `/pane-naming model` without re-enabling.
   is ignored and dropped the next time settings are saved.
 - Earlier per-session ownership/check-count entries in old sessions are ignored.
 
-## Checks
+## Guides
 
-```sh
-npm install
-npm test
-```
-
-Node's test runner with mocked Herdr, models and TypeSafe transport: no network,
-credentials, live model calls, or live Herdr writes. Preference-file checks use
-temporary directories, never your live settings.
-
-Optional check against an installed Pi loader, also without live calls (uses a
-temporary `PI_CODING_AGENT_DIR`, so your real pi-typesafe key is not read):
-
-```sh
-PI_PACKAGE_DIR="$(npm root -g)/@earendil-works/pi-coding-agent" \
-  node test/pi-load.mjs
-```
+- [Agent guide](AGENTS.md): rules and task routes.
+- [Contributing](CONTRIBUTING.md): setup, checks and verification records.
+- [Architecture](docs/architecture.md): modules, events, cancellation and Herdr writes.
+- [Conventions](docs/conventions.md): engineering rules and adoption gaps.
+- [Design](docs/design.md): labels, PR references and feedback.
+- [Mission](docs/mission.md): scope and non-goals.
