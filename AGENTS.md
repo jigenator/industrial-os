@@ -86,6 +86,8 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [design-system/elements/segment-meter/README.md](design-system/elements/segment-meter/README.md) | Segment meter contract: quota segments, provider columns, countdowns, and stale ages | Using or changing segment meters or provider columns |
 | [design-system/elements/state-chip/README.md](design-system/elements/state-chip/README.md) | State chip contract: label, shape, and code states with the Tatsu preset | Using or changing state chips |
 | [design-system/elements/mode-plate/README.md](design-system/elements/mode-plate/README.md) | Mode plate contract: icon, title, and mode letters with the PNYTL preset | Using or changing mode plates |
+| [design-system/elements/line-meter/README.md](design-system/elements/line-meter/README.md) | Line meter contract: compact used-percent bar, zones, idle and unknown | Using or changing line meters |
+| [design-system/elements/column-block/README.md](design-system/elements/column-block/README.md) | Column block contract: gutter, value, marks, right slot, and stacking | Using or changing column blocks |
 | [design-system/motions/README.md](design-system/motions/README.md) | Every motion's contract, parameters, rates, presets, state-cell opt-in, motion-off, host timing, and extension rules | Using, adding, or changing a motion |
 | [design-system/examples/README.md](design-system/examples/README.md) | Storybook keys, sections and scrolling index, playback rates, the marker timeline, reuse examples, host seam, and how to add stories | Using the storybook or showcase, adding a story, or changing a host |
 | [pi/README.md](pi/README.md) | Pi extensions index, status, and install | Using the Pi extensions or adding one |

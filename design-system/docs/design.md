@@ -12,6 +12,8 @@ The first set is numbered panels, label plates, gauges, and status rows: [number
 
 The second set is modeled on the Pi extensions' own UI, so the extensions' look can be reused and refined here: the [instrument frame](../elements/instrument-frame/README.md) (status-bar's framed footer), [count plate](../elements/count-plate/README.md) (CMP and AU), [mode plate](../elements/mode-plate/README.md) (PNYTL), [state chip](../elements/state-chip/README.md) (Tatsu entries), [lamp](../elements/lamp/README.md) and [thread rail](../elements/thread-rail/README.md) (Thread Rail), [pixel numeral](../elements/pixel-numeral/README.md) (the context numeral), [segment meter](../elements/segment-meter/README.md) (USG quota), and claude-interrupt's [transcript marker](../elements/transcript-marker/README.md). The label plate gained status-bar's slab form and a bright tone, and the gauge opt-in context zones and a tick-free scale. Each README lists its differences from the extension. These elements have automated checks only; none has been checked natively in Herdr.
 
+Modeled on herdr-sidebar's layout B: the [line meter](../elements/line-meter/README.md) (compact context-used bar) and [column block](../elements/column-block/README.md) (gutter, value, marks and right slot). Their contracts and differences from herdr-sidebar live in those READMEs. Automated checks only; native Herdr checks not run.
+
 Final visual acceptance of every element remains a maintainer decision.
 
 ## IndustrialOS colors

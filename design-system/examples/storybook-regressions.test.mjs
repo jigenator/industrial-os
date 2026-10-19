@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fitLine, lineWidth, paint, resolveColor as resolve, span } from '../foundation/cells.mjs';
 import { SIGNAL_COLORS } from '../foundation/signal-colors.mjs';
+import { lineMeter } from '../elements/line-meter/line-meter.mjs';
+import { columnBlock } from '../elements/column-block/column-block.mjs';
 import { gauge, gaugeScale } from '../elements/gauge/gauge.mjs';
 import { labelPlate } from '../elements/label-plate/label-plate.mjs';
 import { numberedPanel, panelInnerWidth } from '../elements/numbered-panel/numbered-panel.mjs';
@@ -40,7 +42,7 @@ import { advance, composeStorybook, initialState, press } from './storybook-layo
 
 // Everything the generated usage text may name.
 const API = {
-  fitLine, span, SIGNAL_COLORS, gauge, gaugeScale, labelPlate, numberedPanel, panelInnerWidth, statusRow, COUNT_PLATES, countPlate,
+  fitLine, span, lineMeter, columnBlock, SIGNAL_COLORS, gauge, gaugeScale, labelPlate, numberedPanel, panelInnerWidth, statusRow, COUNT_PLATES, countPlate,
   LAMP_DIM_STYLE, lamp, modePlate, pnytlPlate, stateChips, numeralAt, numeralGrid, numeralLines, pixelNumeral, providerColumn,
   segmentMeter, threadRail, threadRailPieces, instrumentFrame, markerBars, markerPlate, transcriptMarker, scan, pulse, reveal,
   drawIn, warmUp, latch, beacon, cycle, fade, blink, BLINK_PRESETS, flash, FLASH_PRESETS, ping, wipe, fillIn, burnOut,
