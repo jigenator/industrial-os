@@ -14,10 +14,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jigenator/pi-session-recap.git"
+    "url": "https://github.com/jigenator/industrial-os",
+    "directory": "pi/session-recap"
   },
-  "bugs": "https://github.com/jigenator/pi-session-recap/issues",
-  "homepage": "https://github.com/jigenator/pi-session-recap#readme",
+  "bugs": "https://github.com/jigenator/industrial-os/issues",
+  "homepage": "https://github.com/jigenator/industrial-os/tree/main/pi/session-recap#readme",
   "files": [
     "index.ts",
     "README.md",
