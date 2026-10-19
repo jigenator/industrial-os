@@ -18,7 +18,7 @@ Only a complete, current response is shown. Errors notify with a safe reason; un
 
 ## Focus and Herdr limits
 
-The imported baseline used `@earendil-works/pi-*` **1.0.0**; current evidence is in [contributing](../CONTRIBUTING.md#verification-records). It uses Pi 1.0’s canonical `buildSessionProjection()`, final `agent_settled` boundary, `session_shutdown` cleanup, and `ctx.ui.onTerminalInput()` ownership rather than attaching its own stdin listener.
+The imported baseline used `@earendil-works/pi-*` **1.0.0**; development now pins **1.2.0**, and current evidence is in [contributing](../CONTRIBUTING.md#verification-records). It uses Pi 1.0’s canonical `buildSessionProjection()`, final `agent_settled` boundary, `session_shutdown` cleanup, and `ctx.ui.onTerminalInput()` ownership rather than attaching its own stdin listener.
 
 Herdr findings are deliberately separated:
 

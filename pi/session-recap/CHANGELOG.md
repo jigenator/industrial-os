@@ -18,6 +18,8 @@
 - Exclude Pi 1.0 transcript system messages and their prompt/tool declarations from recap input.
 
 ### Changed
+- Lock `session-recap.json` around each read-merge-save, so `/recap model` and `/recap keep` saved by two Pi processes at once can no longer lose one change. The wait is asynchronous with a two-second timeout, and stale locks from crashed processes are cleared.
+- Pin development Pi packages to 1.2.0, the installed host, instead of 1.0.0, whose shrinkwrap locked a vulnerable `brace-expansion` (GHSA-q2hr-2g5m-vwhr, GHSA-qhr7-859c-m2p7, GHSA-6j4f-fj2g-mc7p). Development-only; runtime peers stay `*`. Retention probe fakes gained the 1.2.0 host methods they need.
 - Draft one recap per time away, when you return, instead of one after every run that ends while the pane is blurred. Background orchestrator panes previously drafted a recap per subagent update. The away timer now only marks the absence as long enough; it makes no model call.
 - Failure notifications name a safe reason (HTTP status or network error code) instead of only "recap request failed". Provider messages are still never shown.
 - Use Pi 1.0's owned `ctx.ui.onTerminalInput()` hook for focus reports instead of attaching directly to stdin.

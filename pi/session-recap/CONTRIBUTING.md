@@ -4,7 +4,7 @@ Follow the [repository workflow](../../CONTRIBUTING.md) and [project guide](AGEN
 
 ## Toolchain and setup
 
-Use Node.js 22.19+ and npm. This is TypeScript ESM run by Pi/Node type stripping; TypeScript 5.9.3 checks `index.ts` with strict NodeNext/noEmit and `skipLibCheck`. Pi development packages are pinned to **1.0.0**, distinct from the installed **1.2.0** host used for the move's RPC load. No formatter, linter or build command is declared.
+Use Node.js 22.19+ and npm. This is TypeScript ESM run by Pi/Node type stripping; TypeScript 5.9.3 checks `index.ts` with strict NodeNext/noEmit and `skipLibCheck`. Pi development packages are pinned to **1.2.0**, the installed host version. No formatter, linter or build command is declared.
 
 Pi supplies runtime peers. This extension has no runtime dependency and does not use the design system; its own tests need only the install below. Whole-monorepo installation also follows [root setup](../../CONTRIBUTING.md#setup).
 
@@ -30,6 +30,13 @@ Manual validation requires explicit authorization and privacy/cost consent: in a
 Trace projection → selection/auth → provider response → current-context check → UI. No generated text belongs in model history or settings. Preserve clean-stop filtering, safe error notifications, atomic preference merge/save, request/picker ownership and private-layout fallback. Keep the MIT license and provenance intact. Update user commands/privacy in README, flows/seams in architecture, presentation/focus in design and engineering gaps in conventions; map every guide here and at the root.
 
 ## Verification records
+
+2026-10-19 settings lock and development host bump, macOS, Node 22.23.0, npm 10.9.8:
+
+- Development pins moved from Pi 1.0.0 to 1.2.0 because 1.0.0's shrinkwrap locks `brace-expansion` 5.0.9; `npm audit fix` and `overrides` cannot change a shrinkwrapped dependency. 1.2.0 ships 5.0.12. `npm audit`: **0 vulnerabilities**.
+- Retention probes needed only harness updates for 1.2.0: the shared top-level `pi-ai/compat` import (1.2.0 no longer nests a copy), and no-op `getSessionName`, `setProgramStatus` and pass-through `resolveToolRenderers` fakes. No assertion changed.
+- `npm run check`: passed, strict typecheck plus **126/126 tests**, including `tests/settings-lock.test.mjs` (lock wait and merge, stale-lock recovery, timeout without overwrite, cancellation without write). The lock test simulates the other process through the lock protocol in one process; no multi-process stress test was run.
+- Interactive Pi/Herdr and live providers: **not run**.
 
 2026-10-19 move, macOS, Node 22.23.0, npm 10.9.8:
 

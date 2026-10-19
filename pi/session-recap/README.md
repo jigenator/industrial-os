@@ -4,7 +4,7 @@ A personal [Pi](https://pi.dev) extension that leaves a short “while you were 
 
 The recap is UI only: it is not appended to the session, saved in conversation history, or sent to the main or recap model as conversation context. By default it disappears when input or agent work resumes. `/recap keep` can retain completed recaps onscreen during ordinary work.
 
-Status: an MIT-licensed fork, moved with full history into industrial-os without changing behavior. The offline suite uses pinned Pi 1.0.0; the move also checks loading with installed Pi 1.2.0. Interactive Pi/Herdr and live providers remain unverified; see [verification records](CONTRIBUTING.md#verification-records).
+Status: an MIT-licensed fork, moved with full history into industrial-os without changing behavior. The offline suite runs against pinned Pi 1.2.0, the installed host version. Interactive Pi/Herdr and live providers remain unverified; see [verification records](CONTRIBUTING.md#verification-records).
 
 ## Install
 
@@ -53,7 +53,7 @@ Durations are clamped to at least five seconds.
 
 Run `/recap keep` for Pi’s native **On / Off** choice, showing the current global preference. Escape cancels without saving or generating a recap. **Off** is the default. **On** keeps each subsequently completed recap as an ordinary chronological, wrapped transcript row in both regular and fullscreen modes. New input, agent turns, tool activity, notifications, and newer recaps do not replace earlier kept rows. Turning Off affects new recaps only; already-kept rows remain until the UI resets.
 
-The global boolean `keep` shares `<agent-dir>/session-recap.json` with the optional `model`, e.g. `{"model":"provider/id","keep":true}`. Both commands preserve the other setting, rereading it after the dialog before an atomic save; invalid/unreadable settings are not overwritten. Each newly displayed recap rereads retention, so running sessions sharing the agent directory see changes without watchers. No recap text is written to configuration, session entries, or model context.
+The global boolean `keep` shares `<agent-dir>/session-recap.json` with the optional `model`, e.g. `{"model":"provider/id","keep":true}`. Both commands preserve the other setting: after the dialog they take a short lock on the file, reread it and save atomically, so two Pi processes saving at once cannot lose either change. A lock still held after two seconds fails the save with an error; a lock left by a crashed process is cleared after ten seconds; invalid/unreadable settings are not overwritten. Each newly displayed recap rereads retention, so running sessions sharing the agent directory see changes without watchers. No recap text is written to configuration, session entries, or model context.
 
 Kept rows are not durable history: see [display lifetime and unsupported-layout fallback](docs/design.md#display-lifetime).
 

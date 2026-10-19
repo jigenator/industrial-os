@@ -4,7 +4,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { closeSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { closeSync, mkdirSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Message } from "@earendil-works/pi-ai";
 import { complete, completeSimple } from "@earendil-works/pi-ai/compat";
@@ -248,6 +248,49 @@ function saveRecapSettings(path: string, settings: RecapSettings): void {
 		renameSync(temporary, path);
 	} finally {
 		try { unlinkSync(temporary); } catch {}
+	}
+}
+
+const SETTINGS_LOCK_TIMEOUT_MS = 2_000;
+const SETTINGS_LOCK_STALE_MS = 10_000;
+const SETTINGS_LOCK_RETRY_MS = 25;
+
+// Pi processes share one settings file. The lock makes read-merge-save atomic across
+// them, so concurrent model and keep changes are never lost; waits are asynchronous so
+// the TUI never blocks. A lock older than any real save is left by a crashed process.
+export async function updateRecapSettings(
+	path: string,
+	change: (settings: RecapSettings) => RecapSettings,
+	signal?: AbortSignal,
+): Promise<boolean> {
+	mkdirSync(dirname(path), { recursive: true });
+	const lock = `${path}.lock`;
+	const deadline = Date.now() + SETTINGS_LOCK_TIMEOUT_MS;
+	for (;;) {
+		try {
+			closeSync(openSync(lock, "wx", 0o600));
+			break;
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+		}
+		try {
+			if (Date.now() - statSync(lock).mtimeMs > SETTINGS_LOCK_STALE_MS) {
+				unlinkSync(lock);
+				continue;
+			}
+		} catch {
+			continue; // Released between the failed create and the check.
+		}
+		if (Date.now() >= deadline) throw new Error("settings lock timeout");
+		if (signal?.aborted) return false;
+		await new Promise((resolve) => setTimeout(resolve, SETTINGS_LOCK_RETRY_MS));
+	}
+	try {
+		if (signal?.aborted) return false;
+		saveRecapSettings(path, change(readRecapSettings(path)));
+		return true;
+	} finally {
+		try { unlinkSync(lock); } catch {}
 	}
 }
 
@@ -792,7 +835,7 @@ export default function (pi: ExtensionAPI) {
 						+ "\nUI only; clears on compaction/display rebuild, reload or session/branch change.";
 					const choice = await ctx.ui.select(title, ["On", "Off"], { signal: controller.signal });
 					if (controller.signal.aborted || pickerController !== controller || (choice !== "On" && choice !== "Off")) return;
-					saveRecapSettings(path, { ...readRecapSettings(path), keep: choice === "On" });
+					if (!await updateRecapSettings(path, (settings) => ({ ...settings, keep: choice === "On" }), controller.signal)) return;
 					ctx.ui.notify(`session-recap: global onscreen retention ${choice.toLowerCase()} (new recaps only)`, "info");
 					return;
 				}
@@ -806,7 +849,7 @@ export default function (pi: ExtensionAPI) {
 				const choice = await ctx.ui.select(title, [automatic, ...choices], { signal: controller.signal });
 				if (controller.signal.aborted || pickerController !== controller || choice === undefined) return;
 				if (choice !== automatic && !choices.includes(choice)) return;
-				saveRecapSettings(path, { ...readRecapSettings(path), model: choice === automatic ? undefined : choice });
+				if (!await updateRecapSettings(path, (settings) => ({ ...settings, model: choice === automatic ? undefined : choice }), controller.signal)) return;
 				lastDraftedContext = undefined;
 				ctx.ui.notify(choice === automatic
 					? "session-recap: global recap model cleared; automatic selection restored (unless overridden)"
