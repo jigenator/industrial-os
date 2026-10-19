@@ -15,6 +15,8 @@ import { providerColumn, segmentMeter } from '../elements/segment-meter/segment-
 import { threadRail, threadRailPieces } from '../elements/thread-rail/thread-rail.mjs';
 import { frameGeometry, instrumentFrame } from '../elements/instrument-frame/instrument-frame.mjs';
 import { transcriptMarker } from '../elements/transcript-marker/transcript-marker.mjs';
+import { lineMeter } from '../elements/line-meter/line-meter.mjs';
+import { columnBlock } from '../elements/column-block/column-block.mjs';
 import { call, code } from './storybook-usage.mjs';
 
 // Specimens keep to a readable width, never wider than the cells they are given.
@@ -416,4 +418,74 @@ const MARKER = element('transcript-marker', {
   },
 });
 
-export const ELEMENT_STORIES = [PANEL, FRAME, PLATE, COUNT, MODE, CHIP, LAMP, ROW, GAUGE, NUMERAL, METER, RAIL, MARKER];
+const LINE_METER = element('line-meter', {
+  title: 'LINE METER',
+  summary: "herdr-sidebar's compact context-used bar, with a two-digit reading and a single ink.",
+  rules: [
+    'percent is finite 0-100 or null/undefined for unknown; invalid readings throw, never clamp.',
+    'Readout floors and caps at 99%; bar cells use ceil, unlike the default gauge.',
+    'Warning starts at 70, critical at 90; idle overrides known ink, not shape.',
+    'Narrow: shorten the bar first, then show the readout alone, then # cells.',
+  ],
+  variants: [
+    { name: 'OK', note: 'Fixture: 67% used, eight of eleven cells lit.', input: { percent: 67 } },
+    { name: 'WARN', note: 'Exactly 70: warning ink.', input: { percent: 70 } },
+    { name: 'CRITICAL', note: 'Exactly 90: bold critical ink.', input: { percent: 90 } },
+    { name: 'IDLE', note: 'Idle retains the 95% shape in nonbold decorative ink.', input: { percent: 95, tone: 'idle' } },
+    { name: 'UNKNOWN', note: 'Unknown is --%, never 00%.', input: { percent: null } },
+    { name: 'ZERO', note: 'Confirmed zero, not unknown.', input: { percent: 0 } },
+    { name: 'FULL', note: '100% fills the bar and reads 99% (99 or more).', input: { percent: 100 } },
+    { name: 'NARROW', note: 'Eight cells: the shorter bar recomputes its ceil fill.', input: { percent: 67 }, options: { maxWidth: 8 } },
+  ],
+  specimen(variant, width) {
+    return piece('lineMeter', (o) => lineMeter(variant.input, o), [variant.input], variant.options ?? {}, width);
+  },
+});
+
+// The layout B fixture uses a supported QNS state glyph; the caller, not columnBlock, supplies every ink.
+// countPlate's six-cell bare form keeps the compaction count intact in the sidebar-sized right slot.
+const COLUMN_FIXTURE = {
+  real: [
+    { head: true, gutter: [span('× QNS', { fg: 'critical', bold: true })], value: [span('release', { fg: 'primary', bold: true })], right: '2h33m' },
+    { gutter: [span('02AU', { fg: 'accent', bold: true })], value: (cells) => lineMeter({ percent: 67 }, { maxWidth: cells }), right: countPlate(18, COUNT_PLATES.compactions, { maxWidth: 6 }) },
+    { gutter: 'ACT', value: [span('feat/sidebar*', { fg: 'warning' })], right: '#42' },
+    { gutter: 'MDL', value: 'opus-5.5/hi' },
+    { gutter: 'PNE', value: 'Updating sidebar', right: '12s' },
+  ],
+  shown: [
+    { head: true, gutter: code(spansCode('× QNS', { fg: 'critical', bold: true })), value: code(spansCode('release', { fg: 'primary', bold: true })), right: '2h33m' },
+    { gutter: code(spansCode('02AU', { fg: 'accent', bold: true })), value: code(`(cells) => ${call('lineMeter', { percent: 67 }, { maxWidth: code('cells') })}`), right: code(call('countPlate', 18, code('COUNT_PLATES.compactions'), { maxWidth: 6 })) },
+    { gutter: 'ACT', value: code(spansCode('feat/sidebar*', { fg: 'warning' })), right: '#42' },
+    { gutter: 'MDL', value: 'opus-5.5/hi' },
+    { gutter: 'PNE', value: 'Updating sidebar', right: '12s' },
+  ],
+};
+const COLUMN_BLOCK = element('column-block', {
+  title: 'COLUMN BLOCK',
+  summary: "herdr-sidebar's layout B: a gutter, a value with optional fixed marks, and a right-aligned slot. Geometry only; callers compose elements.",
+  rules: [
+    'Default text column 10, text area 24, right slot 6; natural width 34.',
+    'Strings use safeText; caller spans keep their styles and curated glyphs.',
+    'Marks take value cells, never right-slot cells. Missing parts have no separator.',
+    'Narrow: value shrinks first, then fixed parts stack; an oversized part wraps without clipping.',
+  ],
+  variants: [
+    { name: 'LAYOUT B', note: 'Fixture modeled on layout B, composed with lineMeter and a bare countPlate.', fixture: true },
+    { name: 'FLAGGED', note: 'The flag takes four value cells; goal time stays in its column.',
+      real: [{ ...COLUMN_FIXTURE.real[0], value: 'long-project-name', marks: [[span('●', { fg: 'critical' })]] }],
+      shown: [{ ...COLUMN_FIXTURE.shown[0], value: 'long-project-name', marks: code(`[${spansCode('●', { fg: 'critical' })}]`) }] },
+    { name: 'CONTINUATION', note: 'A value without a gutter starts under the preceding value.',
+      real: [{ gutter: 'ASK', value: [span('Choose a target', { fg: 'critical', bold: true })] }, { value: 'then confirm' }],
+      shown: [{ gutter: 'ASK', value: code(spansCode('Choose a target', { fg: 'critical', bold: true })) }, { value: 'then confirm' }] },
+    { name: 'NARROW', note: 'At 18 cells, right slots stack at the right edge; the meter re-renders at its budget.', fixture: true, width: 18 },
+  ],
+  specimen(variant, width) {
+    const opts = { width: within(width, variant.width ?? 34) };
+    const real = variant.fixture ? COLUMN_FIXTURE.real : variant.real;
+    const shown = variant.fixture ? COLUMN_FIXTURE.shown : variant.shown;
+    const lines = columnBlock(real, opts);
+    return { lines, calls: [call('columnBlock', shown, opts)], facts: [`${lines.length} LINES at ${opts.width} cells`] };
+  },
+});
+
+export const ELEMENT_STORIES = [PANEL, FRAME, PLATE, COUNT, MODE, CHIP, LAMP, ROW, GAUGE, NUMERAL, METER, RAIL, MARKER, LINE_METER, COLUMN_BLOCK];

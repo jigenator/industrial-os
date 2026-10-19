@@ -122,6 +122,8 @@ test('the new element states read without color: words, shapes, and digits carry
     'segment-meter': ['GPT ■■■■■■■■', 'pending', 'timeout', '16m', 'none', '????????', '41m', '4h03m'],
     'thread-rail': ['█  ROOT  █·█·█·······  03 AU', '00 AU', '╱  ROOT', '? AU', '120 AU'],
     'instrument-frame': ['┏━ CMP×12', 'cwd /launch unrelated', 'FORM minimal at 30 cells', 'gutter 1'],
+    'line-meter': ['━━━━━━━━─── 67%', '─────────── --%', '─────────── 00%', '━━━━━━━━━━━ 99%'],
+    'column-block': ['× QNS', '02AU', 'CMP×18', 'long-proje… · ●', 'then confirm'],
     'transcript-marker': ['DIRECTIVE UPDATED  ││ │ │  │  │   │', 'DIRECTIVE UPDATED  ││ │ │ '],
   };
   for (const [id, shown] of Object.entries(expect)) {
