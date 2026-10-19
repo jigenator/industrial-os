@@ -1,19 +1,19 @@
 # Contributing to the Pi extensions
 
-What every Pi extension in this folder shares, and how to bring one in. Each extension's own contributing guide holds its exact commands, validation sequence, and verification records: [claude-interrupt](claude-interrupt/CONTRIBUTING.md), [signals-collector](signals-collector/CONTRIBUTING.md) and [status-bar](status-bar/CONTRIBUTING.md). The workflow for every change, including review and publication, is in the [root contributing guide](../CONTRIBUTING.md).
+What every Pi extension in this folder shares, and how to bring one in. Each extension's own contributing guide holds its exact commands, validation sequence, and verification records: [claude-interrupt](claude-interrupt/CONTRIBUTING.md), [signals-collector](signals-collector/CONTRIBUTING.md), [status-bar](status-bar/CONTRIBUTING.md), [herdr-sidebar](herdr-sidebar/CONTRIBUTING.md), [herdr-pane-naming](herdr-pane-naming/CONTRIBUTING.md) and [session-recap](session-recap/CONTRIBUTING.md). The workflow for every change, including review and publication, is in the [root contributing guide](../CONTRIBUTING.md).
 
 ## Shared toolchain facts
 
 Pi loads an extension from its own folder and supplies the host packages listed in [the Pi guide](AGENTS.md#critical-engineering-rules); the extension's development dependencies pin the Pi version its tests compile and run against. status-bar and signals-collector are exceptions: they have no development dependencies or lockfile and their tests run against the globally installed Pi, gaps recorded in [status-bar conventions](status-bar/docs/conventions.md#adoption-gaps) and [collector conventions](signals-collector/docs/conventions.md#checks-and-gaps). Node.js 22.18 and newer strips TypeScript types by default, so an extension's `test/*.test.ts` files run under Node's test runner directly. Running `node --test` from the repository root discovers those files, which need each extension's own setup; it is not a repository check.
 
-The root `package.json` declares every extension's entry point in `pi.extensions`, so Pi can install the extensions from git; see [installing](README.md#install). Its one dependency, `file:design-system`, links the design-system package, and its lockfile records that link; it has no workspaces or scripts. Pi 1.0.4's git install, as read in its source, runs `npm install --omit=dev --legacy-peer-deps` in the clone root, so a git install creates the link itself. A local-path install runs nothing, so run the root `npm install` in [setup](../CONTRIBUTING.md#setup) once in a checkout. An extension still declares only the host's peer packages in its own manifest; it never lists the design-system package. To check the git install without touching your own Pi settings, push the branch and run, from an empty temporary directory with a temporary agent directory:
+The root `package.json` declares every extension's entry point in `pi.extensions`, so Pi can install the extensions from git; see [installing](README.md#install). Its two dependencies are `file:design-system` and pane naming's `pi-typesafe: ^0.9.1`; the [named exception](../docs/decisions/pane-naming-root-dependency.md) explains why the latter stays in both manifests. Root `.npmrc` sets `legacy-peer-deps=true` to prevent plain npm setup from installing host peers/typebox; no workspaces or scripts are added. Pi 1.2.0's git install, as read in its source, runs `npm install --omit=dev --legacy-peer-deps` in the clone root, so a git install supplies both dependencies itself, never subfolder dependencies. A local-path install runs nothing, so run the root `npm install` in [setup](../CONTRIBUTING.md#setup) once in a checkout. Host packages remain peers, never bundled runtime dependencies. No extension lists the design-system package in its manifest; pane naming alone also declares pi-typesafe. To check the git install without touching your own Pi settings, push the branch and run, from an empty temporary directory with a temporary agent directory:
 
 ```sh
 PI_CODING_AGENT_DIR=<temp agent dir> pi install git:github.com/jigenator/industrial-os@<branch>
 echo '{"type":"get_commands","id":"1"}' | PI_CODING_AGENT_DIR=<temp agent dir> pi --mode rpc
 ```
 
-The install succeeds, the RPC run exits 0 without a load error, and the reply lists commands the extensions register with their source as the git package. It makes no model call. This check has not been run since the root dependency was added; the clean-clone check of the link is recorded in [the design-system contributing guide](../design-system/CONTRIBUTING.md#package-verification).
+The install succeeds, the RPC run exits 0 without a load error, and the reply lists commands the extensions register with their source as the git package. It makes no model call. A pushed git-source check has not been run for this move; the local-clone equivalent is recorded [below](#move-verification), and the clean-clone check of the link is recorded in [the design-system contributing guide](../design-system/CONTRIBUTING.md#package-verification).
 
 ## Moving an extension in
 
@@ -26,4 +26,13 @@ Bring the extension's history with it:
 5. Add it to the [root README layout](../README.md#layout), [this folder's README](README.md), and every one of its guides to the [root map](../AGENTS.md#supporting-documents).
 6. Point the installed copy at the new path, confirm Pi loads it, then archive the old repository with a pointer in its README.
 
-claude-interrupt was moved this way in pull request #4, and status-bar the same way in the pull request that added `pi/status-bar/`.
+claude-interrupt was moved this way in pull request #4, and status-bar the same way in the pull request that added `pi/status-bar/`. herdr-pane-naming and session-recap also arrived through path-rewritten full-history merges, followed by packaging and guide commits; no imported history was squashed or rewritten after those merges.
+
+
+## Move verification
+
+2026-10-19, macOS, Node 22.23.0, npm 10.9.8, installed Pi 1.2.0:
+
+- Documented root `npm install`: passed, three packages added, zero audit vulnerabilities. `npm ls --depth=0` lists only the design-system link and pi-typesafe 0.9.1; its SDK is 0.6.0. Both required paths exist. `ls node_modules/@earendil-works` and `ls node_modules/typebox` report no such directory; explicit filesystem and lockfile-package-entry assertions passed. The lockfile retains only peer metadata, not installed host/typebox packages.
+- Diagnostic `npm ls --omit=dev --all`: exited 1 (ELSPROBLEMS) for pi-typesafe's intentionally unmet typebox peer; optional pre-1.0 Pi peers are also shown unmet. This is expected under peer suppression, not a failed setup. No duplicate host was installed to silence it.
+- Extension-local checks: pane naming **61/61** plus real installed-host loader passed; recap strict project typecheck plus **122/122** passed on its pinned development host. Detailed records: [pane naming](herdr-pane-naming/CONTRIBUTING.md#verification-records), [recap](session-recap/CONTRIBUTING.md#verification-records).

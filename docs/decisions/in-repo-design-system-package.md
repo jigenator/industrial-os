@@ -2,7 +2,7 @@
 
 Status: current.
 Date/evidence: 2026-10-07, decided by the maintainer when `design-system/package.json` and the root `file:` dependency were added. Verification is recorded in [the design-system contributing guide](../../design-system/CONTRIBUTING.md#package-verification).
-Supersedes / superseded by: supersedes [the Pi extensions' colors take precedence](extension-colors-take-precedence.md) in full, and [standalone packages](standalone-packages.md) in part: the root `package.json` now carries one dependency, and the root install is a shared step.
+Supersedes / superseded by: supersedes [the Pi extensions' colors take precedence](extension-colors-take-precedence.md) in full, and [standalone packages](standalone-packages.md) in part: the root install became a shared step. Amended by [pane naming's root dependency](pane-naming-root-dependency.md): the root now carries the design-system link and that specific pi-typesafe exception, with peer suppression.
 
 ## Problem
 
@@ -32,10 +32,10 @@ Pi 1.0.4's git install, as read in its source, clones the repository and runs `n
 
 ## Consequences and verification
 
-- The root `package.json` lists the extensions in `pi.extensions` and has the one `file:` dependency. It still has no workspaces and no scripts, and there is still no repository-wide command. Each project keeps its own checks; see [standalone packages](standalone-packages.md). The root install is the only shared step.
+- The root `package.json` lists the extensions in `pi.extensions` and has the `file:` dependency plus the named [pi-typesafe exception](pane-naming-root-dependency.md). It still has no workspaces and no scripts, and there is still no repository-wide command. Each project keeps its own checks; see [standalone packages](standalone-packages.md). The root install is the only shared step.
 - The design system stays standard-library-only and imports nothing from another project. Its elements and motions own no I/O. It is installable by name; both extensions now import it, as recorded under [current adoption](#current-adoption).
 - A new foundation module, element, or motion primitive needs an `exports` entry. `design-system/package.test.mjs` fails until it has one, and fails if an export names a test, an example, or `motions/frame.mjs`.
-- Each Pi extension's manifest still declares only the host's peer packages. It reaches the design system through the root install, not through its own dependencies.
+- Pi extensions declare host packages as peers. Pane naming additionally declares pi-typesafe, also installed at the root under [its specific exception](pane-naming-root-dependency.md). Extensions reach the design system through the root install, never their own dependency declaration.
 - Color check: an extension that has not migrated compares its constants with `design-system/foundation/palette.mjs` and `signal-colors.mjs`, using [design](../design.md#acid--black) to map a constant to its role. No automated comparison exists. Both current extensions import their colors, so neither needs it.
 - Automated and Pi-load verification are recorded in [the design-system contributing guide](../../design-system/CONTRIBUTING.md#package-verification). No interactive Pi or Herdr check has run against the package.
 

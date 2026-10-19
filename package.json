@@ -1,16 +1,19 @@
 {
   "name": "industrial-os",
   "private": true,
-  "description": "Root manifest: lists the Pi extensions' entry points for Pi's git install, and links the in-repo design-system package into node_modules for the repository's projects",
+  "description": "Pi git-install entry points and root runtime dependencies: the in-repo design system and pane naming's pi-typesafe",
   "dependencies": {
-    "@industrial-os/design-system": "file:design-system"
+    "@industrial-os/design-system": "file:design-system",
+    "pi-typesafe": "^0.9.1"
   },
   "pi": {
     "extensions": [
       "./pi/claude-interrupt/src/index.ts",
       "./pi/signals-collector/src/extension.ts",
       "./pi/status-bar/src/extension.ts",
-      "./pi/herdr-sidebar/src/extension.ts"
+      "./pi/herdr-sidebar/src/extension.ts",
+      "./pi/herdr-pane-naming/index.ts",
+      "./pi/session-recap/index.ts"
     ],
     "skills": [],
     "prompts": [],

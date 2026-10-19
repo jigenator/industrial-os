@@ -1,6 +1,6 @@
 # Standalone packages, no shared workspace
 
-Status: current, superseded in part on 2026-10-07 by [the in-repo design-system package](in-repo-design-system-package.md): the root `package.json` also carries one `file:` dependency on `design-system/`, and the root `npm install` that links it is the one shared step. There is still no workspace, root script, or repository-wide command, and each project keeps its own checks.
+Status: current, superseded in part on 2026-10-07 by [the in-repo design-system package](in-repo-design-system-package.md): the root `package.json` also carries one `file:` dependency on `design-system/`, and the root `npm install` that links it is the one shared step. Amended again by [pane naming's root dependency](pane-naming-root-dependency.md): that specific pi-typesafe dependency and peer suppression also live at the root. There is still no workspace, root script, or repository-wide command, and each project keeps its own checks.
 Date/evidence: 2026-10-07, decided by the maintainer when the first Pi extension moved in and the root `node --test` was found to fail in a fresh clone until that extension's `npm ci` had run. Amended 2026-10-07 by the maintainer after status-bar moved in: a manifest-only root `package.json` lets Pi install the extensions from git, as the rpiv-mono repository already does for an extension in a subfolder.
 Supersedes / superseded by: superseded in part by [in-repo design-system package](in-repo-design-system-package.md).
 
@@ -10,9 +10,9 @@ The repository holds projects with different toolchains: the design system is de
 
 ## Choice and alternatives
 
-**Chosen:** every project folder is its own project. It owns its language, manifest, lockfile, dependencies, commands, checks, guides, and license. The root holds shared documents: mission, design, conventions, architecture, contributing, the agent map, and decisions. Repository-wide validation is each project's documented sequence followed by the root's read-only checks. There is no root workspace, dependency, script, or shared `node_modules`.
+**Chosen:** every project folder is its own project. It owns its language, manifest, lockfile, dependencies, commands, checks, guides, and license. The root holds shared documents: mission, design, conventions, architecture, contributing, the agent map, and decisions. Repository-wide validation is each project's documented sequence followed by the root's read-only checks. There is no root workspace or script. The original no-root-dependency/shared-node_modules choice is superseded only by the linked design-system package and [pane naming's pi-typesafe exception](pane-naming-root-dependency.md).
 
-The one root package file is a manifest-only `package.json`, with the lockfile npm generates for it, whose `pi.extensions` lists each Pi extension's entry point. Pi installs a git source by cloning it and loading the root package, so without this file the extensions could only be installed from a local checkout. Users select extensions with the settings entry's `extensions` filter; each extension still loads from its own folder with its own `package.json`.
+The root `package.json`, with its generated lockfile and the two documented dependencies, whose `pi.extensions` lists each Pi extension's entry point. Pi installs a git source by cloning it and loading the root package, so without this file the extensions could only be installed from a local checkout. Users select extensions with the settings entry's `extensions` filter; each extension still loads from its own folder with its own `package.json`.
 
 **Rejected: a root `package.json` with npm workspaces.** It gives one `npm ci` and `npm test` for the Node projects, but it hoists dependencies into a root `node_modules`, which is not how the Pi host installs an extension from a local path, it presumes Node for projects that may not use it, and the design system has no manifest to put in a workspace.
 
@@ -24,7 +24,7 @@ The one root package file is a manifest-only `package.json`, with the lockfile n
 
 - Root `node --test` is not a repository command. It discovers the extension's `.ts` tests and fails until `npm ci` has run there. The root contributing guide says so and lists each project's sequence instead.
 - Adding a project means adding its document set and its row in the root map. Adding a Pi extension also adds its entry point to the root `package.json`.
-- Verification: the root contributing guide's validation table names a directory for every command; no command runs from the root except the read-only checks. The git install is checked with the isolated install in [the Pi contributing guide](../../pi/CONTRIBUTING.md#shared-toolchain-facts).
+- Verification: the root contributing guide's validation table names a directory for every command; only the documented root dependency setup and read-only checks run from the root. The git install is checked with the isolated install in [the Pi contributing guide](../../pi/CONTRIBUTING.md#shared-toolchain-facts).
 
 ## Revisit when
 
