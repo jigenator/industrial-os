@@ -54,7 +54,7 @@ async function harness(t: TestContext, mode: Parameters<ExtensionRunner["setUICo
 			assert.equal(key, WIDGET_KEY);
 			widgetCalls++;
 			widget?.dispose?.();
-			widget = factory?.({ requestRender() {} } as unknown as TUI, theme);
+			widget = factory?.({ requestRender() {}, terminal: { write() {} } } as unknown as TUI, theme);
 			placement = options?.placement;
 		},
 	} as unknown as ExtensionUIContext;

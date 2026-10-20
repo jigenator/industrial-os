@@ -39,7 +39,13 @@ function watchEditor(ctx: ExtensionContext): () => void {
 		}
 		ctx.ui.setWidget(WIDGET_KEY, (host, theme) => {
 			tui = host;
-			const created = new PreviewWidget(theme);
+			const created = new PreviewWidget(theme, (data) => {
+				try {
+					host.terminal.write(data);
+				} catch {
+					// The terminal went away; there is nothing left to clean.
+				}
+			});
 			created.setEntries(entries);
 			widget = created;
 			return created;

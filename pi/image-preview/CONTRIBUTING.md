@@ -37,6 +37,11 @@ Trace text → `paths.ts` → `image.ts` → `index.ts` → `preview.ts` before 
 
 ## Verification records
 
+2026-10-21, deleting side-by-side thumbnails, macOS, Node 22.23.0, Pi 1.3.0 regular mode. David saw thumbnails stay on screen after Up recalled a message without image paths; Pi's main-screen renderer deletes a changed row's Kitty images by the ID in the row's first command only (`tui-main-screen.js` `parseKittyImageHeader`).
+
+- `npm ci`, then `npm run check`: strict typecheck clean, **33/33 tests**. The two new preview tests (first command on the row is a placement while the first preview loads; deletes for dropped thumbnails and on `dispose`, idempotent) failed with the source change stashed, and pass with it.
+- Interactive Herdr check of the fix: **not run**.
+
 2026-10-20, side-by-side row and doubled size, macOS, Node 22.23.0, npm 10.9.8, installed Pi 1.3.0.
 
 - `npm ci`, then `npm run check`: strict typecheck clean, **31/31 tests**. New preview tests cover captions sharing one row above two Kitty placements on one image row (`C=1` plus a cursor-forward), the 12-row budget, `+N more` when previews pass the right edge, all five shown on a wide row, and one preview always shown on narrow rows; the stacked layout keeps its own limit of three.
