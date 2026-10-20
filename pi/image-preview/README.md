@@ -28,7 +28,7 @@ The extension adds no commands, keys, settings or files, and makes no network or
 ## Limitations
 
 - A preview appears up to 200 ms after the path does. A file that appears or changes on disk while the draft stays the same is not rechecked until the draft changes.
-- Thumbnails follow the terminal's image support as Pi detects it. Inside Herdr, Pi detects Kitty graphics; under tmux or in a terminal without an image protocol, only the caption is shown. In Pi's default fullscreen mode, Pi keeps only the first image on a row uploaded to the terminal; the others are re-sent whenever that row is redrawn. Pi's `/settings` option for hiding images does not apply to the preview, because Pi does not expose it to extensions.
+- Thumbnails follow the terminal's image support as Pi detects it. Inside Herdr, Pi detects Kitty graphics; under tmux or in a terminal without an image protocol, only the caption is shown. Pi tracks only the first image on a row, so the extension deletes the side-by-side thumbnails beside it itself. In Pi's default fullscreen mode, Pi also keeps only that first image uploaded, re-sending the others when the row is redrawn, and trims only that one when the preview is partly scrolled out of view, so the others can briefly cover the chat. Pi's `/settings` option for hiding images does not apply to the preview, because Pi does not expose it to extensions.
 - At most 256 candidate paths are checked per draft, in reading order. A path is found only if it is at most 4,096 characters long and has fewer than eight places before it, on its line, where a space, quote or bracket is followed by `/`.
 
 ## Guides

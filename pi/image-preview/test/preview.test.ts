@@ -42,7 +42,9 @@ test("captions fit narrow widths and show control characters as ?", () => {
 });
 
 const square = { data: png().toString("base64"), mimeType: "image/png", width: 400, height: 400 };
-const kittyCount = (line: string) => line.split("\x1b_G").length - 1;
+const kittyCount = (line: string) => line.split("\x1b_Ga=T").length - 1;
+const deletedIds = (data: string) => [...data.matchAll(/\x1b_Ga=d,d=I,i=(\d+)/g)].map((match) => Number(match[1]));
+const placedIds = (line: string) => [...line.matchAll(/\x1b_Ga=T[^;]*?i=(\d+)/g)].map((match) => Number(match[1]));
 
 test("with Kitty support previews sit side by side, captions above, within the row budget", () => {
 	setCapabilities({ images: "kitty", trueColor: true, hyperlinks: false });
@@ -85,6 +87,36 @@ test("one preview is always shown, even when it alone fills a narrow row", () =>
 		assert.ok(visibleWidth(lines[0]) <= width, `width ${width}`);
 	}
 	assert.ok(PREVIEW_COLUMNS >= 30);
+});
+
+test("Pi reads the row's first Kitty command, so it is the first placement, and later ones delete their old copy first", () => {
+	setCapabilities({ images: "kitty", trueColor: true, hyperlinks: false });
+	const widget = new PreviewWidget(theme);
+	widget.setEntries([entry("a.png", { thumbnail: undefined }), entry("b.png", { thumbnail: square }), entry("c.png", { thumbnail: square })]);
+	const line = widget.render(200)[1];
+	assert.equal(line.indexOf("\x1b_G"), line.indexOf("\x1b_Ga=T"), "the first command is a placement, not a delete");
+	const [first, second] = placedIds(line);
+	assert.deepEqual(deletedIds(line), [second], "only placements after the first delete themselves");
+	assert.ok(line.indexOf(`i=${second}`) < line.lastIndexOf("\x1b_Ga=T"));
+	assert.notEqual(first, second);
+});
+
+test("thumbnails beside the first are deleted when the preview is removed or they leave the row", () => {
+	setCapabilities({ images: "kitty", trueColor: true, hyperlinks: false });
+	const writes: string[] = [];
+	const widget = new PreviewWidget(theme, (data) => writes.push(data));
+	widget.setEntries(["a", "b", "c"].map((name) => entry(`${name}.png`, { thumbnail: square })));
+	const [, b, c] = placedIds(widget.render(200)[1]);
+	assert.deepEqual(writes, [], "nothing is deleted while every thumbnail stays");
+	widget.setEntries(["a", "b"].map((name) => entry(`${name}.png`, { thumbnail: square })));
+	widget.render(200);
+	assert.deepEqual(writes.flatMap(deletedIds), [c], "the dropped thumbnail is deleted");
+	writes.length = 0;
+	widget.dispose();
+	assert.deepEqual(writes.flatMap(deletedIds), [b], "removing the preview deletes what Pi does not track");
+	writes.length = 0;
+	widget.dispose();
+	assert.deepEqual(writes, [], "dispose is idempotent");
 });
 
 test("no thumbnail is made when the terminal cannot show images", async () => {

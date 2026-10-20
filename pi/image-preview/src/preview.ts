@@ -1,6 +1,6 @@
 import { basename } from "node:path";
 import { convertToPng, resizeImage, type Theme } from "@earendil-works/pi-coding-agent";
-import { allocateImageId, getCapabilities, Image, renderImage, truncateToWidth, visibleWidth, type Component } from "@earendil-works/pi-tui";
+import { allocateImageId, deleteKittyImage, getCapabilities, Image, renderImage, truncateToWidth, visibleWidth, type Component } from "@earendil-works/pi-tui";
 
 /** At most this many images get a thumbnail; the rest are counted. */
 export const MAX_PREVIEWS = 8;
@@ -96,10 +96,30 @@ export class PreviewWidget implements Component {
 	private entries: PreviewEntry[] = [];
 	private readonly images = new Map<string, { thumbnail: Thumbnail; image: Image }>();
 	private readonly placed = new Map<string, Placed>();
+	/** Kitty image IDs this widget last put on screen beside the row's first, which Pi does not track. */
+	private drawn = new Set<number>();
 	private readonly theme: Theme;
+	private readonly write: (data: string) => void;
 
-	constructor(theme: Theme) {
+	/** `write` sends Kitty delete commands straight to the terminal. */
+	constructor(theme: Theme, write: (data: string) => void = () => {}) {
 		this.theme = theme;
+		this.write = write;
+	}
+
+	/**
+	 * Pi deletes a changed row's images by ID but reads only the row's first image, so the widget deletes
+	 * the others itself when they leave the screen.
+	 */
+	private forgetDrawn(keep: Set<number> = new Set()): void {
+		let deletes = "";
+		for (const id of this.drawn) if (!keep.has(id)) deletes += deleteKittyImage(id);
+		this.drawn = keep;
+		if (deletes) this.write(deletes);
+	}
+
+	dispose(): void {
+		this.forgetDrawn();
 	}
 
 	setEntries(entries: PreviewEntry[]): void {
@@ -150,7 +170,9 @@ export class PreviewWidget implements Component {
 		const pad = width > 1 ? " " : "";
 		const inner = width - pad.length;
 		const protocol = getCapabilities().images;
-		return protocol === "kitty" ? this.renderRow(pad, inner) : this.renderStacked(pad, inner, protocol !== null);
+		if (protocol === "kitty") return this.renderRow(pad, inner);
+		this.forgetDrawn();
+		return this.renderStacked(pad, inner, protocol !== null);
 	}
 
 	private more(hidden: number): string {
@@ -181,15 +203,27 @@ export class PreviewWidget implements Component {
 		});
 		const lines = [pad + truncateToWidth(captions.join(gap), inner)];
 		const rows = Math.max(0, ...cells.map(({ placed }) => placed?.rows ?? 0));
+		const drawn = new Set<number>();
 		if (rows > 0) {
 			// One row carries every placement: draw, then move right past the cell and gap without printing.
+			// Pi parses only the first Kitty command on a row, so it must be the first placement. Each later
+			// placement deletes its old copy first: when the row moves, Pi deletes only the first image.
 			let imageLine = pad;
+			let placedAny = false;
 			for (const [index, { columns, placed }] of cells.entries()) {
-				if (placed) imageLine += placed.sequence;
+				if (placed) {
+					if (placedAny) {
+						imageLine += deleteKittyImage(placed.imageId);
+						drawn.add(placed.imageId);
+					}
+					imageLine += placed.sequence;
+					placedAny = true;
+				}
 				if (index < cells.length - 1) imageLine += `\x1b[${columns + GAP}C`;
 			}
 			lines.push(imageLine, ...Array.from({ length: rows - 1 }, () => ""));
 		}
+		this.forgetDrawn(drawn);
 		if (hidden > 0) lines.push(pad + truncateToWidth(this.theme.fg("muted", this.more(hidden)), inner));
 		return lines;
 	}
