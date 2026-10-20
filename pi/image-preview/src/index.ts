@@ -1,110 +1,29 @@
-import { stat } from "node:fs/promises";
-import { basename } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { getKeybindings, type TUI } from "@earendil-works/pi-tui";
-import {
-	classifyInput,
-	findLabels,
-	isCollapsingPaste,
-	keepsPaths,
-	labelText,
-	newDraftState,
-	noteDraftChange,
-	restorePaths,
-	rewriteDraft,
-	type InputKind,
-} from "./draft.ts";
+import type { TUI } from "@earendil-works/pi-tui";
+import { inspectImage, readImage, type ImageFile } from "./image.ts";
 import { listCandidatePaths, matchImagePaths } from "./paths.ts";
 import { makeThumbnail, MAX_PREVIEWS, PreviewWidget, type PreviewEntry, type Thumbnail } from "./preview.ts";
-import { prepareSubmission } from "./submit.ts";
-import { ingestImage, materialize, MAX_IMAGE_BYTES, registry, type ImageRecord, type IngestResult } from "./store.ts";
 
 /** How often the editor text is checked; Pi has no editor-change event for extensions. */
 const POLL_MS = 200;
 export const WIDGET_KEY = "image-preview";
-const MAX_KNOWN_PATHS = 64;
 const MAX_THUMBNAILS = 16;
 
-function notifyOnce(ctx: ExtensionContext, key: string, message: string): void {
-	const { warned } = registry();
-	if (warned.has(key)) return;
-	warned.add(key);
-	try {
-		ctx.ui.notify(message, "warning");
-	} catch {
-		// UI gone; nothing to report to.
-	}
-}
-
-function warnTooLarge(ctx: ExtensionContext, path: string): void {
-	notifyOnce(ctx, path, `image-preview: ${basename(path)} is over ${MAX_IMAGE_BYTES / (1024 * 1024)} MB; left as text, not attached`);
-}
-
-function warnUncached(ctx: ExtensionContext, path: string): void {
-	notifyOnce(ctx, `uncached:${path}`, `image-preview: ${basename(path)} could not be saved to the session folder; left as text, not attached`);
-}
-
 /**
- * Watch the TUI editor for image paths: cache and label them, rewrite the draft where that is safe, and keep
- * the above-editor preview in step with the labels and paths the draft holds. Returns the stop function.
- *
- * Every raw input is observed, never consumed, before the editor handles it. A microtask then attributes the
- * resulting draft change to the input's key class, so undo and history recall are told apart from edits. On
- * the submit key a bash or command draft gets its paths back synchronously, before the editor submits it.
+ * Watch the TUI editor for image paths and keep the above-editor preview in step with them. The editor is
+ * only read, never written. Returns the stop function.
  */
-function watchDraft(ctx: ExtensionContext): () => void {
-	const draft = newDraftState();
-	const known = new Map<string, { key: string; result: IngestResult }>();
+function watchEditor(ctx: ExtensionContext): () => void {
 	const thumbnails = new Map<string, Thumbnail | null | undefined>();
-	/** The draft as last attributed to an input or change; undefined until the first read. */
-	let lastSeen: string | undefined;
-	/** The draft the last scan started from. */
+	/** The text the last scan started from. */
 	let lastScanned: string | undefined;
-	/** Collapsing pastes seen since the last submit; undo may bring any of them back. */
-	let pastesSinceSubmit = 0;
-	let pending: InputKind | undefined;
+	/** The text last shown, with the images its candidate paths name. */
+	let shown: { text: string; images: Map<string, ImageFile> } | undefined;
 	let running = false;
 	let dirty = false;
 	let stopped = false;
 	let widget: PreviewWidget | undefined;
 	let tui: TUI | undefined;
-
-	const recordForPath = (path: string): ImageRecord | undefined => {
-		const result = known.get(path)?.result;
-		return result?.status === "ok" ? result.record : undefined;
-	};
-	const recordForLabel = (label: number): ImageRecord | undefined => registry().byLabel.get(label);
-	const isImage = (path: string) => recordForPath(path) !== undefined;
-
-	/** Attribute any draft change since the last look; `recall` when undo or history produced it. */
-	function observe(recall: boolean, submitted = false): string {
-		const text = ctx.ui.getEditorText();
-		if (lastSeen === undefined) {
-			// A draft that is already there, after /reload or a session switch, may hold a collapsed paste
-			// and is treated as recalled.
-			lastSeen = text;
-			if (text !== "") {
-				draft.collapsedPaste = true;
-				draft.recalled = true;
-				pastesSinceSubmit = 1;
-				noteDraftChange(draft, text, true);
-			}
-			return text;
-		}
-		if (text === lastSeen) return text;
-		lastSeen = text;
-		if (text === "") {
-			draft.collapsedPaste = false;
-			draft.recalled = false;
-			draft.kept.clear();
-			if (submitted) pastesSinceSubmit = 0;
-			return text;
-		}
-		if (recall && pastesSinceSubmit > 0) draft.collapsedPaste = true;
-		draft.recalled = recall;
-		noteDraftChange(draft, text, recall);
-		return text;
-	}
 
 	function show(entries: PreviewEntry[]): void {
 		if (stopped) return;
@@ -127,85 +46,47 @@ function watchDraft(ctx: ExtensionContext): () => void {
 		}, { placement: "aboveEditor" });
 	}
 
-	function entriesFor(text: string): PreviewEntry[] {
-		const found = [
-			...findLabels(text, recordForLabel).map((match) => ({ start: match.start, record: match.record, labelled: true })),
-			...matchImagePaths(text, isImage).map((match) => ({ start: match.start, record: recordForPath(match.path)!, labelled: false })),
-		].sort((a, b) => a.start - b.start);
+	/** The distinct images named in `text`, in reading order. */
+	function entriesFor(text: string, images: Map<string, ImageFile>): PreviewEntry[] {
 		const entries = new Map<string, PreviewEntry>();
-		for (const { record, labelled } of found) {
-			if (entries.has(record.hash)) continue;
-			if (entries.size < MAX_PREVIEWS) ensureThumbnail(record);
-			entries.set(record.hash, {
-				label: labelled ? record.label : undefined,
-				hash: record.hash,
-				sourcePath: record.sourcePath,
-				sizeBytes: record.sizeBytes,
-				thumbnail: thumbnails.get(record.hash),
-			});
+		for (const { path } of matchImagePaths(text, (candidate) => images.has(candidate))) {
+			const image = images.get(path)!;
+			if (entries.has(image.id)) continue;
+			if (entries.size < MAX_PREVIEWS) ensureThumbnail(image);
+			entries.set(image.id, { id: image.id, path, sizeBytes: image.sizeBytes, thumbnail: thumbnails.get(image.id) });
 		}
 		return [...entries.values()];
 	}
 
-	function refresh(): void {
-		if (stopped) return;
-		try {
-			show(entriesFor(ctx.ui.getEditorText()));
-		} catch {
-			// The UI went away between checks.
-		}
-	}
-
-	function ensureThumbnail(record: ImageRecord): void {
-		if (thumbnails.has(record.hash)) return;
-		thumbnails.set(record.hash, undefined);
+	function ensureThumbnail(image: ImageFile): void {
+		if (thumbnails.has(image.id)) return;
+		thumbnails.set(image.id, undefined);
 		while (thumbnails.size > MAX_THUMBNAILS) thumbnails.delete(thumbnails.keys().next().value!);
 		void (async () => {
-			const source = (await materialize(record, undefined))?.bytes;
-			const thumbnail = source ? await makeThumbnail(source, record.mimeType) : null;
-			if (!thumbnails.has(record.hash)) return;
-			thumbnails.set(record.hash, thumbnail);
-			refresh();
+			const bytes = await readImage(image);
+			const thumbnail = bytes ? await makeThumbnail(bytes, image.mimeType) : null;
+			if (stopped || !thumbnails.has(image.id)) return;
+			thumbnails.set(image.id, thumbnail);
+			if (shown) show(entriesFor(shown.text, shown.images));
 		})().catch(() => undefined);
 	}
 
-	async function lookup(path: string, sessionFile: string | undefined): Promise<void> {
-		const info = await stat(path).catch(() => undefined);
-		if (!info?.isFile()) {
-			known.delete(path);
-			return;
-		}
-		const key = `${info.size}:${info.mtimeMs}:${sessionFile ?? ""}`;
-		if (known.get(path)?.key === key) return;
-		const result = await ingestImage(path, sessionFile);
-		known.delete(path);
-		known.set(path, { key, result });
-		while (known.size > MAX_KNOWN_PATHS) known.delete(known.keys().next().value!);
-		if (result.status === "too-large") warnTooLarge(ctx, path);
-		if (result.status === "cache-failed") warnUncached(ctx, path);
-	}
-
 	async function scanOnce(): Promise<void> {
-		const text = observe(false);
+		const text = ctx.ui.getEditorText();
 		lastScanned = text;
-		if (text.trim() === "") {
-			show([]);
+		const images = new Map<string, ImageFile>();
+		for (const path of text.trim() === "" ? [] : listCandidatePaths(text)) {
+			const image = await inspectImage(path);
+			if (image) images.set(path, image);
+		}
+		if (stopped) return;
+		// Text typed during the checks is scanned again before anything is shown for it.
+		if (ctx.ui.getEditorText() !== text) {
+			dirty = true;
 			return;
 		}
-		const sessionFile = ctx.sessionManager.getSessionFile();
-		for (const path of listCandidatePaths(text)) await lookup(path, sessionFile);
-		if (stopped) return;
-		// Rewrite against the text as it is now, in one synchronous step, so no keystroke is lost.
-		let current = observe(false);
-		// A path inserted during the awaits was not looked up; scan again.
-		if (current !== text) dirty = true;
-		const rewritten = rewriteDraft(current, draft, recordForPath, recordForLabel);
-		if (rewritten !== undefined && rewritten !== current) {
-			ctx.ui.setEditorText(rewritten);
-			current = observe(false);
-			if (!dirty) lastScanned = current;
-		}
-		show(entriesFor(current));
+		shown = { text, images };
+		show(entriesFor(text, images));
 	}
 
 	function scan(): void {
@@ -221,61 +102,17 @@ function watchDraft(ctx: ExtensionContext): () => void {
 					await scanOnce();
 				} while (dirty && !stopped);
 			} catch {
-				// Leave the draft as it is; the next change is checked again.
+				// The UI went away; the next change is checked again.
 			} finally {
 				running = false;
 			}
 		})();
 	}
 
-	/** Labels must never reach the shell or a command, and Pi dispatches both without an `input` event. */
-	function restoreBeforeSubmit(): void {
-		const text = ctx.ui.getEditorText();
-		if (!keepsPaths(text, isImage)) return;
-		const restored = restorePaths(text, recordForLabel);
-		// The submitted text is the expanded draft, so this write cannot lose a collapsed paste.
-		if (restored !== undefined) ctx.ui.setEditorText(restored);
-	}
-
-	try {
-		observe(false);
-	} catch {
-		// No editor yet; the first poll takes the starting draft.
-	}
-	const stopInput = ctx.ui.onTerminalInput((data) => {
-		if (stopped) return undefined;
-		try {
-			const kind = classifyInput(data, getKeybindings());
-			if (isCollapsingPaste(data)) {
-				draft.collapsedPaste = true;
-				pastesSinceSubmit++;
-			}
-			if (kind.submit) restoreBeforeSubmit();
-			// Attribute what this input does once the editor has handled it, and inputs handled together as one.
-			if (!pending) {
-				pending = { recall: false, submit: false };
-				queueMicrotask(() => {
-					const { recall, submit } = pending!;
-					pending = undefined;
-					if (stopped) return;
-					try {
-						observe(recall, submit);
-					} catch {
-						// The UI went away.
-					}
-				});
-			}
-			pending.recall ||= kind.recall;
-			pending.submit ||= kind.submit;
-		} catch {
-			// Never get in the way of input.
-		}
-		return undefined;
-	});
 	const timer = setInterval(() => {
 		if (stopped) return;
 		try {
-			if (observe(false) !== lastScanned) scan();
+			if (ctx.ui.getEditorText() !== lastScanned) scan();
 		} catch {
 			// The UI went away; shutdown stops the timer.
 		}
@@ -286,7 +123,6 @@ function watchDraft(ctx: ExtensionContext): () => void {
 		if (stopped) return;
 		stopped = true;
 		clearInterval(timer);
-		stopInput();
 		if (widget) {
 			try {
 				ctx.ui.setWidget(WIDGET_KEY, undefined);
@@ -303,30 +139,11 @@ export default function imagePreview(pi: ExtensionAPI): void {
 
 	pi.on("session_start", (_event, ctx) => {
 		stopWatch?.();
-		stopWatch = ctx.mode === "tui" ? watchDraft(ctx) : undefined;
+		stopWatch = ctx.mode === "tui" ? watchEditor(ctx) : undefined;
 	});
 
 	pi.on("session_shutdown", () => {
 		stopWatch?.();
 		stopWatch = undefined;
-	});
-
-	pi.on("input", async (event, ctx) => {
-		if (event.source !== "interactive" || ctx.mode !== "tui") return { action: "continue" };
-		try {
-			const submission = await prepareSubmission(event.text, event.images, ctx.sessionManager.getSessionFile());
-			for (const path of submission.tooLarge) warnTooLarge(ctx, path);
-			for (const path of submission.uncached) warnUncached(ctx, path);
-			for (const label of submission.unreadable) {
-				notifyOnce(ctx, `unreadable:${label}`, `image-preview: ${labelText(label)} could not be read; sent as its path without the image`);
-			}
-			for (const label of submission.unsaved) {
-				notifyOnce(ctx, `unsaved:${label}`, `image-preview: ${labelText(label)} could not be saved to this session's folder; sent with its earlier path`);
-			}
-			if (!submission.changed) return { action: "continue" };
-			return { action: "transform", text: submission.text, images: submission.images };
-		} catch {
-			return { action: "continue" };
-		}
 	});
 }

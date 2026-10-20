@@ -10,7 +10,7 @@ Pi extensions that carry the Industrial OS visual and interaction language into 
 - [herdr-sidebar](herdr-sidebar/README.md): reports this session's state, project, context, model and current activity to Herdr's agents sidebar, drawn by the rows in [herdr/](../herdr/README.md).
 - [herdr-pane-naming](herdr-pane-naming/README.md): names only its own inherited Herdr pane from delivered user text and assistant activity, using TypeSafe/Jev and a title model; main TUI only.
 - [session-recap](session-recap/README.md): UI-only brief away recaps and manual detailed active-branch recaps through a separate model; TUI only.
-- [image-preview](image-preview/README.md): replaces image paths pasted or dropped into the editor with `[image N]` labels, previews them above the editor, and attaches session-cached copies on submit; TUI only.
+- [image-preview](image-preview/README.md): previews image files whose paths are in the editor, above the editor, without changing the draft or the message; TUI only.
 
 No Pi configuration lives here yet.
 

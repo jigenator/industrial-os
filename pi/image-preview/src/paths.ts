@@ -73,11 +73,11 @@ function candidatesByEnding(text: string, home: string): Candidate[][] {
 	for (const line of text.split("\n")) {
 		let starts: number[] | undefined;
 		for (const ending of line.matchAll(ENDING)) {
-			if (total >= MAX_CANDIDATES) return groups;
 			starts ??= pathStarts(line);
 			const end = ending.index + ending[0].length;
 			const group: Candidate[] = [];
-			for (let at = countBefore(starts, ending.index) - 1; at >= 0 && group.length < MAX_STARTS_PER_ENDING; at--) {
+			const room = Math.min(MAX_STARTS_PER_ENDING, MAX_CANDIDATES - total);
+			for (let at = countBefore(starts, ending.index) - 1; at >= 0 && group.length < room; at--) {
 				const start = starts[at];
 				if (end - start > MAX_PATH_CHARS) break;
 				const quote = start > 0 ? line[start - 1] : "";
@@ -93,6 +93,7 @@ function candidatesByEnding(text: string, home: string): Candidate[][] {
 			if (group.length > 0) {
 				groups.push(group);
 				total += group.length;
+				if (total >= MAX_CANDIDATES) return groups;
 			}
 		}
 		lineStart += line.length + 1;
@@ -103,15 +104,6 @@ function candidatesByEnding(text: string, home: string): Candidate[][] {
 /** Every absolute path that could be an image token in `text`, for the caller to check on disk. */
 export function listCandidatePaths(text: string, home = homedir()): string[] {
 	return [...new Set(candidatesByEnding(text, home).flat().map((candidate) => candidate.path))];
-}
-
-/** How many tokens in `text` could name each candidate path. */
-export function countCandidatePaths(text: string, home = homedir()): Map<string, number> {
-	const counts = new Map<string, number>();
-	for (const group of candidatesByEnding(text, home)) {
-		for (const path of new Set(group.map((candidate) => candidate.path))) counts.set(path, (counts.get(path) ?? 0) + 1);
-	}
-	return counts;
 }
 
 /**
@@ -128,9 +120,4 @@ export function matchImagePaths(text: string, isImage: (path: string) => boolean
 		consumed = found.end;
 	}
 	return matches;
-}
-
-/** How a path is written into a submitted message: raw, or double-quoted when it contains whitespace. */
-export function formatPath(path: string): string {
-	return /\s/.test(path) ? `"${path}"` : path;
 }

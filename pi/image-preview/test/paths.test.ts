@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatPath, listCandidatePaths, matchImagePaths, MAX_CANDIDATES } from "../src/paths.ts";
+import { listCandidatePaths, matchImagePaths, MAX_CANDIDATES } from "../src/paths.ts";
 
 const HOME = "/home/me";
 const exists = (...paths: string[]) => (path: string) => paths.includes(path);
@@ -60,11 +60,6 @@ test("lists every candidate start for the caller to check", () => {
 	assert.deepEqual(listCandidatePaths("/x/dir /y/a.png", HOME).sort(), ["/x/dir /y/a.png", "/y/a.png"]);
 });
 
-test("quotes a message path only when it contains whitespace", () => {
-	assert.equal(formatPath("/a/b.png"), "/a/b.png");
-	assert.equal(formatPath("/a b/c.png"), '"/a b/c.png"');
-});
-
 test("candidate search stays bounded on adversarial text", () => {
 	const text = "/missing.png ".repeat(5000);
 	const started = performance.now();
@@ -81,4 +76,12 @@ test("many endings without a start, and one very long line, stay bounded", () =>
 	assert.deepEqual(listCandidatePaths("a.png ".repeat(20000), HOME), []);
 	assert.deepEqual(listCandidatePaths(`/${"x".repeat(200000)}.png`, HOME), []);
 	assert.ok(performance.now() - started < 250);
+});
+
+test("the candidate cap is exact, in reading order", () => {
+	const paths = Array.from({ length: MAX_CANDIDATES + 50 }, (_, index) => `/d/${index}.png`);
+	assert.deepEqual(listCandidatePaths(paths.join("\n"), HOME), paths.slice(0, MAX_CANDIDATES));
+	// Seven starts per ending do not divide the cap, so the last group is cut short.
+	const crowded = Array.from({ length: 40 }, (_, index) => `/a /b /c /d /e /f /${index}.png`).join("\n");
+	assert.equal(listCandidatePaths(crowded, HOME).length, MAX_CANDIDATES);
 });

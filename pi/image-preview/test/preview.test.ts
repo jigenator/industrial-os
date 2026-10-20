@@ -5,11 +5,9 @@ import { resetCapabilitiesCache, setCapabilities, visibleWidth } from "@earendil
 import { makeThumbnail, MAX_PREVIEWS, PREVIEW_ROWS, PreviewWidget, type PreviewEntry } from "../src/preview.ts";
 import { png, theme } from "./helpers.ts";
 
-
-const entry = (label: number | undefined, name: string, overrides: Partial<PreviewEntry> = {}): PreviewEntry => ({
-	label,
-	hash: `${name}-hash`,
-	sourcePath: `/tmp/${name}`,
+const entry = (name: string, overrides: Partial<PreviewEntry> = {}): PreviewEntry => ({
+	id: `${name}-id`,
+	path: `/tmp/${name}`,
 	sizeBytes: 1536,
 	thumbnail: null,
 	...overrides,
@@ -17,17 +15,17 @@ const entry = (label: number | undefined, name: string, overrides: Partial<Previ
 
 test.afterEach(() => resetCapabilitiesCache());
 
-test("without image support each image is one caption line carrying its label, name and size", () => {
+test("without image support each image is one caption line carrying its name and size", () => {
 	setCapabilities({ images: null, trueColor: true, hyperlinks: false });
 	const widget = new PreviewWidget(theme);
-	widget.setEntries([entry(1, "shot.png"), entry(undefined, "drag.jpg")]);
-	assert.deepEqual(widget.render(80).map(stripAnsi), [" [image 1] shot.png · 2 KB", " drag.jpg · 2 KB"]);
+	widget.setEntries([entry("shot.png"), entry("drag.jpg")]);
+	assert.deepEqual(widget.render(80).map(stripAnsi), [" shot.png · 2 KB", " drag.jpg · 2 KB"]);
 });
 
 test("counts images beyond the preview limit on one line", () => {
 	setCapabilities({ images: null, trueColor: true, hyperlinks: false });
 	const widget = new PreviewWidget(theme);
-	widget.setEntries(Array.from({ length: MAX_PREVIEWS + 2 }, (_, index) => entry(index + 1, `${index}.png`)));
+	widget.setEntries(Array.from({ length: MAX_PREVIEWS + 2 }, (_, index) => entry(`${index}.png`)));
 	const lines = widget.render(80).map(stripAnsi);
 	assert.equal(lines.length, MAX_PREVIEWS + 1);
 	assert.equal(lines.at(-1), " +2 more");
@@ -36,7 +34,7 @@ test("counts images beyond the preview limit on one line", () => {
 test("captions fit narrow widths and show control characters as ?", () => {
 	setCapabilities({ images: null, trueColor: true, hyperlinks: false });
 	const widget = new PreviewWidget(theme);
-	widget.setEntries([entry(12, "a\x1b[31mvery-long-file-name.png")]);
+	widget.setEntries([entry("a\x1b[31mvery-long-file-name.png")]);
 	for (const width of [1, 5, 12, 30]) {
 		for (const line of widget.render(width)) assert.ok(visibleWidth(line) <= width, `width ${width}`);
 	}
@@ -47,13 +45,13 @@ test("with Kitty support a thumbnail renders below its caption within the row bu
 	setCapabilities({ images: "kitty", trueColor: true, hyperlinks: false });
 	const widget = new PreviewWidget(theme);
 	const thumbnail = { data: png().toString("base64"), mimeType: "image/png", width: 400, height: 400 };
-	widget.setEntries([entry(1, "shot.png", { thumbnail }), entry(2, "next.png", { thumbnail: undefined })]);
+	widget.setEntries([entry("shot.png", { thumbnail }), entry("next.png", { thumbnail: undefined })]);
 	const lines = widget.render(80);
-	assert.equal(stripAnsi(lines[0]), " [image 1] shot.png · 2 KB");
+	assert.equal(stripAnsi(lines[0]), " shot.png · 2 KB");
 	assert.ok(lines[1].startsWith(" \x1b_G"), "Kitty graphics sequence");
 	const rows = lines.indexOf(lines.find((line, index) => index > 1 && line !== "")!) - 1;
 	assert.ok(rows >= 1 && rows <= PREVIEW_ROWS, `image rows ${rows}`);
-	assert.equal(stripAnsi(lines.at(-1)!), " [image 2] next.png · 2 KB · loading preview");
+	assert.equal(stripAnsi(lines.at(-1)!), " next.png · 2 KB · loading preview");
 });
 
 test("no thumbnail is made when the terminal cannot show images", async () => {

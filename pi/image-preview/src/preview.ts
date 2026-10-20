@@ -1,7 +1,6 @@
 import { basename } from "node:path";
 import { convertToPng, resizeImage, type Theme } from "@earendil-works/pi-coding-agent";
 import { getCapabilities, Image, truncateToWidth, type Component } from "@earendil-works/pi-tui";
-import { labelText } from "./draft.ts";
 
 /** At most this many images are previewed; the rest are counted on one line. */
 export const MAX_PREVIEWS = 3;
@@ -51,10 +50,9 @@ export async function makeThumbnail(
 }
 
 export interface PreviewEntry {
-	/** The editor label, or undefined for a path that has not been relabelled. */
-	label: number | undefined;
-	hash: string;
-	sourcePath: string;
+	/** Identifies the file and its version; see `ImageFile.id`. */
+	id: string;
+	path: string;
 	sizeBytes: number;
 	/** undefined while the thumbnail is being made; null when there is none. */
 	thumbnail: Thumbnail | null | undefined;
@@ -66,9 +64,8 @@ function formatSize(bytes: number): string {
 	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-
 /**
- * The above-editor preview: per image a caption with its label, file name and size, then the thumbnail.
+ * The above-editor preview: per image a caption with its file name and size, then the thumbnail.
  * The caption is the text form, so meaning never depends on the picture or on color.
  */
 export class PreviewWidget implements Component {
@@ -82,8 +79,8 @@ export class PreviewWidget implements Component {
 
 	setEntries(entries: PreviewEntry[]): void {
 		this.entries = entries;
-		const live = new Set(entries.map((entry) => entry.hash));
-		for (const hash of this.images.keys()) if (!live.has(hash)) this.images.delete(hash);
+		const live = new Set(entries.map((entry) => entry.id));
+		for (const id of this.images.keys()) if (!live.has(id)) this.images.delete(id);
 	}
 
 	invalidate(): void {
@@ -91,16 +88,16 @@ export class PreviewWidget implements Component {
 	}
 
 	private imageFor(entry: PreviewEntry, thumbnail: Thumbnail): Image {
-		const cached = this.images.get(entry.hash);
-		if (cached?.thumbnail === thumbnail) return cached.image;
+		const existing = this.images.get(entry.id);
+		if (existing?.thumbnail === thumbnail) return existing.image;
 		const image = new Image(
 			thumbnail.data,
 			thumbnail.mimeType,
 			{ fallbackColor: (text) => this.theme.fg("muted", text) },
-			{ maxWidthCells: PREVIEW_COLUMNS, maxHeightCells: PREVIEW_ROWS, filename: entry.sourcePath },
+			{ maxWidthCells: PREVIEW_COLUMNS, maxHeightCells: PREVIEW_ROWS, filename: entry.path },
 			{ widthPx: thumbnail.width, heightPx: thumbnail.height },
 		);
-		this.images.set(entry.hash, { thumbnail, image });
+		this.images.set(entry.id, { thumbnail, image });
 		return image;
 	}
 
@@ -112,12 +109,11 @@ export class PreviewWidget implements Component {
 		const lines: string[] = [];
 		const imagesSupported = getCapabilities().images !== null;
 		for (const entry of this.entries.slice(0, MAX_PREVIEWS)) {
-			const label = entry.label === undefined ? "" : `${this.theme.fg("accent", labelText(entry.label))} `;
-			const name = basename(entry.sourcePath).replace(/\p{Cc}/gu, "?");
+			const name = basename(entry.path).replace(/\p{Cc}/gu, "?");
 			let detail = `${name} · ${formatSize(entry.sizeBytes)}`;
 			if (imagesSupported && entry.thumbnail === undefined) detail += " · loading preview";
 			if (imagesSupported && entry.thumbnail === null) detail += " · no preview";
-			lines.push(indent(truncateToWidth(label + this.theme.fg("muted", detail), inner)));
+			lines.push(indent(truncateToWidth(this.theme.fg("muted", detail), inner)));
 			if (entry.thumbnail) lines.push(...this.imageFor(entry, entry.thumbnail).render(inner).map(indent));
 		}
 		const hidden = this.entries.length - MAX_PREVIEWS;
