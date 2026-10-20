@@ -20,7 +20,7 @@ Scan the supporting-documents map and read every document whose condition applie
 | --- | --- |
 | Work in the design system | [The design-system guide](design-system/AGENTS.md) and its routes |
 | Work on a Pi extension | [The Pi guide](pi/AGENTS.md), then the extension's own guide, for example [claude-interrupt](pi/claude-interrupt/AGENTS.md), [signals-collector](pi/signals-collector/AGENTS.md), [status-bar](pi/status-bar/AGENTS.md) or [herdr-sidebar](pi/herdr-sidebar/AGENTS.md) |
-| Work on pane naming or session recaps | [The Pi guide](pi/AGENTS.md), then [herdr-pane-naming](pi/herdr-pane-naming/AGENTS.md) or [session-recap](pi/session-recap/AGENTS.md) |
+| Work on pane naming, session recaps or image previews | [The Pi guide](pi/AGENTS.md), then [herdr-pane-naming](pi/herdr-pane-naming/AGENTS.md), [session-recap](pi/session-recap/AGENTS.md) or [image-preview](pi/image-preview/AGENTS.md) |
 | Work on a Herdr plugin | [Plugin group guide](herdr-plugins/AGENTS.md), then the plugin's guide, [Spaces](herdr-plugins/spaces/AGENTS.md) or [Whiteboard](herdr-plugins/whiteboard/AGENTS.md), and its routes |
 | Work on the Herdr configuration | [The Herdr guide](herdr/AGENTS.md) and its routes |
 | Change the visual language or a palette value | [Design](docs/design.md), [the package decision](docs/decisions/in-repo-design-system-package.md), the design-system guide, then each extension that mirrors the value |
@@ -39,6 +39,7 @@ Scan the supporting-documents map and read every document whose condition applie
 | Herdr sidebar token values, reporting, `herdr:blocked` or `/flag` | `pi/herdr-sidebar/`; the [token contract](pi/herdr-sidebar/docs/token-contract.md), placement in [its architecture](pi/herdr-sidebar/docs/architecture.md) | Pi peer packages only; display-only apart from the `/flag` session reminder; reports only in TUI mode inside Herdr |
 | Herdr pane naming | `pi/herdr-pane-naming/`; [architecture](pi/herdr-pane-naming/docs/architecture.md) | Main TUI-only; runs Herdr CLI pane get/rename on its own inherited pane, calls TypeSafe/Jev and a title model; no extension imports |
 | Away or detailed session recaps | `pi/session-recap/`; [architecture](pi/session-recap/docs/architecture.md) | TUI-only; calls a recap model; output UI only, never saved or main-model history |
+| Editor image labels, previews or attachments | `pi/image-preview/`; [architecture](pi/image-preview/docs/architecture.md) | TUI-only; host peers only; never replaces the editor; writes only session `.images` copies |
 | A new Pi extension | `pi/<name>/` with the [project document set](docs/architecture.md#contracts-between-the-root-and-a-project) | Its own manifest, checks, and license; the design system only by package name |
 | Shared experience or scope | `docs/design.md`, `docs/mission.md` | Then each project separately |
 | Spaces reporting, activity history or quiet sorting | `herdr-plugins/spaces/`; [Spaces contract](herdr-plugins/spaces/docs/token-contract.md) | Node 22 stdlib only; one detached daemon per socket; tests never touch live Herdr |
@@ -146,6 +147,14 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [pi/session-recap/docs/conventions.md](pi/session-recap/docs/conventions.md) | session-recap engineering rules and adoption gaps | Writing or reviewing code |
 | [pi/session-recap/docs/design.md](pi/session-recap/docs/design.md) | session-recap presentation, interaction and states | Changing anything human-facing |
 | [pi/session-recap/docs/mission.md](pi/session-recap/docs/mission.md) | session-recap goals, non-goals and constraints | Choosing or changing scope |
+| [pi/image-preview/README.md](pi/image-preview/README.md) | image-preview purpose, status, install, behavior, storage/privacy and limits | Using image-preview or changing its public surface |
+| [pi/image-preview/AGENTS.md](pi/image-preview/AGENTS.md) | image-preview rules, routes and placement | Working anywhere in pi/image-preview |
+| [pi/image-preview/CLAUDE.md](pi/image-preview/CLAUDE.md) | Runtime import of the image-preview guide | Checking agent entry points |
+| [pi/image-preview/CONTRIBUTING.md](pi/image-preview/CONTRIBUTING.md) | image-preview toolchain, exact checks and verification records | Making or verifying an image-preview change |
+| [pi/image-preview/docs/architecture.md](pi/image-preview/docs/architecture.md) | image-preview modules, flows, state, host seams and invariants | Changing behavior, lifecycle, storage or host dependencies |
+| [pi/image-preview/docs/conventions.md](pi/image-preview/docs/conventions.md) | image-preview engineering rules and adoption gaps | Writing or reviewing code |
+| [pi/image-preview/docs/design.md](pi/image-preview/docs/design.md) | image-preview labels, preview layout, states and colors | Changing anything human-facing |
+| [pi/image-preview/docs/mission.md](pi/image-preview/docs/mission.md) | image-preview goals, non-goals and constraints | Choosing or changing scope |
 | [docs/decisions/pane-naming-root-dependency.md](docs/decisions/pane-naming-root-dependency.md) | Why pane naming needs root-installed pi-typesafe and peer suppression | Changing root dependencies, npm peer handling or pane-naming packaging |
 | [herdr/README.md](herdr/README.md) | Herdr configuration purpose, status, how to merge it, and limitations | Using the Herdr configuration |
 | [herdr/AGENTS.md](herdr/AGENTS.md) | Herdr configuration rules, routes, and placement | Working anywhere in `herdr/` |
