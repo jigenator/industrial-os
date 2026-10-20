@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { stripVTControlCharacters as stripAnsi } from "node:util";
 import { resetCapabilitiesCache, setCapabilities, visibleWidth } from "@earendil-works/pi-tui";
-import { makeThumbnail, MAX_PREVIEWS, PREVIEW_ROWS, PreviewWidget, type PreviewEntry } from "../src/preview.ts";
+import { makeThumbnail, PREVIEW_COLUMNS, PREVIEW_ROWS, PreviewWidget, STACKED_PREVIEWS, type PreviewEntry } from "../src/preview.ts";
 import { png, theme } from "./helpers.ts";
 
 const entry = (name: string, overrides: Partial<PreviewEntry> = {}): PreviewEntry => ({
@@ -22,12 +22,12 @@ test("without image support each image is one caption line carrying its name and
 	assert.deepEqual(widget.render(80).map(stripAnsi), [" shot.png · 2 KB", " drag.jpg · 2 KB"]);
 });
 
-test("counts images beyond the preview limit on one line", () => {
+test("counts images beyond the stacked limit on one line", () => {
 	setCapabilities({ images: null, trueColor: true, hyperlinks: false });
 	const widget = new PreviewWidget(theme);
-	widget.setEntries(Array.from({ length: MAX_PREVIEWS + 2 }, (_, index) => entry(`${index}.png`)));
+	widget.setEntries(Array.from({ length: STACKED_PREVIEWS + 2 }, (_, index) => entry(`${index}.png`)));
 	const lines = widget.render(80).map(stripAnsi);
-	assert.equal(lines.length, MAX_PREVIEWS + 1);
+	assert.equal(lines.length, STACKED_PREVIEWS + 1);
 	assert.equal(lines.at(-1), " +2 more");
 });
 
@@ -41,17 +41,48 @@ test("captions fit narrow widths and show control characters as ?", () => {
 	assert.match(stripAnsi(widget.render(80)[0]), /a\?\[31mvery/);
 });
 
-test("with Kitty support a thumbnail renders below its caption within the row budget", () => {
+const square = { data: png().toString("base64"), mimeType: "image/png", width: 400, height: 400 };
+const kittyCount = (line: string) => line.split("\x1b_G").length - 1;
+
+test("with Kitty support previews sit side by side, captions above, within the row budget", () => {
 	setCapabilities({ images: "kitty", trueColor: true, hyperlinks: false });
 	const widget = new PreviewWidget(theme);
-	const thumbnail = { data: png().toString("base64"), mimeType: "image/png", width: 400, height: 400 };
-	widget.setEntries([entry("shot.png", { thumbnail }), entry("next.png", { thumbnail: undefined })]);
-	const lines = widget.render(80);
-	assert.equal(stripAnsi(lines[0]), " shot.png · 2 KB");
+	widget.setEntries([entry("a.png", { thumbnail: square }), entry("b.png", { thumbnail: square }), entry("c.png", { thumbnail: undefined })]);
+	const lines = widget.render(200);
+	assert.equal(lines.length, 1 + PREVIEW_ROWS, "one caption row, then the image rows");
+	assert.match(stripAnsi(lines[0]), /^ a\.png · 2 KB +b\.png · 2 KB +c\.png · 2 KB · loading preview$/);
 	assert.ok(lines[1].startsWith(" \x1b_G"), "Kitty graphics sequence");
-	const rows = lines.indexOf(lines.find((line, index) => index > 1 && line !== "")!) - 1;
-	assert.ok(rows >= 1 && rows <= PREVIEW_ROWS, `image rows ${rows}`);
-	assert.equal(stripAnsi(lines.at(-1)!), " next.png · 2 KB · loading preview");
+	assert.equal(kittyCount(lines[1]), 2, "both thumbnails on one row");
+	assert.match(lines[1], /C=1/, "placements leave the cursor in place");
+	assert.match(lines[1], /\x1b\[\d+C/, "the cursor moves right to the next cell");
+	assert.ok(lines.slice(2).every((line) => line === ""));
+	assert.ok(visibleWidth(lines[0]) <= 200);
+});
+
+test("previews that pass the right edge are counted as +N more", () => {
+	setCapabilities({ images: "kitty", trueColor: true, hyperlinks: false });
+	const widget = new PreviewWidget(theme);
+	widget.setEntries(Array.from({ length: 5 }, (_, index) => entry(`${index}.png`, { thumbnail: square })));
+	const wide = widget.render(400);
+	assert.equal(kittyCount(wide[1]), 5);
+	assert.doesNotMatch(stripAnsi(wide[0]), /more/);
+	const narrow = widget.render(60);
+	const shown = kittyCount(narrow[1]);
+	assert.ok(shown >= 1 && shown < 5, `shown ${shown}`);
+	assert.match(stripAnsi(narrow[0]), new RegExp(`\\+${5 - shown} more$`));
+	assert.ok(visibleWidth(narrow[0]) <= 60);
+});
+
+test("one preview is always shown, even when it alone fills a narrow row", () => {
+	setCapabilities({ images: "kitty", trueColor: true, hyperlinks: false });
+	const widget = new PreviewWidget(theme);
+	widget.setEntries([entry("a.png", { thumbnail: square }), entry("b.png", { thumbnail: square })]);
+	for (const width of [2, 10, 30]) {
+		const lines = widget.render(width);
+		assert.equal(kittyCount(lines[1]), 1, `width ${width}`);
+		assert.ok(visibleWidth(lines[0]) <= width, `width ${width}`);
+	}
+	assert.ok(PREVIEW_COLUMNS >= 30);
 });
 
 test("no thumbnail is made when the terminal cannot show images", async () => {

@@ -7,17 +7,17 @@ You see the picture a path in the draft refers to before you send it, and nothin
 One widget sits above the editor (`aboveEditor`), with rows indented one cell like Pi's own widget text:
 
 ```text
- pi-clipboard-0b9e….png · 412 KB
- ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
- ▒▒ thumbnail ▒▒▒▒▒   at most 6 rows, 40 columns
- ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
- drag-drop.jpg · 1.2 MB
- +2 more
+ pi-clipboard-0b9e….png · 412 KB  drag-drop.jpg · 1.2 MB  +2 more
+ ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+ ▒▒ thumbnail ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  ▒▒ thumbnail ▒▒▒▒▒▒▒▒▒   each at most 12 rows, 80 columns
+ ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
 ```
 
 - **Caption:** the file name and size in Pi's theme `muted`. It carries every meaning on its own; the picture only supports it. Control characters in file names show as `?`, and captions are truncated to the width.
-- **Thumbnail:** Pi's `Image` component on a downscaled copy (at most 480 px, then 320 or 200 px if needed to stay under 256 KB of image data after any PNG conversion) at no more than 6 rows by 40 columns. Pi re-sends an image when its rows move, so a small thumbnail keeps that cheap.
-- **Limit:** the first 3 distinct images in draft order are shown, then one `+N more` line. An image named twice is listed once.
+- **Thumbnail:** a downscaled copy (at most 640 px, then 480 or 320 px if needed to stay under 256 KB of image data after any PNG conversion) at no more than 12 rows by 80 columns. Pi re-sends an image when its rows move, so a small thumbnail keeps that cheap.
+- **Row (Kitty graphics):** captions share the first row and thumbnails the rows below, each preview in a cell as wide as its thumbnail, or its caption up to 24 columns, with 2 columns between cells. Each thumbnail is a separate Kitty placement that leaves the cursor in place; the row moves right past the cell to place the next. Previews are added in draft order, at most 8, while the next still fits with room for `+N more`; the first is always shown.
+- **Stacked (other terminals):** Pi's `Image` component, one caption and thumbnail under another, at most 3, then one `+N more` line.
+- **Duplicates:** an image named twice is listed once.
 - **Absent:** when the draft names no image, the widget is removed rather than left empty.
 
 ## States

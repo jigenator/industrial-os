@@ -2,7 +2,7 @@
 
 ## Modules and dependencies
 
-TypeScript ESM under `src/`, run by Pi's loader and by Node type stripping in tests. It imports Node `fs/promises`, `os` and `path`, and host packages only: `@earendil-works/pi-coding-agent` (`resizeImage`, `convertToPng`, `detectSupportedImageMimeTypeFromFile`, types) and `@earendil-works/pi-tui` (`Image`, `getCapabilities`, `truncateToWidth`, types). It imports no other extension and not the design system.
+TypeScript ESM under `src/`, run by Pi's loader and by Node type stripping in tests. It imports Node `fs/promises`, `os` and `path`, and host packages only: `@earendil-works/pi-coding-agent` (`resizeImage`, `convertToPng`, `detectSupportedImageMimeTypeFromFile`, types) and `@earendil-works/pi-tui` (`Image`, `renderImage`, `allocateImageId`, `getCapabilities`, `truncateToWidth`, `visibleWidth`, types). It imports no other extension and not the design system.
 
 | Module | Owns | Tests |
 | --- | --- | --- |
@@ -15,7 +15,7 @@ TypeScript ESM under `src/`, run by Pi's loader and by Node type stripping in te
 
 `session_start` in TUI mode stops any earlier watch and starts one for the session. Every 200 ms it reads `ctx.ui.getEditorText()`; when the text differs from the text the last scan started from, it runs one serialized scan, and a change during a scan queues one more.
 
-A scan lists the bounded candidate paths in the text (`listCandidatePaths`) and checks each with `inspectImage`. If the editor text changed meanwhile, it scans again without showing anything. Otherwise `matchImagePaths` picks, per image ending, the nearest start that named an image, and the distinct images in reading order become the widget's entries. No entries removes the widget. Thumbnails are made asynchronously for the first three images, from bytes read within the size cap, and refresh the widget when ready.
+A scan lists the bounded candidate paths in the text (`listCandidatePaths`) and checks each with `inspectImage`. If the editor text changed meanwhile, it scans again without showing anything. Otherwise `matchImagePaths` picks, per image ending, the nearest start that named an image, and the distinct images in reading order become the widget's entries. No entries removes the widget. Thumbnails are made asynchronously for the first eight images, from bytes read within the size cap, and refresh the widget when ready.
 
 `session_shutdown`, or the next `session_start`, stops the timer and removes the widget; work finishing after that touches no UI.
 
@@ -29,7 +29,7 @@ Per watch only: the poll timer, the last scanned text with its images, up to 16 
 | --- | --- | --- |
 | No editor-change event | Polling `getEditorText()`, which returns the text with collapsed pastes expanded | Integration tests |
 | Widget | `setWidget(key, factory, { placement: "aboveEditor" })`; the factory receives the TUI for re-render requests | Integration tests with a fake widget host |
-| Images | `resizeImage` (a Photon worker with an in-process fallback), `convertToPng` for Kitty, which accepts only PNG, and the shared `Image` component. Per the host source, Pi's renderer deletes Kitty images whose rows disappear; that is not tested here | `test/preview.test.ts` runs the pinned host resizer |
+| Images | `resizeImage` (a Photon worker with an in-process fallback), `convertToPng` for Kitty, which accepts only PNG. With Kitty, `renderImage` with `moveCursor: false` gives each thumbnail a placement that leaves the cursor in place, and a cursor-forward between placements puts several on one row; Pi's renderer expects one image per row, so in fullscreen mode it caches only the first and re-sends the others when the row is redrawn. Other protocols use the shared `Image` component, one per row. Per the host source, Pi's renderer deletes Kitty images whose rows disappear; that is not tested here | `test/preview.test.ts` runs the pinned host resizer |
 | Capabilities | `getCapabilities().images` decides whether thumbnails are made. Pi does not expose its `showImages` setting to widgets | Preview tests set capabilities explicitly |
 
 No host logic is copied.
