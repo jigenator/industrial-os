@@ -9,7 +9,8 @@ export const MAX_PREVIEWS = 3;
 export const PREVIEW_ROWS = 6;
 const PREVIEW_COLUMNS = 40;
 // Thumbnails keep the bytes sent to the terminal small: a widget's image is re-sent whenever its rows move.
-const THUMBNAIL_PIXELS = 480;
+// The cap is on the base64 payload, after any PNG conversion; smaller sizes are tried when it is missed.
+const THUMBNAIL_PIXELS = [480, 320, 200];
 const THUMBNAIL_BYTES = 256 * 1024;
 
 export interface Thumbnail {
@@ -19,25 +20,31 @@ export interface Thumbnail {
 	height: number;
 }
 
-/** A thumbnail for the terminal's image protocol, or null when it has none or conversion failed. */
-export async function makeThumbnail(bytes: Buffer, mimeType: string): Promise<Thumbnail | null> {
+/**
+ * A thumbnail for the terminal's image protocol whose base64 data is under `maxBytes`, or null when the
+ * terminal shows no images or no size fits.
+ */
+export async function makeThumbnail(
+	bytes: Buffer,
+	mimeType: string,
+	{ maxBytes = THUMBNAIL_BYTES }: { maxBytes?: number } = {},
+): Promise<Thumbnail | null> {
 	const protocol = getCapabilities().images;
 	if (!protocol) return null;
 	try {
-		const resized = await resizeImage(new Uint8Array(bytes), mimeType, {
-			maxWidth: THUMBNAIL_PIXELS,
-			maxHeight: THUMBNAIL_PIXELS,
-			maxBytes: THUMBNAIL_BYTES,
-		});
-		if (!resized) return null;
-		let { data, mimeType: type } = resized;
-		// Kitty accepts only PNG.
-		if (protocol === "kitty" && type !== "image/png") {
-			const png = await convertToPng(data, type);
-			if (!png) return null;
-			({ data, mimeType: type } = png);
+		for (const pixels of THUMBNAIL_PIXELS) {
+			const resized = await resizeImage(new Uint8Array(bytes), mimeType, { maxWidth: pixels, maxHeight: pixels, maxBytes });
+			if (!resized) return null;
+			let { data, mimeType: type } = resized;
+			// Kitty accepts only PNG.
+			if (protocol === "kitty" && type !== "image/png") {
+				const png = await convertToPng(data, type);
+				if (!png) return null;
+				({ data, mimeType: type } = png);
+			}
+			if (data.length < maxBytes) return { data, mimeType: type, width: resized.width, height: resized.height };
 		}
-		return { data, mimeType: type, width: resized.width, height: resized.height };
+		return null;
 	} catch {
 		return null;
 	}

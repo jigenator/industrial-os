@@ -32,22 +32,54 @@ function resolveToken(raw: string, quoted: boolean, home: string): string | unde
 	return undefined;
 }
 
+// Bounds that keep a scan cheap on any draft: no path is longer than Linux's PATH_MAX, each ending tries
+// its nearest few starts, and a whole draft yields a capped number of candidates to check on disk.
+const MAX_PATH_CHARS = 4096;
+const MAX_STARTS_PER_ENDING = 8;
+/** At most this many candidate paths are taken from one text, in reading order. */
+export const MAX_CANDIDATES = 256;
+
+/** Indexes in `line` where a path may start: `/` or `~/` at the line start or after `BEFORE_START`. */
+function pathStarts(line: string): number[] {
+	const starts: number[] = [];
+	for (let index = line.indexOf("/"); index !== -1; index = line.indexOf("/", index + 1)) {
+		const start = index > 0 && line[index - 1] === "~" ? index - 1 : index;
+		if (start === 0 || BEFORE_START.test(line[start - 1])) starts.push(start);
+	}
+	return starts;
+}
+
+/** How many of the ascending `starts` lie before `index`. */
+function countBefore(starts: number[], index: number): number {
+	let low = 0;
+	let high = starts.length;
+	while (low < high) {
+		const middle = (low + high) >> 1;
+		if (starts[middle] < index) low = middle + 1;
+		else high = middle;
+	}
+	return low;
+}
+
 /**
- * Every candidate for each image-extension ending, nearest start first. A path may contain unescaped
- * spaces (Pi inserts copied file paths raw), so each whitespace-preceded `/` or `~/` before an ending is a
- * candidate; only a filesystem check can say which one is real.
+ * Candidates for each image-extension ending, nearest start first. A path may contain unescaped spaces
+ * (Pi inserts copied file paths raw), so each whitespace-preceded `/` or `~/` before an ending is a
+ * candidate; only a filesystem check can say which one is real. Work is linear in the text length.
  */
 function candidatesByEnding(text: string, home: string): Candidate[][] {
 	const groups: Candidate[][] = [];
+	let total = 0;
 	let lineStart = 0;
 	for (const line of text.split("\n")) {
+		let starts: number[] | undefined;
 		for (const ending of line.matchAll(ENDING)) {
+			if (total >= MAX_CANDIDATES) return groups;
+			starts ??= pathStarts(line);
 			const end = ending.index + ending[0].length;
 			const group: Candidate[] = [];
-			for (let start = ending.index - 1; start >= 0; start--) {
-				const char = line[start];
-				if (char !== "/" && !(char === "~" && line[start + 1] === "/")) continue;
-				if (start > 0 && !BEFORE_START.test(line[start - 1])) continue;
+			for (let at = countBefore(starts, ending.index) - 1; at >= 0 && group.length < MAX_STARTS_PER_ENDING; at--) {
+				const start = starts[at];
+				if (end - start > MAX_PATH_CHARS) break;
 				const quote = start > 0 ? line[start - 1] : "";
 				const quoted = (quote === '"' || quote === "'") && line[end] === quote;
 				const path = resolveToken(line.slice(start, end), quoted, home);
@@ -58,7 +90,10 @@ function candidatesByEnding(text: string, home: string): Candidate[][] {
 					path,
 				});
 			}
-			if (group.length > 0) groups.push(group);
+			if (group.length > 0) {
+				groups.push(group);
+				total += group.length;
+			}
 		}
 		lineStart += line.length + 1;
 	}
@@ -68,6 +103,15 @@ function candidatesByEnding(text: string, home: string): Candidate[][] {
 /** Every absolute path that could be an image token in `text`, for the caller to check on disk. */
 export function listCandidatePaths(text: string, home = homedir()): string[] {
 	return [...new Set(candidatesByEnding(text, home).flat().map((candidate) => candidate.path))];
+}
+
+/** How many tokens in `text` could name each candidate path. */
+export function countCandidatePaths(text: string, home = homedir()): Map<string, number> {
+	const counts = new Map<string, number>();
+	for (const group of candidatesByEnding(text, home)) {
+		for (const path of new Set(group.map((candidate) => candidate.path))) counts.set(path, (counts.get(path) ?? 0) + 1);
+	}
+	return counts;
 }
 
 /**

@@ -5,7 +5,7 @@ Purpose: label image paths in Pi's editor, preview them above it, and attach ses
 ## Critical engineering rules
 
 - Never replace the editor (`setEditorComponent`), consume terminal input, or block input, streaming or focus. Other extensions swap the editor component; this one works only through `ctx.ui`. See [host seams](docs/architecture.md#host-seams).
-- Rewrite the draft only from text read in the same synchronous step, never in bash or command drafts, and never while a collapsed paste may be present. Check `test/draft.test.ts` and `test/extension.test.ts`.
+- Rewrite the draft only from text read in the same synchronous step. Never relabel in bash or command drafts, and never rewrite while a collapsed paste may be present or right after undo or history recall. Restore paths in bash and command drafts on the submit key. Check `test/draft.test.ts` and `test/extension.test.ts`, which drive pi-tui's real `Editor`.
 - Failures degrade to leaving the path text as typed; nothing throws into Pi, and only interactive TUI submissions change. Check the submit and integration tests.
 - Attach only hash-verified bytes of supported, size-capped images, and write only into the session's `.images` folder. See [conventions](docs/conventions.md#boundaries-and-state); check `test/store.test.ts`.
 - Tests stay offline in temporary directories; never touch real sessions, settings or `~/.pi`.
@@ -24,12 +24,12 @@ Purpose: label image paths in Pi's editor, preview them above it, and attach ses
 
 | Change | Start here | Boundary |
 | --- | --- | --- |
-| Which text counts as an image path | `src/paths.ts` | Pure; absolute and `~/` paths only |
+| Which text counts as an image path | `src/paths.ts` | Pure; absolute and `~/` paths only; linear, with capped candidates |
 | Validation, caching, labels, re-copy | `src/store.ts` | Session `.images` folder only; hash-checked |
-| Draft rewrite rules | `src/draft.ts` | Pure; mirrors host editor behavior |
+| Draft rewrite rules, paste-collapse rule, key classes | `src/draft.ts` | Pure; mirrors host editor behavior |
 | Submit rewrite and attachments | `src/submit.ts` | Interactive TUI input only |
 | Preview layout and thumbnails | `src/preview.ts` | Pi theme tokens; bounded rows |
-| Lifecycle, polling, UI calls | `src/index.ts` | Cleared on `session_shutdown` |
+| Lifecycle, polling, input attribution, Enter-time restore, UI calls | `src/index.ts` | Cleared on `session_shutdown` |
 | Host versions or check wiring | `package.json`, `package-lock.json`, `tsconfig.json` | Host peers at runtime; pinned development host |
 
 ## Implement and verify

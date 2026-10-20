@@ -17,7 +17,7 @@ npm ci
 npm run check
 ```
 
-`check` runs `npm run typecheck` (`tsc --noEmit`), then `npm test` (`node --test test/*.test.ts`). Tests write only to temporary directories. `test/extension.test.ts` loads `src/index.ts` through the pinned host's real loader with a temporary agent directory and drives Pi's `ExtensionRunner` with a scripted editor, widget host and terminal input. `test/preview.test.ts` runs the pinned host's image resizer. No test calls a model or the network, or touches `~/.pi`.
+`check` runs `npm run typecheck` (`tsc --noEmit`), then `npm test` (`node --test test/*.test.ts`). Tests write only to temporary directories. `test/extension.test.ts` loads `src/index.ts` through the pinned host's real loader with a temporary agent directory and drives Pi's `ExtensionRunner`. Behind its `ctx.ui` is pi-tui's real `Editor`: raw input goes through the terminal-input listeners and then `Editor.handleInput`, the order Pi uses, and a fake widget host stands in for Pi's widget slot. `test/draft.test.ts` checks the paste-collapse rule against the real `Editor` too. `test/preview.test.ts` runs the pinned host's image resizer. No test calls a model or the network, or touches `~/.pi`.
 
 Then check that the existing installed Pi loads the extension, from an empty temporary directory with a temporary agent directory:
 
@@ -35,15 +35,16 @@ Interactive validation is separate. In a disposable Pi session in a Kitty-capabl
 - Finder drag-and-drop
 - a typed `~/` path
 - the label and caption, and the thumbnail size and its removal when the draft is emptied
-- a `!` draft, and a large paste followed by an image
-- history recall of a label
+- a `!` draft, a label turned into `!open [image N]` and submitted at once, and a large paste followed by an image
+- undo after a relabel, then typing on
+- history recall of a label and of a raw path, then Down back to the unsent draft
 - `/new`, then submitting a recalled label
 - the attached image reaching the model
 - resizing the terminal
 
 ## Review and documentation
 
-Trace text → `paths.ts` → `store.ts` → `draft.ts` → `index.ts` → `preview.ts`, and `input` → `submit.ts`, before changing shared behavior. On a host upgrade, bump the three development pins together and reread the [host seams](docs/architecture.md#host-seams), in particular the copied paste-collapse threshold. Update user behavior and limits in the README, flows and seams in architecture, presentation in design and engineering gaps in conventions; map any new guide here and at the root.
+Trace text → `paths.ts` → `store.ts` → `draft.ts` → `index.ts` → `preview.ts`, and `input` → `submit.ts`, before changing shared behavior. On a host upgrade, bump the three development pins together and reread the [host seams](docs/architecture.md#host-seams), in particular the copied paste-collapse rule, the keybinding ids, terminal-input order and submit expansion. Update user behavior and limits in the README, flows and seams in architecture, presentation in design and engineering gaps in conventions; map any new guide here and at the root.
 
 ## Verification records
 
@@ -73,3 +74,22 @@ The full branch diff against `origin/main` was reviewed. Removed:
 - the eager thumbnail on ingest, so only the first three previews make thumbnails
 
 Kept: polling, because Pi has no editor-change event; content sniffing and hash checks; and thumbnails rather than original images, to bound the Kitty data re-sent on repaint. The design system is not used, Pi theme tokens are, and no settings, commands or flags were added.
+
+2026-10-20 review fixes, same toolchain and host:
+
+- `npm run check`: passed. Strict typecheck clean, then **71/71 tests**, 0 failed, skipped or cancelled; three consecutive runs passed. Each regression below failed against the previous source first. The integration, store, submit and preview tests were run unchanged against it. For the pure helpers, whose new test files import new exports, the previous `isCollapsingPaste`, `keepsPaths` and `listCandidatePaths` were called directly on the same inputs:
+  - undo after a relabel keeps the path and does not loop; a remapped undo key is honoured
+  - history recall makes no rewrite, and Down restores the unsent draft
+  - the collapse rule matches the real `Editor` on 13 pastes: tabs, CSI-u keys, stripped controls and line endings. A tab-heavy paste is never expanded. An undo that may restore a collapsed paste blocks rewriting
+  - a path inserted mid-scan is found
+  - Enter restores paths in `!` and `/command` drafts before the editor submits them, keeping a collapsed paste's content
+  - a corrupt session copy is replaced, never returned with different bytes
+  - a failed session copy leaves the path unlabelled with one warning
+  - `"/missing.png ".repeat(5000)` finishes well under 250 ms with capped candidates; the previous parser was still running when killed after 30 s
+  - a root-level `/shot.png` draft is a message
+  - the thumbnail cap holds after PNG conversion
+  - a too-large path warns on submit with no other change
+- Installed-Pi load check: exit 0, `"success":true`, empty stderr.
+- Repository-wide checks: all 45 local links in the changed Markdown resolve, including anchors; no guide was added or moved, so the root map is unchanged; all 14 `CLAUDE.md` files are exactly `@AGENTS.md`; `git diff --check` and `git diff --cached --check` are clean; the changed files hold no private material; no color changed. No Mermaid diagram changed, so none was rendered. Interactive Pi and Herdr behavior, including the Enter-time restore, undo and history in a real terminal: **not run**.
+
+Simplification pass for the fixes: `lastText` was split into `lastSeen` (attribution) and `lastScanned` (scan trigger), because one value cannot serve both. Label restoration became one `restorePaths` helper used by the check and by Enter. `prepareSubmission` now always returns its diagnostics with a `changed` flag instead of `undefined`. Kept: polling, plus a non-consuming listener rather than an editor replacement.

@@ -31,7 +31,9 @@ export type IngestResult =
 	| { status: "ok"; record: ImageRecord }
 	| { status: "too-large" }
 	| { status: "unsupported" }
-	| { status: "unreadable" };
+	| { status: "unreadable" }
+	/** There is a session file but the copy into its images folder failed. */
+	| { status: "cache-failed" };
 
 /** Process-wide state: labels are never reused, even across `/reload`, which re-evaluates this module. */
 interface Registry {
@@ -68,14 +70,22 @@ function sha256(bytes: Buffer): string {
 	return createHash("sha256").update(bytes).digest("hex");
 }
 
-/** Write `bytes` to `target` unless it already exists; a temporary name and rename keep it whole. */
-async function writeOnce(target: string, bytes: Buffer): Promise<void> {
+/** Whether `path` is a file holding exactly the content with this hash. */
+async function holds(path: string, hash: string): Promise<boolean> {
 	try {
-		await stat(target);
-		return;
+		const info = await stat(path);
+		return info.isFile() && info.size <= MAX_IMAGE_BYTES && sha256(await readFile(path)) === hash;
 	} catch {
-		// Not cached yet.
+		return false;
 	}
+}
+
+/**
+ * Make `target` hold `bytes`. A copy that already matches is kept; a missing or different one is written to
+ * a temporary name and renamed over it, so readers never see a partial file. Throws when that fails.
+ */
+async function writeVerified(target: string, bytes: Buffer, hash: string): Promise<void> {
+	if (await holds(target, hash)) return;
 	await mkdir(dirname(target), { recursive: true });
 	const temp = `${target}.${randomUUID()}.tmp`;
 	try {
@@ -89,7 +99,8 @@ async function writeOnce(target: string, bytes: Buffer): Promise<void> {
 
 /**
  * Validate an image file, cache it into the session's images folder by content hash and give it a label.
- * The same content always gets the same label. Without a session file the original path is used.
+ * The same content always gets the same label. Without a session file the original path is used; with one,
+ * a failed copy gets no label, so the path is never presented as cached.
  */
 export async function ingestImage(sourcePath: string, sessionFile: string | undefined): Promise<IngestResult> {
 	let mimeType: string | null;
@@ -109,19 +120,18 @@ export async function ingestImage(sourcePath: string, sessionFile: string | unde
 	const hash = sha256(bytes);
 	let cached: string | undefined;
 	if (sessionFile) {
-		const target = join(imagesDirFor(sessionFile), cachedName(hash, mimeType));
+		cached = join(imagesDirFor(sessionFile), cachedName(hash, mimeType));
 		try {
-			await writeOnce(target, bytes);
-			cached = target;
+			await writeVerified(cached, bytes, hash);
 		} catch {
-			// Caching failed; the original path still works for this process.
+			return { status: "cache-failed" };
 		}
 	}
 
 	const state = registry();
 	const label = state.labelByHash.get(hash) ?? state.nextLabel++;
 	const previous = state.byLabel.get(label);
-	// Without a new cached copy, an earlier record (perhaps cached for another session) still serves.
+	// Without a session file, an earlier record (perhaps cached for another session) still serves.
 	const record: ImageRecord = previous && !cached
 		? previous
 		: { label, hash, mimeType, sourcePath: previous?.sourcePath ?? sourcePath, path: cached ?? sourcePath, sizeBytes: bytes.length };
@@ -132,12 +142,14 @@ export async function ingestImage(sourcePath: string, sessionFile: string | unde
 
 /**
  * The bytes and current path of a labelled image, re-copied into the current session's folder if it was
- * cached for another session or its copy is gone. Every copy is checked against the recorded hash.
+ * cached for another session or its copy is gone or changed. Every copy is checked against the recorded
+ * hash, and the returned path always holds the returned bytes. `saved` is false when there is a session
+ * file but the copy into its folder failed, so `path` is outside it.
  */
 export async function materialize(
 	record: ImageRecord,
 	sessionFile: string | undefined,
-): Promise<{ path: string; bytes: Buffer } | undefined> {
+): Promise<{ path: string; bytes: Buffer; saved: boolean } | undefined> {
 	const target = sessionFile ? join(imagesDirFor(sessionFile), cachedName(record.hash, record.mimeType)) : undefined;
 	const sources = [...new Set([target, record.path, record.sourcePath].filter((path): path is string => !!path))];
 	for (const source of sources) {
@@ -152,14 +164,14 @@ export async function materialize(
 		if (sha256(bytes) !== record.hash) continue;
 		if (target && source !== target) {
 			try {
-				await writeOnce(target, bytes);
+				await writeVerified(target, bytes, record.hash);
 			} catch {
-				return { path: source, bytes };
+				return { path: source, bytes, saved: false };
 			}
 			record.path = target;
-			return { path: target, bytes };
+			return { path: target, bytes, saved: true };
 		}
-		return { path: source, bytes };
+		return { path: source, bytes, saved: true };
 	}
 	return undefined;
 }

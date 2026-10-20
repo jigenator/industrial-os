@@ -99,3 +99,46 @@ test("refuses a copy whose content no longer matches", async (t) => {
 	await writeImage(source, png("edited"));
 	assert.equal(await materialize(result.record, undefined), undefined);
 });
+
+test("a corrupt session copy is replaced rather than returned with different bytes", async (t) => {
+	const dir = await tempDir(t);
+	const sessionFile = join(dir, "s.jsonl");
+	const result = await ingestImage(await writeImage(join(dir, "a.png")), sessionFile);
+	assert.ok(result.status === "ok");
+	await writeFile(result.record.path, png("tampered"));
+	const copy = await materialize(result.record, sessionFile);
+	assert.ok(copy);
+	assert.deepEqual(copy.bytes, png());
+	assert.deepEqual(await readFile(copy.path), copy.bytes, "the returned path holds the attached bytes");
+});
+
+test("ingest repairs an existing copy whose content does not match its name", async (t) => {
+	const dir = await tempDir(t);
+	const sessionFile = join(dir, "s.jsonl");
+	const hash = createHash("sha256").update(png()).digest("hex");
+	const target = await writeImage(join(dir, "s.images", `${hash.slice(0, 16)}.png`), png("stale"));
+	const result = await ingestImage(await writeImage(join(dir, "a.png")), sessionFile);
+	assert.ok(result.status === "ok");
+	assert.equal(result.record.path, target);
+	assert.deepEqual(await readFile(target), png());
+	assert.deepEqual((await readdir(join(dir, "s.images"))).sort(), [`${hash.slice(0, 16)}.png`], "no temporary file is left");
+});
+
+test("a session copy that cannot be written is a cache failure, not a label", async (t) => {
+	const dir = await tempDir(t);
+	const sessionFile = join(dir, "s.jsonl");
+	await writeFile(join(dir, "s.images"), "a file where the folder should be");
+	assert.deepEqual(await ingestImage(await writeImage(join(dir, "a.png")), sessionFile), { status: "cache-failed" });
+	assert.equal(registry().byLabel.size, 0);
+});
+
+test("a label whose copy cannot be made in the current session says so", async (t) => {
+	const dir = await tempDir(t);
+	const result = await ingestImage(await writeImage(join(dir, "a.png")), join(dir, "one.jsonl"));
+	assert.ok(result.status === "ok");
+	await writeFile(join(dir, "two.images"), "blocked");
+	const copy = await materialize(result.record, join(dir, "two.jsonl"));
+	assert.ok(copy);
+	assert.equal(copy.saved, false);
+	assert.equal(copy.path, result.record.path);
+});

@@ -68,3 +68,15 @@ test("the host resizer makes a PNG thumbnail for Kitty", async () => {
 	assert.equal(thumbnail.mimeType, "image/png");
 	assert.equal(thumbnail.width, 1);
 });
+
+test("a thumbnail stays within the byte cap after conversion to PNG", async () => {
+	setCapabilities({ images: "kitty", trueColor: true, hyperlinks: false });
+	const gif = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
+	const roomy = await makeThumbnail(gif, "image/gif");
+	assert.ok(roomy);
+	assert.equal(roomy.mimeType, "image/png");
+	// Under a cap the GIF meets but its PNG form does not, there is no thumbnail rather than an oversized one.
+	const capped = await makeThumbnail(gif, "image/gif", { maxBytes: gif.toString("base64").length + 1 });
+	assert.ok(roomy.data.length > gif.toString("base64").length + 1);
+	assert.equal(capped, null);
+});
