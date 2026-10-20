@@ -157,21 +157,19 @@ export class PreviewWidget implements Component {
 		return `+${hidden} more`;
 	}
 
-	/** Previews side by side, captions on the first row, until the next one would pass the right edge. */
+	/** Previews side by side, captions on the first row, until the next one would pass the right edge; the rest are counted below. */
 	private renderRow(pad: string, inner: number): string[] {
 		const maxColumns = Math.max(1, Math.min(PREVIEW_COLUMNS, inner));
 		const candidates = this.entries.slice(0, MAX_PREVIEWS);
 		const cells: { text: string; columns: number; placed?: Placed }[] = [];
 		let used = 0;
-		for (const [index, entry] of candidates.entries()) {
+		for (const entry of candidates) {
 			const text = caption(entry, true);
 			const placed = entry.thumbnail ? this.placeFor(entry, entry.thumbnail, maxColumns) : undefined;
 			const textColumns = Math.min(visibleWidth(text), maxColumns);
 			const columns = placed ? Math.max(placed.columns, Math.min(textColumns, MIN_CAPTION_COLUMNS)) : textColumns;
 			const start = cells.length > 0 ? used + GAP : 0;
-			const hiddenAfter = this.entries.length - index - 1;
-			const reserve = hiddenAfter > 0 ? GAP + visibleWidth(this.more(hiddenAfter)) : 0;
-			if (cells.length > 0 && start + columns + reserve > inner) break;
+			if (cells.length > 0 && start + columns > inner) break;
 			cells.push({ text, columns, placed });
 			used = start + columns;
 		}
@@ -181,17 +179,18 @@ export class PreviewWidget implements Component {
 			const fitted = truncateToWidth(text, columns);
 			return this.theme.fg("muted", fitted) + " ".repeat(columns - visibleWidth(fitted));
 		});
-		if (hidden > 0) captions.push(this.theme.fg("muted", this.more(hidden)));
 		const lines = [pad + truncateToWidth(captions.join(gap), inner)];
 		const rows = Math.max(0, ...cells.map(({ placed }) => placed?.rows ?? 0));
-		if (rows === 0) return lines;
-		// One row carries every placement: draw, then move right past the cell and gap without printing.
-		let imageLine = pad;
-		for (const [index, { columns, placed }] of cells.entries()) {
-			if (placed) imageLine += placed.sequence;
-			if (index < cells.length - 1) imageLine += `\x1b[${columns + GAP}C`;
+		if (rows > 0) {
+			// One row carries every placement: draw, then move right past the cell and gap without printing.
+			let imageLine = pad;
+			for (const [index, { columns, placed }] of cells.entries()) {
+				if (placed) imageLine += placed.sequence;
+				if (index < cells.length - 1) imageLine += `\x1b[${columns + GAP}C`;
+			}
+			lines.push(imageLine, ...Array.from({ length: rows - 1 }, () => ""));
 		}
-		lines.push(imageLine, ...Array.from({ length: rows - 1 }, () => ""));
+		if (hidden > 0) lines.push(pad + truncateToWidth(this.theme.fg("muted", this.more(hidden)), inner));
 		return lines;
 	}
 
