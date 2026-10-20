@@ -2,12 +2,12 @@
 
 This is the architecture of the monorepo: which projects it holds, how they relate, and where the next one goes. Each project has its own architecture guide for its internals; this guide does not repeat them.
 
-Status: current repository including the full-history moves of herdr-pane-naming and session-recap.
-Evidence: the full source tree of `design-system/` and `pi/claude-interrupt/`, every import statement across the projects, their manifests and test commands, the root `package.json` and lockfile, `design-system/package.test.mjs`, the guides of `pi/status-bar/`, and the Git history of the moves of claude-interrupt and status-bar. The signals-collector, herdr-sidebar, Herdr configuration, Spaces and Whiteboard plugin rows add their full source, tests and imports. The pane-naming and session-recap move adds their complete source, tests, manifests and lockfiles. No dependency graph was inferred from folder names.
+Status: current repository including the full-history moves of herdr-pane-naming and session-recap, and the new image-preview extension.
+Evidence: the full source tree of `design-system/` and `pi/claude-interrupt/`, every import statement across the projects, their manifests and test commands, the root `package.json` and lockfile, `design-system/package.test.mjs`, the guides of `pi/status-bar/`, and the Git history of the moves of claude-interrupt and status-bar. The signals-collector, herdr-sidebar, Herdr configuration, Spaces and Whiteboard plugin rows add their full source, tests and imports. The pane-naming and session-recap move adds their complete source, tests, manifests and lockfiles; the image-preview row adds its full source, tests and imports. No dependency graph was inferred from folder names.
 
 ## Projects
 
-Industrial OS is one repository holding several independent projects. A project is a folder that owns its language, toolchain, dependencies, checks, and guides. Today there are ten. They share code only through the design-system package. claude-interrupt and status-bar consume exported subpaths through their own Pi adapters, and the checks of the Herdr configuration and the Whiteboard plugin import its colors. Displays receive session data from signals-collector through in-process events, never imports.
+Industrial OS is one repository holding several independent projects. A project is a folder that owns its language, toolchain, dependencies, checks, and guides. Today there are eleven. They share code only through the design-system package. claude-interrupt and status-bar consume exported subpaths through their own Pi adapters, and the checks of the Herdr configuration and the Whiteboard plugin import its colors. Displays receive session data from signals-collector through in-process events, never imports.
 
 | Project | Language and runtime | Public entry point | Dependencies | Guides |
 | --- | --- | --- | --- | --- |
@@ -18,6 +18,7 @@ Industrial OS is one repository holding several independent projects. A project 
 | `pi/herdr-sidebar/` | TypeScript ES modules run by Node 22 type stripping; npm scripts; no type check | `package.json` `pi.extensions` → `src/extension.ts`, loaded by the Pi host; its token contract in `docs/token-contract.md` | Host-provided Pi packages as peer dependencies; no development dependencies, tests use the globally installed Pi. Talks to Herdr over its local socket; does not import the design system | [README](../pi/herdr-sidebar/README.md), [AGENTS](../pi/herdr-sidebar/AGENTS.md), [architecture](../pi/herdr-sidebar/docs/architecture.md), [contributing](../pi/herdr-sidebar/CONTRIBUTING.md) |
 | `pi/herdr-pane-naming/` | TypeScript ESM, Node 22.19+, npm; no typecheck | Explicit Pi entry `index.ts` | Host Pi peer plus pi-typesafe/TypeSafe SDK (also installed at root); main TUI-only Herdr CLI pane get/rename on its own inherited pane, TypeSafe/Jev and title-model calls; no design-system imports | [README](../pi/herdr-pane-naming/README.md), [AGENTS](../pi/herdr-pane-naming/AGENTS.md), [architecture](../pi/herdr-pane-naming/docs/architecture.md), [contributing](../pi/herdr-pane-naming/CONTRIBUTING.md) |
 | `pi/session-recap/` | TypeScript ESM, Node 22.19+, npm; strict no-emit TypeScript | Explicit Pi entry `index.ts` | Host Pi/AI/TUI peers; development Pi pinned to 1.0.0; TUI-only recap model call; UI-only output and global model/keep preferences; no design-system imports | [README](../pi/session-recap/README.md), [AGENTS](../pi/session-recap/AGENTS.md), [architecture](../pi/session-recap/docs/architecture.md), [contributing](../pi/session-recap/CONTRIBUTING.md) |
+| `pi/image-preview/` | TypeScript ESM, Node 22.19+, npm; strict no-emit TypeScript | `package.json` `pi.extensions` → `src/index.ts` | Host Pi/TUI peers; development Pi pinned to 1.3.0; TUI-only read-only editor polling, writes no files; no design-system imports | [README](../pi/image-preview/README.md), [AGENTS](../pi/image-preview/AGENTS.md), [architecture](../pi/image-preview/docs/architecture.md), [contributing](../pi/image-preview/CONTRIBUTING.md) |
 | `herdr-plugins/spaces/` | Plain Node 22 ES modules, standard library only, no build/dependencies | `herdr-plugin.toml`; `bin/spaces.mjs ensure/run/status` | Node; Herdr 0.9.3 Unix socket; consumes Pi AU tokens over the protocol, no imports from Pi | [README](../herdr-plugins/spaces/README.md), [AGENTS](../herdr-plugins/spaces/AGENTS.md), [architecture](../herdr-plugins/spaces/docs/architecture.md), [contract](../herdr-plugins/spaces/docs/token-contract.md), [contributing](../herdr-plugins/spaces/CONTRIBUTING.md) |
 | `herdr-plugins/whiteboard/` | Rust 2024 with Cargo and ratatui; a Node 22 palette check and a Python 3 PTY check | `herdr-plugin.toml`: `[[build]]` `cargo build`, the `board` pane (a split by default) and the `open` and `open-tab` actions, through `bin/whiteboard.sh` | Locked crates (ratatui, serde, serde_json, unicode-width); Herdr's plugin environment; mirrors the Acid / Black palette, which its check imports by package name | [README](../herdr-plugins/whiteboard/README.md), [AGENTS](../herdr-plugins/whiteboard/AGENTS.md), [architecture](../herdr-plugins/whiteboard/docs/architecture.md), [contributing](../herdr-plugins/whiteboard/CONTRIBUTING.md) |
 | `herdr/` | TOML read by Herdr; a Node 22 check | `sidebar.toml`, `spaces.toml` and `theme.toml`, merged by hand into Herdr's `config.toml` | Herdr's config schema; its check imports design-system palette, signal and Herdr chrome colors by package name and reads herdr-sidebar's and Spaces' token contract documents | [README](../herdr/README.md), [AGENTS](../herdr/AGENTS.md), [architecture](../herdr/docs/architecture.md), [contributing](../herdr/CONTRIBUTING.md) |
@@ -40,6 +41,7 @@ flowchart LR
         Design["docs/design.md<br/>visual language"]
         PN["pi/herdr-pane-naming/<br/>index.ts, models.ts"]
         SR["pi/session-recap/<br/>index.ts"]
+        IP["pi/image-preview/<br/>src/index.ts"]
         Root["package.json<br/>two runtime dependencies"]
     end
     Node["Node.js 22 standard library"]
@@ -56,6 +58,8 @@ flowchart LR
     SR -->|imports| Node
     SR -->|imports, peers| PiHost
     SR -->|recap call| Models
+    IP -->|imports| Node
+    IP -->|imports, peers| PiHost
     Root -.->|installs named exception| TypeSafe
     DS -->|imports| Node
     CI -->|imports, peer| PiHost
@@ -124,7 +128,7 @@ Every project must provide:
 - `CONTRIBUTING.md`: its toolchain, exact commands, validation sequence, and verification records.
 - `docs/architecture.md`: its modules, dependency direction, flows, invariants, and evolution.
 - `docs/conventions.md` with its own rules beyond the repository-wide ones, and `docs/design.md` with its own experience within the shared language. Every current project has them.
-- `docs/mission.md` only when it has a product scope of its own beyond the repository's; claude-interrupt, status-bar, signals-collector, herdr-pane-naming and session-recap have one, the design system does not.
+- `docs/mission.md` only when it has a product scope of its own beyond the repository's; claude-interrupt, status-bar, signals-collector, herdr-pane-naming, session-recap and image-preview have one, the design system does not.
 - A license notice if it carries a license.
 - For a Pi extension, its entry point in `pi.extensions` of the root `package.json`.
 - If it imports the design system, the root `npm install` in its setup and checks that run from a checkout where it has run. It does not add the package to its own manifest.
@@ -161,7 +165,7 @@ Every project's guides must appear in the [root supporting-documents map](../AGE
 - **One command for the whole repository.** None exists. Each project has its own validation sequence, and a project in another language would not fit a root Node command. Revisit if a CI gate is added; a root script that calls each project's documented sequence would be the smallest form, and it must not presume a language. Recorded as [a decision](decisions/standalone-packages.md).
 - **Palette drift.** The design system owns the colors in `design-system/foundation/palette.mjs` for the nine roles and `design-system/foundation/signal-colors.mjs` for status-bar's other product colors (count tiers, mode inks, gauge zones, warm-up steps, usage providers). claude-interrupt and status-bar import them, removing their copies and retiring their manual comparison rows; the Herdr configuration's check compares its restated values. A future mirroring extension still needs a review comparison until migration.
 - **Herdr configuration is merged by hand.** Herdr has no config includes, so `herdr/` content reaches a user's config only by a manual merge; see [its README](../herdr/README.md#install).
-- **License.** The repository has no license; claude-interrupt and the session-recap fork carry MIT from before their moves (session-recap retains Thomas Mustier's copyright), while status-bar, signals-collector, herdr-sidebar and herdr-pane-naming have none. Resolve when the repository is offered for reuse.
+- **License.** The repository has no license; claude-interrupt and the session-recap fork carry MIT from before their moves (session-recap retains Thomas Mustier's copyright), while status-bar, signals-collector, herdr-sidebar, herdr-pane-naming and image-preview have none. Resolve when the repository is offered for reuse.
 
 The collector is the only owner of TUI session signals and shared CodexBar cache. Displays use events, not imports; see [collection ownership](decisions/session-signals-collection.md).
 

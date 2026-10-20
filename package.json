@@ -13,7 +13,8 @@
       "./pi/status-bar/src/extension.ts",
       "./pi/herdr-sidebar/src/extension.ts",
       "./pi/herdr-pane-naming/index.ts",
-      "./pi/session-recap/index.ts"
+      "./pi/session-recap/index.ts",
+      "./pi/image-preview/src/index.ts"
     ],
     "skills": [],
     "prompts": [],
