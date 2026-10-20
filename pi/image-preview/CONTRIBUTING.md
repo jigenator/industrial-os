@@ -37,6 +37,12 @@ Trace text → `paths.ts` → `image.ts` → `index.ts` → `preview.ts` before 
 
 ## Verification records
 
+2026-10-20, side-by-side row and doubled size, macOS, Node 22.23.0, npm 10.9.8, installed Pi 1.3.0.
+
+- `npm ci`, then `npm run check`: strict typecheck clean, **31/31 tests**. New preview tests cover captions sharing one row above two Kitty placements on one image row (`C=1` plus a cursor-forward), the 12-row budget, `+N more` when previews pass the right edge, all five shown on a wide row, and one preview always shown on narrow rows; the stacked layout keeps its own limit of three.
+- Installed-Pi load check above: exit 0, `"success":true`, empty stderr.
+- Interactive: the previous stacked version was confirmed by David in Pi inside Herdr on 2026-10-20 with a test PNG and Ctrl+V screenshots. The side-by-side row has **not** been seen in a terminal yet.
+
 2026-10-20, preview-only version, macOS, Node 22.23.0, npm 10.9.8, installed Pi 1.3.0. Earlier records on this branch described the removed labelling, caching and attachment behavior and were replaced.
 
 - `npm install` after dropping the unused `pi-ai` development pin and peer updated the lockfile; `npm ci` then installed 119 packages with **0 vulnerabilities** and one deprecation warning for `node-domexception`, from the host's dependency tree.
