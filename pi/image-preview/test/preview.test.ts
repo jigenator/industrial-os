@@ -69,8 +69,10 @@ test("previews that pass the right edge are counted as +N more", () => {
 	const narrow = widget.render(60);
 	const shown = kittyCount(narrow[1]);
 	assert.ok(shown >= 1 && shown < 5, `shown ${shown}`);
-	assert.match(stripAnsi(narrow[0]), new RegExp(`\\+${5 - shown} more$`));
-	assert.ok(visibleWidth(narrow[0]) <= 60);
+	assert.doesNotMatch(stripAnsi(narrow[0]), /more/, "the count is not on the caption row");
+	assert.equal(narrow.length, 1 + PREVIEW_ROWS + 1, "captions, image rows, then the count");
+	assert.equal(stripAnsi(narrow.at(-1)!), ` +${5 - shown} more`);
+	assert.ok(narrow.every((line) => line.includes("\x1b_G") || visibleWidth(line) <= 60));
 });
 
 test("one preview is always shown, even when it alone fills a narrow row", () => {
