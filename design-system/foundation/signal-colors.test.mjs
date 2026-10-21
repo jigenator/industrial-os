@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GLYPHS, paint, resolveColor, span } from './cells.mjs';
 import { ACID_BLACK } from './palette.mjs';
-import { HERDR_CHROME, SIGNAL_COLORS, mixOver } from './signal-colors.mjs';
+import { HERDR_CHROME, PI_CHROME, SIGNAL_COLORS, mixOver } from './signal-colors.mjs';
 
 test('signal colors are frozen lowercase #rrggbb values that paint as literal RGB', () => {
   assert.ok(Object.isFrozen(SIGNAL_COLORS));
@@ -43,6 +43,16 @@ test('Herdr chrome colors are frozen lowercase values: the signal orange equals 
   assert.equal(HERDR_CHROME.signalOrange, SIGNAL_COLORS.cld);
   assert.equal(mixOver(HERDR_CHROME.signalOrange, 0.3), HERDR_CHROME.signalOrange30);
   assert.equal(HERDR_CHROME.signalOrange30, '#4d1c00'); // 255 × 0.3 = 76.5 -> 0x4d, 92 × 0.3 = 27.6 -> 0x1c
+});
+
+test('Pi chrome colors are frozen lowercase values that shadow no role, signal or Herdr chrome name', () => {
+  assert.ok(Object.isFrozen(PI_CHROME));
+  assert.deepEqual(PI_CHROME, { bone: '#e2dccb' });
+  for (const [name, hex] of Object.entries(PI_CHROME)) {
+    assert.match(hex, /^#[0-9a-f]{6}$/, name);
+    assert.equal(resolveColor(hex), hex);
+    for (const other of [ACID_BLACK, SIGNAL_COLORS, HERDR_CHROME]) assert.ok(!Object.hasOwn(other, name), name);
+  }
 });
 
 test('every curated glyph is a single code point listed once', () => {

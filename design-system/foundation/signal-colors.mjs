@@ -1,5 +1,5 @@
 // Signal colors: the source of the product colors the Pi extensions use beside the nine Acid / Black roles, and of
-// the Herdr chrome colors.
+// the Herdr and Pi chrome colors.
 // status-bar's `C` palette (../../pi/status-bar/src/footer.ts) mirrors every SIGNAL_COLORS value here until it imports them, as
 // it mirrors palette.mjs for the roles. Contract: README.md#signal-colors.
 import { ACID_BLACK } from './palette.mjs';
@@ -52,6 +52,13 @@ export const HERDR_CHROME = Object.freeze({
   signalOrange: '#ff5c00',
   // mixOver(signalOrange, 0.3), 30% over the field: theme.custom surface1.
   signalOrange30: '#4d1c00',
+});
+
+// Pi chrome colors: product colors the Pi theme (../../pi/theme/industrial-os.json) restates that are neither roles nor
+// status-bar colors, kept apart from SIGNAL_COLORS for the same reason as HERDR_CHROME. Contract: README.md#pi-chrome-colors.
+export const PI_CHROME = Object.freeze({
+  // A warm off-white: the editor border at every thinking level.
+  bone: '#e2dccb',
 });
 
 // Mixes declared as signal colors, matching status-bar's current computed values. The extension computed some of

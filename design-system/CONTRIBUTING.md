@@ -127,6 +127,10 @@ Node 22.23.0, macOS: all 387 DS checks passed (368 pre-existing after slice-1, 1
 
 Node 22.23.0, macOS: `node --test` **388/388 passed** (387 before, plus the `HERDR_CHROME` check), including `package.test.mjs` **4/4**. `HERDR_CHROME` adds no module or export entry; status-bar's `test/footer-colors.test.ts` still passes **1/1**, since `SIGNAL_COLORS` is unchanged. Setting `signalOrange30` to `#4d1b00` failed the new check, then was restored. No storybook story or native Herdr check covers these values; the theme that uses them is recorded in [the Herdr contributing guide](../herdr/CONTRIBUTING.md#acid--orange-theme).
 
+## Pi chrome colors verification (2026-10-22)
+
+Node 22.23.0, macOS: `node --test` **403/403 passed**, including the new `PI_CHROME` check. `PI_CHROME` adds no module or export entry. Setting `bone` to `#e2dccc` failed the new check, then was restored. Status-bar's `test/footer-colors.test.ts` still passes **1/1** with the global Pi 1.3.0 host, since `SIGNAL_COLORS` is unchanged, and its strict compile-only `test/design-system-types.ts` passes with the added declaration. No storybook story or native Herdr check covers this value.
+
 ## Making a change
 
 Follow the [repository workflow](../CONTRIBUTING.md#making-a-change) and the routes in this folder's [AGENTS.md](AGENTS.md). All elements and demos must be terminal-ready text, without a browser presentation layer; verify appearance, resizing, input, and repaint behavior in Herdr.

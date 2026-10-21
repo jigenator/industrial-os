@@ -26,6 +26,8 @@ The product colors status-bar uses beside the Acid / Black roles (count tiers, m
 
 Signal colors now also serve Herdr chrome: the [Herdr theme](../../herdr/theme.toml) restates roles, `SIGNAL_COLORS.ghost`, and the two [Herdr chrome colors](../foundation/README.md#herdr-chrome-colors) in `HERDR_CHROME`, the Marathon signal orange `#ff5c00` and its 30% mix over the field `#4d1c00`. They are a separate object because status-bar does not use them; the SIGNAL COLORS story does not show them.
 
+The [Pi theme](../../pi/theme/industrial-os.json) likewise restates roles and signal colors, plus one [Pi chrome color](../foundation/README.md#pi-chrome-colors) in `PI_CHROME`: `bone` `#e2dccb`, the warm off-white of Pi's editor border. The SIGNAL COLORS story does not show it either.
+
 ## Motions
 
 Nineteen [motions](../motions/README.md) decorate already-rendered lines at an explicit time, under the shared [motion rules](../../docs/design.md#motion): scan, pulse, and reveal; the state and attention motions modeled on the extensions (draw-in, warm-up, latch, beacon, cycle, fade, blink, flash); and the signal, meter, and glitch motions (ping, wipe, fill-in, burn-out, edge pulse, restrike, ghost, nudge). `animate: false` is every motion's motion-off state. Warning and critical cells are exempt unless a motion opts in for a state cue (warm-up, latch, beacon, flash), and then every frame keeps the state's shape and word. This exemption protects cells, not an entire message. Motions that can hide or replace characters (reveal, draw-in, ghost, and the glyph motions) belong only on nonessential decoration; compose complete readings, labels, and status messages outside them.
