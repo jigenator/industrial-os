@@ -29,14 +29,15 @@ Each top-level project folder, and each project under `pi/` or `herdr-plugins/`,
 ```text
 industrial-os/
 ├── design-system/            terminal design system and its guides
-├── pi/                       Pi extensions, each its own project
+├── pi/                       Pi extensions and the Pi theme, each its own project
 │   ├── claude-interrupt/     interrupt-and-continue with the DIRECTIVE UPDATED marker
 │   ├── signals-collector/    TUI session signals and shared quota cache
 │   ├── status-bar/           the Acid / Black footer for the agent-reported active project
 │   ├── herdr-sidebar/        this session's state as Herdr agents-sidebar tokens
 │   ├── herdr-pane-naming/    automatic names for this inherited Herdr pane
 │   ├── session-recap/        UI-only away and detailed session recaps
-│   └── image-preview/        previews of image paths in the editor
+│   ├── image-preview/        previews of image paths in the editor
+│   └── theme/                the industrial-os Pi theme, a theme file
 ├── herdr/                    Herdr agents and Spaces configuration, merged by hand
 ├── herdr-plugins/            Herdr plugins, each its own project
 │   ├── spaces/              workspace tokens, quiet history and ordering daemon

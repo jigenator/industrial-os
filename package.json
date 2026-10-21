@@ -1,7 +1,7 @@
 {
   "name": "industrial-os",
   "private": true,
-  "description": "Pi git-install entry points and root runtime dependencies: the in-repo design system and pane naming's pi-typesafe",
+  "description": "Pi git-install entry points, the Pi theme, and root runtime dependencies: the in-repo design system and pane naming's pi-typesafe",
   "dependencies": {
     "@industrial-os/design-system": "file:design-system",
     "pi-typesafe": "^0.9.1"
@@ -18,6 +18,8 @@
     ],
     "skills": [],
     "prompts": [],
-    "themes": []
+    "themes": [
+      "./pi/theme/industrial-os.json"
+    ]
   }
 }

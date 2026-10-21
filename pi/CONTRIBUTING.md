@@ -1,6 +1,6 @@
 # Contributing to the Pi extensions
 
-What every Pi extension in this folder shares, and how to bring one in. Each extension's own contributing guide holds its exact commands, validation sequence, and verification records: [claude-interrupt](claude-interrupt/CONTRIBUTING.md), [signals-collector](signals-collector/CONTRIBUTING.md), [status-bar](status-bar/CONTRIBUTING.md), [herdr-sidebar](herdr-sidebar/CONTRIBUTING.md), [herdr-pane-naming](herdr-pane-naming/CONTRIBUTING.md), [session-recap](session-recap/CONTRIBUTING.md) and [image-preview](image-preview/CONTRIBUTING.md). The workflow for every change, including review and publication, is in the [root contributing guide](../CONTRIBUTING.md).
+What every Pi extension in this folder shares, and how to bring one in. Each extension's own contributing guide holds its exact commands, validation sequence, and verification records: [claude-interrupt](claude-interrupt/CONTRIBUTING.md), [signals-collector](signals-collector/CONTRIBUTING.md), [status-bar](status-bar/CONTRIBUTING.md), [herdr-sidebar](herdr-sidebar/CONTRIBUTING.md), [herdr-pane-naming](herdr-pane-naming/CONTRIBUTING.md), [session-recap](session-recap/CONTRIBUTING.md) and [image-preview](image-preview/CONTRIBUTING.md), and the Pi theme's in [theme](theme/CONTRIBUTING.md). The workflow for every change, including review and publication, is in the [root contributing guide](../CONTRIBUTING.md).
 
 ## Shared toolchain facts
 

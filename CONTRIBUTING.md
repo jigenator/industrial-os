@@ -12,10 +12,11 @@ This guide covers the workflow for every change and the checks that apply to the
 | `pi/herdr-pane-naming/` | Node.js 22.19+, npm, installed Pi loader; mocked CLI/services | [pi/herdr-pane-naming/CONTRIBUTING.md](pi/herdr-pane-naming/CONTRIBUTING.md) |
 | `pi/session-recap/` | Node.js 22.19+, npm, TypeScript; pinned offline Pi host probes | [pi/session-recap/CONTRIBUTING.md](pi/session-recap/CONTRIBUTING.md) |
 | `pi/image-preview/` | Node.js 22.19+, npm, strict TypeScript; pinned Pi 1.3.0 loader tests, an installed Pi for the load check | [pi/image-preview/CONTRIBUTING.md](pi/image-preview/CONTRIBUTING.md) |
+| `pi/theme/` | JSON; Node.js 22.19+ for its check, the root install and an installed Pi | [pi/theme/CONTRIBUTING.md](pi/theme/CONTRIBUTING.md) |
 | `herdr-plugins/spaces/` | Node.js 22 standard library; fake Unix socket tests | [herdr-plugins/spaces/CONTRIBUTING.md](herdr-plugins/spaces/CONTRIBUTING.md) |
 | `herdr/` | TOML; Node.js 22 for its check; an installed Herdr for the parser check | [herdr/CONTRIBUTING.md](herdr/CONTRIBUTING.md) |
 
-There is no root test command, script, or workspace. The root `package.json` lists the Pi extensions' entry points for Pi's git install, see [installing the Pi extensions](pi/README.md#install), and two runtime dependencies: the linked design-system package and pane naming's specific [pi-typesafe exception](docs/decisions/pane-naming-root-dependency.md). Running `node --test` from the root discovers the extensions' TypeScript tests, which need each extension's own setup; it is not a repository check. See [standalone packages](docs/decisions/standalone-packages.md) and [the in-repo design-system package](docs/decisions/in-repo-design-system-package.md).
+There is no root test command, script, or workspace. The root `package.json` lists the Pi extensions' entry points and the Pi theme for Pi's git install, see [installing the Pi extensions](pi/README.md#install), and two runtime dependencies: the linked design-system package and pane naming's specific [pi-typesafe exception](docs/decisions/pane-naming-root-dependency.md). Running `node --test` from the root discovers the extensions' TypeScript tests, which need each extension's own setup; it is not a repository check. See [standalone packages](docs/decisions/standalone-packages.md) and [the in-repo design-system package](docs/decisions/in-repo-design-system-package.md).
 
 ## Setup
 
