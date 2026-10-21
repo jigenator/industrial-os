@@ -1,0 +1,26 @@
+{
+  "name": "pi-theme-industrial-os",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The industrial-os Pi theme: Acid / Black neutrals with a bone editor border, every color from the design system",
+  "type": "module",
+  "keywords": [
+    "pi-package"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jigenator/industrial-os.git",
+    "directory": "pi/theme"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "pi": {
+    "themes": [
+      "./industrial-os.json"
+    ]
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  }
+}

@@ -11,8 +11,7 @@ Pi extensions that carry the Industrial OS visual and interaction language into 
 - [herdr-pane-naming](herdr-pane-naming/README.md): names only its own inherited Herdr pane from delivered user text and assistant activity, using TypeSafe/Jev and a title model; main TUI only.
 - [session-recap](session-recap/README.md): UI-only brief away recaps and manual detailed active-branch recaps through a separate model; TUI only.
 - [image-preview](image-preview/README.md): previews image files whose paths are in the editor, above the editor, without changing the draft or the message; TUI only.
-
-No Pi configuration lives here yet.
+- [theme](theme/README.md): the `industrial-os` Pi theme, Acid / Black neutrals with a bone editor border; a theme file, not an extension.
 
 None of the extensions is published to npm.
 
@@ -27,7 +26,7 @@ The repository root holds a `package.json` whose `pi.extensions` lists every ext
 }
 ```
 
-Omit `extensions` to load every extension, or list a subset. Without a ref the entry follows `main`; `pi update --extensions` pulls it. `pi install git:github.com/jigenator/industrial-os` adds the unfiltered entry. Each extension's README names its entry point and any load-order needs. Include signals-collector when selecting status-bar for collected data; either order works, but a display without it truthfully shows unknown.
+Omit `extensions` to load every extension, or list a subset. The root `pi.themes` also provides the [Pi theme](theme/README.md); an `extensions` filter does not hide it, `"themes": []` does. Without a ref the entry follows `main`; `pi update --extensions` pulls it. `pi install git:github.com/jigenator/industrial-os` adds the unfiltered entry. Each extension's README names its entry point and any load-order needs. Include signals-collector when selecting status-bar for collected data; either order works, but a display without it truthfully shows unknown.
 
 For development, install an extension from a local checkout instead, `pi install <industrial-os checkout>/pi/<name>`; Pi loads it from that path without copying it and installs nothing. Both rendering extensions, claude-interrupt and status-bar, import the design-system package; run `npm install` once at the checkout root first so the package is linked. Pane naming also needs that root setup for pi-typesafe; see [setup](../CONTRIBUTING.md#setup). Pi identifies a local package by its path and a git package by its URL, so configuring one extension from both sources loads it twice; use one.
 

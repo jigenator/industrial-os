@@ -19,6 +19,7 @@ Industrial OS is one repository holding several independent projects. A project 
 | `pi/herdr-pane-naming/` | TypeScript ESM, Node 22.19+, npm; no typecheck | Explicit Pi entry `index.ts` | Host Pi peer plus pi-typesafe/TypeSafe SDK (also installed at root); main TUI-only Herdr CLI pane get/rename on its own inherited pane, TypeSafe/Jev and title-model calls; no design-system imports | [README](../pi/herdr-pane-naming/README.md), [AGENTS](../pi/herdr-pane-naming/AGENTS.md), [architecture](../pi/herdr-pane-naming/docs/architecture.md), [contributing](../pi/herdr-pane-naming/CONTRIBUTING.md) |
 | `pi/session-recap/` | TypeScript ESM, Node 22.19+, npm; strict no-emit TypeScript | Explicit Pi entry `index.ts` | Host Pi/AI/TUI peers; development Pi pinned to 1.0.0; TUI-only recap model call; UI-only output and global model/keep preferences; no design-system imports | [README](../pi/session-recap/README.md), [AGENTS](../pi/session-recap/AGENTS.md), [architecture](../pi/session-recap/docs/architecture.md), [contributing](../pi/session-recap/CONTRIBUTING.md) |
 | `pi/image-preview/` | TypeScript ESM, Node 22.19+, npm; strict no-emit TypeScript | `package.json` `pi.extensions` → `src/index.ts` | Host Pi/TUI peers; development Pi pinned to 1.3.0; TUI-only read-only editor polling, writes no files; no design-system imports | [README](../pi/image-preview/README.md), [AGENTS](../pi/image-preview/AGENTS.md), [architecture](../pi/image-preview/docs/architecture.md), [contributing](../pi/image-preview/CONTRIBUTING.md) |
+| `pi/theme/` | JSON; a Node 22.19+ check | Root `package.json` `pi.themes` → `pi/theme/industrial-os.json`, selected as `industrial-os` | Pi's theme schema; its check imports design-system palette, signal and Pi chrome colors by package name and Pi's validator from the installed host | [README](../pi/theme/README.md), [AGENTS](../pi/theme/AGENTS.md), [architecture](../pi/theme/docs/architecture.md), [contributing](../pi/theme/CONTRIBUTING.md) |
 | `herdr-plugins/spaces/` | Plain Node 22 ES modules, standard library only, no build/dependencies | `herdr-plugin.toml`; `bin/spaces.mjs ensure/run/status` | Node; Herdr 0.9.3 Unix socket; consumes Pi AU tokens over the protocol, no imports from Pi | [README](../herdr-plugins/spaces/README.md), [AGENTS](../herdr-plugins/spaces/AGENTS.md), [architecture](../herdr-plugins/spaces/docs/architecture.md), [contract](../herdr-plugins/spaces/docs/token-contract.md), [contributing](../herdr-plugins/spaces/CONTRIBUTING.md) |
 | `herdr-plugins/whiteboard/` | Rust 2024 with Cargo and ratatui; a Node 22 palette check and a Python 3 PTY check | `herdr-plugin.toml`: `[[build]]` `cargo build`, the `board` pane (a split by default) and the `open` and `open-tab` actions, through `bin/whiteboard.sh` | Locked crates (ratatui, serde, serde_json, unicode-width); Herdr's plugin environment; mirrors the Acid / Black palette, which its check imports by package name | [README](../herdr-plugins/whiteboard/README.md), [AGENTS](../herdr-plugins/whiteboard/AGENTS.md), [architecture](../herdr-plugins/whiteboard/docs/architecture.md), [contributing](../herdr-plugins/whiteboard/CONTRIBUTING.md) |
 | `herdr/` | TOML read by Herdr; a Node 22 check | `sidebar.toml`, `spaces.toml` and `theme.toml`, merged by hand into Herdr's `config.toml` | Herdr's config schema; its check imports design-system palette, signal and Herdr chrome colors by package name and reads herdr-sidebar's and Spaces' token contract documents | [README](../herdr/README.md), [AGENTS](../herdr/AGENTS.md), [architecture](../herdr/docs/architecture.md), [contributing](../herdr/CONTRIBUTING.md) |
@@ -42,6 +43,7 @@ flowchart LR
         PN["pi/herdr-pane-naming/<br/>index.ts, models.ts"]
         SR["pi/session-recap/<br/>index.ts"]
         IP["pi/image-preview/<br/>src/index.ts"]
+        TH["pi/theme/<br/>industrial-os.json, test/"]
         Root["package.json<br/>two runtime dependencies"]
     end
     Node["Node.js 22 standard library"]
@@ -81,6 +83,8 @@ flowchart LR
     HC -.->|check reads Spaces contract| SP
     HC ==>|rows merged into config| Herdr
     HC -->|check imports colors| DS
+    TH -->|check imports colors| DS
+    TH ==>|theme loaded by| PiHost
     HC -.->|check reads token contract| HS
     PiHost ==>|renders in| Herdr
     DS ==>|renders in| Herdr
@@ -106,7 +110,7 @@ The root holds what every project shares and nothing else:
 | This guide | The project map, dependency direction, and where new projects go |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | The workflow for a change and the repository-wide checks; it routes to each project's own validation |
 | [AGENTS.md](../AGENTS.md) | Critical rules and the complete map of every guide |
-| `package.json` and `package-lock.json` | The Pi extensions' entry points in `pi.extensions`, so Pi can install them from git, and the linked design system plus the named pi-typesafe runtime dependency; `.npmrc` suppresses root peer installation; no workspaces or scripts |
+| `package.json` and `package-lock.json` | The Pi extensions' entry points in `pi.extensions` and the Pi theme in `pi.themes`, so Pi can install them from git, and the linked design system plus the named pi-typesafe runtime dependency; `.npmrc` suppresses root peer installation; no workspaces or scripts |
 | [docs/decisions/](decisions/) | Consequential choices with alternatives and revisit conditions |
 
 A project's guides supplement these and never restate them; they link.
@@ -144,7 +148,7 @@ Every project's guides must appear in the [root supporting-documents map](../AGE
 | A Pi extension loads with host peers and, where used, the root-linked design system; pane naming alone also needs root-installed pi-typesafe, without root Pi/typebox copies ([decision](decisions/pane-naming-root-dependency.md)) | `pi/*/package.json`, the root `package.json` | Each extension's non-interactive load check in its contributing guide |
 | Every element and demo is terminal text with terminal-native styling | Mission; each project's design or architecture | Review check; the design system's automated checks compare plain and color output |
 | Displayed values are truthful: unknown is never zero, failure is never success-shaped | `design-system/elements/*`, `pi/claude-interrupt/src/index.ts`, `pi/status-bar/src/*`, `pi/herdr-sidebar/src/*` | Each project's tests for unknown and failure states |
-| Color values are identical across projects, with the design system as the source | `design-system/foundation/palette.mjs`, `design-system/foundation/signal-colors.mjs`, `pi/status-bar/src/footer.ts`, `pi/claude-interrupt/src/index.ts`, `herdr/sidebar.toml`, `herdr/spaces.toml`, `herdr/theme.toml`, `herdr-plugins/whiteboard/src/palette.rs`, design | Review exported token imports/alias maps against `palette.mjs` and `signal-colors.mjs`; design maps roles; `herdr/test/` checks every color in the Herdr configuration; `herdr-plugins/whiteboard/test/palette.test.mjs` checks the whiteboard's; compare manually only for an extension that still mirrors values |
+| Color values are identical across projects, with the design system as the source | `design-system/foundation/palette.mjs`, `design-system/foundation/signal-colors.mjs`, `pi/status-bar/src/footer.ts`, `pi/claude-interrupt/src/index.ts`, `herdr/sidebar.toml`, `herdr/spaces.toml`, `herdr/theme.toml`, `pi/theme/industrial-os.json`, `herdr-plugins/whiteboard/src/palette.rs`, design | Review exported token imports/alias maps against `palette.mjs` and `signal-colors.mjs`; design maps roles; `herdr/test/` checks every color in the Herdr configuration; `herdr-plugins/whiteboard/test/palette.test.mjs` checks the whiteboard's; `pi/theme/test/theme.test.mjs` checks the Pi theme's; compare manually only for an extension that still mirrors values |
 | Every guide is mapped once, with one canonical home per rule | `AGENTS.md` | Repository-wide checks 2 and 3 |
 
 ## Where the next change belongs
