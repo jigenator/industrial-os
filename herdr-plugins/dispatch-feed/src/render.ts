@@ -245,11 +245,13 @@ export function render(app: App, width: number, height: number, time: number): F
     target(cx, 2, label.length, 1, { sort });
     cx += label.length + 1;
   }
-  const allCount = s
-    ? Object.values(s.counts.bySource).some((c) => c === null)
-      ? "?"
-      : String(Object.values(s.counts.bySource).reduce((n, c) => n + (c?.total ?? 0), 0))
-    : "?";
+  // Planned and disabled sources hold no items by design; only a source that should report and can't makes ALL unknown.
+  const reporting =
+    s?.sources.filter((src) => src.state !== "planned" && src.state !== "disabled") ?? [];
+  const allCount =
+    s && reporting.every((src) => s.counts.bySource[src.id] != null)
+      ? String(reporting.reduce((n, src) => n + (s.counts.bySource[src.id]?.total ?? 0), 0))
+      : "?";
   const all = ` ALL ${allCount} `;
   if (lw > cx - lx + all.length + 4) {
     text(width - all.length - 2, 2, all, {
@@ -545,7 +547,8 @@ function drawList(
     run(done ? `[done] ${it.title}` : handled ? `[handled] ${it.title}` : it.title, titleW, style);
     if (!compact) {
       cell(xx++, " ", { fg: bone });
-      run(it.who, 6, { fg: D.muted });
+      // A to-do's who is the writing session id; its section heading says more.
+      run(it.kind === "todo" ? it.where : it.who, 6, { fg: D.muted });
       cell(xx++, " ", { fg: bone });
       run(
         done

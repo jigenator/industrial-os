@@ -443,3 +443,34 @@ test("legal source id all never collides with the all-sources filter", async () 
   bad.items[0].key = "";
   expect(() => decodeSnapshot(bad)).toThrow();
 });
+
+test("ALL counts reporting sources; planned ones don't make it unknown, a failed one does", async () => {
+  const { app, rpc } = await setup();
+  const total = Object.values(rpc.snapshot.counts.bySource).reduce(
+    (n, c) => n + (c?.total ?? 0),
+    0,
+  );
+  expect(plain(render(app, 118, 54, 0))).toContain(` ALL ${total} `);
+  rpc.snapshot.sources[0].state = "error";
+  rpc.snapshot.counts.bySource[rpc.snapshot.sources[0].id] = null;
+  await app.poll();
+  expect(plain(render(app, 118, 54, 0))).toContain(" ALL ? ");
+});
+
+test("to-do rows show their section, not the writing session; typed and pasted text keeps real characters", async () => {
+  const { app, rpc } = await setup();
+  for (const it of rpc.snapshot.items)
+    if (it.kind === "todo") Object.assign(it, { where: "Inbox", who: "01a15e" });
+  await app.poll();
+  const screen = plain(render(app, 118, 54, 0));
+  expect(screen).toContain("Inbox");
+  expect(screen).not.toContain("01a15e");
+  await app.key("a");
+  app.paste("Eli \u2014 caf\u00e9\u2019s");
+  await app.key("\u00e9");
+  expect(app.input).toBe("Eli \u2014 caf\u00e9\u2019s\u00e9");
+  await app.key("Enter");
+  expect(rpc.calls.find((c) => c.params.do === "todo.add")?.params.text).toBe(
+    "Eli \u2014 caf\u00e9\u2019s\u00e9",
+  );
+});

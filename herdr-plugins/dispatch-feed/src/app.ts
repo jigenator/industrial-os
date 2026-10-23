@@ -3,6 +3,9 @@ import type { Item, Snapshot } from "./snapshot.ts";
 import type { Rpc } from "./transport.ts";
 import { RpcError } from "./transport.ts";
 
+const CONTROL = /[\p{Cc}\p{Cf}]/u;
+const CONTROL_ALL = /[\p{Cc}\p{Cf}]/gu;
+
 export type Sort = "type" | "prio" | "age";
 export type Hit = { key?: string; filter?: string; sort?: Sort; select?: string };
 export interface Mark {
@@ -272,11 +275,12 @@ export class App {
             },
           );
         }
-      } else if (!this.busy && key === "Backspace") this.input = this.input.slice(0, -1);
+      } else if (!this.busy && key === "Backspace")
+        this.input = Array.from(this.input).slice(0, -1).join("");
       else if (
         !this.busy &&
-        key.length === 1 &&
-        /^[\x20-\x7e]$/.test(key) &&
+        Array.from(key).length === 1 &&
+        !CONTROL.test(key) &&
         this.input.length < 4096
       )
         this.input += key;
@@ -394,7 +398,8 @@ export class App {
   }
   paste(text: string): void {
     if (this.input === null || this.busy) return;
-    this.input = (this.input + text.replace(/[\r\n\t]+/g, " ").replace(/[^\x20-\x7e]/g, "?")).slice(
+    // The draft keeps the real text for the scratchpad; only its display is folded to ASCII.
+    this.input = (this.input + text.replace(/[\r\n\t]+/g, " ").replace(CONTROL_ALL, "")).slice(
       0,
       4096,
     );
