@@ -89,10 +89,12 @@ describe('pipelines', () => {
     expect(events.every((e) => e.at <= NOW)).toBe(true);
   });
 
-  test('alerts name definition problems, drift and unread schedules', () => {
+  test('alerts name definition problems, drift, unread and paused schedules, but not failed runs', () => {
     const d = decoded(NOW);
     expect(alerts(d.pipelines, null).map((a) => a.text)).toEqual(['docs-sweep invalid', 'schedules unread', 'service PATH drift']);
-    expect(alerts(d.pipelines, d.schedules).map((a) => a.text)).toContain('quota-refresh failed');
+    const texts = alerts(d.pipelines, d.schedules).map((a) => a.text);
+    expect(texts).toContain('cert-check paused');
+    expect(texts).not.toContain('quota-refresh failed');
   });
 });
 
@@ -100,15 +102,23 @@ describe('schedules', () => {
   test('states and groups, ordered by next run within a group', () => {
     const views = scheduleViews(decoded(NOW).schedules, 'live');
     expect(views.map((v) => [v.group, v.id, v.word, v.cadence])).toEqual([
-      [0, 'quota-refresh', 'FAILED', 'EVERY 30M'],
       [0, 'cert-check', 'PAUSED', 'EVERY 1D'],
       [1, 'mirror-sync', 'ON', 'EVERY 10M'],
+      [1, 'quota-refresh', 'ON', 'EVERY 30M'],
       [1, 'disk-report', 'ON', 'EVERY 1H'],
       [1, 'linear-sync', 'FIRING', 'EVERY 30M'],
       [1, 'morning-digest', 'ON', views.find((v) => v.id === 'morning-digest')!.cadence],
       [3, 'artifact-gc', 'OFF', 'DAILY ×2'],
     ]);
     expect(views.find((v) => v.id === 'cert-check')!.next).toBeNull();
+  });
+
+  test('a failed last run is not a state; a pause caused by a failure needs attention', () => {
+    const views = scheduleViews(decoded(NOW).schedules, 'live');
+    const failed = views.find((v) => v.id === 'quota-refresh')!;
+    expect([failed.group, failed.word, failed.last?.outcome]).toEqual([1, 'ON', 'failed']);
+    const paused = views.find((v) => v.id === 'cert-check')!;
+    expect([paused.group, paused.word, paused.why]).toEqual([0, 'PAUSED', 'SCRIPT FAILED']);
   });
 
   test('a stopped runner holds every enabled schedule', () => {

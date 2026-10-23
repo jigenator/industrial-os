@@ -192,14 +192,15 @@ function cadence(t: ScheduleRecord['timing']): string {
 
 function scheduleState(s: ScheduleRecord, reporting: Reporting): Pick<ScheduleView, 'word' | 'tone' | 'group' | 'why'> {
   const reason = (r: string) => r.replaceAll('-', ' ').toUpperCase();
-  if (s.pause_reason) return { word: 'PAUSED', tone: 'crit', group: 0, why: reason(s.pause_reason) };
+  // As for pipelines, a failed last run is not a state: it shows as ✕ in the strip. A failure that matters
+  // latches a pause (script-failed, timeout, spawn-failed), and a paused schedule does need someone.
+  if (s.pause_reason) return { word: 'PAUSED', tone: 'crit', group: 0, why: reason(s.pause_reason).replace('DEFINITION ', 'DEF ') };
   if (!s.enabled) return { word: 'OFF', tone: 'off', group: 3, why: 'DISABLED' };
   if (s.definition.state === 'invalid') return { word: 'INVALID', tone: 'crit', group: 0, why: 'DEFINITION INVALID' };
   if (s.definition.state === 'missing') return { word: 'NO DEF', tone: 'crit', group: 0, why: 'DEFINITION MISSING' };
   if (reporting === 'stopped') return { word: 'HELD', tone: 'warn', group: 2, why: 'RUNNER STOPPED' };
   if (reporting === 'unreachable') return { word: 'NO REPORT', tone: 'off', group: 2, why: 'LAST KNOWN' };
   if (s.active_run) return { word: 'FIRING', tone: 'live', group: 1, why: '' };
-  if (s.last_result?.outcome === 'failed') return { word: 'FAILED', tone: 'crit', group: 0, why: reason(s.last_result.reason) };
   return { word: 'ON', tone: 'idle', group: 1, why: '' };
 }
 
@@ -282,7 +283,6 @@ export function alerts(data: PipelinesData, schedules: SchedulesData | null): Al
   else {
     for (const s of schedules.schedules) {
       if (s.pause_reason) out.push({ tone: 'crit', text: `${s.id} paused` });
-      else if (s.last_result?.outcome === 'failed' && !s.active_run) out.push({ tone: 'crit', text: `${s.id} failed` });
     }
   }
   for (const p of data.runner.problems) out.push({ tone: 'warn', text: p.toLowerCase().replaceAll('_', ' ') });

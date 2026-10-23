@@ -81,3 +81,13 @@ Use a throwaway Herdr that shares nothing with a live session, as in the [Spaces
 **Failed, then fixed during development:** in the first PTY runs Bun's version-manager shim prompted for trust and the pane's stdin was `/dev/tty`, which Bun cannot watch on macOS; the check now puts Bun's own directory first on `PATH` and passes the terminal by device name. The first teardown test counted a killed descendant that was still a zombie as alive; liveness now excludes zombies. The first `↓` re-selected the already highlighted pipeline. NEXT POLL kept counting down while the runner was unreachable. In the isolated Herdr, the first keys went to the first-run settings dialog.
 
 **Not run:** the operator's live Herdr session (not a development check), `herdr plugin install` from GitHub, Herdr running the `[[build]]` (link builds nothing; the build command was run by hand), Linux, terminals other than xterm.js and Herdr's client, a long-running soak, and a machine with schedules on the real CLI.
+
+### 2026-10-23 · failed schedules follow the pipeline rule · Bun 1.4.4, TypeScript 7.0.2, macOS
+
+A failed last run no longer puts a schedule under NEEDS ATTENTION or raises an alert; only a pause or a definition problem does, and a paused row shows its reason in the NEXT column.
+
+**Passed — automated.** `tsc --noEmit -p .` clean. `bun test`: **55 passed**, 0 failed; the schedule grouping test was updated and one regression added (a failed, unpaused schedule stays ON; a pause caused by a failure is under NEEDS ATTENTION with its reason). `git diff --check` clean.
+
+**Passed — rendered.** `--frame 160x40 --plain --screen schedules` and `--frame 80x24`: `QUOTA-REFRESH` under ON with `✕ 12M AGO`; `CERT-CHECK` under NEEDS ATTENTION as `PAUSED`, with `SCRIPT FAILED` at 160 columns and `SCRIPT FA…` at 80.
+
+**Not run:** the PTY check, the isolated Herdr check (no change to the terminal host, reader or launcher) and a machine with schedules on the real CLI.

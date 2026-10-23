@@ -30,7 +30,7 @@ A pipeline is in exactly one group, in this order:
 
 A failed last run is not a state. It shows as `✕` in the block's results and at the end of its bar, and the pipeline stays in its group. The `ATTENTION` filter shows definition problems only; `LIVE` shows running pipelines only.
 
-Schedules group as NEEDS ATTENTION (paused, invalid or missing definition, or last run failed), ON · BY NEXT RUN (on or firing, soonest first), NOT REPORTING (`HELD` while the runner is stopped, `NO REPORT` while unreachable) and OFF. This follows the approved schedules mockup, where a failed last run does need attention; see [Deviations](#deviations-from-the-mockup).
+Schedules group as NEEDS ATTENTION (paused, or an invalid or missing definition), ON · BY NEXT RUN (on or firing, soonest first), NOT REPORTING (`HELD` while the runner is stopped, `NO REPORT` while unreachable) and OFF. As for pipelines, a failed last run is not a state: it shows as `✕` in the strip and the schedule stays in its group. A failure that stops a schedule latches a pause (`SCRIPT FAILED`, `TIMEOUT`, `SPAWN FAILED`), so it does appear under NEEDS ATTENTION as `PAUSED` with that reason.
 
 The runner chip reads `RUNNER RUNNING`, `STARTING`, `DRAINING`, `STOPPED` or `UNREACHABLE`, and `RUNNER ?` before anything is read.
 
@@ -38,7 +38,7 @@ The runner chip reads `RUNNER RUNNING`, `STARTING`, `DRAINING`, `STOPPED` or `UN
 
 Screen 1 (`1`).
 
-- **Readouts.** `01 ACTIVE RUNS`: live runs over the machine's slots, with one cell per busy slot in its pipeline's colour. `02 FINISHED · 3H`: runs that ended in the last three hours, the failure count, and a bar of succeeded, interrupted or dropped, and failed. `03 NEXT POLL`: the runner's next queue poll from `polling.next_poll_at`, with its interval, a blocked reason, or `RUNNER STOPPED` / `RUNNER NOT REPORTING` (then `--:--`). `04 ALERTS`: the count, the first alert and `+n`. Alerts are definition problems, an unreachable or stopped runner, unread schedules, paused or failed schedules, runner problems, poll blocks and service drift.
+- **Readouts.** `01 ACTIVE RUNS`: live runs over the machine's slots, with one cell per busy slot in its pipeline's colour. `02 FINISHED · 3H`: runs that ended in the last three hours, the failure count, and a bar of succeeded, interrupted or dropped, and failed. `03 NEXT POLL`: the runner's next queue poll from `polling.next_poll_at`, with its interval, a blocked reason, or `RUNNER STOPPED` / `RUNNER NOT REPORTING` (then `--:--`). `04 ALERTS`: the count, the first alert and `+n`. Alerts are definition problems, an unreachable or stopped runner, unread schedules, paused schedules, runner problems, poll blocks and service drift.
 - **Blocks.** One per pipeline: the plate with its number in name order, the name, its scope, the newest eight results newest first (`■` succeeded, `✕` failed, `◩` interrupted or dropped, `□` cancelled), the live-run count as a numeral over `/slots`, the state chip with its reason, and one lane per slot, at most six. A pipeline with no slot count shows `?` and one lane.
 - **Lanes.** The axis runs from −3h to +1h, with hour ticks and quarter-hour marks, and a NOW line in acid through the list. Runs are packed into lanes by time, because the CLI does not say which slot a run used. The future is dotted. Since a stopped runner's last report the lane is dashed; since an unreachable runner was last heard from it is hatched.
 - **Bars.** Finished runs are grey, marked at their end with a red `✕` for a failure or an amber `▪` for anything else that did not succeed. A live run is hatched while claiming or verifying, then solid in its pipeline's colour with the issue number on it, ending in a head at NOW that blinks acid while the run is running. While the runner is not reporting, live runs are last known: grey, with no head.
@@ -46,7 +46,7 @@ Screen 1 (`1`).
 
 ## Schedules
 
-Screen 2 (`2`). Readouts: `01 NEEDS ATTENTION`, `02 NEXT RUN` (the soonest scheduled run and its schedule), `03 ON` (on, firing or failed, of all), `04 HELD OR OFF`. Rows show the cadence (`EVERY 10M`, `EVERY 1H`, `DAILY 17:00` in local time, `DAILY ×2`), the state word, the last result and its age, and the next run (`IN 5M`, `NOW` while firing, `DUE` when overdue, `—` when none is scheduled). The strip spans −3h to +1h and shows only what the CLI reports: the last run `◆` (`✕` if it failed), the active run in acid, and the next run `◇`. The CLI has no fire history, so nothing else is drawn. The event log is on by default.
+Screen 2 (`2`). Readouts: `01 NEEDS ATTENTION`, `02 NEXT RUN` (the soonest scheduled run and its schedule), `03 ON` (on or firing, of all), `04 HELD OR OFF`. Rows show the cadence (`EVERY 10M`, `EVERY 1H`, `DAILY 17:00` in local time, `DAILY ×2`), the state word, the last result and its age, and the next run (`IN 5M`, `NOW` while firing, `DUE` when overdue, `—` when none is scheduled); a paused schedule shows its pause reason there instead (`SCRIPT FAILED`, `TIMEOUT`, `SPAWN FAILED`, `MAINTENANCE`, `DEF INVALID`, `DEF MISSING`). The strip spans −3h to +1h and shows only what the CLI reports: the last run `◆` (`✕` if it failed), the active run in acid, and the next run `◇`. The CLI has no fire history, so nothing else is drawn. The event log is on by default.
 
 With no schedules the list reads `NO SCHEDULES · THE RUNNER LISTS NONE`, which is this machine's state today.
 
@@ -112,4 +112,5 @@ The footer lists the keys; on narrow panes the labels shorten, then all but `QUI
 - **No slot identity.** Lanes are packed by time, and the modal has no `SLOT n` column or SOURCE row; the CLI reports neither.
 - **Schedule strip.** Only the last, active and next run are drawn; the mockup's fire history does not exist in the CLI.
 - **Large numerals** use a 4-column, 5-row face drawn with half blocks for the readouts and the design system's 3×5 pixel numerals elsewhere, rather than the mockup's canvas font.
+- **Failed schedules.** The mockup put a schedule whose last run failed under NEEDS ATTENTION; it now follows the pipeline rule, and only paused schedules need attention.
 - **Footer** lists keys only; the mockup's colour legend sits in the position row instead.

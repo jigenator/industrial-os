@@ -15,7 +15,7 @@ export function scheduleReadouts(c: Canvas, lay: Layout, views: readonly Schedul
   if (!views) readouts = [unknownReadout('NEEDS ATTENTION', 'ATTENTION'), unknownReadout('NEXT RUN', 'NEXT'), unknownReadout('ON', 'ON'), unknownReadout('HELD OR OFF', 'HELD/OFF')];
   else {
     const att = views.filter((v) => v.group === 0).length;
-    const on = views.filter((v) => v.word === 'ON' || v.word === 'FIRING' || v.word === 'FAILED').length;
+    const on = views.filter((v) => v.word === 'ON' || v.word === 'FIRING').length;
     const held = views.filter((v) => v.group >= 2).length;
     const next = views.filter((v) => v.next !== null).sort((a, b) => a.next! - b.next!)[0];
     const d = next ? next.next! - now : null;
@@ -49,9 +49,9 @@ interface Columns {
 
 function columns(lay: Layout): Columns {
   const lane1 = lay.scrollX - 2;
-  const full = lane1 - 75 >= 30;
+  const full = lane1 - 78 >= 30;
   return full
-    ? { full, name: L + 4, nameW: 20, cadence: 27, state: 40, last: 51, next: 64, lane0: 75, lane1 }
+    ? { full, name: L + 4, nameW: 20, cadence: 27, state: 40, last: 51, next: 64, lane0: 78, lane1 }
     : { full, name: L + 4, nameW: 16, cadence: null, state: L + 21, last: L + 32, next: L + 44, lane0: Math.min(L + 55, lane1), lane1 };
 }
 
@@ -104,8 +104,10 @@ function row(c: Canvas, C: Columns, col: ((at: number) => number) | null, v: Sch
     c.put(C.last, y, failed ? '✕' : v.last.outcome === 'succeeded' ? '■' : '◩', { fg: failed ? T.critical : v.last.outcome === 'succeeded' ? T.secondary : T.warning, bold: true, ...st });
     c.text(C.last + 2, y, `${age(now - v.last.at)} AGO`, { fg: failed ? T.critical : T.decorative, ...st }, C.next - C.last - 3);
   } else c.text(C.last, y, '—', { fg: T.decorative, ...st });
-  const next = v.firing !== null ? 'NOW' : v.next !== null ? (v.next <= now ? 'DUE' : `IN ${age(v.next - now)}`) : '—';
-  c.text(C.next, y, next, { fg: v.firing !== null ? T.accent : T.primary, bold: v.firing !== null, ...st }, Math.max(0, C.lane0 - C.next - 1));
+  // A paused schedule has no next run until someone re-enables it; its pause reason takes that column.
+  const paused = v.word === 'PAUSED';
+  const next = v.firing !== null ? 'NOW' : paused ? v.why : v.next !== null ? (v.next <= now ? 'DUE' : `IN ${age(v.next - now)}`) : '—';
+  c.text(C.next, y, next, { fg: v.firing !== null ? T.accent : paused ? T.critical : T.primary, bold: v.firing !== null, ...st }, Math.max(0, C.lane0 - C.next - 1));
   c.hit(L, y, C.lane1 + 1 - L, 1, { kind: 'select', key: v.id });
   if (!col) return;
   const inStrip = (x: number) => x >= C.lane0 && x <= C.lane1;
