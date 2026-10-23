@@ -4,7 +4,8 @@ import { type Ledger } from "./store.ts";
 /** D5 is a display placeholder, not an assertion about the event's actual actor. */
 export function shippedBucket(event: Ledger): "you" | "agents" | undefined {
   if (event.sourceType === "checklist") return "you";
-  if (event.kind === "pr_merge") return "agents";
+  if (event.kind === "pr_merge" || event.actor === "agent") return "agents";
+  if (event.actor === "you") return "you";
   return undefined;
 }
 const iso = (n: number) => new Date(n).toISOString();

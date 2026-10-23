@@ -155,11 +155,14 @@ test("derived staleness, clamp, fresh cursor, waiting override, handled counts a
   expect(handled.counts.bySource.fake?.total).toBe(0);
   expect(derive({ ...input, now: Date.parse(item.since) - 1 }).items[0].derived.remaining).toBe(1);
 });
-test("week uses 21 local-midnight-aligned 8-hour blocks and D5, not actual actor", () => {
+test("week uses 21 local-midnight-aligned 8-hour blocks and D5", () => {
   const event = { id: "1", at, type: "shipped", actor: "agent", sourceType: "checklist" };
   expect(shippedBucket(event)).toBe("you");
   expect(shippedBucket({ ...event, sourceType: "command", kind: "pr_merge" })).toBe("agents");
-  expect(shippedBucket({ ...event, sourceType: "command" })).toBeUndefined();
+  // A merged PR is rarely a current item, so a command source's declared actor decides.
+  expect(shippedBucket({ ...event, sourceType: "command" })).toBe("agents");
+  expect(shippedBucket({ ...event, sourceType: "command", actor: "you" })).toBe("you");
+  expect(shippedBucket({ ...event, sourceType: "command", actor: "unknown" })).toBeUndefined();
   const now = new Date(2026, 9, 23, 12).getTime();
   const nowIso = new Date(now).toISOString();
   const previous = new Date(now);

@@ -28,9 +28,10 @@ Week blocks cover today and the preceding six local dates, aligned at 00:00,
 08:00 and 16:00. Future portions of today are flagged, events after now are not
 counted, and previous-week comparison ends at the same local time seven dates
 ago. DST changes can make a civil block differ from eight elapsed hours.
-D5 is deliberately provisional: checklist shipments count as you, pr_merge
-shipments as agents, regardless of their recorded actor. Other kinds do not
-contribute. Actual actor remains in the ledger.
+D5 is deliberately provisional: checklist shipments count as you whatever
+their recorded actor. Other shipments count as agents when their item kind is
+pr_merge or the source declared actor agent, and as you when it declared you.
+Shipments with no declared actor and no known kind do not contribute.
 
 rev tracks stored changes, not a repaint clock. at, ages and future flags are
 computed on every get, even when rev is unchanged. Polling never waits for a
