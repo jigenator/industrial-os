@@ -15,6 +15,7 @@ export function stalenessBar(remaining, { cells = 8 } = {}) {
 export function typeUnit({ label, color, state = 'unknown', total = null, waiting = null, fresh = null, remaining = null, age = 'unknown', limit = '3d', key = '', active = false, hover = false, arriving = false }, { width, height = 7 } = {}) {
   if (!Object.hasOwn(SOURCE_STATES, state)) throw new RangeError('unknown source state');
   for (const n of [total, waiting, fresh]) if (n !== null && (!Number.isSafeInteger(n) || n < 0)) throw new RangeError('counts must be nonnegative integers or null');
+  for (const flag of [active, hover, arriving]) if (typeof flag !== 'boolean') throw new TypeError('unit poses must be boolean');
   if (!Number.isInteger(height) || height < 3 || height > 1000) throw new RangeError('unit height must be 3–1000');
   const g = new CellGrid(width, height), ink = active || arriving ? PI_CHROME.bone : hover ? D.muted : D.edge;
   if (width < 12) { g.text(0, 0, label); const value = SOURCE_STATES[state] || (total === null ? '?' : String(total)); g.text(0, 1, value.length > width && !SOURCE_STATES[state] ? '#'.repeat(width) : value); return g.lines(); }
@@ -24,16 +25,21 @@ export function typeUnit({ label, color, state = 'unknown', total = null, waitin
   g.text(2, 0, ` ${label} `, { fg: active ? 'field' : typeColor(color), ...(active ? { bg: PI_CHROME.bone } : {}), bold: true }, width - 7);
   g.text(width - 4, 0, key, { fg: D.muted }, 1);
   const known = state === 'ok' || state === 'stale';
+  if (height < 6) { const value = !known ? SOURCE_STATES[state] : `${state === 'stale' ? 'STALE DATA / ' : ''}${total === null ? '?' : total}`; g.text(3, 1, known && value.length > width-6 ? '#'.repeat(width-6) : value, {fg:D.dim}, width-6); return g.lines(); }
   if (!known) { g.text(3, 2, SOURCE_STATES[state], { fg: D.dim }, width - 6); return g.lines(); }
   const num = integerNumeral(total, { ink: total ? D.dim : D.edge, face: 'dashboard' }), nx = width - 3 - (num[0]?.reduce((a, s) => a + s.text.length, 0) ?? 1);
   if (nx > 12) g.place(nx, 2, num);
-  else g.text(3, 3, total === null ? '?' : String(total), { fg: D.dim }, width - 6);
+  else { const value=total === null ? '?' : String(total); g.text(3,3,value.length>width-6?'#'.repeat(width-6):value,{fg:D.dim},width-6); }
+  const budget=nx>12?nx-4:width-6, natural=(waiting?String(waiting).length+8:0)+(fresh?String(fresh).length+4+(waiting?3:0):0);
   let x = 3;
+  if(natural>budget)g.text(3,2,'counts overflow',{fg:D.muted},budget);
+  else {
   if (waiting) { g.text(x, 2, String(waiting), { fg: 'critical', bold: true }); x += String(waiting).length; g.text(x, 2, ' waiting', { fg: D.muted }); x += 8; }
   if (fresh) { if (waiting) { g.put(x++, 2, ' '); g.put(x++, 2, '·', { fg: D.edge }); g.put(x++, 2, ' '); } g.text(x, 2, String(fresh), { fg: 'accent', bold: true }); x += String(fresh).length; g.text(x, 2, ' new', { fg: D.muted }); }
   if (!waiting && !fresh) g.text(3, 2, total === null ? 'count unknown' : total ? 'nothing new' : 'nothing open', { fg: D.muted }, Math.max(0, nx - 4));
+  }
   if (height >= 6) {
-    if (total !== 0) g.place(3, height - 3, [stalenessBar(remaining, { cells: Math.min(8, width - 6) })]);
+    if (total !== 0 && !(height===6&&nx<=12)) g.place(3, height - 3, [stalenessBar(remaining, { cells: Math.min(8, width - 6) })]);
     g.text(3, height - 2, total === 0 ? 'no oldest item' : remaining === 0 ? 'stale' : `oldest ${age} of ${limit}`, { fg: D.muted }, width - 6);
   }
   if (state === 'stale') g.text(3, 1, SOURCE_STATES.stale, { fg: D.dim }, width - 6);

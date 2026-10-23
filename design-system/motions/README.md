@@ -2,7 +2,7 @@
 
 Small, reusable motion primitives for instrument-like terminal details. Each is a pure function: rendered lines and an explicit time in, new lines out. Nothing here reads a clock, starts a timer, writes to the terminal, or keeps state. The host owns time, redraws, and cleanup. See [foundation](../foundation/README.md) for the line model.
 
-A motion decorates rendered lines; it does not supply data. Most preserve every character. Reveal and draw-in hide cells they have not reached, and ghost, ping, cycle, beacon, edge pulse, nudge, and blink with an `offGlyph` change or blank glyphs; each section says which. Apply anything that can obscure text only to nonessential decoration, and compose complete readings, labels, and status rows outside the transform.
+A motion decorates rendered lines; it does not supply data. Most preserve every character. Reveal and draw-in hide cells they have not reached, and ghost, ping, cycle, beacon, edge pulse, nudge, and blink with an `offGlyph` change or blank glyphs; each section says which. Except for explicitly declared bounded decode (below), apply anything that can obscure text only to nonessential decoration, and compose complete readings, labels, and status rows outside the transform.
 
 | Motion | Runs | Ends at | Changes | State cells |
 | --- | --- | --- | --- | --- |
@@ -27,6 +27,10 @@ A motion decorates rendered lines; it does not supply data. Most preserve every 
 | [nudge](#nudgelines-options) | loop | | glyph position | exempt |
 | [callout entrance](#calloutentrancelines-options-and-calloutentrancedurationlines-options) | once | `calloutEntranceDuration` | reserved gutter glyphs, allowed text/readout styling | exempt |
 | [phosphor head](#phosphorheadlines-options) | supplied pose | | one grapheme foreground | exempt |
+| [decode](#decodelines-options-and-decodedurationoptions) | once | decodeDuration | plain text scramble | exempt |
+| [breathe](#breathelines-options) | loop | | foreground | exempt |
+| [arrival ping](#arrivalpinglines-options-and-arrivalpingdurationoptions) | once | arrivalPingDuration | blank-space dots | exempt |
+| [ambient sweep](#ambientsweeplines-options) | loop | | decorative foreground | exempt |
 
 Each motion lives in its own file here, named like its row, with its checks beside it in `<name>.test.mjs` (scan, pulse, and reveal are checked in `motions.test.mjs`).
 

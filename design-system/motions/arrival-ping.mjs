@@ -1,3 +1,4 @@
+import { resolveColor } from '../foundation/cells.mjs';
 import { assertLines, assertMs, assertTime, copyLines, inRegion, resolveOptions, resolveRegion, restyleCells } from './frame.mjs';
 export const ARRIVAL_PING_DEFAULTS = Object.freeze({ duration: 1600, x: 0, y: 0, radius: 16, region: undefined });
 function check(options) {
@@ -14,7 +15,7 @@ export function arrivalPing(lines, options = {}) {
   return restyleCells(lines, (style, col, row, ch) => {
     if (!inRegion(o.region, col, row) || ch !== ' ') return undefined;
     const r = Math.hypot((col - o.x) / 2, row - o.y);
-    if ([u, u - 0.25].some(v => v > 0 && v <= 1 && Math.abs(r - v * o.radius) < 0.45)) return { char: '·', style: { ...style, fg: 'secondary' } };
+    if ([u, u - 0.25].some(v => v > 0 && v <= 1 && Math.abs(r - v * o.radius) < 0.45)) { const bg=resolveColor(style.bg??'field'), k=0.55*(1-0.7*r/Math.max(1,o.radius)); const fg='#'+[1,3,5].map(i=>Math.round(parseInt(bg.slice(i,i+2),16)*(1-k)+255*k).toString(16).padStart(2,'0')).join(''); return { char: '·', style: { ...style, fg } }; }
     return undefined;
   });
 }

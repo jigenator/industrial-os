@@ -8,8 +8,8 @@ export function activityStrip({ blocks, total, previous }, { width } = {}) {
   for (const n of [...Object.values(total), ...Object.values(previous)]) if (!Number.isSafeInteger(n) || n < 0) throw new RangeError('totals must be nonnegative integers');
   const g = new CellGrid(width, 5);
   g.text(0, 0, 'THIS WEEK', { fg: D.muted });
-  const sum = `${total.you} you / ${total.agents} agents`;
-  if (width >= sum.length + 10) g.text(width - sum.length, 0, sum, { fg: PI_CHROME.bone });
+  const sum = `${total.you} you · ${total.agents} agents`;
+  if (width >= sum.length + 10) Array.from(sum).forEach((ch,i)=>g.put(width-sum.length+i,0,ch,{fg:PI_CHROME.bone}));
   for (let day = 0; day < 7; day++) { const date = new Date(blocks[day * 3].start); g.text(8 + day * 4, 1, ['S', 'M', 'T', 'W', 'T', 'F', 'S'][date.getDay()], { fg: D.muted }); }
   ['you', 'agents'].forEach((k, row) => {
     g.text(0, row + 2, k.toUpperCase(), { fg: D.muted });

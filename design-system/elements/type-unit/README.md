@@ -13,3 +13,5 @@ Bracket-corner source frame, 7 rows by default. label/color/key identify the sou
 `unitCorners(width, height, spread=0)` projects four two-cell corners for the host. spread 1 moves them one cell outward for a brief hover/pick snap. Coordinates may be -1; the host owns clipping and a clear one-cell gutter. It does not change source content.
 
 `arriving: true` brightens brackets without inverting the heading; the host supplies the real arrival window. No arrival is inferred by the element.
+
+Under six rows the unit uses a small exact count/state instead of a clipped pixel numeral. Large status counts say counts overflow instead of overrunning the numeral or frame; a compact count that cannot fit shows #, never partial digits.
