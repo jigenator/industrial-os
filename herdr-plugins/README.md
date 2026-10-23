@@ -7,6 +7,7 @@ checks and guides; shared rules are in [AGENTS.md](AGENTS.md).
 | --- | --- | --- |
 | [Spaces](spaces/README.md) | Per-space counts, quiet ages and quiet-unit ordering | Node 22, standard library only |
 | [Whiteboard](whiteboard/README.md) | Sticky notes and text on a mouse-driven board, one per workspace, in a split or a tab | Rust, built with Cargo |
+| [Automations Monitor](automations-monitor/README.md) | Read-only dashboard of this machine's Tatsu automation pipelines and schedules, in a split or a tab | Bun 1.4.4 with TypeScript and Effect, dependencies installed from `bun.lock` |
 
 ## Install
 
@@ -25,5 +26,7 @@ exists. Neither linking nor installing was executed during development.
 Then merge the [Spaces fragment](../herdr/README.md#spaces) by hand.
 
 Linking runs no build step. Plugins in another runtime, such as
-[Whiteboard](whiteboard/README.md#install), are built first; installing from
-GitHub runs their declared build and needs that toolchain.
+[Whiteboard](whiteboard/README.md#install) and the
+[Automations Monitor](automations-monitor/README.md#install), are built or
+installed first; installing from GitHub runs their declared build and needs that
+toolchain.

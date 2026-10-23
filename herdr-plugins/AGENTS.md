@@ -1,7 +1,8 @@
 # Agent guide
 
 Herdr plugin group. Follow the [root guide](../AGENTS.md) and the owning
-plugin's guide: [Spaces](spaces/AGENTS.md) or [Whiteboard](whiteboard/AGENTS.md).
+plugin's guide: [Spaces](spaces/AGENTS.md), [Whiteboard](whiteboard/AGENTS.md)
+or [Automations Monitor](automations-monitor/AGENTS.md).
 
 ## Shared rules
 
@@ -9,7 +10,8 @@ plugin's guide: [Spaces](spaces/AGENTS.md) or [Whiteboard](whiteboard/AGENTS.md)
   Node 22 ES modules, standard library only, with no build. Another runtime
   declares its build in `[[build]]`, locks its dependencies and documents its
   toolchain, as the [runtime decision](../docs/decisions/herdr-plugin-runtimes.md)
-  requires; `plugin link` builds nothing.
+  requires; `plugin link` builds nothing. The Automations Monitor's Bun and
+  Effect stack is its own [decision](../docs/decisions/automations-monitor-stack.md).
 - Colors are design-system values. A plugin that cannot import the package
   mirrors them in one file and checks them against it with a Node test.
 - Tests use temporary state and fake Unix sockets, never live Herdr. Parser

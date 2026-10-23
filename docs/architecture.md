@@ -2,12 +2,12 @@
 
 This is the architecture of the monorepo: which projects it holds, how they relate, and where the next one goes. Each project has its own architecture guide for its internals; this guide does not repeat them.
 
-Status: current repository including the full-history moves of herdr-pane-naming and session-recap, the image-preview extension, and the local source-collector engine.
-Evidence: the full source tree of `design-system/` and `pi/claude-interrupt/`, every import statement across the projects, their manifests and test commands, the root `package.json` and lockfile, `design-system/package.test.mjs`, the guides of `pi/status-bar/`, and the Git history of the moves of claude-interrupt and status-bar. The signals-collector, herdr-sidebar, Herdr configuration, Spaces and Whiteboard plugin rows add their full source, tests and imports. The pane-naming and session-recap move adds their complete source, tests, manifests and lockfiles; the image-preview row adds its full source, tests and imports. The source-collector row adds its complete source, test suite, manifest and lockfile. No dependency graph was inferred from folder names.
+Status: current repository including the full-history moves of herdr-pane-naming and session-recap, the image-preview extension, the local source-collector engine, and the automations-monitor Herdr plugin.
+Evidence: the full source tree of `design-system/` and `pi/claude-interrupt/`, every import statement across the projects, their manifests and test commands, the root `package.json` and lockfile, `design-system/package.test.mjs`, the guides of `pi/status-bar/`, and the Git history of the moves of claude-interrupt and status-bar. The signals-collector, herdr-sidebar, Herdr configuration, Spaces and Whiteboard plugin rows add their full source, tests and imports. The pane-naming and session-recap move adds their complete source, tests, manifests and lockfiles; the image-preview row adds its full source, tests and imports. The source-collector row adds its complete source, test suite, manifest and lockfile; the automations-monitor row adds its full source, tests, imports and lockfile. No dependency graph was inferred from folder names.
 
 ## Projects
 
-Industrial OS is one repository holding several independent projects. A project is a folder that owns its language, toolchain, dependencies, checks, and guides. Each owns its own checks. They share code only through the design-system package. claude-interrupt and status-bar consume exported subpaths through their own Pi adapters, and the checks of the Herdr configuration and the Whiteboard plugin import its colors. Displays receive session data from signals-collector through in-process events, never imports.
+Industrial OS is one repository holding several independent projects. A project is a folder that owns its language, toolchain, dependencies, checks, and guides. Each owns its own checks. They share code only through the design-system package. claude-interrupt and status-bar consume exported subpaths through their own Pi adapters, the automations monitor imports them directly, and the checks of the Herdr configuration and the Whiteboard plugin import its colors. Displays receive session data from signals-collector through in-process events, never imports.
 
 | Project | Language and runtime | Public entry point | Dependencies | Guides |
 | --- | --- | --- | --- | --- |
@@ -23,6 +23,7 @@ Industrial OS is one repository holding several independent projects. A project 
 | `pi/theme/` | JSON; a Node 22.19+ check | Root `package.json` `pi.themes` → `pi/theme/industrial-os.json`, selected as `industrial-os` | Pi's theme schema; its check imports design-system palette, signal and Pi chrome colors by package name and Pi's validator from the installed host | [README](../pi/theme/README.md), [AGENTS](../pi/theme/AGENTS.md), [architecture](../pi/theme/docs/architecture.md), [contributing](../pi/theme/CONTRIBUTING.md) |
 | `herdr-plugins/spaces/` | Plain Node 22 ES modules, standard library only, no build/dependencies | `herdr-plugin.toml`; `bin/spaces.mjs ensure/run/status` | Node; Herdr 0.9.3 Unix socket; consumes Pi AU tokens over the protocol, no imports from Pi | [README](../herdr-plugins/spaces/README.md), [AGENTS](../herdr-plugins/spaces/AGENTS.md), [architecture](../herdr-plugins/spaces/docs/architecture.md), [contract](../herdr-plugins/spaces/docs/token-contract.md), [contributing](../herdr-plugins/spaces/CONTRIBUTING.md) |
 | `herdr-plugins/whiteboard/` | Rust 2024 with Cargo and ratatui; a Node 22 palette check and a Python 3 PTY check | `herdr-plugin.toml`: `[[build]]` `cargo build`, the `board` pane (a split by default) and the `open` and `open-tab` actions, through `bin/whiteboard.sh` | Locked crates (ratatui, serde, serde_json, unicode-width); Herdr's plugin environment; mirrors the Acid / Black palette, which its check imports by package name | [README](../herdr-plugins/whiteboard/README.md), [AGENTS](../herdr-plugins/whiteboard/AGENTS.md), [architecture](../herdr-plugins/whiteboard/docs/architecture.md), [contributing](../herdr-plugins/whiteboard/CONTRIBUTING.md) |
+| `herdr-plugins/automations-monitor/` | TypeScript run directly by Bun 1.4.4, with Effect 4.0.6; `tsc --noEmit` (TypeScript 7.0.2), `bun test` and a Bun PTY check | `herdr-plugin.toml`: `[[build]]` `bun install --frozen-lockfile`, the `monitor` pane (a split by default) and the `open` and `open-tab` actions, through `bin/automations-monitor.sh` | `effect` and `@effect/platform-bun`, locked in `bun.lock`; runs `tatsu automations pipelines --json` and `schedules --json`; imports exported design-system subpaths by package name, resolved from the root install | [README](../herdr-plugins/automations-monitor/README.md), [AGENTS](../herdr-plugins/automations-monitor/AGENTS.md), [architecture](../herdr-plugins/automations-monitor/docs/architecture.md), [contributing](../herdr-plugins/automations-monitor/CONTRIBUTING.md) |
 | `herdr/` | TOML read by Herdr; a Node 22 check | `sidebar.toml`, `spaces.toml` and `theme.toml`, merged by hand into Herdr's `config.toml` | Herdr's config schema; its check imports design-system palette, signal and Herdr chrome colors by package name and reads herdr-sidebar's and Spaces' token contract documents | [README](../herdr/README.md), [AGENTS](../herdr/AGENTS.md), [architecture](../herdr/docs/architecture.md), [contributing](../herdr/CONTRIBUTING.md) |
 
 `pi/` groups the Pi extensions and holds the rules they share: [its guide](../pi/AGENTS.md). `herdr/` holds Herdr configuration. `herdr-plugins/` groups independently installable Herdr plugins with [shared rules](../herdr-plugins/AGENTS.md).
@@ -41,6 +42,7 @@ flowchart LR
         HC["herdr/<br/>sidebar.toml, spaces.toml, theme.toml, test/"]
         SP["herdr-plugins/spaces/<br/>socket-keyed daemon"]
         WB["herdr-plugins/whiteboard/<br/>Rust pane app"]
+        AM["herdr-plugins/automations-monitor/<br/>Bun + Effect pane app"]
         Design["docs/design.md<br/>visual language"]
         PN["pi/herdr-pane-naming/<br/>index.ts, models.ts"]
         SR["pi/session-recap/<br/>index.ts"]
@@ -59,6 +61,7 @@ flowchart LR
     Herdr["Herdr terminal"]
     TypeSafe["pi-typesafe / TypeSafe SDK<br/>Jev external service"]
     Models["Selected model providers"]
+    Tatsu["Tatsu CLI<br/>automations --json"]
 
     PN -->|imports| Node
     PN -->|imports, peer| PiHost
@@ -86,6 +89,9 @@ flowchart LR
     SP -->|imports| Node
     WB ==>|split or tab pane| Herdr
     WB -.->|check imports colors| DS
+    AM -->|imports exported cells, palette, colors, lamp, numerals| DS
+    AM ==>|split or tab pane| Herdr
+    AM ==>|two read-only JSON CLI commands| Tatsu
     SP ==>|workspace tokens, quiet block moves| Herdr
     Herdr -.->|Pi AU pane tokens| SP
     HC -.->|check reads Spaces contract| SP
@@ -190,6 +196,7 @@ The collector is the only owner of TUI session signals and shared CodexBar cache
 
 - [Spaces has one plugin daemon per socket](decisions/spaces-plugin-daemon.md)
 - [A Herdr plugin may own its runtime](decisions/herdr-plugin-runtimes.md)
+- [The automations monitor runs on Bun and Effect](decisions/automations-monitor-stack.md)
 - [Session signals have one collection owner](decisions/session-signals-collection.md)
 - [The design system is an in-repo package and owns the colors](decisions/in-repo-design-system-package.md)
 - [Standalone packages, no shared workspace](decisions/standalone-packages.md), superseded in part by the package decision

@@ -1,0 +1,25 @@
+id = "industrial-os.automations-monitor"
+name = "Industrial OS Automations Monitor"
+version = "0.1.0"
+min_herdr_version = "0.9.3"
+description = "Read-only dashboard of this machine's Tatsu automation pipelines and schedules"
+platforms = ["linux", "macos"]
+
+[[build]]
+command = ["bun", "install", "--frozen-lockfile"]
+
+[[panes]]
+id = "monitor"
+title = "Automations"
+placement = "split"
+command = ["sh", "bin/automations-monitor.sh", "pane"]
+
+[[actions]]
+id = "open"
+title = "Open automations monitor beside this pane"
+command = ["sh", "bin/automations-monitor.sh", "open"]
+
+[[actions]]
+id = "open-tab"
+title = "Open automations monitor in a new tab"
+command = ["sh", "bin/automations-monitor.sh", "open-tab"]
