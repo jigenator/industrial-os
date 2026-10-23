@@ -22,7 +22,7 @@ Scan the supporting-documents map and read every document whose condition applie
 | Work on a Pi extension | [The Pi guide](pi/AGENTS.md), then the extension's own guide, for example [claude-interrupt](pi/claude-interrupt/AGENTS.md), [signals-collector](pi/signals-collector/AGENTS.md), [status-bar](pi/status-bar/AGENTS.md) or [herdr-sidebar](pi/herdr-sidebar/AGENTS.md) |
 | Work on the Pi theme | [The Pi guide](pi/AGENTS.md), then [the theme guide](pi/theme/AGENTS.md) |
 | Work on pane naming, session recaps or image previews | [The Pi guide](pi/AGENTS.md), then [herdr-pane-naming](pi/herdr-pane-naming/AGENTS.md), [session-recap](pi/session-recap/AGENTS.md) or [image-preview](pi/image-preview/AGENTS.md) |
-| Work on a Herdr plugin | [Plugin group guide](herdr-plugins/AGENTS.md), then the plugin's guide, [Spaces](herdr-plugins/spaces/AGENTS.md) or [Whiteboard](herdr-plugins/whiteboard/AGENTS.md), and its routes |
+| Work on a Herdr plugin | [Plugin group guide](herdr-plugins/AGENTS.md), then the plugin's guide, [Spaces](herdr-plugins/spaces/AGENTS.md), [Whiteboard](herdr-plugins/whiteboard/AGENTS.md) or [Automations monitor](herdr-plugins/automations-monitor/AGENTS.md), and its routes |
 | Work on the Herdr configuration | [The Herdr guide](herdr/AGENTS.md) and its routes |
 | Change the visual language or a palette value | [Design](docs/design.md), [the package decision](docs/decisions/in-repo-design-system-package.md), the design-system guide, then each extension that mirrors the value |
 | Import the design system from another project | [Conventions](docs/conventions.md#module-and-dependency-rules), [the package decision](docs/decisions/in-repo-design-system-package.md#migrating-an-extension), then the importing project's guide |
@@ -48,6 +48,7 @@ Scan the supporting-documents map and read every document whose condition applie
 | Shared experience or scope | `docs/design.md`, `docs/mission.md` | Then each project separately |
 | Spaces reporting, activity history or quiet sorting | `herdr-plugins/spaces/`; [Spaces contract](herdr-plugins/spaces/docs/token-contract.md) | Node 22 stdlib only; one detached daemon per socket; tests never touch live Herdr |
 | Whiteboard input, drawing or board storage | `herdr-plugins/whiteboard/`; placement in [its architecture](herdr-plugins/whiteboard/docs/architecture.md) | Rust with locked crates; colors only in `src/palette.rs`, checked against the design system; tests never touch live Herdr |
+| Automations monitor screens, Tatsu reads or terminal lifecycle | `herdr-plugins/automations-monitor/`; the [data contract](herdr-plugins/automations-monitor/docs/architecture.md#data-contract), placement in [its AGENTS](herdr-plugins/automations-monitor/AGENTS.md#placement) | Bun, TypeScript and Effect with a locked install; reads only the two `tatsu automations … --json` commands; design-system colors by exported subpath; tests never touch live Herdr or the real `tatsu` |
 | Herdr configuration, such as the agents-sidebar rows | `herdr/`; placement in [its architecture](herdr/docs/architecture.md) | Valid Herdr TOML merged by hand; design-system colors; tokens from the owning reporter's contract |
 
 ## Implement and verify
@@ -207,3 +208,12 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [source-collector/docs/design.md](source-collector/docs/design.md) | Truthful source states, counts, ages and week attribution | Changing snapshot meanings or human-facing diagnostics |
 | [source-collector/docs/mission.md](source-collector/docs/mission.md) | Source engine goals and non-goals | Choosing source-collector scope |
 | [source-collector/docs/contract.md](source-collector/docs/contract.md) | Canonical config, SourceOutput, Snapshot and RPC semantics | Changing a source, signal, action or client |
+| [herdr-plugins/automations-monitor/README.md](herdr-plugins/automations-monitor/README.md) | Automations monitor purpose, requirements, install, keys, privacy and limits | Using the automations monitor or changing its public surface |
+| [herdr-plugins/automations-monitor/AGENTS.md](herdr-plugins/automations-monitor/AGENTS.md) | Automations monitor rules, routes and placement | Working anywhere in herdr-plugins/automations-monitor |
+| [herdr-plugins/automations-monitor/CLAUDE.md](herdr-plugins/automations-monitor/CLAUDE.md) | Runtime import of the automations monitor guide | Checking agent entry points |
+| [herdr-plugins/automations-monitor/CONTRIBUTING.md](herdr-plugins/automations-monitor/CONTRIBUTING.md) | Automations monitor toolchain, validation sequence, PTY, frame and isolated Herdr checks, and evidence | Making or verifying an automations monitor change |
+| [herdr-plugins/automations-monitor/docs/architecture.md](herdr-plugins/automations-monitor/docs/architecture.md) | Automations monitor modules, flows, the Tatsu data contract and invariants | Changing reads, polling, the terminal lifecycle or dependencies |
+| [herdr-plugins/automations-monitor/docs/conventions.md](herdr-plugins/automations-monitor/docs/conventions.md) | Automations monitor TypeScript and Effect rules and gaps | Writing or reviewing automations monitor code |
+| [herdr-plugins/automations-monitor/docs/design.md](herdr-plugins/automations-monitor/docs/design.md) | Automations monitor layout, states, colors, keys, truthfulness and mockup deviations | Changing anything an automations monitor user sees |
+| [herdr-plugins/automations-monitor/docs/mission.md](herdr-plugins/automations-monitor/docs/mission.md) | Automations monitor goals and non-goals | Choosing automations monitor scope |
+| [docs/decisions/automations-monitor-stack.md](docs/decisions/automations-monitor-stack.md) | Why the automations monitor runs on Bun, TypeScript 7 and Effect, and supersedes the pipeline-floor branch | Changing the automations monitor's runtime, dependencies or build |
