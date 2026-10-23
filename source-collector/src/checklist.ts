@@ -29,7 +29,8 @@ const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 export function parseChecklist(text: string, fallback: string): Todo[] {
   let heading: string | undefined;
   const lines = text.split(/\r?\n/),
-    result: Todo[] = [];
+    result: Todo[] = [],
+    seen = new Set<string>();
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const section = /^## (.+)$/.exec(line);
@@ -42,8 +43,14 @@ export function parseChecklist(text: string, fallback: string): Todo[] {
     const date = comment ? new Date(comment[1].replace(" ", "T")) : new Date(fallback);
     if (!Number.isFinite(date.getTime()))
       throw fail("invalid_output", "Invalid checklist timestamp");
+    // Writers can stamp two items in the same second; later repeats get a text hash, then an ordinal.
+    let key = comment ? `${comment[1]}#${comment[2]}` : hash(`${heading ?? ""}\n${item[2]}`);
+    if (comment && seen.has(key))
+      key = `${key}#${hash(`${heading ?? ""}\n${item[2]}`).slice(0, 12)}`;
+    for (let n = 2, base = key; seen.has(key); n++) key = `${base}#${n}`;
+    seen.add(key);
     result.push({
-      key: comment ? `${comment[1]}#${comment[2]}` : hash(`${heading ?? ""}\n${item[2]}`),
+      key,
       title: item[2],
       since: date.toISOString(),
       ...(comment ? { who: comment[2] } : {}),
@@ -52,8 +59,6 @@ export function parseChecklist(text: string, fallback: string): Todo[] {
       line: i,
     });
   }
-  if (new Set(result.map((i) => i.key)).size !== result.length)
-    throw fail("invalid_output", "Duplicate checklist key");
   return result;
 }
 export type ChecklistRead = { text: string; stamp: string; todos: Todo[] };

@@ -134,3 +134,25 @@ test("checklist concurrent edit retries once, then conflict without clobbering w
   expect(updated.text).toContain("another line\n");
   expect(updated.todos[0].done).toBe(true);
 });
+test("checklist repeated stamps get distinct, stable keys instead of failing", () => {
+  const stamp = "<!-- 2026-10-06 21:07:21 [s1] -->";
+  const text = [
+    "## A",
+    stamp,
+    "- [x] one",
+    stamp,
+    "- [ ] two",
+    stamp,
+    "- [ ] two",
+    "- [ ] free",
+    "- [ ] free",
+  ].join("\n");
+  const keys = parseChecklist(text, "2026-01-01T00:00:00Z").map((t) => t.key);
+  expect(new Set(keys).size).toBe(5);
+  expect(keys[0]).toBe("2026-10-06 21:07:21#s1");
+  expect(keys[1]).toMatch(/^2026-10-06 21:07:21#s1#[0-9a-f]{12}$/);
+  expect(keys[2]).toBe(`${keys[1]}#2`);
+  expect(keys[4]).toBe(`${keys[3]}#2`);
+  const done = parseChecklist(text.replace("- [ ] two", "- [x] two"), "2026-01-01T00:00:00Z");
+  expect(done.map((t) => t.key)).toEqual(keys);
+});

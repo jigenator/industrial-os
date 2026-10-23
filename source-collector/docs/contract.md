@@ -37,7 +37,9 @@ folder. `## heading` supplies where. A directly preceding
 `<!-- YYYY-MM-DD HH:MM:SS [session] -->` supplies local since/who and the key
 `<timestamp>#<session>`. Without a comment the key is a SHA-256 of heading plus
 text; the initial since fallback is file mtime, preserved once stored. `- [ ]`
-is open and `- [x]` (also uppercase X) is done. Duplicate keys are invalid.
+is open and `- [x]` (also uppercase X) is done. When a key repeats, as when one
+writer stamps two items in the same second, each later item gets `#` plus the
+first 12 hex digits of that hash, then `#2`, `#3` if still equal.
 The engine watches the file and rereads at least every 30 seconds.
 
 Todo edits preserve all other lines and newline style. Adds may select an existing
@@ -53,9 +55,9 @@ and shipped. An item requires key, title, since (ISO with timezone). Optional
 fields are kind, ref, url, who, where, status, updatedAt, waiting and facts
 (string/number/boolean values). Keys must be unique within one output. Missing
 previous items become gone. Shipped entries contain key, ISO at and optional
-actor (you/agent), deduplicated by source/key. PR merge sources use kind pr_merge
-for the provisional week attribution rule. A shipment without a known item kind
-is stored but does not infer a PR merge. auth clears items; other failures keep
+actor (you/agent), deduplicated by source/key. The provisional week attribution
+rule uses that actor, or kind pr_merge when the shipment matches a current item;
+see design. auth clears items; other failures keep
 them as stale. planned sources never execute.
 
 ## Snapshot
