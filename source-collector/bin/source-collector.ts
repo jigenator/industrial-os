@@ -84,12 +84,10 @@ const check = Command.make("check", { folder: Argument.String("source-dir") }, (
             (rawSize, transformedOutput) =>
               console.log(JSON.stringify({ rawSize, transformedOutput })),
           )
-        : {
-            rawSize: 0,
-            output: yield* checklistIO(() =>
-              checklistOutput(readChecklist(checklistPath(config.path, entry.folder))),
-            ),
-          };
+        : yield* checklistIO(() => {
+            const read = readChecklist(checklistPath(config.path, entry.folder));
+            return { rawSize: Buffer.byteLength(read.text), output: checklistOutput(read) };
+          });
     yield* print(result);
   }),
 );

@@ -99,7 +99,7 @@ Inspect then remove only the throwaway sandbox when finished.
 | bun run typecheck                                                                               | Pass; native TypeScript 7.1 beta through the Effect-patched executable                                                                                    |
 | bun run lint                                                                                    | Pass; zero warnings/errors, type-aware checks enabled                                                                                                     |
 | bun run format:check                                                                            | Pass; deliberate scratchpad exclusion above                                                                                                               |
-| bun test                                                                                        | Pass: 33 tests, 0 failures, 0 skips; 165 assertions                                                                                                       |
+| bun test                                                                                        | Pass: 35 tests, 0 failures, 0 skips; 169 assertions                                                                                                       |
 | check fake / jq / todo                                                                          | Pass: validated fixed command output, real jq transform and two open checklist items                                                                      |
 | Foreground smoke                                                                                | Pass: all three sources ok; 4 items → 3 after done; rev advanced; one you shipment; alerts []; refresh admitted; RPC stop drained, exit 0 and PID removed |
 | Root links/map/CLAUDE/whitespace/publication review                                             | Pass; recorded with final integration checks                                                                                                              |
@@ -119,6 +119,8 @@ Reviewed the full change against the assigned base. Removed one-use transport an
 Schedule wrappers, made package.json the version source, shared command stream
 capture with log truncation, and used the same scheduler admission for actions and
 fetches. Snapshot reads now share one transaction; successful observations publish
-items, status and run completion together. Removed custom framing in favor of
+items, status and run completion together. Used
 Effect RPC. No adapter registry, generic service framework, queue, recovery engine,
-root dependency or real account config was added.
+root dependency or real account config was added. The final contract pass also
+put checklist output through the same SourceOutput decoder as command output
+and replaced its diagnostic raw-size placeholder with the actual file size.

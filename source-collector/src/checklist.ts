@@ -14,7 +14,7 @@ import {
 import { dirname, join } from "node:path";
 import { Effect } from "effect";
 import { expandPath } from "./config.ts";
-import { fail, type SourceOutput } from "./contract.ts";
+import { fail, SourceOutput, decode } from "./contract.ts";
 
 export type Todo = {
   key: string;
@@ -73,7 +73,7 @@ export function readChecklist(path: string): ChecklistRead {
   }
 }
 export function checklistOutput(read: ChecklistRead, previous?: ChecklistRead): SourceOutput {
-  return {
+  const output: SourceOutput = {
     v: 1,
     items: read.todos
       .filter((t) => !t.done)
@@ -89,6 +89,11 @@ export function checklistOutput(read: ChecklistRead, previous?: ChecklistRead): 
       .filter((t) => t.done && previous?.todos.some((p) => p.key === t.key && !p.done))
       .map((t) => ({ key: t.key, at: new Date().toISOString() })),
   };
+  try {
+    return decode(SourceOutput, output);
+  } catch {
+    throw fail("invalid_output", "Checklist does not match SourceOutput v1");
+  }
 }
 export function checklistPath(path: string, folder: string, home?: string) {
   return expandPath(path, folder, home);

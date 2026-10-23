@@ -80,6 +80,16 @@ test("boundary validation rejects malformed output, duplicate keys, invalid date
   expect(() => decode(Act, { do: "pin", actor: "you" })).toThrow();
   expect(() => decode(Act, { do: "todo.add", actor: "you", text: "one\n- [ ] two" })).toThrow();
 });
+test("checklist output crosses the same SourceOutput schema boundary as commands", () => {
+  const read = {
+    text: "",
+    stamp: "",
+    todos: [
+      { key: "one", title: "x".repeat(4097), since: "2026-01-01T00:00:00Z", done: false, line: 0 },
+    ],
+  };
+  expect(() => checklistOutput(read)).toThrow("Checklist does not match SourceOutput v1");
+});
 test("checklist scratchpad fixture parses heading, local timestamp, session and stable key", () => {
   const text = readFileSync(resolve("examples/sources/todo/checklist.md"), "utf8");
   const todos = parseChecklist(text, "2026-01-01T00:00:00Z");

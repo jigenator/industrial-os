@@ -64,6 +64,21 @@ test("CLI engine-not-running is exit 1, never success-shaped empty data", async 
     rmSync(root, { recursive: true, force: true });
   }
 });
+test("offline checklist check reports its real raw size without engine or store", async () => {
+  const root = mkdtempSync("/tmp/sc-check-");
+  try {
+    cpSync(resolve("examples"), join(root, "config"), { recursive: true });
+    const result = await cli(root, "check", join(root, "config/sources/todo"));
+    expect(result.code).toBe(0);
+    const diagnostic = JSON.parse(result.stdout);
+    expect(diagnostic.rawSize).toBe(
+      Buffer.byteLength(readFileSync(join(root, "config/sources/todo/checklist.md"), "utf8")),
+    );
+    expect(diagnostic.output.items).toHaveLength(2);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 test("single-instance exclusive SQLite lock refuses second runner, releases cleanly", () => {
   const root = mkdtempSync("/tmp/sc-instance-");
   try {
