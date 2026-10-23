@@ -1,0 +1,8 @@
+{
+  "id": "jq",
+  "label": "Transform example",
+  "tag": "JQ",
+  "type": "command",
+  "fetch": ["bun", "raw.ts"],
+  "transform": "transform.jq"
+}

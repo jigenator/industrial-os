@@ -1,0 +1,8 @@
+{
+  "id": "fake",
+  "label": "Fake tasks",
+  "tag": "DEMO",
+  "type": "command",
+  "fetch": ["bun", "fetch.ts"],
+  "every": "5m"
+}

@@ -2,15 +2,16 @@
 
 This is the architecture of the monorepo: which projects it holds, how they relate, and where the next one goes. Each project has its own architecture guide for its internals; this guide does not repeat them.
 
-Status: current repository including the full-history moves of herdr-pane-naming and session-recap, and the new image-preview extension.
-Evidence: the full source tree of `design-system/` and `pi/claude-interrupt/`, every import statement across the projects, their manifests and test commands, the root `package.json` and lockfile, `design-system/package.test.mjs`, the guides of `pi/status-bar/`, and the Git history of the moves of claude-interrupt and status-bar. The signals-collector, herdr-sidebar, Herdr configuration, Spaces and Whiteboard plugin rows add their full source, tests and imports. The pane-naming and session-recap move adds their complete source, tests, manifests and lockfiles; the image-preview row adds its full source, tests and imports. No dependency graph was inferred from folder names.
+Status: current repository including the full-history moves of herdr-pane-naming and session-recap, the image-preview extension, and the local source-collector engine.
+Evidence: the full source tree of `design-system/` and `pi/claude-interrupt/`, every import statement across the projects, their manifests and test commands, the root `package.json` and lockfile, `design-system/package.test.mjs`, the guides of `pi/status-bar/`, and the Git history of the moves of claude-interrupt and status-bar. The signals-collector, herdr-sidebar, Herdr configuration, Spaces and Whiteboard plugin rows add their full source, tests and imports. The pane-naming and session-recap move adds their complete source, tests, manifests and lockfiles; the image-preview row adds its full source, tests and imports. The source-collector row adds its complete source, test suite, manifest and lockfile. No dependency graph was inferred from folder names.
 
 ## Projects
 
-Industrial OS is one repository holding several independent projects. A project is a folder that owns its language, toolchain, dependencies, checks, and guides. Today there are eleven. They share code only through the design-system package. claude-interrupt and status-bar consume exported subpaths through their own Pi adapters, and the checks of the Herdr configuration and the Whiteboard plugin import its colors. Displays receive session data from signals-collector through in-process events, never imports.
+Industrial OS is one repository holding several independent projects. A project is a folder that owns its language, toolchain, dependencies, checks, and guides. Each owns its own checks. They share code only through the design-system package. claude-interrupt and status-bar consume exported subpaths through their own Pi adapters, and the checks of the Herdr configuration and the Whiteboard plugin import its colors. Displays receive session data from signals-collector through in-process events, never imports.
 
 | Project | Language and runtime | Public entry point | Dependencies | Guides |
 | --- | --- | --- | --- | --- |
+| `source-collector/` | TypeScript 7.1 beta on Bun 1.4.4; Effect 4; Bun lockfile | `bin/source-collector.ts`; v1 polling Unix RPC | Pinned Effect/Bun/SQLite packages; private local command/checklist configs; no project imports | [README](../source-collector/README.md), [AGENTS](../source-collector/AGENTS.md), [architecture](../source-collector/docs/architecture.md), [contract](../source-collector/docs/contract.md), [contributing](../source-collector/CONTRIBUTING.md) |
 | `design-system/` | Plain Node.js 22 ES modules (`.mjs`), standard library only; a private `package.json` with an `exports` map and no dependencies or scripts | `@industrial-os/design-system/<foundation, elements, or motions>/<name>`, by package name inside this repository only; `node examples/storybook.mjs`, `node examples/showcase.mjs`. Never published; the module contracts are first-pass, not a stable API | None outside Node | [README](../design-system/README.md), [AGENTS](../design-system/AGENTS.md), [architecture](../design-system/docs/architecture.md), [conventions](../design-system/docs/conventions.md), [design](../design-system/docs/design.md), [contributing](../design-system/CONTRIBUTING.md) |
 | `pi/claude-interrupt/` | TypeScript ES modules run by Node 22 type stripping; npm; `tsc --noEmit` | `package.json` `pi.extensions` → `src/index.ts`, loaded by the Pi host | Host-provided Pi packages as peer dependencies; development dependencies pin Pi 0.99.1. Imports exported design-system marker/token/motion subpaths through a Pi adapter | [README](../pi/claude-interrupt/README.md), [AGENTS](../pi/claude-interrupt/AGENTS.md), [architecture](../pi/claude-interrupt/docs/architecture.md), [contributing](../pi/claude-interrupt/CONTRIBUTING.md) |
 | `pi/status-bar/` | TypeScript ES modules run by Node 22 type stripping; npm scripts; no type check | `package.json` `pi.extensions` → `src/extension.ts`, loaded by the Pi host | Host-provided Pi/TUI packages as peer dependencies; no development dependencies, tests use the globally installed Pi. Imports exported design-system footer element/token/scoped-motion subpaths through a Pi adapter; consumed-subpath declarations have a compile-only specimen, not a standalone project typecheck | [README](../pi/status-bar/README.md), [AGENTS](../pi/status-bar/AGENTS.md), [architecture](../pi/status-bar/docs/architecture.md), [contributing](../pi/status-bar/CONTRIBUTING.md) |
@@ -31,6 +32,7 @@ Industrial OS is one repository holding several independent projects. A project 
 ```mermaid
 flowchart LR
     subgraph repo["industrial-os"]
+        SourceEngine["source-collector/<br/>local polling engine"]
         DS["design-system/<br/>elements, foundation, motions, examples"]
         CI["pi/claude-interrupt/<br/>src/index.ts"]
         SC["pi/signals-collector/<br/>session producer + shared quota cache"]
@@ -46,6 +48,12 @@ flowchart LR
         TH["pi/theme/<br/>industrial-os.json, test/"]
         Root["package.json<br/>two runtime dependencies"]
     end
+    BunEffect["Bun + Effect 4 + SQLite"]
+    LocalSources["Private command/checklist configs"]
+    PollClients["Independent polling clients"]
+    SourceEngine -->|imports| BunEffect
+    SourceEngine -.->|reads and executes| LocalSources
+    PollClients -.->|Unix JSON-RPC, not imports| SourceEngine
     Node["Node.js 22 standard library"]
     PiHost["Pi host<br/>@earendil-works/pi-coding-agent, pi-tui, typebox"]
     Herdr["Herdr terminal"]
@@ -174,6 +182,9 @@ Every project's guides must appear in the [root supporting-documents map](../AGE
 The collector is the only owner of TUI session signals and shared CodexBar cache. Displays use events, not imports; see [collection ownership](decisions/session-signals-collection.md).
 
 ## Technical decisions
+
+- [Source collection has one local per-user engine](decisions/source-collector-service.md)
+- [Source collector uses Bun, Effect 4 and TypeScript 7](decisions/bun-effect-runtime.md)
 
 - [Pane naming needs root-installed pi-typesafe and peer suppression](decisions/pane-naming-root-dependency.md)
 
