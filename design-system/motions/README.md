@@ -31,6 +31,7 @@ A motion decorates rendered lines; it does not supply data. Most preserve every 
 | [breathe](#breathelines-options) | loop | | foreground | exempt |
 | [arrival ping](#arrivalpinglines-options-and-arrivalpingdurationoptions) | once | arrivalPingDuration | blank-space dots | exempt |
 | [ambient sweep](#ambientsweeplines-options) | loop | | decorative foreground | exempt |
+| [ambient load](#ambientloadlines-options-and-ambientloaddurationlines-options) | once | ambientLoadDuration | grid/dots/registration glyphs and ink | exempt |
 
 Each motion lives in its own file here, named like its row, with its checks beside it in `<name>.test.mjs` (scan, pulse, and reveal are checked in `motions.test.mjs`).
 
@@ -601,6 +602,14 @@ Two expanding dot rings over blank cells only in an **explicit decoration-only r
 
 ### `ambientSweep(lines, options)`
 
-AMBIENT_SWEEP_DEFAULTS: period 16000 ms, run 4000 ms (positive, run ≤ period), region. Lifts only decorative ┼│─· foreground by at most 5% white, moving vertically. Compose essential content outside it. Characters unchanged, warning/critical exempt. Motion-off unchanged; continuous host frames at 67 ms. Ambient grid/dots/registration marks come from ambient-field; load-in uses existing drawIn on decoration only.
+AMBIENT_SWEEP_DEFAULTS: period 16000 ms, run 4000 ms (positive, run ≤ period), region. Lifts only decorative ┼│─· foreground by at most 5% white, moving vertically. Compose essential content outside it. Characters unchanged, warning/critical exempt. Motion-off unchanged; continuous host frames at 67 ms. Ambient grid/dots/registration marks come from ambient-field. Use ambient-load for the exact initial projection, then ambient-sweep after its duration, so the first sweep is not applied twice. Registered mark ink is never lifted by the sweep.
 
 All four follow shared validation/immutability/time/region contracts and own no timers. Every exported primitive has a colocated deterministic test and a storybook preview.
+
+### `ambientLoad(lines, options)` and `ambientLoadDuration(lines, options)`
+
+Pure exact v20 load projection over an already-admitted ambient-field decoration layer. AMBIENT_LOAD_DEFAULTS contains region; time/animate follow the shared contract. No new cells outside that input's grid/dot/registration positions are admitted. Grid vertical reach: 500 ms, 30 ms column lag; horizontal reach: 500 ms, 60 ms row lag. Dots start at 500 + seeded coordinate hash × 500 ms and fade for 300 ms. Registration n starts at 700 + 60n ms, grows arms at 60 ms steps and decodes its three-character label after another 150 ms for 300 ms (70 ms glyph grid, using global event time). Shared geometry/ink lives in foundation/ambient.mjs; glyph projection is shared with decode through foundation/decode-glyph.mjs.
+
+The initial 4 s ambient sweep is included, with exact row-background mixing and dot-fade multiplication; mark ink stays fixed. Duration is max(4000 ms, last grid reach, last dot fade, last admitted registration decode); at normal dashboard dimensions it is 4000 ms. Host frames at 25 ms to sample all load phases, then uses the existing recurring sweep. Changes plain text; state cells and cells outside region remain unchanged. Motion-off returns the supplied complete field immediately. Default terminal colors are unknown and cannot be mixed. No clock, timer, mutable module state or I/O.
+
+Tests compare every cell/glyph/background and every occupied-cell foreground against an independent literal v20 oracle at 18 explicit times, plus region/state protection, widths 1–160, immutability, validation, completion and motion-off. The AMBIENT LOAD story uses actual ambient-field output and executable usage.

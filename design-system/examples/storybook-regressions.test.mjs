@@ -5,6 +5,7 @@ import { deskStrip, deskHeading, questionTitle, questionBody, deskFooter } from 
 import { operationHeading, operationRow, operationDetail } from '../elements/operation-row/operation-row.mjs';
 import { calloutEntrance } from '../motions/callout-entrance.mjs';
 import { phosphorHead } from '../motions/phosphor-head.mjs';
+import { ambientLoad } from '../motions/ambient-load.mjs';
 import { typeUnit } from '../elements/type-unit/type-unit.mjs';
 import { activityStrip } from '../elements/activity-strip/activity-strip.mjs';
 import { planCounter } from '../elements/plan-counter/plan-counter.mjs';
@@ -76,6 +77,7 @@ const API = {
   feedBezel, imageLabel, imageInset, inputFrame, feedScan, cornerSnap,
   tabRule, leader, neatline, nameRule, actionLabel, keyHints, popupHeader, popupFooter, noticeRow, scopeMeter, soundingMeter, scopeTrace, soundingSweep,
   typeUnit, activityStrip, planCounter, activityTrace, alertTicker, ambientField, decode, breathe, arrivalPing, ambientSweep,
+  ambientLoad,
   fitLine, span, lineMeter, columnBlock, SIGNAL_COLORS, gauge, gaugeScale, labelPlate, numberedPanel, panelInnerWidth, statusRow, COUNT_PLATES, countPlate,
   LAMP_DIM_STYLE, lamp, modePlate, pnytlPlate, stateChip, stateChips, numeralAt, numeralGrid, numeralLines, pixelNumeral, textGrid, providerColumn,
   segmentMeter, threadRail, threadRailPieces, instrumentFrame, markerBars, markerPlate, transcriptMarker, scan, pulse, reveal,

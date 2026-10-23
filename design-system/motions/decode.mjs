@@ -1,6 +1,5 @@
-import { hash } from '../foundation/seeded.mjs';
+import { decodeGlyph } from '../foundation/decode-glyph.mjs';
 import { assertLines, assertMs, assertTime, copyLines, inRegion, resolveOptions, resolveRegion, restyleCells } from './frame.mjs';
-const SCRAMBLE = '▓▒░#%&*+=<>/\\|ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
 export const DECODE_DEFAULTS = Object.freeze({ duration: 450, seed: 0, scramble: true, region: undefined });
 function check(options) {
   const o = resolveOptions('decode', options, DECODE_DEFAULTS);
@@ -15,9 +14,7 @@ export function decode(lines, options = {}) {
   if (!o.animate || o.time >= o.duration) return copyLines(lines);
   return restyleCells(lines, (style, col, row, ch) => {
     if (!inRegion(o.region, col, row) || ch === ' ') return undefined;
-    const r = hash(col - o.region.left, o.seed + row, 17), land = r * o.duration;
-    if (o.time >= land) return undefined;
     if (!o.scramble) return { style: { ...style, bold: true } };
-    return { char: o.time >= r * o.duration * 0.35 ? SCRAMBLE[Math.floor(hash(Math.floor(o.time / 70), col - o.region.left, o.seed + row + 1) * SCRAMBLE.length)] : ' ' };
+    return { char: decodeGlyph(ch, col-o.region.left, o.seed+row, o.time, o.duration) };
   });
 }

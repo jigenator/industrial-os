@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {decodeGlyph} from './decode-glyph.mjs';import {hash} from './seeded.mjs';
+test('glyph decode lands at its seeded instant and shares global 70 ms scramble clock',()=>{const column=2,seed=200,r=hash(column,seed,17),chars='▓▒░#%&*+=<>/\\|ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';assert.equal(decodeGlyph('M',column,seed,r*300,300,1000),'M');const t=r*300*.5;assert.equal(decodeGlyph('M',column,seed,t,300,1000),chars[Math.floor(hash(Math.floor(1000/70),column,seed+1)*chars.length)]);assert.throws(()=>decodeGlyph('A',0,0,0,601));assert.throws(()=>decodeGlyph('好',0,0,0,450));assert.equal(decodeGlyph(' ',0,0,0,450),' ');});

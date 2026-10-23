@@ -1,6 +1,8 @@
 import { callout, calloutGeometry, subtitle, subtitleGeometry } from '../elements/callout/callout.mjs';
 import { calloutEntrance, calloutEntranceDuration, CALLOUT_ENTRANCE_DEFAULTS } from '../motions/callout-entrance.mjs';
 import { phosphorHead, PHOSPHOR_HEAD_DEFAULTS } from '../motions/phosphor-head.mjs';
+import { ambientLoad, ambientLoadDuration, AMBIENT_LOAD_DEFAULTS } from '../motions/ambient-load.mjs';
+import { ambientField } from '../elements/ambient-field/ambient-field.mjs';
 import { decode, DECODE_DEFAULTS, decodeDuration } from '../motions/decode.mjs';
 import { breathe, BREATHE_DEFAULTS } from '../motions/breathe.mjs';
 import { arrivalPing, ARRIVAL_PING_DEFAULTS, arrivalPingDuration } from '../motions/arrival-ping.mjs';
@@ -771,5 +773,14 @@ const DASH_BREATHE = motionStory({id:'breathe',fn:'breathe',title:'BREATHE',summ
 const DASH_ARRIVAL_PING = motionStory({id:'arrival-ping',fn:'arrivalPing',title:'ARRIVAL-PING',summary:'Bounded dashboard demonstration.',motion:arrivalPing,defaults:ARRIVAL_PING_DEFAULTS,units:{}, duration:(lines,o)=>arrivalPingDuration(o),frame:()=>50, rules:['Motion off settles immediately. Warning/critical cells are exempt.'], variants:[{name:'DEMO',note:'Fixture only; decode 70 ms steps, breathe 4 s, sweep 16 s, ping 50 ms steps.',options:{x:5,y:4,region:{left:0,top:0,rows:12,cols:40}},plainVisible:true,body:(width) => body(Array.from({length:12},()=>fitLine([],width)), `Array.from({length:12},()=>fitLine([],${width}))`)}]});
 const DASH_AMBIENT_SWEEP = motionStory({id:'ambient-sweep',fn:'ambientSweep',title:'AMBIENT-SWEEP',summary:'Bounded dashboard demonstration.',motion:ambientSweep,defaults:AMBIENT_SWEEP_DEFAULTS,units:{}, loop:o=>o.period, rules:['Motion off settles immediately. Warning/critical cells are exempt.'], variants:[{name:'DEMO',note:'Fixture only; decode 70 ms steps, breathe 4 s, sweep 16 s, ping 50 ms steps.',options:{},plainVisible:false,body:(width) => body(Array.from({length:12},()=>fitLine([span('▆ ┼ ·', {fg:'decorative'})],width)), `Array.from({length:12},()=>fitLine([span('\\u2586 \\u253c \\u00b7', {fg:'decorative'})],${width}))`)}]});
 
-export const MOTION_STORIES = [SCAN, PULSE, REVEAL, DRAW_IN, WARM_UP, LATCH, BEACON, CYCLE, FADE, BLINK, FLASH, PING, WIPE, FILL_IN, BURN_OUT, EDGE_PULSE, RESTRIKE, GHOST, NUDGE, MARKER_TIMELINE_STORY, SCOPE_TRACE, SOUNDING_SWEEP, FEED_SCAN, CORNER_SNAP, CALLOUT_ENTRANCE, PHOSPHOR_HEAD, DASH_DECODE, DASH_BREATHE, DASH_ARRIVAL_PING, DASH_AMBIENT_SWEEP];
 
+
+const AMBIENT_LOAD = motionStory({
+  id:'ambient-load',fn:'ambientLoad',title:'AMBIENT LOAD',summary:'Exact grid reach, dot fade, registration arms/decode and first sweep; decoration only.',
+  motion:ambientLoad,defaults:AMBIENT_LOAD_DEFAULTS,units:{},duration:(lines,o)=>ambientLoadDuration(lines,o),frame:()=>25,
+  rules:['Vertical lines reach over 500 ms with 30 ms column stagger; horizontal lines have 60 ms row stagger.','Dots fade after 500–1000 ms; registration arms start at 700+60n ms, labels decode 150 ms later for 300 ms.','The first 4 s sweep is included; motion off shows the complete field instantly.'],
+  variants:[{name:'V20 FIELD',note:'DEMO, 25 ms samples; mark glyphs change on a 70 ms grid.',options:{},plainVisible:true,
+    body:(width)=>body(ambientField(Array.from({length:54},()=>fitLine([],width))),`ambientField(Array.from({length:54},()=>fitLine([],${width})))`)}],
+});
+
+export const MOTION_STORIES = [SCAN, PULSE, REVEAL, DRAW_IN, WARM_UP, LATCH, BEACON, CYCLE, FADE, BLINK, FLASH, PING, WIPE, FILL_IN, BURN_OUT, EDGE_PULSE, RESTRIKE, GHOST, NUDGE, MARKER_TIMELINE_STORY, SCOPE_TRACE, SOUNDING_SWEEP, FEED_SCAN, CORNER_SNAP, CALLOUT_ENTRANCE, PHOSPHOR_HEAD, DASH_DECODE, DASH_BREATHE, DASH_ARRIVAL_PING, DASH_AMBIENT_SWEEP, AMBIENT_LOAD];
