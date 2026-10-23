@@ -2,8 +2,8 @@
 
 This is the architecture of the monorepo: which projects it holds, how they relate, and where the next one goes. Each project has its own architecture guide for its internals; this guide does not repeat them.
 
-Status: current repository including the full-history moves of herdr-pane-naming and session-recap, the image-preview and droid-header extensions, the local source-collector engine, and the automations-monitor Herdr plugin.
-Evidence: the full source tree of `design-system/` and `pi/claude-interrupt/`, every import statement across the projects, their manifests and test commands, the root `package.json` and lockfile, `design-system/package.test.mjs`, the guides of `pi/status-bar/`, and the Git history of the moves of claude-interrupt and status-bar. The signals-collector, herdr-sidebar, Herdr configuration, Spaces and Whiteboard plugin rows add their full source, tests and imports. The pane-naming and session-recap move adds their complete source, tests, manifests and lockfiles; the image-preview and droid-header rows add their full source, tests and imports. The source-collector row adds its complete source, test suite, manifest and lockfile; the automations-monitor row adds its full source, tests, imports and lockfile. No dependency graph was inferred from folder names.
+Status: current repository including the full-history moves of herdr-pane-naming and session-recap, the image-preview and droid-header extensions, the local source-collector engine, the automations-monitor Herdr plugin, and the dispatch-feed pane.
+Evidence: the full source tree of `design-system/` and `pi/claude-interrupt/`, every import statement across the projects, their manifests and test commands, the root `package.json` and lockfile, `design-system/package.test.mjs`, the guides of `pi/status-bar/`, and the Git history of the moves of claude-interrupt and status-bar. The signals-collector, herdr-sidebar, Herdr configuration, Spaces and Whiteboard plugin rows add their full source, tests and imports. The pane-naming and session-recap move adds their complete source, tests, manifests and lockfiles; the image-preview and droid-header rows add their full source, tests and imports. The source-collector row adds its complete source, test suite, manifest and lockfile; the automations-monitor row adds its full source, tests, imports and lockfile. No dependency graph was inferred from folder names. Dispatch feed adds its local consumer decoder, rendering/lifecycle code, manifest, locked tooling and offline/native verification.
 
 ## Projects
 
@@ -23,6 +23,7 @@ Industrial OS is one repository holding several independent projects. A project 
 | `pi/droid-header/` | TypeScript ESM run by Node 22.19+ type stripping; npm scripts; no type check | `package.json` `pi.extensions` → `src/extension.ts` | Host Pi/TUI peers; no development dependencies, tests use the globally installed Pi. Imports exported design-system palette, signal-color, seeded and pixel-numeral subpaths; TUI-only `setHeader`, reads `.git/HEAD`, and Pi's settings through its public loaders without running npm or Git | [README](../pi/droid-header/README.md), [AGENTS](../pi/droid-header/AGENTS.md), [architecture](../pi/droid-header/docs/architecture.md), [contributing](../pi/droid-header/CONTRIBUTING.md) |
 | `pi/theme/` | JSON; a Node 22.19+ check | Root `package.json` `pi.themes` → `pi/theme/industrial-os.json`, selected as `industrial-os` | Pi's theme schema; its check imports design-system palette, signal and Pi chrome colors by package name and Pi's validator from the installed host | [README](../pi/theme/README.md), [AGENTS](../pi/theme/AGENTS.md), [architecture](../pi/theme/docs/architecture.md), [contributing](../pi/theme/CONTRIBUTING.md) |
 | `herdr-plugins/spaces/` | Plain Node 22 ES modules, standard library only, no build/dependencies | `herdr-plugin.toml`; `bin/spaces.mjs ensure/run/status` | Node; Herdr 0.9.3 Unix socket; consumes Pi AU tokens over the protocol, no imports from Pi | [README](../herdr-plugins/spaces/README.md), [AGENTS](../herdr-plugins/spaces/AGENTS.md), [architecture](../herdr-plugins/spaces/docs/architecture.md), [contract](../herdr-plugins/spaces/docs/token-contract.md), [contributing](../herdr-plugins/spaces/CONTRIBUTING.md) |
+| `herdr-plugins/dispatch-feed/` | Bun 1.4.4, strict TypeScript, locked development tools; no runtime dependencies | `herdr-plugin.toml`; `bin/dispatch-feed.ts`; split/tab actions | Design-system exported subpaths; source-collector over Unix JSON-RPC, never source imports | [README](../herdr-plugins/dispatch-feed/README.md), [AGENTS](../herdr-plugins/dispatch-feed/AGENTS.md), [architecture](../herdr-plugins/dispatch-feed/docs/architecture.md), [contributing](../herdr-plugins/dispatch-feed/CONTRIBUTING.md) |
 | `herdr-plugins/whiteboard/` | Rust 2024 with Cargo and ratatui; a Node 22 palette check and a Python 3 PTY check | `herdr-plugin.toml`: `[[build]]` `cargo build`, the `board` pane (a split by default) and the `open` and `open-tab` actions, through `bin/whiteboard.sh` | Locked crates (ratatui, serde, serde_json, unicode-width); Herdr's plugin environment; mirrors the Acid / Black palette, which its check imports by package name | [README](../herdr-plugins/whiteboard/README.md), [AGENTS](../herdr-plugins/whiteboard/AGENTS.md), [architecture](../herdr-plugins/whiteboard/docs/architecture.md), [contributing](../herdr-plugins/whiteboard/CONTRIBUTING.md) |
 | `herdr-plugins/automations-monitor/` | TypeScript run directly by Bun 1.4.4, with Effect 4.0.6; `tsc --noEmit` (TypeScript 7.0.2), `bun test` and a Bun PTY check | `herdr-plugin.toml`: `[[build]]` `bun install --frozen-lockfile`, the `monitor` pane (a split by default) and the `open` and `open-tab` actions, through `bin/automations-monitor.sh` | `effect` and `@effect/platform-bun`, locked in `bun.lock`; runs `tatsu automations pipelines --json` and `schedules --json`; imports exported design-system subpaths by package name, resolved from the root install | [README](../herdr-plugins/automations-monitor/README.md), [AGENTS](../herdr-plugins/automations-monitor/AGENTS.md), [architecture](../herdr-plugins/automations-monitor/docs/architecture.md), [contributing](../herdr-plugins/automations-monitor/CONTRIBUTING.md) |
 | `herdr/` | TOML read by Herdr; a Node 22 check | `sidebar.toml`, `spaces.toml` and `theme.toml`, merged by hand into Herdr's `config.toml` | Herdr's config schema; its check imports design-system palette, signal and Herdr chrome colors by package name and reads herdr-sidebar's and Spaces' token contract documents | [README](../herdr/README.md), [AGENTS](../herdr/AGENTS.md), [architecture](../herdr/docs/architecture.md), [contributing](../herdr/CONTRIBUTING.md) |
@@ -42,6 +43,7 @@ flowchart LR
         HS["pi/herdr-sidebar/<br/>src/extension.ts, tokens.ts"]
         HC["herdr/<br/>sidebar.toml, spaces.toml, theme.toml, test/"]
         SP["herdr-plugins/spaces/<br/>socket-keyed daemon"]
+        DF["herdr-plugins/dispatch-feed/<br/>Bun pane app"]
         WB["herdr-plugins/whiteboard/<br/>Rust pane app"]
         AM["herdr-plugins/automations-monitor/<br/>Bun + Effect pane app"]
         Design["docs/design.md<br/>visual language"]
@@ -92,6 +94,9 @@ flowchart LR
     HS -->|imports| Node
     HS ==>|pane tokens over the socket| Herdr
     SP -->|imports| Node
+    DF -->|imports exported subpaths| DS
+    DF -.->|Unix JSON-RPC, not imports| SourceEngine
+    DF ==>|split or tab pane| Herdr
     WB ==>|split or tab pane| Herdr
     WB -.->|check imports colors| DS
     AM -->|imports exported cells, palette, colors, lamp, numerals| DS
@@ -193,6 +198,8 @@ Every project's guides must appear in the [root supporting-documents map](../AGE
 The collector is the only owner of TUI session signals and shared CodexBar cache. Displays use events, not imports; see [collection ownership](decisions/session-signals-collection.md).
 
 ## Technical decisions
+
+- [Dispatch feed uses Bun and plain TypeScript](decisions/dispatch-feed-runtime.md)
 
 - [Source collection has one local per-user engine](decisions/source-collector-service.md)
 - [Source collector uses Bun, Effect 4 and TypeScript 7](decisions/bun-effect-runtime.md)

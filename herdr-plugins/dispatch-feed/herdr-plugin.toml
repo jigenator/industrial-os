@@ -1,0 +1,25 @@
+id = "industrial-os.dispatch-feed"
+name = "Industrial OS Dispatch Feed"
+version = "0.1.0"
+min_herdr_version = "0.9.3"
+description = "Source-collector triage dashboard in a terminal pane"
+platforms = ["macos"]
+
+[[build]]
+command = ["bun", "install", "--frozen-lockfile"]
+
+[[panes]]
+id = "feed"
+title = "Dispatch Feed"
+placement = "split"
+command = ["sh", "bin/dispatch-feed.sh", "pane"]
+
+[[actions]]
+id = "open"
+title = "Open dispatch feed beside this pane"
+command = ["sh", "bin/dispatch-feed.sh", "open"]
+
+[[actions]]
+id = "open-tab"
+title = "Open dispatch feed in a new tab"
+command = ["sh", "bin/dispatch-feed.sh", "open-tab"]
