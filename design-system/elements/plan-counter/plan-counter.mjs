@@ -1,3 +1,4 @@
+import { DASHBOARD_INKS as D } from '../../foundation/dashboard-colors.mjs';
 import { CellGrid } from '../../foundation/cell-grid.mjs';
 import { PI_CHROME } from '../../foundation/signal-colors.mjs';
 export function planCounter(counts, { width } = {}) {
@@ -5,7 +6,7 @@ export function planCounter(counts, { width } = {}) {
   ['today', 'inbox', 'later'].forEach((key, i) => {
     const n = counts[key];
     if (n !== null && (!Number.isSafeInteger(n) || n < 0)) throw new RangeError('plan count must be nonnegative or null');
-    g.text(i * step, 0, key.toUpperCase(), { fg: 'decorative' }, step);
+    g.text(i * step, 0, key.toUpperCase(), { fg: D.muted }, step);
     const text = n === null ? '?' : String(n);
     g.text(i * step, 1, text.length > step ? '#'.repeat(step) : text, { fg: PI_CHROME.bone, bold: true }, step);
   }); return g.lines();

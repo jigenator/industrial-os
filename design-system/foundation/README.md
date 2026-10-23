@@ -130,3 +130,5 @@ Status-bar's consumed element, token, seeded and motion subpaths also have decla
 ## Dashboard foundation
 
 `type-colors.mjs` exports TYPE_COLORS and typeColor(token): type.pr violet, type.todo existing PI_CHROME.bone, type.linear indigo, type.msg teal, type.email sand. Missing/unknown/prototype tokens fall back to bone, never arbitrary RGB. These identify sources, not state. `cell-grid.mjs` exports CellGrid: bounded width/height 1–1000, approved one-cell put(), ASCII-sanitized text(), span-preserving place(), and copied lines(). It owns no I/O. Structural glyphs now also include dotted rules, week blocks, empty squares/diamonds, enter and the 256 braille cells (U+2800–U+28FF); the one-cell terminal prerequisite still applies.
+
+`dashboard-colors.mjs` exports DASHBOARD_INKS: existing bone, checkMid (muted), ghost (rule), decorative50 (edge), and a DERIVED 74% bone dim. These are aliases/derivations, not new near-duplicate hues.

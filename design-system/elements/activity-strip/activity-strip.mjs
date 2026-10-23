@@ -1,3 +1,4 @@
+import { DASHBOARD_INKS as D } from '../../foundation/dashboard-colors.mjs';
 import { CellGrid } from '../../foundation/cell-grid.mjs';
 import { PI_CHROME, mixOver } from '../../foundation/signal-colors.mjs';
 
@@ -6,12 +7,12 @@ export function activityStrip({ blocks, total, previous }, { width } = {}) {
   for (const block of blocks) { if (typeof block.future !== 'boolean' || !Number.isFinite(Date.parse(block.start))) throw new TypeError('invalid activity block'); for (const k of ['you', 'agents']) if (!Number.isSafeInteger(block[k]) || block[k] < 0) throw new RangeError('activity must be nonnegative integers'); }
   for (const n of [...Object.values(total), ...Object.values(previous)]) if (!Number.isSafeInteger(n) || n < 0) throw new RangeError('totals must be nonnegative integers');
   const g = new CellGrid(width, 5);
-  g.text(0, 0, 'THIS WEEK', { fg: 'decorative' });
+  g.text(0, 0, 'THIS WEEK', { fg: D.muted });
   const sum = `${total.you} you / ${total.agents} agents`;
   if (width >= sum.length + 10) g.text(width - sum.length, 0, sum, { fg: PI_CHROME.bone });
-  for (let day = 0; day < 7; day++) { const date = new Date(blocks[day * 3].start); g.text(8 + day * 4, 1, ['S', 'M', 'T', 'W', 'T', 'F', 'S'][date.getDay()], { fg: 'decorative' }); }
+  for (let day = 0; day < 7; day++) { const date = new Date(blocks[day * 3].start); g.text(8 + day * 4, 1, ['S', 'M', 'T', 'W', 'T', 'F', 'S'][date.getDay()], { fg: D.muted }); }
   ['you', 'agents'].forEach((k, row) => {
-    g.text(0, row + 2, k.toUpperCase(), { fg: 'decorative' });
+    g.text(0, row + 2, k.toUpperCase(), { fg: D.muted });
     const max = Math.max(1, ...blocks.filter(b => !b.future).map(b => b[k]));
     blocks.forEach((b, i) => {
       const x = 7 + Math.floor(i / 3) * 4 + i % 3;
@@ -19,6 +20,6 @@ export function activityStrip({ blocks, total, previous }, { width } = {}) {
     });
   });
   const delta = total.you + total.agents - previous.you - previous.agents;
-  g.text(0, 4, delta === 0 ? 'same as last week so far' : `${Math.abs(delta)} ${delta < 0 ? 'fewer' : 'more'} than last week so far`, { fg: 'decorative' });
+  g.text(0, 4, delta === 0 ? 'same as last week so far' : `${Math.abs(delta)} ${delta < 0 ? 'fewer' : 'more'} than last week so far`, { fg: D.muted });
   return g.lines();
 }

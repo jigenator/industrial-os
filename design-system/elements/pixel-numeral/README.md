@@ -58,3 +58,5 @@ status-bar now consumes `numeralGrid`, `numeralAt` and `numeralLines` through ex
 ## Compact integer
 
 `integerNumeral(value, { ink = secondary })` uses the same FONT/packing without decimals or a minimum width. Nonnegative safe integers or null (a pixel ?) only. Returns three natural-width lines, four cells per digit minus the final gap. No cropped digits.
+
+`INTEGER_FACES` exports instrument (FONT) and dashboard (v20's rounded 3×5 integer strokes). `integerNumeral` accepts face, default instrument; the type unit selects dashboard. The same pixel packing and validation serve both; context numerals are unchanged.

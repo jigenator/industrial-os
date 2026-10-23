@@ -9,3 +9,7 @@ Bracket-corner source frame, 7 rows by default. label/color/key identify the sou
 ## Checks
 
 `node --test elements/type-unit/type-unit.test.mjs`, then the [full validation](../../CONTRIBUTING.md#full-validation-sequence). Widths 1–160, state and invalid-input checks are automated; native support is not inferred. Storybook fixtures are examples, never telemetry.
+
+`unitCorners(width, height, spread=0)` projects four two-cell corners for the host. spread 1 moves them one cell outward for a brief hover/pick snap. Coordinates may be -1; the host owns clipping and a clear one-cell gutter. It does not change source content.
+
+`arriving: true` brightens brackets without inverting the heading; the host supplies the real arrival window. No arrival is inferred by the element.

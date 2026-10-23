@@ -78,6 +78,7 @@
     "./motions/decode": "./motions/decode.mjs",
     "./motions/breathe": "./motions/breathe.mjs",
     "./motions/arrival-ping": "./motions/arrival-ping.mjs",
-    "./motions/ambient-sweep": "./motions/ambient-sweep.mjs"
+    "./motions/ambient-sweep": "./motions/ambient-sweep.mjs",
+    "./foundation/dashboard-colors": "./foundation/dashboard-colors.mjs"
   }
 }

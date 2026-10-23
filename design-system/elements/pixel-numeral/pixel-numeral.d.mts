@@ -9,4 +9,5 @@ export function textGrid(text: string, options?: { ink?: Color }): NumeralGrid;
 export function numeralAt(target: NumeralGrid, from: NumeralGrid, progress: number, seed: number): NumeralGrid;
 export function numeralLines(grid: NumeralGrid, options: { width: number }): Line[];
 export function pixelNumeral(input: { value?: number | null; tone?: NumeralTone }, options: { width: number }): Line[];
-export function integerNumeral(value: number | null, options?: { ink?: import('../../foundation/cells.mjs').Color }): import('../../foundation/cells.mjs').Line[];
+export function integerNumeral(value: number | null, options?: { ink?: import('../../foundation/cells.mjs').Color; face?: 'instrument'|'dashboard' }): import('../../foundation/cells.mjs').Line[];
+export const INTEGER_FACES: Readonly<Record<'instrument'|'dashboard', typeof FONT>>;

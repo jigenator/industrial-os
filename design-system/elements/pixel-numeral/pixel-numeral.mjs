@@ -93,11 +93,25 @@ export function pixelNumeral({ value, tone }, { width } = {}) {
 }
 
 // Exact compact integer, without the context numeral's decimal/minimum width.
-export function integerNumeral(value, { ink = 'secondary' } = {}) {
+export const INTEGER_FACES = Object.freeze({
+  instrument: FONT,
+  dashboard: Object.freeze({ ...FONT,
+    2: Object.freeze(['110','001','010','100','111']),
+    3: Object.freeze(['110','001','010','001','110']),
+    5: Object.freeze(['111','100','110','001','110']),
+    6: Object.freeze(['011','100','111','101','111']),
+    7: Object.freeze(['111','001','010','010','010']),
+    9: Object.freeze(['111','101','111','001','110']),
+    '?': Object.freeze(['110','001','010','000','010']),
+  }),
+});
+export function integerNumeral(value, { ink = 'secondary', face = 'instrument' } = {}) {
   if (value !== null && (!Number.isSafeInteger(value) || value < 0)) throw new RangeError('integer numeral must be nonnegative or null');
   resolveColor(ink);
+  if (!Object.hasOwn(INTEGER_FACES, face)) throw new RangeError('unknown integer face');
+  const font = INTEGER_FACES[face];
   const text = value === null ? '?' : String(value), w = text.length * 4 - 1;
   const g = Array.from({ length: 6 }, () => Array(w).fill(null));
-  [...text].forEach((ch, i) => FONT[ch].forEach((row, y) => [...row].forEach((v, x) => { if (v === '1') g[y][i * 4 + x] = ink; })));
+  [...text].forEach((ch, i) => font[ch].forEach((row, y) => [...row].forEach((v, x) => { if (v === '1') g[y][i * 4 + x] = ink; })));
   return numeralLines({ w, g }, { width: w });
 }
