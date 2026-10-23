@@ -12,6 +12,7 @@ The desired experience is an instrument that is clear and useful—not decoratio
 
 ### Goals
 
+- Provide local data services for Industrial OS screens, with private configuration and truthful shared snapshots.
 - Keep Pi and Herdr visualization, user experience, and tooling in one repository, built on the shared design system.
 - Curate polished, reusable terminal elements, with Herdr as the primary target.
 - Provide small Herdr workspace tools in the same visual language, such as the whiteboard plugin.

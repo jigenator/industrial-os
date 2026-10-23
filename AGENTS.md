@@ -26,6 +26,7 @@ Scan the supporting-documents map and read every document whose condition applie
 | Work on the Herdr configuration | [The Herdr guide](herdr/AGENTS.md) and its routes |
 | Change the visual language or a palette value | [Design](docs/design.md), [the package decision](docs/decisions/in-repo-design-system-package.md), the design-system guide, then each extension that mirrors the value |
 | Import the design system from another project | [Conventions](docs/conventions.md#module-and-dependency-rules), [the package decision](docs/decisions/in-repo-design-system-package.md#migrating-an-extension), then the importing project's guide |
+| Work on the local source engine | [Source-collector guide](source-collector/AGENTS.md), then its contract and contributing routes |
 | Add or move in a project | [Architecture](docs/architecture.md#where-the-next-change-belongs), [contributing](CONTRIBUTING.md#adding-or-moving-in-a-project), then this map |
 | Change a repository-wide rule or check | [Conventions](docs/conventions.md), this map, then [contributing](CONTRIBUTING.md) |
 
@@ -43,6 +44,7 @@ Scan the supporting-documents map and read every document whose condition applie
 | Editor image previews | `pi/image-preview/`; [architecture](pi/image-preview/docs/architecture.md) | TUI-only; host peers only; reads the editor, never changes it or the submission; writes no files |
 | Colors of Pi's own interface | `pi/theme/`; [its architecture](pi/theme/docs/architecture.md) | One JSON theme; design-system values only, checked against the package and Pi's validator |
 | A new Pi extension | `pi/<name>/` with the [project document set](docs/architecture.md#contracts-between-the-root-and-a-project) | Its own manifest, checks, and license; the design system only by package name |
+| Scheduled sources, shared task snapshots or local triage | `source-collector/`; [architecture](source-collector/docs/architecture.md), [contract](source-collector/docs/contract.md) | Bun + Effect; private configs, one local owner, polling Unix RPC; no project imports |
 | Shared experience or scope | `docs/design.md`, `docs/mission.md` | Then each project separately |
 | Spaces reporting, activity history or quiet sorting | `herdr-plugins/spaces/`; [Spaces contract](herdr-plugins/spaces/docs/token-contract.md) | Node 22 stdlib only; one detached daemon per socket; tests never touch live Herdr |
 | Whiteboard input, drawing or board storage | `herdr-plugins/whiteboard/`; placement in [its architecture](herdr-plugins/whiteboard/docs/architecture.md) | Rust with locked crates; colors only in `src/palette.rs`, checked against the design system; tests never touch live Herdr |
@@ -194,3 +196,14 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [herdr-plugins/whiteboard/docs/conventions.md](herdr-plugins/whiteboard/docs/conventions.md) | Whiteboard Rust rules and gaps | Writing or reviewing whiteboard code |
 | [herdr-plugins/whiteboard/docs/design.md](herdr-plugins/whiteboard/docs/design.md) | Whiteboard layout, colors, states and interaction | Changing anything a whiteboard user sees |
 | [herdr-plugins/whiteboard/docs/mission.md](herdr-plugins/whiteboard/docs/mission.md) | Whiteboard goals and non-goals | Choosing whiteboard scope |
+| [docs/decisions/source-collector-service.md](docs/decisions/source-collector-service.md) | Why one generic local polling engine, separate from session signals | Changing source ownership, transport or private-config boundaries |
+| [docs/decisions/bun-effect-runtime.md](docs/decisions/bun-effect-runtime.md) | Source collector's runtime exception and exact pinning policy | Changing its runtime, dependencies or toolchain |
+| [source-collector/README.md](source-collector/README.md) | Purpose, run, service limits, privacy and deletion | Using the source engine or changing its public surface |
+| [source-collector/AGENTS.md](source-collector/AGENTS.md) | Source engine critical rules, routes and placement | Working anywhere in source-collector |
+| [source-collector/CLAUDE.md](source-collector/CLAUDE.md) | Runtime import of the source-collector guide | Checking agent entry points |
+| [source-collector/CONTRIBUTING.md](source-collector/CONTRIBUTING.md) | Exact checks, fixtures and isolated foreground smoke evidence | Making or verifying a source-collector change |
+| [source-collector/docs/architecture.md](source-collector/docs/architecture.md) | Modules, lifecycle, storage, failure boundaries and evolution | Changing scheduling, runners, persistence, I/O or service ownership |
+| [source-collector/docs/conventions.md](source-collector/docs/conventions.md) | Bun/Effect engineering rules and known limits | Writing or reviewing source-collector code |
+| [source-collector/docs/design.md](source-collector/docs/design.md) | Truthful source states, counts, ages and week attribution | Changing snapshot meanings or human-facing diagnostics |
+| [source-collector/docs/mission.md](source-collector/docs/mission.md) | Source engine goals and non-goals | Choosing source-collector scope |
+| [source-collector/docs/contract.md](source-collector/docs/contract.md) | Canonical config, SourceOutput, Snapshot and RPC semantics | Changing a source, signal, action or client |

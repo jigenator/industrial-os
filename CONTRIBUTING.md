@@ -4,6 +4,7 @@ This guide covers the workflow for every change and the checks that apply to the
 
 | Project | Toolchain | Contributing guide |
 | --- | --- | --- |
+| `source-collector/` | Bun 1.4.4, Effect 4, TypeScript 7.1 beta, oxlint/oxfmt; isolated Unix socket tests | [source-collector/CONTRIBUTING.md](source-collector/CONTRIBUTING.md) |
 | `design-system/` | Node.js 22, standard library; its own checks need no install step | [design-system/CONTRIBUTING.md](design-system/CONTRIBUTING.md) |
 | `pi/claude-interrupt/` | Node.js 22, npm, TypeScript, an installed Pi for the load check | [pi/claude-interrupt/CONTRIBUTING.md](pi/claude-interrupt/CONTRIBUTING.md) |
 | `pi/signals-collector/` | Node.js 22 type stripping, installed Pi; offline cache/contract tests | [pi/signals-collector/CONTRIBUTING.md](pi/signals-collector/CONTRIBUTING.md) |
