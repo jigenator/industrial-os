@@ -113,6 +113,41 @@ format checks found the optional-agent GNU syntax mismatch, stop acknowledgement
 scope lifetime, and formatter-sensitive checklist fixture; the fixes are in the
 final passing suite.
 
+### Agent CLI and engine log follow-up
+
+2026-10-23, isolated local macOS run, Bun 1.4.4:
+
+| Check                                                                | Result                                                                                                                                                                                                                                                                |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bun install --frozen-lockfile`                                      | Pass; 21 installs checked, no dependency changes; Effect patch hash matched                                                                                                                                                                                           |
+| `bun run typecheck`                                                  | Pass                                                                                                                                                                                                                                                                  |
+| `bun run lint`                                                       | Pass; type-aware, deny warnings                                                                                                                                                                                                                                       |
+| `bun run format:check`                                               | Pass                                                                                                                                                                                                                                                                  |
+| `bun test`                                                           | Pass; 39 tests, 0 failures, 342 assertions                                                                                                                                                                                                                            |
+| `bun bin/source-collector.ts check examples/sources/fake`            | Pass; validated fixed fake output                                                                                                                                                                                                                                     |
+| `bun bin/source-collector.ts check examples/sources/jq`              | Pass; real jq transform                                                                                                                                                                                                                                               |
+| `bun bin/source-collector.ts check examples/sources/todo`            | Pass; two open checklist items, no writes                                                                                                                                                                                                                             |
+| Foreground smoke                                                     | Pass; copied fixtures, temporary HOME/runtime/config only; JSON item listing, plan/pin/handled/look with agent session, clear/undo, refresh and todo done; lifecycle JSON in collector.log and foreground stderr; stdout clean; RPC stop drained, exit 0, PID removed |
+| Root links/map/CLAUDE/whitespace/publication review                  | Pass; changed local links and anchors resolved, guidance inventory mapped, tracked CLAUDE imports exact; no private material or generated clutter                                                                                                                     |
+| Mermaid rendering                                                    | Not run; no diagram changed                                                                                                                                                                                                                                           |
+| Live engine/accounts, real launchd installation/start/stop, Herdr UI | Not run; deliberately outside authorized validation                                                                                                                                                                                                                   |
+
+Focused tests additionally capture exact act requests for all five commands with
+human, bare-agent and named-session attribution, plus pin off/handled undo;
+invalid plan exits 2 without stdout, absent engine exits 1 for every new command.
+Real socket integration reads back overlays and the look cursor, and confirms
+JSON item lines round-trip multiline/control-bearing titles without emitting
+terminal control bytes. Log tests verify
+creation, 0600/0700 permissions, rotation order and count, append across reopens,
+size caps/truncation and refusal of symlink destinations. Existing action argv
+execution tests remain in the full suite; no live action was invoked.
+
+Early focused checks found required-by-default Boolean flags and a narrowing
+constraint in Argument.withSchema; explicit false defaults and handler-level
+Plan decoding fixed both. Handler decoding also avoids Effect CLI's preexisting
+parse-error auto-help on stdout for invalid plan values. Other parse failures can
+still print help to stdout; that inherited CLI-wide behavior was not changed.
+
 ## Simplification review
 
 Reviewed the full change against the assigned base. Removed one-use transport and

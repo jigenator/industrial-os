@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { createConnection } from "node:net";
+import { createConnection, createServer } from "node:net";
 import { acquireInstance } from "../src/instance.ts";
 import { renderPlist, inspectService, service } from "../src/service.ts";
 import { Effect } from "effect";
@@ -56,10 +56,23 @@ function raw(path: string, method: string, params: unknown = {}) {
 test("CLI engine-not-running is exit 1, never success-shaped empty data", async () => {
   const root = mkdtempSync("/tmp/sc-cli-");
   try {
-    const result = await cli(root, "get");
-    expect(result.code).toBe(1);
-    expect(result.stdout).toBe("");
-    expect(result.stderr).toContain("engine not running");
+    for (const args of [
+      ["get"],
+      ["get", "--items"],
+      ["plan", "fake:one", "today"],
+      ["pin", "fake:one"],
+      ["handled", "fake:one"],
+      ["look"],
+      ["action", "fake:one", "open"],
+    ]) {
+      const result = await cli(root, ...args);
+      expect(result.code).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("engine not running");
+    }
+    const invalid = await cli(root, "plan", "fake:one", "tomorrow");
+    expect(invalid.code).toBe(2);
+    expect(invalid.stdout).toBe("");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -159,6 +172,15 @@ test("mocked launchd install never starts, uninstall preserves runtime data", as
 test("real Unix RPC: raw JSON-RPC, typed CLI, acts, refresh, reload, auth, disable and drain", async () => {
   const root = mkdtempSync("/tmp/sc-rpc-");
   cpSync(resolve("examples"), join(root, "config"), { recursive: true });
+  const displayTitle = "Fake title\nwith tab\tand escape\u001b[31m and C1\u009b";
+  const fetchFile = join(root, "config/sources/fake/fetch.ts");
+  writeFileSync(
+    fetchFile,
+    readFileSync(fetchFile, "utf8").replace(
+      JSON.stringify("Try the collector"),
+      JSON.stringify(displayTitle),
+    ),
+  );
   mkdirSync(join(root, "runtime"), { mode: 0o700 });
   let engine = Bun.spawn([process.execPath, entry, "run"], {
     env: {
@@ -186,6 +208,10 @@ test("real Unix RPC: raw JSON-RPC, typed CLI, acts, refresh, reload, auth, disab
       await Bun.sleep(30);
     }
     if (!ready) throw new Error("Engine did not become ready");
+    const lifecycle = readFileSync(join(root, "runtime/log/collector.log"), "utf8");
+    expect(lifecycle).toContain("engine ready");
+    expect(lifecycle).toContain("run complete");
+    expect(statSync(join(root, "runtime/log/collector.log")).mode & 0o777).toBe(0o600);
     expect(statSync(join(root, "runtime/feed.sock")).mode & 0o777).toBe(0o600);
     expect(statSync(join(root, "runtime")).mode & 0o777).toBe(0o700);
     const json = (await raw(join(root, "runtime/feed.sock"), "get")) as {
@@ -200,8 +226,43 @@ test("real Unix RPC: raw JSON-RPC, typed CLI, acts, refresh, reload, auth, disab
     const get = await cli(root, "get");
     expect(get.code).toBe(0);
     expect(JSON.parse(get.stdout).rev).toBe(json.result.rev);
+    const lines = await cli(root, "get", "--items");
+    expect(lines.code).toBe(0);
+    const rows = lines.stdout
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    expect(rows).toHaveLength(4);
+    expect(rows[0].title).toBe(displayTitle);
+    expect(
+      Array.from(lines.stdout).every((char) => {
+        const code = char.charCodeAt(0);
+        return code === 10 || (code >= 32 && (code < 127 || code > 159));
+      }),
+    ).toBe(true);
+    expect(rows[0]).toMatchObject({
+      v: 1,
+      plan: "inbox",
+      pinned: false,
+      handled: false,
+      state: "ok",
+    });
+    expect(rows[0].key).toBe(`${json.result.items[0].source}:${json.result.items[0].key}`);
     const item = json.result.items.find((i) => i.source === "todo")!;
     const key = `todo:${item.key}`;
+    expect((await cli(root, "plan", key, "today", "--agent", "test-session")).code).toBe(0);
+    expect((await cli(root, "pin", key, "--agent")).code).toBe(0);
+    expect((await cli(root, "handled", key)).code).toBe(0);
+    expect((await cli(root, "look", "--agent=test-session")).code).toBe(0);
+    const overlaySnapshot = JSON.parse((await cli(root, "get")).stdout);
+    expect(overlaySnapshot.lastLookAt).toBeString();
+    expect(
+      overlaySnapshot.items.find(
+        (i: { source: string; key: string }) => `${i.source}:${i.key}` === key,
+      ).overlay,
+    ).toMatchObject({ plan: "today", pinned: true, handledAt: expect.any(String) });
+    expect((await cli(root, "handled", key, "--undo")).code).toBe(0);
+    expect((await cli(root, "pin", key, "--off")).code).toBe(0);
     expect((await cli(root, "todo", "done", key, "--agent", "test-session")).code).toBe(0);
     const after = JSON.parse((await cli(root, "get")).stdout);
     expect(after.items).toHaveLength(3);
@@ -297,3 +358,74 @@ test("real Unix RPC: raw JSON-RPC, typed CLI, acts, refresh, reload, auth, disab
     rmSync(root, { recursive: true, force: true });
   }
 }, 20000);
+
+test("overlay and action CLI commands map exactly to act with caller attribution", async () => {
+  const root = mkdtempSync("/tmp/sc-map-");
+  mkdirSync(join(root, "runtime"));
+  const calls: unknown[] = [];
+  const server = createServer((socket) => {
+    let buffer = "";
+    socket.on("data", (chunk) => {
+      buffer += chunk.toString();
+      while (buffer.includes("\n")) {
+        const end = buffer.indexOf("\n");
+        const message = JSON.parse(buffer.slice(0, end));
+        buffer = buffer.slice(end + 1);
+        calls.push({ method: message.method, params: message.params });
+        socket.write(
+          JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { rev: 42 } }) + "\n",
+        );
+      }
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(join(root, "runtime/feed.sock"), resolve));
+  try {
+    const cases: { args: string[]; input: Record<string, unknown> }[] = [
+      {
+        args: ["plan", "fake:one", "today"],
+        input: { do: "plan", key: "fake:one", plan: "today" },
+      },
+      {
+        args: ["plan", "fake:one", "inbox"],
+        input: { do: "plan", key: "fake:one", plan: "inbox" },
+      },
+      {
+        args: ["plan", "fake:one", "later"],
+        input: { do: "plan", key: "fake:one", plan: "later" },
+      },
+      { args: ["pin", "fake:one"], input: { do: "pin", key: "fake:one", pinned: true } },
+      { args: ["pin", "fake:one", "--off"], input: { do: "pin", key: "fake:one", pinned: false } },
+      { args: ["handled", "fake:one"], input: { do: "handled", key: "fake:one", undo: false } },
+      {
+        args: ["handled", "fake:one", "--undo"],
+        input: { do: "handled", key: "fake:one", undo: true },
+      },
+      { args: ["look"], input: { do: "look" } },
+      {
+        args: ["action", "fake:one", "open"],
+        input: { do: "action", key: "fake:one", action: "open" },
+      },
+    ];
+    for (const { args, input } of cases) {
+      for (const attribution of [[], ["--agent"], ["--agent", "test-session"]]) {
+        const result = await cli(root, ...args, ...attribution);
+        expect(result.code).toBe(0);
+        expect(JSON.parse(result.stdout)).toEqual({ rev: 42 });
+        expect(result.stderr).toBe("");
+        expect(calls.pop()).toEqual({
+          method: "act",
+          params: {
+            ...input,
+            actor: attribution.length ? "agent" : "you",
+            ...(attribution.length === 2 ? { agent: "test-session" } : {}),
+          },
+        });
+      }
+    }
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+    rmSync(root, { recursive: true, force: true });
+  }
+}, 30000);
