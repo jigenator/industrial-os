@@ -157,3 +157,6 @@ A new element gets its own `elements/<element-name>/` folder with README, code, 
 The package and color ownership are recorded at the root in [the in-repo design-system package](../../docs/decisions/in-repo-design-system-package.md). No project-level decision records exist yet. The confirmed product direction is in [mission](../../docs/mission.md) and [design](../../docs/design.md). Add a record under `docs/decisions/` only for a consequential choice with alternatives and a revisit condition; map each record directly in AGENTS.
 
 Callout-entrance and phosphor-head import foundation and the internal motion frame only. Both admit a measured-grapheme seam; they never own text reveal pacing.
+## Dashboard addition
+
+The dashboard elements compose CellGrid and the existing pixel-numeral FONT through its new integerNumeral API. CellGrid is an I/O-free foundation composition seam for the type unit and ambient field (also used by the pane). The source-identity tokens live in foundation/type-colors.mjs. Decode, breathe, arrival-ping and ambient-sweep follow the existing motion seam; selection wipe and bar/block fill-in reuse existing motions.

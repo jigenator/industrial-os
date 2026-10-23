@@ -3,6 +3,7 @@ import { documentHeading, listRow, quoteRows, linkLines, codeBand, inlineCode, s
 import { cardState, cardHeading, sheetCard, stackCard, stackRow, sheetListRow } from '../elements/sheet-card/sheet-card.mjs';
 import { deskStrip, deskHeading, questionTitle, questionBody, deskFooter } from '../elements/desk-tray/desk-tray.mjs';
 import { operationHeading, operationRow, operationDetail } from '../elements/operation-row/operation-row.mjs';
+import { DASHBOARD_STORIES } from './storybook-dashboard.mjs';
 // Element stories: each element with named state variants. Pure and I/O-free. Every specimen comes from
 // the real renderer, and its usage text is built from the same arguments that drew it. Values are labeled
 // demonstration fixtures, many modeled on the Pi extensions' own fixtures in the element READMEs.
@@ -686,4 +687,4 @@ const OPERATION_ROW = contentStory('operation-row','OPERATION ROW','Fixed data c
   {name:'DETAIL',fn:'operationDetail',input:{label:'STATUS',value:'running - synthetic fixture'}},
 ]);
 
-export const ELEMENT_STORIES = [PANEL, FRAME, PLATE, COUNT, MODE, CHIP, LAMP, ROW, GAUGE, NUMERAL, METER, RAIL, MARKER, LINE_METER, COLUMN_BLOCK, TAB_RULE, ACTION_LABEL, POPUP_HEADER, NOTICE_ROW, SCOPE_METER, SOUNDING_METER, FEED_BEZEL, INPUT_FRAME, CALLOUT, DOCUMENT_BLOCK, SHEET_CARD, DESK_TRAY, OPERATION_ROW];
+export const ELEMENT_STORIES = [PANEL, FRAME, PLATE, COUNT, MODE, CHIP, LAMP, ROW, GAUGE, NUMERAL, METER, RAIL, MARKER, LINE_METER, COLUMN_BLOCK, TAB_RULE, ACTION_LABEL, POPUP_HEADER, NOTICE_ROW, SCOPE_METER, SOUNDING_METER, FEED_BEZEL, INPUT_FRAME, CALLOUT, DOCUMENT_BLOCK, SHEET_CARD, DESK_TRAY, OPERATION_ROW, ...DASHBOARD_STORIES];

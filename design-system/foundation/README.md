@@ -126,3 +126,7 @@ Status-bar's consumed element, token, seeded and motion subpaths also have decla
 ## Checks
 
 `node --test foundation/*.test.mjs` covers seeded determinism and bounds, the signal colors' format and `mixOver`'s rounding, range and declared mixes, the Herdr chrome colors' format and 30% mix, the Pi chrome colors' format and names, sanitization, truncation, exact line widths, unchanged named-role SGR, literal RGB and invalid-style boundaries, color/plain equivalence for all 110 color/ramp swatches, the 22 color records (unique ids, uppercase hex, families) and their immutability, exact ramp centers and all 256 channel values. Full validation remains in [Contributing](../CONTRIBUTING.md).
+
+## Dashboard foundation
+
+`type-colors.mjs` exports TYPE_COLORS and typeColor(token): type.pr violet, type.todo existing PI_CHROME.bone, type.linear indigo, type.msg teal, type.email sand. Missing/unknown/prototype tokens fall back to bone, never arbitrary RGB. These identify sources, not state. `cell-grid.mjs` exports CellGrid: bounded width/height 1–1000, approved one-cell put(), ASCII-sanitized text(), span-preserving place(), and copied lines(). It owns no I/O. Structural glyphs now also include dotted rules, week blocks, empty squares/diamonds, enter and the 256 braille cells (U+2800–U+28FF); the one-cell terminal prerequisite still applies.

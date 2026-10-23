@@ -239,3 +239,9 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [herdr-plugins/automations-monitor/docs/design.md](herdr-plugins/automations-monitor/docs/design.md) | Automations monitor layout, states, colors, keys, truthfulness and mockup deviations | Changing anything an automations monitor user sees |
 | [herdr-plugins/automations-monitor/docs/mission.md](herdr-plugins/automations-monitor/docs/mission.md) | Automations monitor goals and non-goals | Choosing automations monitor scope |
 | [docs/decisions/automations-monitor-stack.md](docs/decisions/automations-monitor-stack.md) | Why the automations monitor runs on Bun, TypeScript 7 and Effect, and supersedes the pipeline-floor branch | Changing the automations monitor's runtime, dependencies or build |
+| [design-system/elements/type-unit/README.md](design-system/elements/type-unit/README.md) | Type Unit contract | Using or changing type-unit |
+| [design-system/elements/activity-strip/README.md](design-system/elements/activity-strip/README.md) | Activity Strip contract | Using or changing activity-strip |
+| [design-system/elements/plan-counter/README.md](design-system/elements/plan-counter/README.md) | Plan Counter contract | Using or changing plan-counter |
+| [design-system/elements/activity-trace/README.md](design-system/elements/activity-trace/README.md) | Activity Trace contract | Using or changing activity-trace |
+| [design-system/elements/alert-ticker/README.md](design-system/elements/alert-ticker/README.md) | Alert Ticker contract | Using or changing alert-ticker |
+| [design-system/elements/ambient-field/README.md](design-system/elements/ambient-field/README.md) | Ambient Field contract | Using or changing ambient-field |

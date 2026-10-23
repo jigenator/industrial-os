@@ -1,0 +1,3 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import { CellGrid } from './cell-grid.mjs'; import { paint } from './cells.mjs';
+test('grid clips coordinates, sanitizes external text and copies output', () => { const g = new CellGrid(4, 2); g.text(-1, 0, 'ab\x1bc'); assert.equal(paint(g.lines()[0], 'none'), 'b?c '); g.put(40, 40, 'x'); assert.throws(() => g.put(0, 0, '\x1b')); assert.throws(() => g.put(0, 0, '好')); assert.throws(() => g.put(0, 0, 'a', {fg:'bad'})); const lines = g.lines(); lines[0][0].text = 'z'; assert.equal(g.rows[0][0].text,'b'); });
+test('invalid dimensions rejected', () => { for (const n of [0,-1,Infinity,1.2,1001]) assert.throws(() => new CellGrid(n,2)); });

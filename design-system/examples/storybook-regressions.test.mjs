@@ -5,6 +5,16 @@ import { deskStrip, deskHeading, questionTitle, questionBody, deskFooter } from 
 import { operationHeading, operationRow, operationDetail } from '../elements/operation-row/operation-row.mjs';
 import { calloutEntrance } from '../motions/callout-entrance.mjs';
 import { phosphorHead } from '../motions/phosphor-head.mjs';
+import { typeUnit } from '../elements/type-unit/type-unit.mjs';
+import { activityStrip } from '../elements/activity-strip/activity-strip.mjs';
+import { planCounter } from '../elements/plan-counter/plan-counter.mjs';
+import { activityTrace } from '../elements/activity-trace/activity-trace.mjs';
+import { alertTicker } from '../elements/alert-ticker/alert-ticker.mjs';
+import { ambientField } from '../elements/ambient-field/ambient-field.mjs';
+import { decode } from '../motions/decode.mjs';
+import { breathe } from '../motions/breathe.mjs';
+import { arrivalPing } from '../motions/arrival-ping.mjs';
+import { ambientSweep } from '../motions/ambient-sweep.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -65,6 +75,7 @@ const API = {
   callout, calloutGeometry, subtitle, subtitleGeometry, timestampLeader, documentHeading, listRow, quoteRows, linkLines, codeBand, inlineCode, specTable, cardState, cardHeading, sheetCard, stackCard, stackRow, sheetListRow, deskStrip, deskHeading, questionTitle, questionBody, deskFooter, operationHeading, operationRow, operationDetail, calloutEntrance, phosphorHead,
   feedBezel, imageLabel, imageInset, inputFrame, feedScan, cornerSnap,
   tabRule, leader, neatline, nameRule, actionLabel, keyHints, popupHeader, popupFooter, noticeRow, scopeMeter, soundingMeter, scopeTrace, soundingSweep,
+  typeUnit, activityStrip, planCounter, activityTrace, alertTicker, ambientField, decode, breathe, arrivalPing, ambientSweep,
   fitLine, span, lineMeter, columnBlock, SIGNAL_COLORS, gauge, gaugeScale, labelPlate, numberedPanel, panelInnerWidth, statusRow, COUNT_PLATES, countPlate,
   LAMP_DIM_STYLE, lamp, modePlate, pnytlPlate, stateChip, stateChips, numeralAt, numeralGrid, numeralLines, pixelNumeral, textGrid, providerColumn,
   segmentMeter, threadRail, threadRailPieces, instrumentFrame, markerBars, markerPlate, transcriptMarker, scan, pulse, reveal,

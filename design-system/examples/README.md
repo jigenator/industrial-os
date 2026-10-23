@@ -152,3 +152,4 @@ Eight new component stories use public rule, action, popup, notice, meter, bezel
 ## Survey content stories
 
 CALLOUT, DOCUMENT BLOCK, SHEET CARD, DESK TRAY and OPERATION ROW use synthetic public API fixtures for every supplied content state. The two new motion stories cover plot-in/register and a host-supplied phosphor head. Error/decline/read-only and receipt words are fixtures, never live statuses. When all variant names cannot fit, the tab row shows clickable `<`/`>` arrows around the selected name wherever space permits, including normal 120-column views. H/L and footer controls remain available at tiny widths. The executable-usage regression suite covers these calls too.
+Dashboard fixtures add TYPE UNIT, ACTIVITY STRIP, PLAN COUNTER, ACTIVITY TRACE, ALERT TICKER and AMBIENT FIELD; decode, breathe, arrival-ping and ambient-sweep previews are marked demonstrations, never real activity. Type tokens are shown in the TYPE UNIT variants.

@@ -91,3 +91,13 @@ export function pixelNumeral({ value, tone }, { width } = {}) {
   // No cropped digits or exponent-shaped pixel guess: small exact text, or # if it cannot fit.
   return [fitLine([span(r.text.length <= width ? r.text : '#'.repeat(width), { fg: r.ink, bold: true })], width), fitLine([], width), fitLine([], width)];
 }
+
+// Exact compact integer, without the context numeral's decimal/minimum width.
+export function integerNumeral(value, { ink = 'secondary' } = {}) {
+  if (value !== null && (!Number.isSafeInteger(value) || value < 0)) throw new RangeError('integer numeral must be nonnegative or null');
+  resolveColor(ink);
+  const text = value === null ? '?' : String(value), w = text.length * 4 - 1;
+  const g = Array.from({ length: 6 }, () => Array(w).fill(null));
+  [...text].forEach((ch, i) => FONT[ch].forEach((row, y) => [...row].forEach((v, x) => { if (v === '1') g[y][i * 4 + x] = ink; })));
+  return numeralLines({ w, g }, { width: w });
+}

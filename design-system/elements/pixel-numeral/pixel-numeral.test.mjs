@@ -109,3 +109,14 @@ test('E2 renderers import only foundation and contain no clock, timer, I/O or un
     assert.doesNotMatch(source, /\b(?:Date|performance|process|setTimeout|setInterval|fetch)\b|Math\.random/);
   }
 });
+
+test('compact integers reuse FONT without decimal, unknown never zero', async () => {
+  const { integerNumeral } = await import('./pixel-numeral.mjs');
+  for (const value of [null, 0, 1, 42, Number.MAX_SAFE_INTEGER]) {
+    const lines = integerNumeral(value);
+    assert.equal(lines.length, 3);
+    assert.equal(lineWidth(lines[0]), (value === null ? 1 : String(value).length) * 4 - 1);
+  }
+  assert.notDeepEqual(integerNumeral(null), integerNumeral(0));
+  for (const value of [-1, NaN, Infinity, 0.5]) assert.throws(() => integerNumeral(value));
+});

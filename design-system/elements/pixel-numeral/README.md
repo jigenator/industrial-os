@@ -54,3 +54,7 @@ status-bar now consumes `numeralGrid`, `numeralAt` and `numeralLines` through ex
 ## Checks
 
 [pixel-numeral.test.mjs](pixel-numeral.test.mjs): exact extension snapshots, hex text grids and their distinct shapes, tone thresholds, unknown/zero distinction, exponent/narrow fallback, grid validation, seeded reconstruction/new-shape-only/immutability, two-ink pixels, every width 1–160, glyph allowlist, plain/color equivalence and E2 source purity. From `design-system/`: `node --test elements/pixel-numeral/pixel-numeral.test.mjs`, then `node --test`. Automated evidence only; native Herdr checks not run.
+
+## Compact integer
+
+`integerNumeral(value, { ink = secondary })` uses the same FONT/packing without decimals or a minimum width. Nonnegative safe integers or null (a pixel ?) only. Returns three natural-width lines, four cells per digit minus the final gap. No cropped digits.

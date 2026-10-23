@@ -1,0 +1,7 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import { paint, lineWidth } from '../../foundation/cells.mjs';
+import { typeUnit, SOURCE_STATES, stalenessBar } from './type-unit.mjs';
+const input={label:'EXAMPLE',state:'ok',total:6,waiting:2,fresh:3,remaining:0.5};
+test('bounded safe lines at every width',()=>{for(let width=1;width<=160;width++){const lines=typeUnit(input,{width});for(const line of lines){assert.equal(lineWidth(line),width);assert.equal(paint(line,'truecolor').replace(/\x1b\[[0-9;]*m/g,''),paint(line,'none'));}}});
+test('states never fabricate counts; planned has neither numbers nor bar',()=>{ for(const state of Object.keys(SOURCE_STATES)) { const text=typeUnit({label:'UNIT',state,total:null},{width:37}).map(l=>paint(l,'none')).join('\n'); if(!['ok','stale'].includes(state)){assert.ok(text.includes(SOURCE_STATES[state]));assert.ok(!text.includes('━'.repeat(8)));}} });
+test('inverse staleness bar exact direction',()=>{assert.equal(paint(stalenessBar(1),'none'),'━━━━━━━━');assert.equal(paint(stalenessBar(0),'none'),'────────');assert.equal(paint(stalenessBar(null),'none'),'????????');assert.throws(()=>stalenessBar(-1));});
+test('hover changes brackets only, never fills background',()=>{const a=typeUnit({label:'UNIT',state:'planned'},{width:37});const b=typeUnit({label:'UNIT',state:'planned',hover:true},{width:37});assert.deepEqual(a.map(l=>paint(l,'none')),b.map(l=>paint(l,'none')));for(const l of b)for(const s of l)assert.equal(s.style.bg,undefined);});

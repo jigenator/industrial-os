@@ -192,3 +192,6 @@ Node v22.23.4, macOS. `noticeRow` gains opt-in `wrap` (word-wrapped headline han
 - Strict NodeNext declarations and `package-types.ts` (with a new `@ts-expect-error` for a non-numeric inset) passed with TypeScript 7.0.2 from the Lunalee worktree, because claude-interrupt's compiler was not installed in this worktree.
 - Required plain CLI snapshots (showcase 120/100/80/48/40/23; storybook 120/80/48/24/12 at 24 rows) exited 0.
 - **Not run:** native Herdr or real-PTY checks of the new variant; consumer suites (no consumer source changed).
+## Dispatch dashboard primitives
+
+Automated validation on Node 22.23.4: full `node --test` passes (425 checks), including dashboard widths 1–160, every source state, token resolution, inverse staleness, week mapping, empty trace/ticker, decoration clearance, deterministic motion/off and generated storybook usage. Showcase snapshots at 120/100/80/48/40/23 and storybook snapshots at 120/80/48/24/12 (24 rows) were generated and reviewed. The compact integer shares FONT; its shapes differ slightly from the prototype's hand-drawn digit face. Native dashboard rendering is validated in the dispatch-feed pane, separately from storybook-native verification; no new interactive storybook certification is implied.

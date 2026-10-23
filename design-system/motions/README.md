@@ -579,3 +579,24 @@ Frozen `PHOSPHOR_HEAD_DEFAULTS`: optional `head:{row,col}`, optional `measure`, 
 ### DS-2b review geometry refinements
 
 Callout-entrance accepts optional `timestampRegion`; plot-in hides only that explicitly supplied text region before 120 ms. Supply it for timestamps, **not essential receipt/error words**. ReadoutRegion continues to address only the leader. Use `calloutGeometry()` rather than copied layout arithmetic. Negative integral region coordinates/extents clamp to zero; empty or undersized registration reservations no-op; occupied mark targets are left untouched. Malformed options and unsafe measured text still fail validation. Off-by-one head coordinates in phosphor-head (negative, out-of-frame or inside a wide continuation) safely leave text alone. `subtitleGeometry()` supplies a head from the full line and explicit revealed count, without host reimplementation of centering.
+## Dashboard motions
+
+The dashboard reuses `wipe` for the selection (160 ms, ltr, style only), `fillIn` for bars/blocks and `restrike` for numeral ink. No duplicate motions implement those behaviors.
+
+### `decode(lines, options)` and `decodeDuration(options)`
+
+Bounded scramble-and-settle, the declared dispatch-feed exception to the [shared motion rule](../../docs/design.md#motion). Changes **plain text**, including letters/digits: before each seeded landing, blank then scramble from the v20 alphabet. Spaces stay spaces. Options: duration (default 450, 1–600 ms), seed (integer, default 0), scramble (boolean, default true; false keeps characters with bold re-strike), region. DECODE_DEFAULTS exports them. 70 ms glyph steps (14.3 per second), settled exactly at duration. Warning/critical cells are always exempt. Motion-off shows the true text immediately. Hosts must not send entire warnings/errors through it: compose their complete messages outside decode.
+
+### `breathe(lines, options)`
+
+Slow smooth foreground lift toward white: 60% at half-period, original at phase zero. BREATHE_DEFAULTS: period 4000 ms (1–60000), region. Characters unchanged; warning/critical exempt. Use only an actually current activity block. Motion-off unchanged. Looping; host frames at 67 ms.
+
+### `arrivalPing(lines, options)` and `arrivalPingDuration(options)`
+
+Two expanding dot rings over blank cells only in an **explicit decoration-only region**. ARRIVAL_PING_DEFAULTS: duration 1600 ms, x/y 0, radius 16 cells (integer geometry 0–1000). Horizontal radius is doubled for terminal proportions. Last ring ends at duration × 1.25. Changes plain text; nonblank content and warning/critical cells remain untouched. 50 ms host frames. Motion-off is unchanged input, no rings. The host admits only genuinely observed arrivals and clear space, not inferred activity.
+
+### `ambientSweep(lines, options)`
+
+AMBIENT_SWEEP_DEFAULTS: period 16000 ms, run 4000 ms (positive, run ≤ period), region. Lifts only decorative ┼│─· foreground by at most 5% white, moving vertically. Compose essential content outside it. Characters unchanged, warning/critical exempt. Motion-off unchanged; continuous host frames at 67 ms. Ambient grid/dots/registration marks come from ambient-field; load-in uses existing drawIn on decoration only.
+
+All four follow shared validation/immutability/time/region contracts and own no timers. Every exported primitive has a colocated deterministic test and a storybook preview.
