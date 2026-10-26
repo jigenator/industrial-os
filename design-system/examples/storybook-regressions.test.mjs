@@ -20,7 +20,7 @@ import { COUNT_PLATES, countPlate } from '../elements/count-plate/count-plate.mj
 import { LAMP_DIM_STYLE, lamp } from '../elements/lamp/lamp.mjs';
 import { modePlate, pnytlPlate } from '../elements/mode-plate/mode-plate.mjs';
 import { stateChip, stateChips } from '../elements/state-chip/state-chip.mjs';
-import { numeralAt, numeralGrid, numeralLines, pixelNumeral } from '../elements/pixel-numeral/pixel-numeral.mjs';
+import { numeralAt, numeralGrid, numeralLines, pixelNumeral, textGrid } from '../elements/pixel-numeral/pixel-numeral.mjs';
 import { providerColumn, segmentMeter } from '../elements/segment-meter/segment-meter.mjs';
 import { threadRail, threadRailPieces } from '../elements/thread-rail/thread-rail.mjs';
 import { instrumentFrame } from '../elements/instrument-frame/instrument-frame.mjs';
@@ -66,7 +66,7 @@ const API = {
   feedBezel, imageLabel, imageInset, inputFrame, feedScan, cornerSnap,
   tabRule, leader, neatline, nameRule, actionLabel, keyHints, popupHeader, popupFooter, noticeRow, scopeMeter, soundingMeter, scopeTrace, soundingSweep,
   fitLine, span, lineMeter, columnBlock, SIGNAL_COLORS, gauge, gaugeScale, labelPlate, numberedPanel, panelInnerWidth, statusRow, COUNT_PLATES, countPlate,
-  LAMP_DIM_STYLE, lamp, modePlate, pnytlPlate, stateChip, stateChips, numeralAt, numeralGrid, numeralLines, pixelNumeral, providerColumn,
+  LAMP_DIM_STYLE, lamp, modePlate, pnytlPlate, stateChip, stateChips, numeralAt, numeralGrid, numeralLines, pixelNumeral, textGrid, providerColumn,
   segmentMeter, threadRail, threadRailPieces, instrumentFrame, markerBars, markerPlate, transcriptMarker, scan, pulse, reveal,
   drawIn, warmUp, latch, beacon, cycle, fade, blink, BLINK_PRESETS, flash, FLASH_PRESETS, ping, wipe, fillIn, burnOut,
   BURN_OUT_PRESETS, edgePulse, restrike, ghost, nudge,

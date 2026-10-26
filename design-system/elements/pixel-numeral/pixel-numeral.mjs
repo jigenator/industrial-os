@@ -11,6 +11,13 @@ export const FONT = Object.freeze(Object.fromEntries(Object.entries({
   '.': ['0', '0', '0', '0', '1'], '-': ['000', '000', '111', '000', '000'],
   '?': ['111', '001', '011', '000', '010'],
 }).map(([key, rows]) => [key, Object.freeze(rows)])));
+// Hex letters for unit codes such as a session's last four hex digits. Separate from FONT, whose keys are the
+// characters a formatted reading can contain; textGrid draws from both.
+export const HEX_FONT = Object.freeze(Object.fromEntries(Object.entries({
+  A: ['111', '101', '111', '101', '101'], B: ['110', '101', '110', '101', '110'],
+  C: ['111', '100', '100', '100', '111'], D: ['110', '101', '101', '101', '110'],
+  E: ['111', '100', '111', '100', '111'], F: ['111', '100', '111', '100', '100'],
+}).map(([key, rows]) => [key, Object.freeze(rows)])));
 export const NUMERAL_TONES = Object.freeze({ ok: 'primary', warn: 'warning', high: 'critical', unknown: 'decorative' });
 function reading(value, tone) {
   const known = value !== null && value !== undefined;
@@ -20,17 +27,31 @@ function reading(value, tone) {
   return { text: known ? value.toFixed(1) : '?', ink: NUMERAL_TONES[tone ?? (!known ? 'unknown' : value > 90 ? 'high' : value > 70 ? 'warn' : 'ok')] };
 }
 
-// footer.ts:332-346: six pixel rows (last empty), minimum width 13, one empty column between glyphs.
+// footer.ts:332-346: six pixel rows (last empty), one empty column between glyphs, at least minWidth columns.
+function gridOf(chars, ink, minWidth) {
+  const cols = [];
+  chars.forEach((ch, i) => {
+    const glyph = FONT[ch] ?? HEX_FONT[ch];
+    if (i) cols.push(Array(5).fill(false));
+    for (let x = 0; x < glyph[0].length; x++) cols.push(glyph.map((row) => row[x] === '1'));
+  });
+  const w = Math.max(minWidth, cols.length);
+  return { w, g: Array.from({ length: 6 }, (_, y) => Array.from({ length: w }, (_, x) => cols[x]?.[y] ? ink : null)) };
+}
 export function numeralGrid(value, { tone } = {}) {
   const { text, ink } = reading(value, tone);
   if (![...text].every((ch) => Object.hasOwn(FONT, ch))) return undefined;
-  const cols = [];
-  [...text].forEach((ch, i) => {
-    if (i) cols.push(Array(5).fill(false));
-    for (let x = 0; x < FONT[ch][0].length; x++) cols.push(FONT[ch].map((row) => row[x] === '1'));
-  });
-  const w = Math.max(13, cols.length);
-  return { w, g: Array.from({ length: 6 }, (_, y) => Array.from({ length: w }, (_, x) => cols[x]?.[y] ? ink : null)) };
+  return gridOf([...text], ink, 13);
+}
+// Any FONT or HEX_FONT characters, exactly as wide as their glyphs: no minimum width and no number formatting.
+export function textGrid(text, { ink = 'primary' } = {}) {
+  if (typeof text !== 'string') throw new TypeError('pixel text must be a string');
+  const chars = [...text];
+  if (chars.length === 0 || chars.length > 250 || !chars.every((ch) => Object.hasOwn(FONT, ch) || Object.hasOwn(HEX_FONT, ch))) {
+    throw new RangeError('pixel text must be 1–250 characters from FONT or HEX_FONT');
+  }
+  resolveColor(ink);
+  return gridOf(chars, ink, 1);
 }
 function validateGrid(grid) {
   if (!grid || !Number.isInteger(grid.w) || grid.w < 1 || grid.w > 1000 ||

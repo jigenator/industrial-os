@@ -159,3 +159,10 @@ test('image graticule junction glyphs have the same narrow ruler contract',()=>{
     assert.equal(lineWidth([span(glyph.repeat(40))]),40);
   }
 });
+
+test('heavy frame junction glyphs have the same narrow ruler contract', () => {
+  for (const glyph of ['┣', '┫', '┻']) {
+    assert.ok(GLYPHS.includes(glyph));
+    assert.equal(lineWidth([span(`┃${glyph.repeat(40)}┃`)]), 42);
+  }
+});
