@@ -9,7 +9,8 @@ import { statusRow } from '../elements/status-row/status-row.mjs';
 import { COUNT_PLATES, countPlate } from '../elements/count-plate/count-plate.mjs';
 import { lamp } from '../elements/lamp/lamp.mjs';
 import { modePlate, pnytlPlate } from '../elements/mode-plate/mode-plate.mjs';
-import { stateChips } from '../elements/state-chip/state-chip.mjs';
+import { SURFACE_PALETTE } from '../foundation/surface-palette.mjs';
+import { stateChip, stateChips } from '../elements/state-chip/state-chip.mjs';
 import { numeralAt, numeralGrid, numeralLines, pixelNumeral } from '../elements/pixel-numeral/pixel-numeral.mjs';
 import { providerColumn, segmentMeter } from '../elements/segment-meter/segment-meter.mjs';
 import { threadRail, threadRailPieces } from '../elements/thread-rail/thread-rail.mjs';
@@ -228,9 +229,14 @@ const CHIP = element('state-chip', {
     { name: 'ATTENTION', note: 'Warning states, with the local-edit suffix.', inputs: CHIPS.attention },
     { name: 'FAULTS', note: 'Critical states: missing, not runnable, unavailable.', inputs: CHIPS.faults },
     { name: 'QUIET', note: 'Checking and inactive in decorative grey.', inputs: CHIPS.quiet },
+    ...Object.entries({ unread: ['unread', '◆', SURFACE_PALETTE.wheat], read: ['read', '', 'decorative'], waiting: ['waiting on you', '●', 'critical'], answered: ['answered', '', 'accent'], declined: ['declined', '', 'decorative'], delivery: ['delivery waiting', '', 'warning'] }).map(([state, [code, shape, tone]]) => ({ name: state.toUpperCase(), note: 'Supplied word form; marker trails the word and an absent label adds no gap.', word: { state, look: { code, shape, tone } } })),
     { name: 'WRAPPED', note: 'At 16 cells whole parts move to new lines; an oversized part splits at its spaces.', inputs: CHIPS.attention, width: 16 },
   ],
   specimen(variant, width) {
+    if (variant.word) {
+      const { state, look } = variant.word;
+      return piece('stateChip', (o) => stateChip({ state }, o), [{ state }], { form: 'word', preset: { [state]: look } }, width);
+    }
     const opts = { width: within(width, variant.width ?? 56) };
     const lines = stateChips(variant.inputs, opts);
     return { lines, calls: [call('stateChips', variant.inputs, opts)], facts: [`${lines.length} ${lines.length === 1 ? 'LINE' : 'LINES'} at ${opts.width} cells`] };
@@ -250,8 +256,13 @@ const LAMP = element('lamp', {
     { name: 'WORKING', note: 'A bright acid cell: a full block in acid on acid.', state: 'working' },
     { name: 'IDLE', note: 'A dark surface cell: a space.', state: 'idle' },
     { name: 'UNKNOWN', note: 'Not reported: a decorative hatch, never drawn as idle or working.', state: 'unknown' },
+    ...[['RX', 'idle', 'decorative'], ['TX', 'working', 'accent'], ['NO LINK', 'unknown', 'critical'], ['WAITING', 'idle', 'critical']].map(([name, state, fg]) => ({ name, state, note: 'Round, explicitly styled and static; the adjacent word carries its meaning.', options: { appearance: 'round', style: { fg, bold: true } } })),
   ],
   specimen(variant, width) {
+    if (variant.options) {
+      const tail = ' ' + variant.name;
+      return { lines: [fitLine([...lamp(variant.state, variant.options), span(tail)], width)], calls: [call('fitLine', code(`[...${call('lamp', variant.state, variant.options)}, ${call('span', tail)}]`), width)], facts: ['ROUND: STATIC; HOST SUPPLIES MEANING'] };
+    }
     return { lines: [fitLine(lamp(variant.state), width)], calls: [call('lamp', variant.state)], facts: [`PLAIN: ${LAMP_PLAIN[variant.state]}`] };
   },
 });

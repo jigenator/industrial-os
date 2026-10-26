@@ -1,4 +1,4 @@
-import { GLYPHS, assertCells, fitLine, lineWidth, resolveColor, safeText, span } from '../../foundation/cells.mjs';
+import { GLYPHS, assertCells, fitLine, lineWidth, resolveColor, safeText, span, fitText } from '../../foundation/cells.mjs';
 
 // footer.ts:24-37: the complete Tatsu component vocabulary, not a check or a success inference.
 export const TATSU_STATES = Object.freeze(Object.fromEntries(Object.entries({
@@ -29,7 +29,22 @@ function renderChip({ label, state, commitsBehind, localChanges = false }, { pre
 }
 
 // Complete chips retain strict count validation; compatibility display is opt-in on natural parts only.
-export function stateChip(input, options = {}) { return renderChip(input, options); }
+export function stateChip(input, { form = 'chip', measure, ...options } = {}) {
+  if (!['chip', 'word'].includes(form)) throw new RangeError('unknown chip form');
+  if (form === 'chip') return renderChip(input, options);
+  const { preset = TATSU_STATES, maxWidth = Infinity } = options;
+  if (!preset || !Object.hasOwn(preset, input.state)) throw new RangeError('unknown chip state');
+  if (maxWidth !== Infinity && (!Number.isInteger(maxWidth) || maxWidth < 0 || maxWidth > 1000)) throw new RangeError('maxWidth must be 0–1000 or Infinity');
+  const look = preset[input.state];
+  if (typeof look.shape !== 'string' || look.shape !== '' && ([...look.shape].length !== 1 || !(GLYPHS.includes(look.shape) || /^[\x20-\x7e]$/.test(look.shape)))) throw new TypeError('word marker must be empty or one curated glyph or ASCII cell');
+  resolveColor(look.tone);
+  const style = { fg: look.tone, bg: 'default' };
+  const word = fitText(look.code, Infinity, { measure, style });
+  const label = fitText(input.label ?? '', Infinity, { measure, style });
+  const line = [...label, ...(lineWidth(label, { measure }) ? [span(' ', style)] : []), ...word,
+    ...(look.shape ? [span(' ' + look.shape, style)] : [])];
+  return fitLine(line, Math.min(maxWidth, lineWidth(line, { measure })), style, { measure });
+}
 
 // footer.ts:1167-1180: three-cell gaps, whole parts wrap; only an oversized part splits at inner spaces.
 export function stateChips(inputs, { width, preset = TATSU_STATES } = {}) {

@@ -16,5 +16,5 @@
     "noUnusedParameters": true,
     "skipLibCheck": true
   },
-  "include": ["src", "bin", "test", "fixtures", "types"]
+  "include": ["src", "bin", "test", "fixtures"]
 }

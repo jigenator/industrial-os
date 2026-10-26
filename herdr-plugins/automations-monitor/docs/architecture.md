@@ -20,10 +20,9 @@ Status: current. Evidence: the source and tests in this directory, the manifest 
 | `src/theme.ts` | Colour roles, category colours and the lamp cadence, all from the design system | `@industrial-os/design-system` |
 | `src/canvas.ts` | A cell grid with text, rules, numerals and hit regions, emitted as design-system lines | `@industrial-os/design-system` |
 | `src/view/*.ts` | Pure drawing: `frame` (header, machine row, footer, failures), `layout`, `list` (scrolling), `pipelines`, `schedules`, `modal`, `parts` | `canvas`, `model`, `theme`, `ui` types |
-| `types/industrialos-colors.d.ts` | A declaration for the one design-system subpath that ships no `.d.mts` | — |
 | `fixtures/` | Invented replies and the fake `tatsu` with its scenarios | — |
 
-Runtime dependencies are `effect` and `@effect/platform-bun`, both exactly 4.0.6; development dependencies are `typescript` 7.0.2 and `@types/bun` 1.4.4. All are locked in `bun.lock`. `@industrial-os/design-system` is not in the manifest: Bun resolves it from the repository root's `node_modules`, which the root `npm install` links, and it is imported only through exported subpaths. Five of the six subpaths used ship `.d.mts` declarations; for `foundation/industrialos-colors` a local declaration types what is read, rather than `allowJs`, which would type-check the design system's source under this project's strict options.
+Runtime dependencies are `effect` and `@effect/platform-bun`, both exactly 4.0.6; development dependencies are `typescript` 7.0.2 and `@types/bun` 1.4.4. All are locked in `bun.lock`. `@industrial-os/design-system` is not in the manifest: Bun resolves it from the repository root's `node_modules`, which the root `npm install` links, and it is imported only through exported subpaths. All six consumed subpaths ship colocated `.d.mts` declarations in the design system, including `foundation/industrialos-colors`; no local ambient shim or `allowJs` is needed.
 
 ## Flows
 

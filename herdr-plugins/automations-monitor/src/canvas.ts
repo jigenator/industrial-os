@@ -1,15 +1,17 @@
 // A cell grid the views draw into, finished as design-system lines of exactly the grid width. Text keeps
-// printable ASCII, the design system's one-cell GLYPHS and the few extra one-cell glyphs the approved
+// printable ASCII, the fixed base design-system glyph set and the few extra one-cell glyphs the approved
 // monitor design uses (EXTRA_GLYPHS); every other code point becomes `?`, so each code point is one cell.
 // Hit regions map a click back to what was drawn there.
-import { GLYPHS, fitLine, span, type Line } from '@industrial-os/design-system/foundation/cells';
+import { fitLine, span, type Line } from '@industrial-os/design-system/foundation/cells';
 import { FONT } from '@industrial-os/design-system/elements/pixel-numeral';
 import { T, type Color } from './theme.ts';
 
 // Box-drawing ticks, a dashed rule, hollow and half-filled squares, a hollow diamond, a low bar, the
-// selection pointer, arrows and en and em dashes. All are East Asian Width Ambiguous or Narrow, like GLYPHS.
+// selection pointer, arrows and en and em dashes. These retain the approved monitor glyph contract.
 export const EXTRA_GLYPHS = '┬┴┄□◩◇▁▶↑↓–—';
-const ALLOWED = new Set([...GLYPHS, ...EXTRA_GLYPHS]);
+// Keep upstream GLYPHS additions from widening what external Tatsu text can display.
+const BASE_GLYPHS = '─│┌┐└┘╵╱▐▌█▏▎▍▋▊▉░○●▲✕…━┃┏┓┗┛┼▀▄▒▓▚▞■▪·•◆▴⌑⑂×';
+const ALLOWED = new Set([...BASE_GLYPHS, ...EXTRA_GLYPHS]);
 export const cleanText = (value: string): string =>
   [...value].map((ch) => ((ch >= ' ' && ch <= '~') || ALLOWED.has(ch) ? ch : '?')).join('');
 

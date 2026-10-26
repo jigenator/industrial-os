@@ -93,3 +93,31 @@ test('labelPlate custom style keeps slab geometry and validates concrete channel
   assert.throws(() => labelPlate('X', { style: { fg: 'invalid' } }), TypeError);
   for (const form of ['capped', 'slab']) assert.deepEqual(labelPlate('X', { form, style: PLATE_TONES.warning }), labelPlate('X', { form, tone: 'warning' }));
 });
+
+test('measured labels and styled slots retain Japanese, combining and ZWJ text within every budget', async () => {
+  const { textSlot } = await import('../../foundation/cells.mjs');
+  const measure = (text) => [...new Intl.Segmenter('und', { granularity: 'grapheme' }).segment(text)].reduce((n, { segment }) => n + (/界|\p{Extended_Pictographic}/u.test(segment) ? 2 : 1), 0);
+  const label = '界e\u0301👩‍💻';
+  const slot = textSlot([{ text: label, style: { italic: true } }], 5, { measure });
+  for (const form of ['capped', 'slab']) for (let width = 0; width <= 160; width++) for (const value of [label, slot]) {
+    const line = labelPlate(value, { form, maxWidth: width, measure });
+    assert.ok(lineWidth(line, { measure }) <= width, `${form}/${width}`);
+    assert.doesNotMatch(text(line), /\?/);
+    assert.equal(stripVTControlCharacters(paint(line, 'truecolor')), text(line));
+  }
+  assert.equal(text(labelPlate(label, { form: 'slab', measure })), ' 界e\u0301👩‍💻 ');
+  assert.ok(labelPlate(slot, { measure }).some((s) => s.style.italic));
+  assert.equal(labelPlate(label, { measure })[0].style.bg, 'default');
+  assert.throws(() => labelPlate('\x1b[31m', { measure }), TypeError);
+  assert.equal(text(labelPlate(label, { form: 'slab' })), ' ?e???? ');
+});
+
+test('measured labels reject leading Extend and ZWJ consistently in padded and unpadded forms', () => {
+  const measure = (text) => [...new Intl.Segmenter('und', { granularity: 'grapheme' }).segment(text)].length;
+  for (const text of ['\u0301title', '\u200dtitle', '\ufe0ftitle', '🏻title']) {
+    const slot = { spans: [{ text, style: {} }], width: measure(text) };
+    for (const form of ['slab', 'capped']) for (const pad of [true, false]) for (const value of [text, slot]) {
+      assert.throws(() => labelPlate(value, { form, pad, measure }), RangeError);
+    }
+  }
+});

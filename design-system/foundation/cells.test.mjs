@@ -86,3 +86,69 @@ test('explicit terminal defaults paint as 39/49 without changing omitted-channel
   assert.equal(paint([span('X', { fg: 'accent', bg: 'default', bold: true })], 'truecolor'), '\x1b[0;1;38;2;192;254;4;49mX\x1b[0m');
   assert.equal(paint([span('X', { fg: 'default' })], 'truecolor'), '\x1b[0;39;48;2;0;0;0mX\x1b[0m');
 });
+
+const segmenter = new Intl.Segmenter('und', { granularity: 'grapheme' });
+const measure = (text) => [...segmenter.segment(text)].reduce((n, { segment }) => n + (/\p{Extended_Pictographic}|界|日|本/u.test(segment) ? 2 : 1), 0);
+
+test('measured slots preserve Unicode, rich styles, whole graphemes and caller data', async () => {
+  const { textSlot, fitText } = await import('./cells.mjs');
+  const original = [span('日本e\u0301', { italic: true, bg: 'default' }), span('👩‍💻🙂!', { underline: true })];
+  const before = structuredClone(original);
+  const slot = textSlot(original, 10, { measure });
+  assert.equal(paint(slot.spans, 'none'), '日本e\u0301👩‍💻🙂!');
+  assert.deepEqual(original, before);
+  assert.notEqual(slot.spans[0].style, original[0].style);
+  for (let width = 0; width <= 160; width++) {
+    const clipped = fitText(slot, width, { measure });
+    assert.ok(lineWidth(clipped, { measure }) <= width);
+    const fitted = fitLine(slot.spans, width, {}, { measure });
+    assert.equal(lineWidth(fitted, { measure }), width);
+    assert.doesNotMatch(paint(fitted, 'none'), /\?/);
+    for (const { segment } of segmenter.segment(paint(clipped, 'none'))) {
+      assert.ok(['日', '本', 'e\u0301', '👩‍💻', '🙂', '!', '…'].includes(segment), segment);
+    }
+  }
+  assert.equal(paint(fitText(slot, 4, { measure }), 'none'), '日…');
+  assert.match(paint(slot.spans, 'truecolor'), /0;3;/);
+  assert.match(paint(slot.spans, 'truecolor'), /0;4;/);
+});
+
+test('measured slots reject injection, forged widths, split clusters and invalid measurements', async () => {
+  const { textSlot, fitText } = await import('./cells.mjs');
+  for (const text of ['a\x1b[31m', '\x00', '\x7f', '\x9b', '\n', '\t', '\u202e', '\u2066', '\u200f']) {
+    assert.throws(() => textSlot([span(text)], 1, { measure }), TypeError);
+    assert.throws(() => fitText(text, 10, { measure }), TypeError);
+  }
+  for (const width of [-1, 1.5, Infinity, NaN, '1']) assert.throws(() => textSlot([span('A')], width, { measure }), RangeError);
+  for (const bad of [-1, 1.5, Infinity, NaN, '1']) assert.throws(() => fitText('A', 10, { measure: () => bad }), RangeError);
+  assert.throws(() => textSlot([span('A')], 1), TypeError);
+  assert.throws(() => textSlot(Array(1), 0, { measure }), TypeError);
+  assert.throws(() => fitText('\ud800', 1, { measure }), TypeError);
+  assert.throws(() => textSlot([span('界')], 1, { measure }), RangeError);
+  assert.throws(() => fitText({ spans: [span('界')], width: 1 }, 10, { measure }), RangeError);
+  assert.throws(() => textSlot([span('e'), span('\u0301')], 1, { measure }), RangeError);
+  assert.throws(() => textSlot([span('👩'), span('‍💻')], 4, { measure }), RangeError);
+  assert.throws(() => textSlot([span('A', { underline: 'yes' })], 1, { measure }), TypeError);
+  assert.throws(() => fitText('A', 1001, { measure }), RangeError);
+});
+
+test('curated survey glyphs and braille keep a one-cell ruler in the narrow contract', async () => {
+  const { GLYPHS } = await import('./cells.mjs');
+  const newGlyphs = '╴╶┄├└┴┸▤▣▸▾▼◇›' + Array.from({ length: 256 }, (_, n) => String.fromCodePoint(0x2800 + n)).join('');
+  for (const ch of newGlyphs) {
+    assert.ok(GLYPHS.includes(ch), ch);
+    assert.equal(lineWidth([span(`│${ch}│`)]), 3);
+    assert.equal(measure(ch), 1);
+  }
+});
+
+test('measured strings and slots reject leading Extend or ZWJ before attaching to element gaps', async () => {
+  const { textSlot, fitText } = await import('./cells.mjs');
+  for (const prefix of ['\u0301', '\u200d', '\ufe0f', '🏻']) {
+    const text = prefix + 'fixture';
+    const slot = { spans: [span(''), span(text)], width: measure(text) };
+    assert.throws(() => textSlot(slot.spans, slot.width, { measure }), RangeError);
+    assert.throws(() => fitText(slot, 20, { measure }), RangeError);
+    assert.throws(() => fitText(text, 20, { measure }), RangeError);
+  }
+});

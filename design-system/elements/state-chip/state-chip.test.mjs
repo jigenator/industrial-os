@@ -93,3 +93,42 @@ test('stateChipParts validates opt-in count policy without relaxing generic coun
   assert.throws(() => stateChipParts({ label: 'TCLI', state: 'behind' }, { countPolicy: 'coerce' }), RangeError);
   assert.throws(() => stateChipParts({ label: 'BG', state: 'current' }, { countPolicy: 'number-text', count: -1 }), RangeError);
 });
+
+test('word form uses custom state words and trailing optional markers, with no empty label gap', () => {
+  const preset = {
+    unread: { code: 'unread', shape: '◆', tone: 'secondary' }, read: { code: 'read', shape: '', tone: 'decorative' },
+    waiting: { code: 'waiting on you', shape: '●', tone: 'critical' }, answered: { code: 'answered', shape: '', tone: 'accent' },
+    declined: { code: 'declined', shape: '', tone: 'decorative' }, delivery: { code: 'delivery waiting', shape: '', tone: 'warning' },
+  };
+  for (const [state, look] of Object.entries(preset)) {
+    const full = stateChip({ state }, { form: 'word', preset });
+    assert.equal(paint(full, 'none'), look.code + (look.shape ? ' ' + look.shape : ''));
+    assert.equal(full[1]?.text === ' ' && full[0].text === '', false);
+    for (let maxWidth = 0; maxWidth <= 160; maxWidth++) assert.ok(lineWidth(stateChip({ state }, { form: 'word', preset, maxWidth })) <= maxWidth);
+    assert.deepEqual(stateChip({ label: 'TCLI', state: 'current' }), stateChip({ label: 'TCLI', state: 'current' }, { form: 'chip' }));
+  }
+  assert.throws(() => stateChip({ state: 'read' }, { form: 'bad', preset }), RangeError);
+  assert.throws(() => stateChip({ state: 'read' }, { form: 'word', preset: { read: { code: 'read', shape: '\x1b', tone: 'accent' } } }), TypeError);
+});
+
+test('word form preserves measured answer slots and rejects forged/injected slots', async () => {
+  const { textSlot } = await import('../../foundation/cells.mjs');
+  const measure = (s) => [...new Intl.Segmenter('und', { granularity: 'grapheme' }).segment(s)].reduce((n, { segment }) => n + (/界|\p{Extended_Pictographic}/u.test(segment) ? 2 : 1), 0);
+  const answer = textSlot([{ text: 'answered · 界e\u0301👩‍💻', style: { italic: true } }], 16, { measure });
+  const preset = { answered: { code: answer, shape: '', tone: 'accent' } };
+  const full = stateChip({ state: 'answered' }, { form: 'word', preset, measure });
+  assert.equal(paint(full, 'none'), 'answered · 界e\u0301👩‍💻');
+  for (let maxWidth = 0; maxWidth <= 160; maxWidth++) assert.ok(lineWidth(stateChip({ state: 'answered' }, { form: 'word', preset, measure, maxWidth }), { measure }) <= maxWidth);
+  assert.throws(() => stateChip({ state: 'answered' }, { form: 'word', preset }), TypeError);
+});
+
+test('word form rejects leading Extend and ZWJ in measured labels and preset words', () => {
+  const measure = (text) => [...new Intl.Segmenter('und', { granularity: 'grapheme' }).segment(text)].length;
+  for (const text of ['\u0301answer', '\u200danswer', '\ufe0fanswer', '🏻answer']) {
+    const slot = { spans: [{ text, style: {} }], width: measure(text) };
+    for (const value of [text, slot]) {
+      assert.throws(() => stateChip({ state: 'answered' }, { form: 'word', measure, preset: { answered: { code: value, shape: '', tone: 'accent' } } }), RangeError);
+      assert.throws(() => stateChip({ label: value, state: 'current' }, { form: 'word', measure }), RangeError);
+    }
+  }
+});

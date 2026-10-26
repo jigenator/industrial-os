@@ -4,7 +4,7 @@ The design system's own experience, within the repository-wide [design](../../do
 
 ## Experience
 
-The design system is a curated reference kit of polished terminal elements for Herdr, with a storybook to browse them and a showcase that composes them. It is a reference for the Pi extensions and the planned Herdr tooling, and a private package the repository's projects can import by name; both Pi extensions now consume exported subpaths through host adapters.
+The design system is a curated reference kit of polished terminal elements for Herdr, with a storybook to browse them and a showcase that composes them. It is a reference for the Pi extensions and the planned Herdr tooling, and a private package the repository's projects can import by name; both Pi extensions now consume exported subpaths through host adapters. Lunalee is the sole authorised outside consumer via pinned public root-package paths; see the [decision](../../docs/decisions/in-repo-design-system-package.md#lunalee-pinned-public-git-consumption).
 
 ## Elements
 
@@ -59,3 +59,7 @@ Current status: every element has a native renderer with automated layout and co
 The native Herdr checks of the showcase, the storybook, and an earlier version of the COLORS story are recorded in [Contributing](../CONTRIBUTING.md#native-verification-baseline) with their exact scope. They predate the second element set, the sixteen new motions, the SIGNAL COLORS story, and the storybook's current index and playback, which have automated checks only. No accessibility certification, physical-pixel contrast assessment, or performance measurement is claimed.
 
 Open decisions: visual refinements to every element and motion. Shared open decisions are in the [repository-wide design](../../docs/design.md#verification-and-open-questions).
+
+## Survey surface and reuse extensions
+
+The [foundation surface](../foundation/README.md#surface) supplies the current charcoal gradient, stable hashed minor/major dots and per-cell fill blending. It owns color values and compositing, not Lunalee's alpha configuration or ANSI/copy/image adapter. Plain/NO_COLOR has no floor or generated colors. The SURFACE story uses synthetic cells for clear, locked translucent, solid and NO_COLOR views. Round lamps require explicit style and adjacent state words; word chips put optional markers after supplied words. Existing defaults remain unchanged. Measured text is opt-in; no native Unicode or surface acceptance is inferred from unit checks.

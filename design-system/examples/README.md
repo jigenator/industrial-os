@@ -11,7 +11,7 @@ Commands, options, and exit codes are in [Contributing](../CONTRIBUTING.md#runni
 
 ## Browsing the storybook
 
-The index has three numbered sections: **1 COMPONENTS**, one story per element; **2 MOTIONS**, one story per motion, then the composed MARKER TIMELINE; and **3 FOUNDATION**, COLORS and SIGNAL COLORS. Stories are numbered in index order. The selected story is marked `>` and also named in the panel header, so the selection never depends on color. Each story shows its states, examples, or views (the selected one in `[brackets]`, or `n/N` and the selected name when they do not fit), a specimen, the call that drew it, and the main contract rules, with a link to the owning README.
+The index has three numbered sections: **1 COMPONENTS**, one story per element; **2 MOTIONS**, one story per motion, then the composed MARKER TIMELINE; and **3 FOUNDATION**, COLORS, SIGNAL COLORS and SURFACE. Stories are numbered in index order. The selected story is marked `>` and also named in the panel header, so the selection never depends on color. Each story shows its states, examples, or views (the selected one in `[brackets]`, or `n/N` and the selected name when they do not fit), a specimen, the call that drew it, and the main contract rules, with a link to the owning README.
 
 | Keys | Action |
 | --- | --- |
@@ -85,6 +85,10 @@ The SIGNAL COLORS story shows `SIGNAL_COLORS` from [foundation](../foundation/RE
 
 Swatches are full blocks with matching foreground and background. Hex values, names, and labels sit on the normal black field, so they stay readable whatever the swatch color, and every label reads the same in plain output, which adds a note that swatches show position only. Narrow widths stack the details and wrap long words instead of clipping them; every color, ramp step, and signal color is reachable by paging. Color views have no playback: `p`, `r`, and `o` do nothing, and no timer runs. No contrast or accessibility rating is claimed for any color.
 
+### Surface
+
+SURFACE uses the public cell compositor for clear gradient/floor, exact locked translucent fill configuration, solid plates/locks and NO_COLOR. Alpha values are synthetic host policy fixtures, not DS defaults; no private transcript or image is included. It is static. Lamp adds round RX/TX/NO LINK/WAITING variants; state-chip adds unread/read/waiting/answered/declined/delivery word forms. Measured slots are documented in [foundation](../foundation/README.md#measured-text-slots); old motion previews still target narrow structural cells only.
+
 ## Reusing the system
 
 Agents and applications use the same modules the storybook uses. Import paths are relative to the importing file; from `examples/`:
@@ -117,6 +121,7 @@ console.log(frame(1200).map((line) => paint(line, 'truecolor')).join('\n'));
 | `storybook-stories.mjs` | The catalog in index order, `canPlay()`, and `motionParameters()` | Element, motion, and color stories; usage |
 | `storybook-elements.mjs` | Element stories: titles, notes, state variants, and specimens from the real renderers | `foundation/`, elements, usage |
 | `storybook-motions.mjs` | Motion stories (`motionStory()`), the composed marker timeline, and each example's redraw interval | `foundation/`, elements, motions, element stories' fixtures, usage |
+| `storybook-surface.mjs` | Synthetic clear/fill/solid/NO_COLOR surface fixtures and real compositor calls | Public foundation surface and palette |
 | `storybook-colors.mjs` | The COLORS and SIGNAL COLORS stories: hue groups, palette rows, shade ramps, and signal colors by use | `foundation/` |
 | `storybook-usage.mjs` | Usage text: `call()`, `literal()`, `code()`, and `spread()` build a call's source from its arguments | None |
 | `storybook-layout.mjs` | Browsing state, `press()` actions, sections, the scrolling index, `advance()` and `playbackInterval()` for previews, and `composeStorybook()` frames | Stories, motion stories, `foundation/`, label plate, numbered panel |

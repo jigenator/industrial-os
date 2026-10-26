@@ -45,6 +45,10 @@ Always one cell. Uses `█` and `╱` from the curated glyph set and the `accent
 - Working takes accent only while `lit`; idle is always surface. Unknown always retains its hatch/style.
 
 Invalid appearances throw `RangeError`; nonboolean `lit` throws `TypeError`. Defaults are unchanged. status-bar now consumes the field/solid appearances; the default plain-text shape differences below apply only to `glyph`.
+### Round appearance
+
+`lamp(state, { appearance: 'round', style: { fg: 'accent' } })` draws `●` for working/idle and `○` for unknown. A validated explicit style is required (`TypeError` if missing); omitted background is transparent `'default'`. Round lamps are static even with `lit:false`; unknown is never idle. Place meaningful words beside them: RX, TX, NO LINK, or waiting. In particular, a waiting notch never blinks. A style on an old appearance throws `RangeError`; old appearances/defaults are unchanged. The storybook uses synthetic RX/TX/NO LINK/waiting fixtures.
+
 ## Differences from status-bar
 
 - The framed footer draws a working lamp as a space on acid, so its plain text is a space for both working and idle. Here a working lamp is `█` in acid on acid: the same color cell, and a distinct plain-text shape. (status-bar's minimal layout already uses `█` for a lit lamp.)
