@@ -9,7 +9,8 @@ export type Measure = (text: string) => number;
 export interface TextSlot { spans: readonly Span[]; width: number }
 export type TextValue = string | TextSlot;
 export function textSlot(spans: readonly Span[], width: number, options: { measure: Measure }): TextSlot;
-export function fitText(value: TextValue, n: number, options?: { measure?: Measure; style?: Style }): Line;
+export function fitText(value: string, n: number, options?: { measure?: Measure; style?: Style }): Line;
+export function fitText(value: TextValue, n: number, options: { measure: Measure; style?: Style }): Line;
 export const GLYPHS: string;
 export function safeText(value: string): string;
 export function cells(text: string, options?: { measure?: Measure }): number;

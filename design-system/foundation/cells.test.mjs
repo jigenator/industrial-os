@@ -141,3 +141,14 @@ test('curated survey glyphs and braille keep a one-cell ruler in the narrow cont
     assert.equal(measure(ch), 1);
   }
 });
+
+test('measured strings and slots reject leading Extend or ZWJ before attaching to element gaps', async () => {
+  const { textSlot, fitText } = await import('./cells.mjs');
+  for (const prefix of ['\u0301', '\u200d', '\ufe0f', '🏻']) {
+    const text = prefix + 'fixture';
+    const slot = { spans: [span(''), span(text)], width: measure(text) };
+    assert.throws(() => textSlot(slot.spans, slot.width, { measure }), RangeError);
+    assert.throws(() => fitText(slot, 20, { measure }), RangeError);
+    assert.throws(() => fitText(text, 20, { measure }), RangeError);
+  }
+});

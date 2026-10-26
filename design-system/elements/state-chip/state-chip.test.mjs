@@ -121,3 +121,14 @@ test('word form preserves measured answer slots and rejects forged/injected slot
   for (let maxWidth = 0; maxWidth <= 160; maxWidth++) assert.ok(lineWidth(stateChip({ state: 'answered' }, { form: 'word', preset, measure, maxWidth }), { measure }) <= maxWidth);
   assert.throws(() => stateChip({ state: 'answered' }, { form: 'word', preset }), TypeError);
 });
+
+test('word form rejects leading Extend and ZWJ in measured labels and preset words', () => {
+  const measure = (text) => [...new Intl.Segmenter('und', { granularity: 'grapheme' }).segment(text)].length;
+  for (const text of ['\u0301answer', '\u200danswer', '\ufe0fanswer', '🏻answer']) {
+    const slot = { spans: [{ text, style: {} }], width: measure(text) };
+    for (const value of [text, slot]) {
+      assert.throws(() => stateChip({ state: 'answered' }, { form: 'word', measure, preset: { answered: { code: value, shape: '', tone: 'accent' } } }), RangeError);
+      assert.throws(() => stateChip({ label: value, state: 'current' }, { form: 'word', measure }), RangeError);
+    }
+  }
+});

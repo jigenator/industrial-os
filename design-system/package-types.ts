@@ -45,3 +45,24 @@ textSlot([], '7', { measure });
 stateChip({ state: 'answered', commitsBehind: 1 }, { form: 'word' });
 // @ts-expect-error round lamps require explicit style
 lamp('working', { appearance: 'round' });
+
+// Plain strings remain usable without a measurer; every slot-bearing path requires one.
+labelPlate('fixture');
+fitText('fixture', 6);
+stateChip({ state: 'answered' }, { form: 'word', preset: { answered: { code: 'answered', shape: '', tone: 'accent' } } });
+stateChip({ label: slot, state: 'current' }, { form: 'word', measure });
+// @ts-expect-error slots require a measurer even with otherwise default plate options
+labelPlate(slot);
+// @ts-expect-error slot plate options must include a measurer
+labelPlate(slot, { form: 'slab' });
+// @ts-expect-error fitText slots require a measurer
+fitText(slot, 6);
+// @ts-expect-error styling is not a substitute for a slot measurer
+fitText(slot, 6, { style: { bold: true } });
+// @ts-expect-error slot labels require a measurer
+stateChip({ label: slot, state: 'current' }, { form: 'word' });
+// @ts-expect-error slot preset words require a measurer
+stateChip({ state: 'answered' }, { form: 'word', preset: { answered: { code: slot, shape: '', tone: 'accent' } } });
+const hostCells = composeSurface([[{ text: ' ', raw: 'original', link: { id: 'fixture' } }]], { width: 1, height: 1 });
+hostCells[0][0].raw satisfies string;
+hostCells[0][0].link.id satisfies string;

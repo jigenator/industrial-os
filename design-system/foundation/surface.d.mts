@@ -15,4 +15,5 @@ export interface SurfaceOptions extends SurfaceSize {
 export function surfaceAt(x: number, y: number, size: SurfaceSize): `#${string}`;
 export function dotAt(x: number, y: number): `#${string}` | null;
 export function blendFill(fill: Color, under: Color, alpha: number): `#${string}`;
-export function composeSurface(rows: readonly (readonly SurfaceCell[])[], options: SurfaceOptions): SurfaceCell[][];
+/** Compose full viewport rows so same-row text clearance has its complete context. Extra cell properties pass through. */
+export function composeSurface<C extends SurfaceCell>(rows: readonly (readonly C[])[], options: SurfaceOptions): C[][];

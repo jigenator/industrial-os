@@ -111,3 +111,13 @@ test('measured labels and styled slots retain Japanese, combining and ZWJ text w
   assert.throws(() => labelPlate('\x1b[31m', { measure }), TypeError);
   assert.equal(text(labelPlate(label, { form: 'slab' })), ' ?e???? ');
 });
+
+test('measured labels reject leading Extend and ZWJ consistently in padded and unpadded forms', () => {
+  const measure = (text) => [...new Intl.Segmenter('und', { granularity: 'grapheme' }).segment(text)].length;
+  for (const text of ['\u0301title', '\u200dtitle', '\ufe0ftitle', '🏻title']) {
+    const slot = { spans: [{ text, style: {} }], width: measure(text) };
+    for (const form of ['slab', 'capped']) for (const pad of [true, false]) for (const value of [text, slot]) {
+      assert.throws(() => labelPlate(value, { form, pad, measure }), RangeError);
+    }
+  }
+});

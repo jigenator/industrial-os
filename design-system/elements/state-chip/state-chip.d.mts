@@ -7,6 +7,7 @@ export interface WordChipInput { label?: TextValue; state: string }
 export interface StateChipInput { label: string; state: string; commitsBehind?: number; localChanges?: boolean }
 export interface StateChipParts { label: Line; labelGap: Line; shape: Line; stateGap: Line; code: Line }
 export function stateChip(input: StateChipInput, options?: { form?: 'chip'; preset?: StatePreset; maxWidth?: number }): Line;
-export function stateChip(input: WordChipInput, options: { form: 'word'; preset?: WordPreset; maxWidth?: number; measure?: Measure }): Line;
+export function stateChip(input: { label?: string; state: string }, options: { form: 'word'; preset?: StatePreset; maxWidth?: number; measure?: Measure }): Line;
+export function stateChip(input: WordChipInput, options: { form: 'word'; preset?: WordPreset; maxWidth?: number; measure: Measure }): Line;
 export function stateChips(inputs: StateChipInput[], options: { width: number; preset?: StatePreset }): Line[];
 export function stateChipParts(input: StateChipInput, options?: { preset?: StatePreset; count?: number; countPolicy?: 'safe-integer' | 'number-text' }): StateChipParts;

@@ -3,7 +3,7 @@
 // See foundation/README.md for the text and trust-boundary contracts.
 import { ACID_BLACK } from './palette.mjs';
 
-// Curated structural glyphs. All are East Asian Width Narrow or Ambiguous and must render one cell wide.
+// Curated structural glyphs: Narrow, Ambiguous or Neutral East Asian Width; the host must render each one cell wide.
 export const GLYPHS = '─│┌┐└┘╵╱▐▌█▏▎▍▋▊▉░○●▲✕…━┃┏┓┗┛┼▀▄▒▓▚▞■▪·•◆▴⌑⑂×╴╶┄├┴┸▤▣▸▾▼◇›' + Array.from({ length: 256 }, (_, i) => String.fromCodePoint(0x2800 + i)).join('');
 
 const PRINTABLE_ASCII = /[^\x20-\x7e]/gu;
@@ -17,6 +17,10 @@ export function safeText(value) {
 
 const graphemes = new Intl.Segmenter('und', { granularity: 'grapheme' });
 const UNSAFE_TEXT = /[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u2028-\u202e\u2066-\u2069]/u;
+
+function assertTextStart(text) {
+  if (/^[\p{Grapheme_Extend}\p{Emoji_Modifier}\u200d]/u.test(text)) throw new RangeError('measured text cannot start with Extend or ZWJ');
+}
 
 function measured(text, measure) {
   if (typeof text !== 'string' || !text.isWellFormed() || UNSAFE_TEXT.test(text)) throw new TypeError('measured text must be control- and bidi-safe');
@@ -41,6 +45,7 @@ export function textSlot(spans, width, { measure } = {}) {
     return span(s.text, { ...s.style });
   });
   const text = copy.map((s) => s.text).join('');
+  assertTextStart(text);
   if (measured(text, measure) !== width || copy.reduce((n, s) => n + measured(s.text, measure), 0) !== width) {
     throw new RangeError('slot width does not match measure(text)');
   }
@@ -62,6 +67,7 @@ export function fitText(value, n, { measure, style = {} } = {}) {
   if (typeof value === 'string') {
     const text = measure === undefined ? safeText(value) : value;
     cells(text, { measure });
+    if (measure !== undefined) assertTextStart(text);
     line = [span(text, style)];
   } else {
     if (!value || typeof value !== 'object') throw new TypeError('text must be a string or text slot');

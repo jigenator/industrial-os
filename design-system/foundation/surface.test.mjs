@@ -130,3 +130,26 @@ test('locked plate fixtures retain 4.5:1 black/white text contrast at both gradi
     assert.ok(contrast(P.primary, blendFill(P.structural, under, 1 - 1.5 * (1 - .74))) >= 4.5);
   }
 });
+
+test('duplicate fill keys are rejected after role resolution and RGB case normalisation', () => {
+  for (const fills of [
+    { accent: { alpha: .2 }, '#c0fe04': { alpha: .7 } },
+    { '#C0FE04': { alpha: .7 }, accent: { alpha: .2 } },
+    { '#1C1C1C': { alpha: .2 }, '#1c1c1c': { alpha: .7 } },
+  ]) assert.throws(() => composeSurface(rows(1, 1), { width: 1, height: 1, fills }), RangeError);
+});
+
+test('surface preserves opaque host metadata on decorated and plain cells without mutating input', () => {
+  const input = rows(12, 2).map((row, y) => row.map((cell, x) => ({ ...cell, raw: `cell-${x}-${y}`, link: { id: `link-${x}` } })));
+  const original = structuredClone(input);
+  for (const color of [true, false]) {
+    const output = composeSurface(input, { width: 12, height: 2, color });
+    for (let y = 0; y < 2; y++) for (let x = 0; x < 12; x++) {
+      assert.equal(output[y][x].raw, input[y][x].raw);
+      assert.equal(output[y][x].link, input[y][x].link);
+      assert.notEqual(output[y][x], input[y][x]);
+    }
+    assert.equal(output[1][2].text, color ? '·' : ' ');
+  }
+  assert.deepEqual(input, original);
+});

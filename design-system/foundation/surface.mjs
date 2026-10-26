@@ -42,7 +42,7 @@ export function blendFill(fill, under, alpha) {
   return mix(rgb(fill), rgb(under), alpha);
 }
 
-// Cell rows are already parsed by the host. No ANSI, environment lookup, or image/control tokens enter here.
+// Cell rows are already parsed by the host. No ANSI parsing, environment lookup or token interpretation happens here.
 export function composeSurface(rows, { width, height, origin = { x: 0, y: 0 }, fills = {}, exclude = [], color = true } = {}) {
   assertCells(width, 'surface width');
   assertCells(height, 'surface height');
@@ -52,13 +52,15 @@ export function composeSurface(rows, { width, height, origin = { x: 0, y: 0 }, f
   const columns = rows[0].length;
   if (origin.x + columns > width || origin.y + rows.length > height) throw new RangeError('cell rows exceed surface size');
   if (!fills || typeof fills !== 'object' || Array.isArray(fills)) throw new TypeError('fills must be a color-to-fill map');
-  const fillMap = new Map(Object.entries(fills).map(([color, fill]) => {
+  const fillMap = new Map();
+  for (const [color, fill] of Object.entries(fills)) {
     const key = resolveColor(color).toLowerCase();
+    if (fillMap.has(key)) throw new RangeError('duplicate resolved fill color');
     if (!fill || typeof fill !== 'object') throw new TypeError('fill must have alpha');
     blendFill(key, key, fill.alpha);
     if (fill.solid !== undefined && typeof fill.solid !== 'boolean') throw new TypeError('solid must be boolean');
-    return [key, fill.solid ? 1 : fill.alpha];
-  }));
+    fillMap.set(key, fill.solid ? 1 : fill.alpha);
+  }
   if (!Array.isArray(exclude)) throw new TypeError('exclude must be an array');
   const masks = Array.from(rows, () => new Uint8Array(columns));
   for (const { x, y, width: w, height: h, mode = 'floor' } of exclude) {

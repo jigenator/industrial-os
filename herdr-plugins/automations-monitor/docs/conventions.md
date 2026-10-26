@@ -10,7 +10,7 @@ The [root conventions](../../../docs/conventions.md) and [plugin group rules](..
 - Import the design system only by package name through an exported subpath. Every consumed subpath now ships colocated `.d.mts` declarations in that package; use them rather than local ambient shims.
 - No colour value is written anywhere in the project, tests and fixtures included; `test/source.test.ts` rejects one.
 - Time reaches the pure code as an argument (`now`, and motion time `t`); only `app.ts` and the reader read a clock.
-- Everything is drawn through `Canvas`, which keeps printable ASCII, the design system's one-cell `GLYPHS` and the few glyphs listed once in `EXTRA_GLYPHS`, and finishes each row with the design system's `fitLine`.
+- Everything is drawn through `Canvas`, which keeps printable ASCII, the fixed base design-system set (`BASE_GLYPHS` in `canvas.ts`) and the few glyphs listed once in `EXTRA_GLYPHS`, and finishes each row with the design system's `fitLine`. Upstream glyph additions never widen external-text admission.
 - Error messages are redacted before they are stored. Never log or print stdout, stderr, paths or data from the CLI.
 - Tests use the fake `tatsu` and temporary directories, never the real CLI, the terminal of the test runner, or Herdr.
 
