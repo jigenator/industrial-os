@@ -3,7 +3,7 @@ import { isTerminalDefault, lineWidth, resolveColor } from '../foundation/cells.
 
 export const WIPE_DEFAULTS = Object.freeze({ direction: 'rtl', times: Object.freeze([2800, 2880, 2960]), fractions: Object.freeze([0.4, 0.8, 1]), fromStyle: Object.freeze({ fg: 'field', bg: 'accent', bold: true }), region: undefined });
 function check(options) {
-  const o = resolveOptions('wipe', options, WIPE_DEFAULTS);
+  const o = resolveOptions('wipe', options, { ...WIPE_DEFAULTS, stateCells: false });
   if (!['ltr', 'rtl'].includes(o.direction)) throw new RangeError('wipe direction must be ltr or rtl');
   if (!Array.isArray(o.times) || !o.times.length || !Array.isArray(o.fractions) || o.fractions.length !== o.times.length) throw new RangeError('wipe needs equal nonempty times and fractions');
   o.times.forEach((t, i) => { assertMs(t, 'wipe time'); if (i && t <= o.times[i - 1]) throw new RangeError('wipe times must increase'); });
@@ -13,6 +13,7 @@ function check(options) {
   for (const key of Object.keys(o.fromStyle)) if (!['fg', 'bg', 'bold'].includes(key)) throw new TypeError('wipe unknown style field');
   for (const key of ['fg', 'bg']) if (o.fromStyle[key] !== undefined && !isTerminalDefault(o.fromStyle[key])) resolveColor(o.fromStyle[key]);
   if (o.fromStyle.bold !== undefined && typeof o.fromStyle.bold !== 'boolean') throw new TypeError('wipe bold must be boolean');
+  if (typeof o.stateCells !== 'boolean') throw new TypeError('wipe stateCells must be boolean');
   o.region = resolveRegion('wipe', o.region); return o;
 }
 export function wipeDuration(options = {}) { return check(options).times.at(-1); }
@@ -29,5 +30,5 @@ export function wipe(lines, options = {}) {
     const count = Math.ceil(width * fraction), x = col - o.region.left;
     const reached = o.direction === 'rtl' ? x >= width - count : x < count;
     return reached ? undefined : { style: { ...style, ...o.fromStyle } };
-  });
+  }, { stateCells: o.stateCells });
 }

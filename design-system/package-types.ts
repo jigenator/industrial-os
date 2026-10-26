@@ -66,3 +66,40 @@ stateChip({ state: 'answered' }, { form: 'word', preset: { answered: { code: slo
 const hostCells = composeSurface([[{ text: ' ', raw: 'original', link: { id: 'fixture' } }]], { width: 1, height: 1 });
 hostCells[0][0].raw satisfies string;
 hostCells[0][0].link.id satisfies string;
+
+import { tabRule, nameRule, neatline } from './elements/tab-rule/tab-rule.mjs';
+import { actionLabel, keyHints } from './elements/action-label/action-label.mjs';
+import { popupHeader, popupFooter } from './elements/popup-header/popup-header.mjs';
+import { noticeRow } from './elements/notice-row/notice-row.mjs';
+import { scopeMeter } from './elements/scope-meter/scope-meter.mjs';
+import { soundingMeter } from './elements/sounding-meter/sounding-meter.mjs';
+import { feedBezel, imageLabel, imageInset } from './elements/feed-bezel/feed-bezel.mjs';
+import { inputFrame } from './elements/input-frame/input-frame.mjs';
+import { scopeTrace, blipPass, blipRest } from './motions/scope-trace.mjs';
+import { soundingSweep } from './motions/sounding-sweep.mjs';
+import { feedScan } from './motions/feed-scan.mjs';
+import { cornerSnap } from './motions/corner-snap.mjs';
+tabRule({ focused: true }, { width: 40 });
+nameRule({ meter: soundingMeter() }, { width: 40 });
+neatline({ label: 'START' }, { width: 40 });
+actionLabel({ state: 'read' }); keyHints([{ key: '^O', label: 'open' }], { width: 40 });
+popupHeader({ plate: 'IMAGE' }, { width: 40 }); popupFooter({}, { width: 40 });
+noticeRow({ text: 'synthetic notice' }, { width: 40 });
+const rect = { x: 3, y: 1, width: 32, height: 16 };
+feedBezel({ imageRect: rect, meter: scopeMeter() }, { width: 40, height: 20 });
+imageInset(rect, { width: 40, height: 20 }); imageLabel({ label: 'sample' });
+cornerSnap(inputFrame({ state: 'focused' }, { width: 40 }), { time: 80 });
+feedScan([], { rails: [2, 35], time: 40 }); scopeTrace([scopeMeter()], { time: 80, previousKey: blipPass(0).key });
+soundingSweep([soundingMeter()], { time: 40 });
+// @ts-expect-error rich slots require a measurer
+popupHeader({ plate: { spans: [], width: 0 } }, { width: 40 });
+// @ts-expect-error rich slots require a measurer
+inputFrame({ label: { spans: [], width: 0 } }, { width: 40 });
+
+blipRest(blipPass(1), 8000);
+noticeRow({ plate: 'LINK', plateFirst: true, glyph: '⠋', glyphInk: 'accent', plateStyle: { fg: 'field', bg: 'structural' }, detail: [{ kind: 'command', text: '$ cd synthetic-project', label: 'SH' }] }, { width: 66 });
+noticeRow({ detail: [{ kind: 'command', text: { spans: [], width: 0 }, label: { spans: [], width: 0 } }] }, { width: 66, measure: text => text.length });
+// @ts-expect-error command text slots require a measurer
+noticeRow({ detail: [{ kind: 'command', text: { spans: [], width: 0 } }] }, { width: 66 });
+// @ts-expect-error the mockup has no focused open-action state
+actionLabel({ state: 'focused' });

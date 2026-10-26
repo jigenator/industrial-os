@@ -147,3 +147,13 @@ Node v22.23.4, macOS; installed Pi 1.4.0; Herdr client/server 0.9.5, protocol 22
 - Root local-link/anchor, guide-map, exact CLAUDE import, whitespace and public-content reviews passed. No original palette or consumer runtime changed.
 
 **Not run:** physical keyboard/pointer or Ghostty pixel/glyph/contrast review; native Esc/Ctrl-C, every mouse control and every older story/motion; Lunalee's ANSI/copy/search/selection/Kitty adapter, pinned git/frozen copied-app install or operational rollout; Mermaid rendering. Unit color math is not physical-display certification. All motion extensions are deferred to DS-2 by supervisor direction, alongside the elements that use them.
+
+## Lunalee DS-2a chrome verification (2026-10-27)
+
+Node v22.23.4, Bun 1.4.4, macOS, Herdr client/server 0.9.5 (protocol 22). Eight new chrome/meter families and four motions have synthetic public-API stories, declarations and package/root-path checks. Opt-in downward beacon, style-only draw-in, white latch, state-cell wipe/cycle and measured reveal retain existing defaults.
+
+- Automated DS, declaration, old-default corpus and affected consumer results are recorded externally with the task's evidence; no Lunalee runtime adoption or release is implied. Every new family has widths 1–160 checks, with measured text and tiny-frame cases where applicable.
+- **Bounded native injected-key check:** one new no-focus tab, only its returned root pane received input. All 57 new/extended story variants were browsed at an initial 214×77 frame; autoplay, pause/replay and motion off were exercised. A split/resize within that created tab repainted a narrow view. `q` restored identical `stty -g`; the created tab was closed, including the watcher's automatically created Lunalee pane, which received no input. ANSI/text readbacks are not physical-display screenshots or font certification.
+- **Not run:** physical keyboard/pointer, Ghostty glyph/pixel/contrast or image-alpha inspection, native Esc/Ctrl-C/mouse-control matrix, Lunalee integration/copy/search/Kitty adapter, installation/rollout and Mermaid rendering. Tests do not establish those claims.
+
+Corner-snap is intentionally a persistent state pose, with a 40-ms settling helper, by supervisor approval; it is not a finite-preview equality exception inferred by the implementer. See the [motion contract](motions/README.md#cornersnaplines-options-and-cornersnapsettling).

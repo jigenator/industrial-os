@@ -126,3 +126,12 @@ test('wipe accepts terminal-default channels in the starting style', () => {
   assert.deepEqual(wipe(lines, { time: 0, fromStyle })[0][0].style, fromStyle);
   assert.deepEqual(wipe(lines, { animate: false, fromStyle }), lines);
 });
+
+test('wipe opt-in critical selection retains every state word and rejects hidden cues', () => {
+  const lines=[[span('waiting on you',{fg:'field',bg:'critical'})]];
+  const options={direction:'ltr',times:[0,40,80,120],fractions:[0.25,0.5,0.75,1],fromStyle:{fg:'primary',bg:'default'},stateCells:true};
+  for(const time of [0,39,40,80,120,160]) assert.equal(paint(wipe(lines,{...options,time})[0],'none'),'waiting on you');
+  assert.deepEqual(wipe(lines,{...options,animate:false}),lines);
+  assert.throws(()=>wipe(lines,{...options,time:0,fromStyle:{fg:'field',bg:'field'}}),/hide/);
+  assert.throws(()=>wipe(lines,{animate:false,stateCells:1}),TypeError);
+});

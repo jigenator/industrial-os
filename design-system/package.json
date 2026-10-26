@@ -47,6 +47,18 @@
     "./motions/reveal": "./motions/reveal.mjs",
     "./motions/scan": "./motions/scan.mjs",
     "./motions/warm-up": "./motions/warm-up.mjs",
-    "./motions/wipe": "./motions/wipe.mjs"
+    "./motions/wipe": "./motions/wipe.mjs",
+    "./elements/tab-rule": "./elements/tab-rule/tab-rule.mjs",
+    "./elements/action-label": "./elements/action-label/action-label.mjs",
+    "./elements/popup-header": "./elements/popup-header/popup-header.mjs",
+    "./elements/notice-row": "./elements/notice-row/notice-row.mjs",
+    "./elements/scope-meter": "./elements/scope-meter/scope-meter.mjs",
+    "./elements/sounding-meter": "./elements/sounding-meter/sounding-meter.mjs",
+    "./motions/scope-trace": "./motions/scope-trace.mjs",
+    "./motions/sounding-sweep": "./motions/sounding-sweep.mjs",
+    "./elements/feed-bezel": "./elements/feed-bezel/feed-bezel.mjs",
+    "./elements/input-frame": "./elements/input-frame/input-frame.mjs",
+    "./motions/feed-scan": "./motions/feed-scan.mjs",
+    "./motions/corner-snap": "./motions/corner-snap.mjs"
   }
 }

@@ -118,3 +118,13 @@ test('beacon preserves opted-in state cues on an unknown terminal-default backgr
   const lines = [[span('▲', { fg: 'warning', bg: 'default' })]];
   assert.doesNotThrow(() => beacon(lines, { time: 3900, stateCells: true }));
 });
+
+test('beacon downward programme keeps the upward default and has eight 80-ms phases', () => {
+  const lines=[[span('▼',{fg:'accent',bg:'default'})]];
+  const shapes=[];
+  for(let time=0;time<640;time+=80) shapes.push(paint(beacon(lines,{time,programme:'down',step:80,period:640})[0],'none'));
+  assert.deepEqual(shapes,['▼','▼','▼','▼','▼','▾','·','▾']);
+  assert.deepEqual(beacon(lines,{programme:'down',step:80,period:640,animate:false}),lines);
+  assert.throws(()=>beacon(lines,{programme:'down',step:80,period:200,time:0}),RangeError);
+  assert.throws(()=>beacon(lines,{programme:'side',time:0}),RangeError);
+});

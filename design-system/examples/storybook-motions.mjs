@@ -36,6 +36,15 @@ import { restrike, restrikeDuration, RESTRIKE_DEFAULTS } from '../motions/restri
 import { ghost, ghostDuration, GHOST_DEFAULTS } from '../motions/ghost.mjs';
 import { nudge, NUDGE_DEFAULTS } from '../motions/nudge.mjs';
 import { FRAME_FIXTURE, ROW_VARIANTS, within } from './storybook-elements.mjs';
+import { scopeMeter } from '../elements/scope-meter/scope-meter.mjs';
+import { soundingMeter } from '../elements/sounding-meter/sounding-meter.mjs';
+import { tabRule } from '../elements/tab-rule/tab-rule.mjs';
+import { scopeTrace, scopeTraceDuration, SCOPE_TRACE_DEFAULTS } from '../motions/scope-trace.mjs';
+import { soundingSweep, SOUNDING_SWEEP_DEFAULTS } from '../motions/sounding-sweep.mjs';
+import { feedBezel } from '../elements/feed-bezel/feed-bezel.mjs';
+import { inputFrame } from '../elements/input-frame/input-frame.mjs';
+import { feedScan, feedScanDuration, FEED_SCAN_DEFAULTS } from '../motions/feed-scan.mjs';
+import { cornerSnap, CORNER_SNAP_DEFAULTS } from '../motions/corner-snap.mjs';
 import { call, code, literal, spread } from './storybook-usage.mjs';
 
 // Redraw interval for continuously changing motions (scan, pulse, reveal): setInterval truncates
@@ -659,4 +668,46 @@ const MARKER_TIMELINE_STORY = {
   frameMs: () => T.barFrame,
 };
 
-export const MOTION_STORIES = [SCAN, PULSE, REVEAL, DRAW_IN, WARM_UP, LATCH, BEACON, CYCLE, FADE, BLINK, FLASH, PING, WIPE, FILL_IN, BURN_OUT, EDGE_PULSE, RESTRIKE, GHOST, NUDGE, MARKER_TIMELINE_STORY];
+
+const SCOPE_TRACE = motionStory({
+  id:'scope-trace',fn:'scopeTrace',title:'SCOPE TRACE',summary:'A single seeded carrier pass, reconnect noise and the 480-ms white lock.',
+  motion:scopeTrace,defaults:SCOPE_TRACE_DEFAULTS,units:{},duration:(_lines,o)=>scopeTraceDuration(o),loop:()=>80,frame:o=>o.mode==='carrier'?80:40,
+  rules:['Host schedules the next pass and its rest; no replay from pass zero.', 'Reacquire joins white at 480 ms and settles at 520 ms; motion off is immediate.', 'Amber noise needs explicit stateCells; lost is never animated.'],
+  variants:[
+    {name:'CARRIER',options:{index:7},plainVisible:true,body:()=>one(scopeMeter(),call('scopeMeter'))},
+    {name:'REACQUIRE',options:{mode:'reacquire'},plainVisible:true,body:()=>one(scopeMeter(),call('scopeMeter'))},
+    {name:'NOISE',options:{mode:'noise',stateCells:true},plainVisible:true,body:()=>one(scopeMeter({state:'reconnecting'}),call('scopeMeter',{state:'reconnecting'}))},
+  ],
+});
+const SOUNDING_SWEEP = motionStory({
+  id:'sounding-sweep',fn:'soundingSweep',title:'SOUNDING SWEEP',summary:'Twelve dot columns, six braille cells, back and forth with a one-step trail.',
+  motion:soundingSweep,defaults:SOUNDING_SWEEP_DEFAULTS,units:{},loop:()=>880,frame:()=>40,
+  rules:['40-ms steps, 880-ms round trip after the initial rest.', 'Motion off rests left; plain retains moving shapes.'],
+  variants:[{name:'WORKING',options:{},plainVisible:true,body:()=>one(soundingMeter(),call('soundingMeter'))}],
+});
+DRAW_IN.variants.push({name:'RULE INK',options:{mode:'style',tick:40,steps:6,lag:0},body:width=>one(tabRule({focused:true},{width}),call('tabRule',{focused:true},{width}))});
+
+for (const story of [SCOPE_TRACE, SOUNDING_SWEEP]) {
+  for (const variant of story.variants) variant.note = `${variant.name}: synthetic motion fixture; host owns real state and time.`;
+}
+DRAW_IN.variants.at(-1).note = 'Six 40-ms ink steps; all rule glyphs remain visible without color.';
+
+
+const FEED_SCAN = motionStory({id:'feed-scan',fn:'feedScan',title:'FEED SCAN',summary:'A heavy side-rail tick; the empty image hole is never touched.',motion:feedScan,defaults:FEED_SCAN_DEFAULTS,units:{},duration:(_lines,o)=>feedScanDuration(o),frame:()=>40,
+  rules:['40-ms steps and two trailing steps; motion off has no scan.', 'Only explicitly supplied rails are touched; occupied text is protected.'],
+  variants:[{name:'EDGES',note:'Synthetic empty feed, no image asset.',options:{top:1,rows:8,rails:[0,9]},plainVisible:true,body:width=>{
+    const w=Math.max(1,Math.min(width,12)),input={imageRect:{x:1<w?1:0,y:1,width:Math.max(1,Math.min(8,w-2)),height:8}},opts={width:w,height:11};
+    return body(feedBezel(input,opts),call('feedBezel',input,opts));
+  }}],
+});
+const CORNER_SNAP = motionStory({id:'corner-snap',fn:'cornerSnap',title:'CORNER SNAP',summary:'Home at first; diagonal spread holds from 40 ms until the host ends hover/focus.',motion:cornerSnap,defaults:CORNER_SNAP_DEFAULTS,units:{},loop:()=>1200,frame:()=>40,
+  rules:['Persistent state pose, not a finite entrance; 40-ms settling helper.', 'Off and leave return home without spread. Focused/form label stays.'],
+  variants:['hover','focused','form'].map(state=>({name:state.toUpperCase(),note:'Holds the state pose; replay to see home again.',options:{},plainVisible:true,body:width=>{const input={state},opts={width};return body(inputFrame(input,opts),call('inputFrame',input,opts));}})),
+});
+BEACON.variants.push({name:'WAYPOINT',note:'Eight 80-ms downward phases, 640-ms loop.',options:{programme:'down',step:80,period:640},plainVisible:true,body:()=>one([span('▼',{fg:'accent',bg:'default'})],`[${call('span','▼',{fg:'accent',bg:'default'})}]`)});
+LATCH.variants.push({name:'WHITE LOCK',note:'N-new cue; white lock for 50 ms, inverted to 150 ms.',options:{lockInk:'primary'},body:()=>one(labelPlate('3 NEW',{form:'slab',tone:'accent'}),call('labelPlate','3 NEW',{form:'slab',tone:'accent'}))});
+CYCLE.variants.push({name:'BRAILLE',note:'Ten-step 80-ms spinner; amber cue opts in explicitly.',options:{glyphs:[...'⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'],step:80,stateCells:true},plainVisible:true,body:()=>one([span('⠋',{fg:'warning'})],`[${call('span','⠋',{fg:'warning'})}]`)});
+WIPE.variants.push({name:'STATE SELECTION',note:'Immediate selection words; four 40-ms fill fractions.',options:{direction:'ltr',times:[0,40,80,120],fractions:[.25,.5,.75,1],fromStyle:{fg:'primary',bg:'default'},stateCells:true},body:()=>one(labelPlate('waiting on you',{form:'slab',tone:'critical'}),call('labelPlate','waiting on you',{form:'slab',tone:'critical'}))});
+REVEAL.variants.push({name:'OPTION ROWS',note:'Reserved presentation rows unfold 40 ms apart; essential controls stay host-owned.',options:{duration:40,stagger:40,veil:'blank'},plainVisible:true,fixed:bayBlock,body:width=>{const lines=['OPTION A','OPTION B','OPTION C'].map(text=>fitLine([span(text)],width));return body(lines,`[${lines.map(line=>JSON.stringify(line)).join(',')}]`);}});
+
+export const MOTION_STORIES = [SCAN, PULSE, REVEAL, DRAW_IN, WARM_UP, LATCH, BEACON, CYCLE, FADE, BLINK, FLASH, PING, WIPE, FILL_IN, BURN_OUT, EDGE_PULSE, RESTRIKE, GHOST, NUDGE, MARKER_TIMELINE_STORY, SCOPE_TRACE, SOUNDING_SWEEP, FEED_SCAN, CORNER_SNAP];

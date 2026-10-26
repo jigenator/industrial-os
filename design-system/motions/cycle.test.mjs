@@ -86,3 +86,10 @@ test('cycle rejects invalid options and lines', () => {
   for (const lines of [null, 'abc', [null], [[{ text: 5 }]]]) assert.throws(() => cycle(lines, { time: 0 }), TypeError);
   assert.deepEqual(cycle([], { time: 0 }), []);
 });
+
+test('cycle opt-in amber braille keeps the cue guard and default exemption', () => {
+  const lines=[[span('⠋',{fg:'warning'}),span(' reconnecting')]];
+  assert.equal(paint(cycle(lines,{glyphs:['⠋','⠙'],step:80,time:80,stateCells:true})[0],'none'),'⠙ reconnecting');
+  assert.deepEqual(cycle(lines,{glyphs:['⠋','⠙'],step:80,time:80}),lines);
+  assert.throws(()=>cycle(lines,{animate:false,stateCells:1}),TypeError);
+});

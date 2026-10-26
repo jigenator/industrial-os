@@ -46,9 +46,9 @@ labelPlate(title, { form: 'slab', maxWidth: 20, measure });
 - `cells(text, { measure })`, `lineWidth(line, { measure })`, `fit(text, n, { measure })` and `fitLine(line, n, padStyle, { measure })` opt in individually. `fitLine` clips complete `Intl.Segmenter` graphemes and pads spaces to exactly n cells. It does not split a wide character into a one-cell fragment.
 - `fitText(stringOrSlot, n, { measure, style })` returns spans no wider than n; it preserves rich slot styles and applies `style` to a string. An overflow uses a whole-grapheme prefix and `…` when it fits (at n=1 a fitting first grapheme is kept). Budgets are 0–1000 or Infinity; wrong text/measurer types throw `TypeError`, invalid widths/mismatches throw `RangeError`. No input is mutated.
 - `italic` and `underline` are optional boolean styles, preserved by `resolveStyle` when present and emitted as SGR 3/4 by `paint`. Existing omitted-style output stays byte-identical. Measured label-plate caps and new word/lamp chrome explicitly use `bg: 'default'` for transparent channels; this **does not** change historical `paint`/`resolveStyle` omission, which remains black field. Slot channel overrides remain explicit.
-- This is not blanket Unicode support for every element or motion. Only measured label plates and state-chip word forms opt in here. Old motions walk code points: animate separate narrow structural pieces, never opaque rich text slots. Further element/motion support belongs with its own contract and tests.
+- This is not blanket Unicode support for every element or motion. Measured label plates, word chips and survey chrome opt in individually. Reveal, feed-scan and corner-snap explicitly admit a measurer; other old motions still walk code points, so animate isolated narrow structural pieces, never opaque rich body slots. See each element/motion contract.
 
-The curated survey glyphs include `╴╶┄├└┴┸▤▣▸▾▼◇›` and the braille block (U+2800–U+28FF). Their one-cell rulers are tested algorithmically; actual terminal/font width verification remains a native-host check.
+The curated survey glyphs include `╴╶┄├└┬┤┴┸▤▣▸▾▼◇›` and the braille block (U+2800–U+28FF). Their one-cell rulers are tested algorithmically; actual terminal/font width verification remains a native-host check.
 
 ## Surface
 

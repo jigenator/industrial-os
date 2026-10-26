@@ -7,6 +7,7 @@ export const CYCLE_DEFAULTS = Object.freeze({ glyphs: Object.freeze(['·', '•'
 const MAX_GLYPHS = 1000;
 
 function check(o) {
+  if (typeof o.stateCells !== 'boolean') throw new TypeError('cycle stateCells must be boolean');
   if (!Array.isArray(o.glyphs) || o.glyphs.length === 0 || o.glyphs.length > MAX_GLYPHS || o.glyphs.some((g) => typeof g !== 'string' || [...g].length !== 1 || !GLYPHS.includes(g))) {
     throw new RangeError(`cycle glyphs must be a non-empty array of single characters from GLYPHS, got ${JSON.stringify(o.glyphs)}`);
   }
@@ -18,12 +19,12 @@ function check(o) {
 // glyphs[floor(time / step) % glyphs.length]. Size and glyph only; style and every other character are unchanged.
 // Warning and critical cells are exempt. Frame at time 0 shows the first glyph.
 export function cycle(lines, options = {}) {
-  const o = resolveOptions('cycle', options, CYCLE_DEFAULTS);
+  const o = resolveOptions('cycle', options, { ...CYCLE_DEFAULTS, stateCells: false });
   assertLines(lines);
   const region = check(o);
   assertTime(o, 'cycle');
   if (!o.animate) return copyLines(lines);
 
   const glyph = o.glyphs[Math.floor(o.time / o.step) % o.glyphs.length];
-  return restyleCells(lines, (style, col, row, ch) => (o.glyphs.includes(ch) && inRegion(region, col, row) ? { char: glyph } : undefined));
+  return restyleCells(lines, (style, col, row, ch) => (o.glyphs.includes(ch) && inRegion(region, col, row) ? { char: glyph } : undefined), { stateCells: o.stateCells });
 }

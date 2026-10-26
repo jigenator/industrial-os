@@ -10,6 +10,8 @@ const STEPS = 3;
 function check(o) {
   assertMs(o.period, 'beacon period', { min: MIN_PERIOD_MS });
   assertMs(o.step, 'beacon step', { min: MIN_PERIOD_MS });
+  if (!['up', 'down'].includes(o.programme)) throw new RangeError('beacon programme must be up or down');
+  if (o.programme === 'down' && 8 * o.step > o.period) throw new RangeError('down beacon needs eight steps');
   if (STEPS * o.step > o.period) throw new RangeError(`beacon period must hold its ${STEPS} steps (${STEPS * o.step} ms), got ${o.period}`);
   if (typeof o.stateCells !== 'boolean') throw new TypeError(`beacon stateCells must be a boolean, got ${o.stateCells}`);
   return resolveRegion('beacon', o.region);
@@ -20,11 +22,21 @@ function check(o) {
 // that mix; the rest of the period is settled. Only the triangle's size and ink change. Warning and critical cells
 // are exempt unless `stateCells` is true; amber's 50% mix is warning50, status-bar's warnDim.
 export function beacon(lines, options = {}) {
-  const o = resolveOptions('beacon', options, BEACON_DEFAULTS);
+  const o = resolveOptions('beacon', options, { ...BEACON_DEFAULTS, programme: 'up' });
   assertLines(lines);
   const region = check(o);
   assertTime(o, 'beacon');
   if (!o.animate) return copyLines(lines);
+
+  if (o.programme === 'down') {
+    const step = Math.floor((o.time % o.period) / o.step);
+    const glyph = ['▼','▼','▼','▼','▼','▾','·','▾'][step] ?? '▼';
+    const level = step === 6 ? 0.5 : step === 5 || step === 7 ? 0.75 : 1;
+    return restyleCells(lines, (style, col, row, ch) => {
+      if (ch !== '▼' || !inRegion(region, col, row)) return undefined;
+      return { char: glyph, style: level === 1 ? style : { ...style, fg: mixOver(style.fg ?? 'accent', level) } };
+    }, { stateCells: o.stateCells });
+  }
 
   const at = (o.time % o.period) - (o.period - STEPS * o.step);
   if (at < 0) return copyLines(lines);
