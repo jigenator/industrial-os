@@ -6,7 +6,7 @@ Industrial OS turns the [Pi](https://github.com/earendil-works/pi) coding agent 
 
 ## Status
 
-Independent projects are here. They share code only through the private design-system package: claude-interrupt imports it for its transcript marker, status-bar for its footer elements, and the Herdr configuration's check for its colors:
+Independent projects are here. They share code only through the private design-system package: claude-interrupt imports it for its transcript marker, status-bar for its footer elements, droid-header for its startup header, and the Herdr configuration's check for its colors:
 
 - [source-collector](source-collector/README.md): one Bun/Effect engine for scheduled command and checklist sources, SQLite state and polling Unix RPC; private configs stay local.
 - [design-system](design-system/README.md): the terminal design system, a reference kit of elements, motions, a storybook, and a showcase. Plain Node.js, no dependencies. It is the private package `@industrial-os/design-system`, which in-repo projects import by name; it is never published. The authorised outside consumer Lunalee uses public root-package paths from a full-SHA git pin ([decision](docs/decisions/in-repo-design-system-package.md#lunalee-pinned-public-git-consumption)).
@@ -17,6 +17,7 @@ Independent projects are here. They share code only through the private design-s
 - [pi/herdr-pane-naming](pi/herdr-pane-naming/README.md): names its own inherited Herdr pane from current work, using TypeSafe/Jev and a title model; main TUI sessions only.
 - [pi/session-recap](pi/session-recap/README.md): UI-only away and detailed recaps through a separate recap model; TUI only.
 - [pi/image-preview](pi/image-preview/README.md): previews image files whose paths are in Pi's editor, above the editor, without changing the draft or the message; TUI only.
+- [pi/droid-header](pi/droid-header/README.md): replaces Pi's startup header with the droid details panel, this session's identity and a manifest of what Pi's settings load; TUI only.
 - [herdr](herdr/README.md): Herdr agents and Spaces sidebar configuration, merged by hand.
 - [herdr-plugins/spaces](herdr-plugins/spaces/README.md): one Node daemon per Herdr socket reports space counts/names/quiet ages and moves quiet units below current work.
 - [herdr-plugins/whiteboard](herdr-plugins/whiteboard/README.md): a Rust whiteboard in a Herdr split or tab, with sticky notes and text, driven by the mouse, one board per workspace.
@@ -39,6 +40,7 @@ industrial-os/
 │   ├── herdr-pane-naming/    automatic names for this inherited Herdr pane
 │   ├── session-recap/        UI-only away and detailed session recaps
 │   ├── image-preview/        previews of image paths in the editor
+│   ├── droid-header/         the droid details startup header and resource manifest
 │   └── theme/                the industrial-os Pi theme, a theme file
 ├── herdr/                    Herdr agents and Spaces configuration, merged by hand
 ├── herdr-plugins/            Herdr plugins, each its own project
@@ -76,6 +78,6 @@ In a checkout, run `npm install` once at the root to link the design-system pack
 
 ## Licensing
 
-A project license has not been selected. Public visibility alone does not grant a reuse license. The exceptions are [claude-interrupt](pi/claude-interrupt/README.md), which keeps its [MIT LICENSE](pi/claude-interrupt/LICENSE), and the [session-recap fork](pi/session-recap/README.md#provenance), which keeps its unchanged [MIT LICENSE](pi/session-recap/LICENSE) with Thomas Mustier's copyright. [status-bar](pi/status-bar/README.md) and [herdr-pane-naming](pi/herdr-pane-naming/README.md) had no license before their moves and have none now; [signals-collector](pi/signals-collector/README.md) and [image-preview](pi/image-preview/README.md) likewise have none, and neither does [the whiteboard](herdr-plugins/whiteboard/README.md).
+A project license has not been selected. Public visibility alone does not grant a reuse license. The exceptions are [claude-interrupt](pi/claude-interrupt/README.md), which keeps its [MIT LICENSE](pi/claude-interrupt/LICENSE), and the [session-recap fork](pi/session-recap/README.md#provenance), which keeps its unchanged [MIT LICENSE](pi/session-recap/LICENSE) with Thomas Mustier's copyright. [status-bar](pi/status-bar/README.md) and [herdr-pane-naming](pi/herdr-pane-naming/README.md) had no license before their moves and have none now; [signals-collector](pi/signals-collector/README.md), [image-preview](pi/image-preview/README.md) and [droid-header](pi/droid-header/README.md) likewise have none, and neither does [the whiteboard](herdr-plugins/whiteboard/README.md).
 
 The maintainer authorises Lunalee's design-system use through the pinned git package, subject to existing notices; this selects no new licence or general reuse grant. See the [outside-consumer decision](docs/decisions/in-repo-design-system-package.md#lunalee-pinned-public-git-consumption).

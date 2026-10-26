@@ -1,0 +1,30 @@
+{
+  "name": "pi-droid-header",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Replaces Pi's startup header with the Industrial OS droid details panel and a manifest of the loaded resources",
+  "type": "module",
+  "keywords": [
+    "pi-package"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jigenator/industrial-os.git",
+    "directory": "pi/droid-header"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.ts"
+  },
+  "pi": {
+    "extensions": [
+      "./src/extension.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  }
+}
