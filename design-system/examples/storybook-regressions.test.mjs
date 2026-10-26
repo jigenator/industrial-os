@@ -12,7 +12,7 @@ import { statusRow } from '../elements/status-row/status-row.mjs';
 import { COUNT_PLATES, countPlate } from '../elements/count-plate/count-plate.mjs';
 import { LAMP_DIM_STYLE, lamp } from '../elements/lamp/lamp.mjs';
 import { modePlate, pnytlPlate } from '../elements/mode-plate/mode-plate.mjs';
-import { stateChips } from '../elements/state-chip/state-chip.mjs';
+import { stateChip, stateChips } from '../elements/state-chip/state-chip.mjs';
 import { numeralAt, numeralGrid, numeralLines, pixelNumeral } from '../elements/pixel-numeral/pixel-numeral.mjs';
 import { providerColumn, segmentMeter } from '../elements/segment-meter/segment-meter.mjs';
 import { threadRail, threadRailPieces } from '../elements/thread-rail/thread-rail.mjs';
@@ -43,7 +43,7 @@ import { advance, composeStorybook, initialState, press } from './storybook-layo
 // Everything the generated usage text may name.
 const API = {
   fitLine, span, lineMeter, columnBlock, SIGNAL_COLORS, gauge, gaugeScale, labelPlate, numberedPanel, panelInnerWidth, statusRow, COUNT_PLATES, countPlate,
-  LAMP_DIM_STYLE, lamp, modePlate, pnytlPlate, stateChips, numeralAt, numeralGrid, numeralLines, pixelNumeral, providerColumn,
+  LAMP_DIM_STYLE, lamp, modePlate, pnytlPlate, stateChip, stateChips, numeralAt, numeralGrid, numeralLines, pixelNumeral, providerColumn,
   segmentMeter, threadRail, threadRailPieces, instrumentFrame, markerBars, markerPlate, transcriptMarker, scan, pulse, reveal,
   drawIn, warmUp, latch, beacon, cycle, fade, blink, BLINK_PRESETS, flash, FLASH_PRESETS, ping, wipe, fillIn, burnOut,
   BURN_OUT_PRESETS, edgePulse, restrike, ghost, nudge,

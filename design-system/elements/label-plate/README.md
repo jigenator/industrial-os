@@ -52,6 +52,10 @@ Only the capped form draws glyphs: `▐` `▌` from the curated set, plus `…` 
 ## Host styles
 
 `labelPlate(text, { style })` optionally overrides the tone's foreground/background with a validated foundation style. Lettering remains bold. Omission retains every existing tone/form/width byte. A slab with `style: { fg: 'field', bg: SIGNAL_COLORS.pink }` expresses USG without introducing a new palette role. The footer now consumes slab plates, leaving its boot wipe, zone metadata and wrapping host-owned.
+## Measured labels
+
+`labelPlate(stringOrSlot, { measure, ...options })` opts in to the [measured-text contract](../../foundation/README.md#measured-text-slots). Strings preserve Unicode; `{spans,width}` slots retain rich styles and are checked against the host's measurer. Clipping keeps whole graphemes, never replacing Japanese/combining/emoji/ZWJ text with `?`. The plate's tone/style supplies omitted channels and bold; explicit slot styles override its channels. Measured caps and omitted custom backgrounds use transparent `'default'`, not black. Without a measurer the original string/sanitising/paint defaults remain unchanged. Slots without a measurer, controls/bidi injection or invalid style types throw; mismatched widths or split clusters throw `RangeError`.
+
 ## Differences from status-bar
 
 - status-bar pads every plate to its eight-cell plate column (`padEnd(8)` in the plate's style). A slab is as wide as its padded text; the [instrument frame](../instrument-frame/README.md) gives plates their column. Six-character labels such as `01 ACT` are exactly eight cells, the same as the footer.

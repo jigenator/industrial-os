@@ -54,3 +54,18 @@ test('lamp field/solid appearances preserve known and unknown footer cells', () 
   assert.throws(() => lamp('working', { appearance: 'bad' }), RangeError);
   assert.throws(() => lamp('working', { lit: 1 }), TypeError);
 });
+
+test('round appearance has explicit transparent style, static filled/unknown rings and default parity', () => {
+  const style = { fg: 'critical', bold: true };
+  for (const state of ['working', 'idle', 'unknown']) {
+    const round = lamp(state, { appearance: 'round', style });
+    assert.deepEqual(round, [{ text: state === 'unknown' ? '○' : '●', style: { bg: 'default', ...style } }]);
+    assert.deepEqual(lamp(state, { appearance: 'round', style, lit: false }), round);
+    assert.equal(lineWidth(round), 1);
+    assert.equal(style.bg, undefined);
+    assert.deepEqual(lamp(state), lamp(state, { appearance: 'glyph', lit: true }));
+  }
+  assert.throws(() => lamp('idle', { appearance: 'round' }), TypeError);
+  assert.throws(() => lamp('idle', { appearance: 'round', style: { fg: 'bad' } }), TypeError);
+  assert.throws(() => lamp('idle', { style }), RangeError);
+});

@@ -4,7 +4,7 @@ The small seam every element shares. [palette.mjs](palette.mjs) is the source of
 
 ## Line model
 
-A rendered line is an array of spans `{ text, style }`. `style` is `{ fg, bg, bold }`: each color is an Acid / Black role, a literal `#RRGGBB` string, or the reserved value `'default'`. Omitted or `undefined` colors default to secondary text on the black field; bold defaults to false. Renderers finish each line with `fitLine(line, width)`, so it is exactly `width` cells: clipped or padded, never wider.
+A rendered line is an array of spans `{ text, style }`. `style` is `{ fg, bg, bold, italic?, underline? }`: each color is an Acid / Black role, a literal `#RRGGBB` string, or the reserved value `'default'`. Omitted or `undefined` colors default to secondary text on the black field; bold defaults to false. Renderers finish each line with `fitLine(line, width)`, so it is exactly `width` cells: clipped or padded, never wider.
 
 An explicit `'default'` foreground or background preserves that terminal channel (transparent background); it is not the black field, and is not the same as omission. Foreground and background defaults are independent unknown host colors, so no RGB or contrast is inferred from them. Existing omitted-channel behavior is unchanged.
 
@@ -27,7 +27,43 @@ This is a deliberately bounded contract, not a general Unicode width engine.
 - **Caller text** (labels, values, titles, units) must be a string. Its display form keeps printable ASCII (`U+0020`–`U+007E`). Every other code point—controls, `ESC`, C1 controls, combining marks, wide characters, emoji—is shown as one `?`. Source values are not modified. Non-strings throw `TypeError`.
 - **Structural glyphs** come only from `GLYPHS`: light and heavy box drawing, block and half-block elements, eighth blocks, shades and quadrant patterns, squares, dots, a diamond, triangles, a square lozenge, a fork, and the multiplication sign. Each one has East Asian Width Narrow or Ambiguous.
 - **Prerequisite:** the terminal must render Ambiguous-width glyphs in one cell. This is the usual setting for Western locales. If a terminal renders them two cells wide, frames and bars will misalign. There is no ASCII-glyph fallback yet.
-- Multilingual and emoji text is **not supported**. It is replaced, not measured.
+- Without a measurer multilingual and emoji text is replaced, not measured. The opt-in contract below preserves it.
+
+## Measured text slots
+
+No Unicode width engine or host import is added. Supply `measure(text) -> cells` (Lunalee uses pi-tui `visibleWidth`) to opt in; it must measure plain text, with structural glyphs and spaces one cell wide. Every returned width must be a finite nonnegative safe integer. Text remains structured spans, **never ANSI**.
+
+```js
+const title = textSlot([
+  span('日本語', { italic: true, bg: 'default' }),
+  span(' 👩‍💻', { underline: true, bg: 'default' }),
+], measure('日本語 👩‍💻'), { measure });
+labelPlate(title, { form: 'slab', maxWidth: 20, measure });
+```
+
+- A slot is `{ spans, width }`: `textSlot(spans, width, { measure })` checks its supplied width against the measured concatenation and sum of spans, validates styles and copies the input. Elements revalidate supplied slot objects, so forging the shape does not bypass the boundary. Slots require a measurer; strings without one retain the historical ASCII sanitising.
+- Controls (including ESC/C1/newline/tab), bidi controls and line/paragraph separators are rejected with `TypeError`, not passed through as trusted text. Wide, combining, emoji and ZWJ graphemes remain literal, never `?`. Span boundaries inside a grapheme are rejected (`RangeError`); the host must keep each cluster in one span.
+- `cells(text, { measure })`, `lineWidth(line, { measure })`, `fit(text, n, { measure })` and `fitLine(line, n, padStyle, { measure })` opt in individually. `fitLine` clips complete `Intl.Segmenter` graphemes and pads spaces to exactly n cells. It does not split a wide character into a one-cell fragment.
+- `fitText(stringOrSlot, n, { measure, style })` returns spans no wider than n; it preserves rich slot styles and applies `style` to a string. An overflow uses a whole-grapheme prefix and `…` when it fits (at n=1 a fitting first grapheme is kept). Budgets are 0–1000 or Infinity; wrong text/measurer types throw `TypeError`, invalid widths/mismatches throw `RangeError`. No input is mutated.
+- `italic` and `underline` are optional boolean styles, preserved by `resolveStyle` when present and emitted as SGR 3/4 by `paint`. Existing omitted-style output stays byte-identical. Measured label-plate caps and new word/lamp chrome explicitly use `bg: 'default'` for transparent channels; this **does not** change historical `paint`/`resolveStyle` omission, which remains black field. Slot channel overrides remain explicit.
+- This is not blanket Unicode support for every element or motion. Only measured label plates and state-chip word forms opt in here. Old motions walk code points: animate separate narrow structural pieces, never opaque rich text slots. Further element/motion support belongs with its own contract and tests.
+
+The curated survey glyphs include `╴╶┄├└┴┸▤▣▸▾▼◇›` and the braille block (U+2800–U+28FF). Their one-cell rulers are tested algorithmically; actual terminal/font width verification remains a native-host check.
+
+## Surface
+
+[surface.mjs](surface.mjs) is a pure, I/O-free **cell compositor**, not a span renderer or ANSI parser. [surface-palette.mjs](surface-palette.mjs) exports the frozen `SURFACE_PALETTE`, the canonical survey colors including neutral plate `#a8a8a8`, the four minor-dot inks and the major-dot ink. These do not change Acid / Black roles. Lunalee owns role selection and alpha configuration; the story's locked strength-1.5 values are a synthetic fixture, not defaults in the compositor.
+
+- `surfaceAt(x, y, { width, height })` returns the current gradient RGB: `l = round(19 - 10*y/(height-1) - 3*u²)`, `u = 2*x/(width-1)-1`, RGB `(l,l+1,l+3)`. Height 1 samples the top; width 1 samples the center. Coordinates are nonnegative safe integers inside a 1–1000 by 1–1000 surface. Invalid dimensions/coordinates throw `RangeError`.
+- `dotAt(x, y)` returns an ink or null. The lattice starts at `(2,1)`, steps `(4,2)`, and every fifth intersection on **both** axes is major. Minor ink uses the stable unsigned coordinate hash; neither scroll position, time nor viewport size enters it.
+- `blendFill(fill, under, alpha)` mixes encoded 8-bit RGB with `round(fill*alpha + under*(1-alpha))`. Alpha must be a number in 0–1; nonnumbers throw `TypeError`, invalid ranges `RangeError`. Unknown terminal-default RGB is never guessed.
+- `composeSurface(rows, { width, height, origin = {x:0,y:0}, fills = {}, exclude = [], color = true })` returns fresh cells of the **same geometry**. Width/height are the full pane/popup gradient size; rows are a nonempty rectangular crop starting at absolute origin and must fit within that size. Each cell is `{ text, style?, continuation? }`. A leading cell holds exactly one safe grapheme; a two-cell grapheme has one following `{text:'', continuation:true}`. The host supplies correct widths; this module does not guess whether Unicode is wide. Continuations cannot start a row or chain.
+- Omitted/`'default'` background gets the gradient. `fills` maps a concrete background role/RGB to `{ alpha, solid? }`; a solid entry forces alpha 1. An unconfigured explicit background stays opaque, including solid black and white locks. Background matching resolves roles and case-normalises RGB. Text ink is unchanged.
+- Only a blank noncontinuation cell can receive a dot. Every occupied cell (including wide continuations and genuine authored `·` separators) clears ±2 cells **in the same row**. A configured translucent fill gets both blended background and dot ink (`fill*alpha + dot*(1-alpha)`); alpha 1 never receives dots. Clearance and cell work are linear in crop cells; exclusion rasterisation visits their intersections with the crop. No retained transcript is scanned.
+- `exclude` contains absolute `{x,y,width,height,mode?}` rectangles. `mode:'floor'` (default) suppresses dots only, for image reservations whose transparent pixels still need background. `mode:'all'` preserves original cells/styles, for host selection/cursor/search/native image tokens. The host must cover both cells of any wide glyph and keep ANSI/OSC8/Kitty payloads outside this API.
+- `color:false` is plain/NO_COLOR: no colors or floor dots are generated, and input foreground/background channels are removed while noncolor attributes and semantic text remain. No environment variable is read; the host decides this flag. Input must be the semantic cells, not previously decorated cells. Copy/search must likewise use the host's separate semantic representation, never guess floor dots by glyph or ink.
+
+The surface story covers clear, translucent fills, solid roles and NO_COLOR using real public functions and synthetic fixtures. It is not proof of a host ANSI adapter, copy/selection isolation, Kitty alpha, contrast or native appearance. Those are separate Lunalee integration checks.
 
 ## Color
 

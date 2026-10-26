@@ -284,13 +284,13 @@ test('keys browse stories and states; Esc closes the key list before it quits', 
   s.keys('j');
   assert.match(s.since(mark), /> 02 INSTRUMENT FRAME/);
   s.keys('\x1b[A', '\x1b[A');
-  assert.match(s.since(mark), new RegExp(`> ${N} SIGNAL COLORS`));
+  assert.match(s.since(mark), new RegExp(`> ${N} SURFACE`));
   s.keys('\t');
   assert.match(s.since(mark), /> 01 NUMBERED PANEL/);
   s.keys('\x1b[Z');
-  assert.match(s.since(mark), new RegExp(`> ${N} SIGNAL COLORS`));
+  assert.match(s.since(mark), new RegExp(`> ${N} SURFACE`));
   s.keys('3');
-  assert.match(s.since(mark), new RegExp(`> ${N - 1} COLORS`));
+  assert.match(s.since(mark), new RegExp(`> ${N - 2} COLORS`));
   s.keys('2');
   assert.match(s.since(mark), new RegExp(`> ${pad(index('scan'))} SCAN`));
   mark = s.output.written.length;

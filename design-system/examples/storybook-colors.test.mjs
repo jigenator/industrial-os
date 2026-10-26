@@ -18,14 +18,14 @@ const full = (variant, columns, mode = 'TRUECOLOR') => composeStorybook(at(varia
 const isSwatch = (s) => /^█+$/.test(s.text);
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(';');
 
-test('COLORS and SIGNAL COLORS close the index as FOUNDATION views, and never play', () => {
-  assert.deepEqual(STORIES.slice(-2).map((s) => s.id), ['colors', 'signal-colors']);
-  assert.ok(STORIES.slice(0, -2).every((s) => s.kind !== 'foundation'));
+test('COLORS and SIGNAL COLORS lead the FOUNDATION views, and never play', () => {
+  assert.deepEqual(STORIES.slice(-3).map((s) => s.id), ['colors', 'signal-colors', 'surface']);
+  assert.ok(STORIES.slice(0, -3).every((s) => s.kind !== 'foundation'));
   assert.deepEqual([STORY.kind, STORY.title, STORY.variants.map((v) => v.name)], ['foundation', 'COLORS', ['PALETTE', 'SHADES']]);
-  const n = STORIES.length;
+  const n = STORIES.length - 1;
   const all = plain(composeStorybook(at(), { columns: 120, rows: 40 })).join('\n');
   assert.match(all, new RegExp(`3 FOUNDATION\\s+│[\\s\\S]*> ${n - 1} COLORS[\\s\\S]*  ${n} SIGNAL COLORS`));
-  assert.match(all, new RegExp(`▐${n - 1}▌ COLORS ─+ FOUNDATION ${n - 1}/${n}`));
+  assert.match(all, new RegExp(`▐${n - 1}▌ COLORS ─+ FOUNDATION ${n - 1}/${STORIES.length}`));
   assert.match(all, /VIEW {2}\[PALETTE\] {2}SHADES/);
   assert.match(all, /1-3 SECTION/);
   assert.match(all, /REFERENCE VALUES, NOT A THEME OR LIVE DATA/);

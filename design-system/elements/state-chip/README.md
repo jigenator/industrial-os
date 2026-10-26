@@ -61,6 +61,21 @@ Natural part width is sanitized label length + one gap + shape + one gap + code 
 `countPolicy` applies only to native `commitsBehind` display in these natural parts. Default `safe-integer` retains the non-negative safe integer contract. Explicit `number-text` requires a JS number, then displays `String(value)` including negatives, fractions, NaN, Infinity and unsafe integers. This exists so a renderer whose input type admits arbitrary numbers can retain exact output; callers that validate should keep the default. The complete `stateChip`/`stateChips` stay strict and unchanged, and the separate generic `count` suffix remains safe-integer-only. Invalid policies throw `RangeError`; a nonnumber under `number-text` throws `TypeError`.
 
 status-bar consumes these parts for Tatsu and generic background-task counts/update groups. Its producer adapter supplies only non-negative safe integer counts; `number-text` is renderer-contract compatibility, not producer admission. Producer grammar, activation, ordering and opaque hint text (`Shift↓`, measured by Pi rather than sanitized by this ASCII renderer) remain host-owned. Separate gaps let the host retain its exact paint/reset boundaries.
+## Word form
+
+`stateChip({ state, label? }, { form: 'word', preset, maxWidth, measure? })` renders an optional nonempty label, a supplied word, then an optional trailing marker. Custom preset entries remain `{ code, shape, tone }`; in this form `shape:''` omits the marker and its gap, and `code`/`label` may be [measured slots](../../foundation/README.md#measured-text-slots). The default `form:'chip'`, Tatsu preset, wrapping helper and natural parts are unchanged. No Lunalee state is inferred or added to Tatsu semantics.
+
+```js
+const preset = {
+  unread: { code: 'unread', shape: '◆', tone: 'secondary' },
+  waiting: { code: 'waiting on you', shape: '●', tone: 'critical' },
+  read: { code: 'read', shape: '', tone: 'decorative' },
+};
+stateChip({ state: 'unread' }, { form: 'word', preset }); // unread ◆
+```
+
+Use caller presets likewise for answered (including an already-derived answer slot), declined and delivery waiting. No empty-label gap is emitted. Word chrome uses transparent background, regular state ink, and the same bounded maxWidth (clipped whole graphemes with a measurer). Rich slot styles are preserved. Markers/words carry meaning in plain output too. Injection and invalid/mismatched widths follow the foundation contract; invalid form/state/budget throws `RangeError`.
+
 ## Differences from status-bar
 
 Settled Tatsu parts and three-cell gaps model `footer.ts:24–37,1167–1180,1192–1203`. This element accepts any label and a custom preset; it does not parse provider messages, retain completed checks across refreshes, supply component order, or draw decorations. The inline piece may clip to maxWidth; the layout helper keeps full parts whenever possible, like the footer. Inactive is an explicit component state, not the footer's raw-provider fallback for an inactive snapshot.

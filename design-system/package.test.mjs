@@ -39,3 +39,41 @@ test('every export loads through the package name and exposes the same module as
   }
   await assert.rejects(import('@industrial-os/design-system/motions/frame'), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' });
 });
+
+// Planned Lunalee public imports; new element families are admitted with their DS-2 implementation.
+const lunaleeModules = [
+  'foundation/cells', 'foundation/palette', 'foundation/signal-colors', 'foundation/industrialos-colors',
+  'foundation/seeded', 'foundation/surface', 'foundation/surface-palette',
+  'elements/label-plate', 'elements/lamp', 'elements/state-chip', 'elements/transcript-marker',
+  'motions/flash', 'motions/ping', 'motions/wipe', 'motions/fade', 'motions/latch',
+  'motions/reveal', 'motions/cycle', 'motions/beacon', 'motions/draw-in',
+];
+
+test('every planned Lunalee module is public and ships colocated declarations', () => {
+  for (const subpath of lunaleeModules) {
+    const target = pkg.exports[`./${subpath}`];
+    assert.equal(typeof target, 'string', subpath);
+    assert.ok(existsSync(here(target.replace(/\.mjs$/, '.d.mts'))), `${subpath} needs .d.mts`);
+  }
+});
+
+test('root-package physical public paths resolve without loading a Pi extension or host', async () => {
+  const { mkdtempSync, mkdirSync, symlinkSync, writeFileSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const { spawnSync } = await import('node:child_process');
+  const dir = mkdtempSync(join(tmpdir(), 'industrial-os-public-paths-'));
+  try {
+    mkdirSync(join(dir, 'node_modules'));
+    symlinkSync(fileURLToPath(new URL('../', import.meta.url)), join(dir, 'node_modules/industrial-os'), 'dir');
+    const imports = lunaleeModules.map((subpath) => `await import('industrial-os/design-system/${pkg.exports[`./${subpath}`].slice(2)}');`).join('\n');
+    writeFileSync(join(dir, 'imports.mjs'), imports);
+    const result = spawnSync(process.execPath, [join(dir, 'imports.mjs')], { encoding: 'utf8', timeout: 10000 });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, '');
+    assert.equal(result.stderr, '');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

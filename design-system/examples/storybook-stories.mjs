@@ -6,9 +6,10 @@
 import { ELEMENT_STORIES } from './storybook-elements.mjs';
 import { MOTION_STORIES } from './storybook-motions.mjs';
 import { COLOR_STORY, SIGNAL_STORY } from './storybook-colors.mjs';
+import { SURFACE_STORY } from './storybook-surface.mjs';
 import { literal } from './storybook-usage.mjs';
 
-export const STORIES = Object.freeze([...ELEMENT_STORIES, ...MOTION_STORIES, COLOR_STORY, SIGNAL_STORY]);
+export const STORIES = Object.freeze([...ELEMENT_STORIES, ...MOTION_STORIES, COLOR_STORY, SIGNAL_STORY, SURFACE_STORY]);
 
 // A motion preview is only worth running when its frames differ in the current color mode. Motions that
 // change only color (scan, pulse, the dim reveal, and others) would redraw identical plain text.

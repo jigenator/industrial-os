@@ -1,7 +1,7 @@
 {
   "name": "@industrial-os/design-system",
   "private": true,
-  "description": "Industrial OS terminal design system: foundation, elements and motions for this repository's projects. Never published; consumed by name through the root package's file: dependency.",
+  "description": "Industrial OS terminal design system: foundation, elements and motions for in-repo projects and the authorised pinned Lunalee consumer. Never published; consumed by name through the root package's file: dependency.",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -11,6 +11,8 @@
     "./foundation/palette": "./foundation/palette.mjs",
     "./foundation/signal-colors": "./foundation/signal-colors.mjs",
     "./foundation/industrialos-colors": "./foundation/industrialos-colors.mjs",
+    "./foundation/surface": "./foundation/surface.mjs",
+    "./foundation/surface-palette": "./foundation/surface-palette.mjs",
     "./foundation/seeded": "./foundation/seeded.mjs",
     "./elements/column-block": "./elements/column-block/column-block.mjs",
     "./elements/count-plate": "./elements/count-plate/count-plate.mjs",
