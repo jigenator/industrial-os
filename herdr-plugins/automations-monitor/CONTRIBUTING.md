@@ -91,3 +91,11 @@ A failed last run no longer puts a schedule under NEEDS ATTENTION or raises an a
 **Passed — rendered.** `--frame 160x40 --plain --screen schedules` and `--frame 80x24`: `QUOTA-REFRESH` under ON with `✕ 12M AGO`; `CERT-CHECK` under NEEDS ATTENTION as `PAUSED`, with `SCRIPT FAILED` at 160 columns and `SCRIPT FA…` at 80.
 
 **Not run:** the PTY check, the isolated Herdr check (no change to the terminal host, reader or launcher) and a machine with schedules on the real CLI.
+
+### 2026-10-27 · consume the design system's color declarations
+
+After DS-1 added the colocated `foundation/industrialos-colors.d.mts`, the redundant local ambient declaration and its `tsconfig` include were removed; no runtime, manifest or lockfile changed.
+
+**Passed — automated.** Bun 1.4.4, TypeScript 7.0.2, Node v22.23.4, macOS: `bun install --frozen-lockfile`, `./node_modules/.bin/tsc --noEmit -p .`, and `bun test` (**55 passed**, 0 failed, 19,335 expectations across six files). Strict types now resolve the package declaration directly. Whitespace and changed-document links/anchors passed.
+
+**Not run:** PTY, native Herdr, live Tatsu or installation. This declaration-only cleanup changes none of those runtime paths.
