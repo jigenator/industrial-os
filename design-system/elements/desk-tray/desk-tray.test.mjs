@@ -38,6 +38,7 @@ test('desk-tray: no validation/error content concealed and invalid inputs reject
   assert.throws(()=>deskStrip({state:'other'},{width:40}),RangeError);
   assert.throws(()=>questionBody({options:[{body:'x',selected:1}]},{width:40}),TypeError);
   assert.throws(()=>questionTitle({open:1},{width:40}),TypeError);
+  assert.throws(()=>questionTitle({selected:1},{width:40}),TypeError);
   assert.throws(()=>deskFooter({state:'error',text:'\x1b[31m'},{width:40,measure}),TypeError);
   for(const fn of [deskStrip,deskHeading,questionTitle,questionBody,deskFooter]) {assert.throws(()=>fn(null,{width:40}),TypeError);assert.throws(()=>fn({}, {width:0}),RangeError);}
 });
@@ -48,4 +49,17 @@ test('desk-tray: padded decline slab and bold waiting/option/error cues',()=>{
   assert.ok(deskStrip({state:'waiting',count:'2 waiting on you'},{width:70}).find(s=>s.text.includes('waiting')).style.bold);
   for(const selected of [false,true]) assert.ok(questionBody({options:[{body:'fixture',selected}]},{width:70})[0].find(s=>s.text.includes(selected?'●':'○')).style.bold);
   assert.ok(deskFooter({state:'error',text:'fixture'},{width:70}).find(s=>s.text.includes('✕')).style.bold);
+});
+
+test('questionTitle selected marks keyboard focus on a closed band; open wins', () => {
+  const closed = questionTitle({ label: 'QUESTION 08', title: 'Fixture' }, { width: 40 });
+  const selected = questionTitle({ label: 'QUESTION 08', title: 'Fixture', selected: true }, { width: 40 });
+  const both = questionTitle({ label: 'QUESTION 08', title: 'Fixture', open: true, selected: true }, { width: 40 });
+  const open = questionTitle({ label: 'QUESTION 08', title: 'Fixture', open: true }, { width: 40 });
+  assert.equal(plain(closed)[2], ' ');
+  assert.equal(plain(selected)[2], '▸');
+  const marker = selected.find(part => part.text.includes('▸'));
+  assert.equal(marker.style.fg, 'accent');
+  assert.notEqual(marker.style.bg, 'critical');
+  assert.deepEqual(both, open);
 });

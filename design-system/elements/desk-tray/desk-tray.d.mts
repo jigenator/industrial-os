@@ -4,7 +4,7 @@ export interface MeasuredOptions extends Options { measure: Measure }
 export const DESK_COLUMNS: Readonly<{ stripe: 1; content: 3; body: 5 }>;
 export interface StripInput<T = string> { state?: 'clear' | 'waiting' | 'open'; count?: T; hint?: T }
 export interface HeadingInput<T = string> { count?: T; hint?: T }
-export interface TitleInput<T = string> { label?: T; title?: T; open?: boolean; meta?: T }
+export interface TitleInput<T = string> { label?: T; title?: T; open?: boolean; selected?: boolean; meta?: T }
 export interface QuestionOption<T = string> { label?: T; body: T; selected?: boolean; pick?: boolean; hint?: T }
 export interface BodyInput<T = string> { prompt?: readonly T[]; options?: readonly QuestionOption<T>[] }
 export interface FooterInput<T = string> { state?: 'hint' | 'saving' | 'error' | 'decline' | 'readonly'; text?: T; detail?: T }
