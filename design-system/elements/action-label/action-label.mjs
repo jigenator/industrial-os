@@ -4,11 +4,11 @@ import { SURFACE_PALETTE as P } from '../../foundation/surface-palette.mjs';
 export function actionLabel({ label = 'open', kind = 'open', state = 'ready' } = {}, { maxWidth = Infinity, style, measure } = {}) {
   for (const value of arguments) if (value !== undefined && (value === null || typeof value !== 'object' || Array.isArray(value))) throw new TypeError('input and options must be objects');
   if (!['open', 'keycap'].includes(kind)) throw new RangeError('action kind must be open or keycap');
-  if (!['ready', 'read', 'hover', 'focused'].includes(state)) throw new RangeError('unknown action state');
+  if (!['ready', 'read', 'hover'].includes(state)) throw new RangeError('unknown action state');
   if (maxWidth !== Infinity && (!Number.isInteger(maxWidth) || maxWidth < 0 || maxWidth > 1000)) throw new RangeError('action maxWidth must be 0–1000 or Infinity');
   if (style !== undefined) resolveStyle(style);
   const plain = state === 'read';
-  const ink = { fg: plain ? P.wheat : 'field', bg: plain ? 'default' : P.wheat, bold: true, ...style };
+  const ink = { fg: plain ? P.wheat : 'field', bg: plain ? 'default' : state === 'hover' ? P.wheatHi : P.wheat, bold: !plain, ...style };
   const before = plain ? '[' : ' ', after = kind === 'open' ? (plain ? ' ▸]' : ' ▸ ') : (plain ? ']' : ' ');
   const content = fitText(label, Math.max(0, maxWidth - before.length - after.length), { measure, style: ink });
   // Even tiny widths keep a visible action boundary; no implied hit target is returned.

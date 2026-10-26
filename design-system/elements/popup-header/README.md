@@ -1,8 +1,8 @@
 # Popup header
 
-`popupHeader({plate,title='',meta='',style?},{width,measure})` returns one exact-width line: one left margin, a slab, title two cells after the plate content, right-aligned meta with one right margin. Title yields first; meta drops if the essential plate cannot leave enough spacing. No ruler, leader, or outer frame. Default plate is solid wheat; callers supply canonical role styles for other popup kinds.
+`popupHeader({plate,title='',meta='',style?},{width,measure})` returns one exact-width line: one left margin, a slab, title two cells after the plate content, right-aligned meta with one right margin. Title has priority: keep it complete whenever it fits alone; only an overlong title clips with an ellipsis. Meta uses the remaining space, clipping with an ellipsis only when at least eight cells remain; otherwise it drops. No ruler, leader, or outer frame. Default plate is solid wheat; callers supply canonical role styles for other popup kinds.
 
-`popupFooter({escape='back to the desk',meta=''},{width,measure})` returns an exact-width surface strip with an Esc keycap and supplied action text. Esc has priority over meta in narrow layouts. Notice/loading/error rows remain separate; neither function owns the popup lifecycle or input.
+`popupFooter({escape='back to the desk',meta=''},{width,measure})` returns an exact-width surface strip with an Esc keycap and supplied secondary-ink action text. Esc has priority over meta in narrow layouts. Notice/loading/error rows remain separate; neither function owns the popup lifecycle or input.
 
 ## Text, errors and checks
 

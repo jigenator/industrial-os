@@ -4,11 +4,11 @@
 
 `leader({glyph='┄'},{maxWidth=0})` repeats `┄` or `·` for exactly that budget (0–1000).
 
-`neatline({label=''},{width,measure})` centers a supplied reference between dashed registration marks. At tiny widths decoration yields.
+`neatline({label=''},{width,measure})` centers a supplied reference between ghost-ink dashed registration marks (the junctions retain rule ink). At tiny widths decoration yields.
 
 `nameRule({plate='LUNALEE',label='',time='',meter=[],joins=[]},{width,measure})` centers a solid accent slab and readout on a thin rule. Working label yields before meter/name; time is optional and used only without working content. Tiny widths ultimately clip the name. `joins` are viewport columns receiving `┴` where not covered by the name/readout. `meter` is a caller-rendered structural line, validated as safe spans, not an ANSI string.
 
-Animate only the structural tab with draw-in's opt-in style mode (`tick:40,steps:6,lag:0`). Off is the whole focused rule; plain retains every rule glyph.
+Animate only the structural tab with draw-in's opt-in style mode (`steps:6,lag:0`, tick defaults to 40 ms in style mode). Off is the whole focused rule; plain retains every rule glyph.
 
 ## Text, errors and checks
 

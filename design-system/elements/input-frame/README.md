@@ -1,6 +1,6 @@
 # Input frame
 
-`inputFrame({state='idle',label='INPUT',scroll='',spread=false},{width,bodyRows=1,measure})` returns `bodyRows+4` exact-width chrome-only rows. States are `idle`, `hover`, `focused`, `form`. Label is bone when focused, solid critical for forms; scroll metadata is supplied. No inferred editor state or cursor rendering.
+`inputFrame({state='idle',label='INPUT',scroll='',spread=false},{width,bodyRows=1,measure})` returns `bodyRows+4` exact-width chrome-only rows. States are `idle`, `hover`, `focused`, `form`. Label is bone when focused, solid critical for forms; scroll metadata is supplied and leaves one blank cell before the home right corner. No inferred editor state or cursor rendering.
 
 Row 0 and the final row reserve diagonal gutters. Home top is row 1, body occupies rows 2 through `bodyRows+1`, home bottom is `bodyRows+2`. The native editor overlays these empty body rows at column 3 with its existing budgets. Every body cell has transparent `bg:'default'` in every state: **INPUT never owns a body fill**. Native code/completion/selection backgrounds remain the editor's property. Widths below 8 omit corner geometry and prioritize the label.
 

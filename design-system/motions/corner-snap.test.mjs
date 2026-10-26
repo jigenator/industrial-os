@@ -18,3 +18,19 @@ test('corner snap holds spread after 40 ms, returns home on leave/off, keeps foc
     assert.deepEqual(home,before);
   }
 });
+
+test('only hover corners latch acid; focused bone and form critical ink persist', async () => {
+  const { SURFACE_PALETTE: P } = await import('../foundation/surface-palette.mjs');
+  for (const [state, fg] of [['hover','accent'],['focused',P.bone],['form','critical']]) {
+    const home = inputFrame({state},{width:40});
+    for (const time of [0,39]) {
+      const frame = cornerSnap(home,{time});
+      const corners = frame.flat().filter(s => /[┌┐└┘╴╶]/u.test(s.text));
+      assert.equal(corners.length,8);
+      assert.ok(corners.every(s => s.style.fg===fg));
+    }
+    const spread = cornerSnap(home,{time:40}).flat().filter(s => /[┌┐└┘╴╶]/u.test(s.text));
+    const settled = state==='hover'?'primary':fg;
+    assert.ok(spread.every(s => s.style.fg===settled));
+  }
+});

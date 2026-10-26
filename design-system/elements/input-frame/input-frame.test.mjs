@@ -28,3 +28,13 @@ test('input-frame measured labels retain wide, combining and ZWJ text',()=>{
   assert.throws(()=>inputFrame(1,{width:30}),TypeError);
   assert.throws(()=>inputFrame({label:'bad'}, {width:30,measure}),TypeError);
 });
+
+test('input scroll readout leaves a blank before the home right corner', () => {
+  for (const width of [30,40,66]) {
+    const line = inputFrame({state:'focused',scroll:'2-4 OF 5'},{width})[1];
+    const text = paint(line,'none');
+    assert.ok(text.endsWith('2-4 OF 5 ╶┐  '));
+    assert.equal(text.indexOf('╶┐'),width-4);
+    assert.equal(paint(inputFrame({state:'focused',scroll:'2-4 OF 5',spread:true},{width})[1],'none').indexOf('2-4 OF 5'),width-13);
+  }
+});

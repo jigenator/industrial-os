@@ -11,7 +11,8 @@ const OPTIONS = { ...DRAW_IN_DEFAULTS, mode: 'blank', steps: 6, head: 2 };
 const LOCKED = Object.freeze({ fg: 'field', bg: 'accent', bold: true });
 const BLANK = Object.freeze({ bg: 'field' });
 
-function check(o) {
+function check(o, options) {
+  if (o.mode === 'style' && options.tick === undefined) o.tick = 40;
   if (!['blank', 'style'].includes(o.mode)) throw new RangeError('drawIn mode must be blank or style');
   for (const key of ['steps', 'head']) if (!Number.isInteger(o[key]) || o[key] < 1 || o[key] > 1000) throw new RangeError(`drawIn ${key} must be 1–1000`);
   assertMs(o.tick, 'drawIn tick', { min: MIN_PERIOD_MS });
@@ -35,7 +36,7 @@ const settledAt = (lines, o) => lines.reduce((max, line, row) => {
 export function drawInDuration(lines, options = {}) {
   const o = resolveOptions('drawIn', options, OPTIONS);
   assertLines(lines);
-  check(o);
+  check(o, options);
   return settledAt(lines, o);
 }
 
@@ -47,7 +48,7 @@ export function drawInDuration(lines, options = {}) {
 export function drawIn(lines, options = {}) {
   const o = resolveOptions('drawIn', options, OPTIONS);
   assertLines(lines);
-  check(o);
+  check(o, options);
   assertTime(o, 'drawIn');
   if (!o.animate || o.time >= settledAt(lines, o)) return copyLines(lines);
 

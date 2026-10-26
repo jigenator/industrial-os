@@ -4,7 +4,7 @@ import { lineWidth, paint, span, textSlot } from '../../foundation/cells.mjs';
 import { actionLabel, keyHints } from './action-label.mjs';
 
 test('action-label bounds every state at widths 1–160 and preserves plain/color geometry', () => {
-  for(let width=1;width<=160;width++) for(const line of [keyHints([{key:'^O',label:'open'},{key:'Esc',label:'back'}],{width}), ...['ready','read','hover','focused'].map(state=>actionLabel({state},{maxWidth:width}))]) {
+  for(let width=1;width<=160;width++) for(const line of [keyHints([{key:'^O',label:'open'},{key:'Esc',label:'back'}],{width}), ...['ready','read','hover'].map(state=>actionLabel({state},{maxWidth:width}))]) {
     assert.ok(lineWidth(line)<=width);
     assert.equal(paint(line,'truecolor').replace(/\x1b\[[0-9;]*m/g,''),paint(line,'none'));
     for(const item of line) assert.equal(typeof item.text,'string');
@@ -34,4 +34,12 @@ test('action-label read action has brackets; keyHints drops entire tokens', () =
   assert.throws(()=>actionLabel({state:'disabled'}),RangeError);
   assert.throws(()=>actionLabel({}, {maxWidth:-1}),RangeError);
   assert.throws(()=>keyHints([{label:3}],{width:30}),TypeError);
+});
+
+test('action hover uses the wheat highlight, read is not bold, and unused focus is refused', async () => {
+  const { SURFACE_PALETTE: P } = await import('../../foundation/surface-palette.mjs');
+  assert.equal(actionLabel()[0].style.bg, P.wheat);
+  assert.equal(actionLabel({state:'hover'})[0].style.bg, P.wheatHi);
+  assert.ok(actionLabel({state:'read'}).every(s => s.style.bold === false));
+  assert.throws(() => actionLabel({state:'focused'}), RangeError);
 });

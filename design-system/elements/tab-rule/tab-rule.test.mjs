@@ -39,3 +39,15 @@ test('tab-rule has columns 1–14 heavy then hairline, no ruler', () => {
 test('name-rule structural meter is not an unmeasured Unicode bypass',()=>{
   assert.throws(()=>nameRule({meter:[span('日本')]},{width:30}),TypeError);
 });
+
+test('neatline dashes are ghost while registration marks retain rule ink', async () => {
+  const { SIGNAL_COLORS } = await import('../../foundation/signal-colors.mjs');
+  const { SURFACE_PALETTE: P } = await import('../../foundation/surface-palette.mjs');
+  for (const label of ['', 'START OF CONVERSATION']) {
+    const line = neatline({label},{width:66});
+    for (const s of line) {
+      if(s.text.includes('┄')) assert.equal(s.style.fg,SIGNAL_COLORS.ghost);
+      if(s.text.includes('┼')) assert.equal(s.style.fg,P.rule);
+    }
+  }
+});

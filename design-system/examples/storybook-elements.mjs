@@ -527,7 +527,7 @@ const TAB_RULE = element('tab-rule', {
 const ACTION_LABEL = element('action-label', {
   title:'ACTION LABEL', summary:'Open affordances and whole-token keyboard hints. Host owns activation.',
   rules:['Read open actions have brackets, not just different ink.', 'Hints drop whole tokens, never part of a chord.'],
-  variants:['ready','read','hover','focused'].map(state=>({name:state.toUpperCase(),input:{state}})).concat([{name:'HINTS',hints:true}]),
+  variants:['ready','read','hover'].map(state=>({name:state.toUpperCase(),input:{state}})).concat([{name:'HINTS',hints:true}]),
   specimen(v,width) {
     if(!v.hints) return piece('actionLabel',o=>actionLabel(v.input,o),[v.input],{},width);
     const tokens=[{key:'^O',label:'open'},{key:'Esc',label:'back'},{key:'^P',label:'sheets'}];
@@ -536,7 +536,7 @@ const ACTION_LABEL = element('action-label', {
 });
 const POPUP_HEADER = element('popup-header', {
   title:'POPUP HEADER', summary:'Five popup headers share spacing-only chrome and an Esc footer.',
-  rules:['No ruler, no leader and no outer frame.', 'Title yields before right meta; plate and Esc have priority at tiny widths.'],
+  rules:['No ruler, no leader and no outer frame.', 'Title stays whole before meta; meta clips only with eight spare cells.'],
   variants:[
     {name:'SHEET',input:{plate:'SHEET 05',title:'SYNTHETIC SHORTLIST',meta:'handed over 09:41'}},
     {name:'SHEETS',input:{plate:'SHEETS',title:'4 - NEWEST FIRST',meta:'^P'}},
@@ -556,7 +556,8 @@ const NOTICE_ROW = element('notice-row', {
     {name:'SENDING',input:{glyph:'›',text:'sending'}}, {name:'STOPPED',input:{glyph:'■',text:'stopped'}},
     {name:'WARNING',input:{glyph:'▲',tone:'warning',text:'synthetic warning'}},
     {name:'ERROR',input:{glyph:'✕',tone:'critical',text:'not delivered'}},
-    {name:'LINK',input:{glyph:'✕',plate:'LINK',tone:'critical',text:'not running',detail:['run synthetic-service --retry']}},
+    {name:'LINK',input:{glyph:'■',plate:'LINK',plateFirst:true,tone:'critical',text:'not running',detail:[{kind:'command',text:'$ cd synthetic-project',label:'SH'},{kind:'command',text:'  service && bun run src/main.ts',label:''}]}},
+    {name:'CONNECTING',input:{glyph:'⠋',plate:'LINK',plateFirst:true,glyphInk:'accent',plateStyle:{fg:'field',bg:SURFACE_PALETTE.plateGrey},text:'connecting'}},
     {name:'EMPTY',input:{text:'No conversation yet'}}, {name:'OLDER',input:{glyph:'·',text:'loading older'}},
   ],
   specimen(v,width) { return {lines:noticeRow(v.input,{width}),calls:[call('noticeRow',v.input,{width})],facts:[]}; },

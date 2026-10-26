@@ -1,8 +1,21 @@
 # Notice row
 
-`noticeRow({glyph='·',plate='',text='',detail=[],tone='neutral'},{width,measure})` returns a headline plus zero or more supplied detail rows. Glyph is one curated structural glyph; tone is neutral/warning/critical. Optional plate uses the existing slab label. No guessed status, right-hand state column or command execution.
+`noticeRow({glyph='·',plate='',text='',detail=[],tone='neutral',plateFirst=false,glyphInk,plateStyle},{width,measure})` returns a headline plus zero or more supplied detail rows. Glyph is one curated structural glyph; tone is neutral/warning/critical. Optional plate uses the existing slab label; `plateStyle` can override its validated colors. `plateFirst:true` puts it before the glyph, and `glyphInk` independently selects a validated foreground. Headline defaults to decorative ink, or secondary for critical errors; measured rich text can supply further word-level styles. No guessed status, right-hand state column or command execution.
 
-A simple notice is one clipped row. Detail is a list of text values; each wraps at complete graphemes, preserving every source character (including copyable recovery commands). Output row count is explicit in the returned array. A detail grapheme wider than the entire viewport throws RangeError rather than losing it or splitting it. The host owns vertical scrolling/budgets. Start-of-conversation markers compose the rule family's neatline rather than pretending to be messages. Spinner/state words are supplied; motions and clocks are separate.
+A simple notice is one clipped row. Detail is a list of text values; each wraps at complete graphemes, preserving every source character. Output row count is explicit in the returned array. A detail grapheme wider than the entire viewport throws RangeError rather than losing it or splitting it. The host owns vertical scrolling/budgets. Start-of-conversation markers compose the rule family's neatline rather than pretending to be messages. Command details instead use `{kind:'command',text,label:'SH'}`. They occupy one full-width surface band, with text at column 2 and a right-aligned structural ` SH ` label. Use `label:''` for continuation rows. **Hosts own splitting commands at safe boundaries**; this renderer never hard-wraps a path. An overlong row clips with a whole-grapheme ellipsis as a nonthrowing safety net. String details retain the existing lossless wrapping behavior. Command text and labels both accept measured slots.
+
+```js
+noticeRow({
+  plate: 'LINK', plateFirst: true, glyph: '⠋', glyphInk: 'accent',
+  plateStyle: { fg: 'field', bg: SURFACE_PALETTE.plateGrey }, text: 'connecting',
+}, { width: 66 });
+noticeRow({ plate: 'LINK', plateFirst: true, tone: 'critical', glyph: '■', text: 'not running', detail: [
+  { kind: 'command', text: '$ cd synthetic-project', label: 'SH' },
+  { kind: 'command', text: '  service && bun run src/main.ts', label: '' },
+]}, { width: 66 });
+```
+
+Spinner/state words are supplied; motions and clocks are separate.
 
 ## Text, errors and checks
 

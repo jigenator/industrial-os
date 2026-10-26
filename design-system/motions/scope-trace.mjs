@@ -10,9 +10,10 @@ export function blipPass(index, previousKey) {
   let candidate;
   for (let salt = 0; salt < 32; salt++) {
     const h = Math.floor(hash(index, 911, salt) * 2 ** 32);
-    const kind = ['walk', 'hop', 'flicker'][h % 3], dir = (h >>> 3) & 1 ? 1 : -1;
+    const kind = ['walk', 'hop', 'flicker'][h % 3], direction = (h >>> 3) & 1 ? 1 : -1;
+    const dir = kind === 'flicker' ? 1 : direction;
     const length = kind === 'walk' ? 3 + ((h >>> 5) & 1) : kind === 'hop' ? 2 : 1;
-    const start = dir > 0 ? (h >>> 7) % (5 - length) : 3 - (h >>> 7) % (5 - length);
+    const start = direction > 0 ? (h >>> 7) % (5 - length) : 3 - (h >>> 7) % (5 - length);
     const key = `${kind}:${start}:${dir}:${length}`;
     const cells = kind === 'flicker' ? [start, -1, start] : Array.from({ length }, (_, i) => start + dir * i);
     candidate = { index, kind, dir, start, cells: Object.freeze(cells), key, jitter: 0.6 + 0.8 * hash(index, 1777, 0) };
@@ -20,6 +21,16 @@ export function blipPass(index, previousKey) {
   }
   const start = candidate.start === 0 ? 3 : 0;
   return Object.freeze({ ...candidate, kind: 'flicker', start, dir: 1, cells: Object.freeze([start, -1, start]), key: `flicker:${start}:1:1` });
+}
+
+export function blipRest(pass, everyMs) {
+  if (!pass || typeof pass !== 'object' || Array.isArray(pass) || typeof pass.jitter !== 'number') throw new TypeError('blip rest requires a pass with numeric jitter');
+  if (!Number.isFinite(pass.jitter) || pass.jitter < 0.6 || pass.jitter > 1.4) throw new RangeError('blip jitter must be .6–1.4');
+  if (typeof everyMs !== 'number') throw new TypeError('blip interval must be a number');
+  if (!Number.isFinite(everyMs) || everyMs < 0) throw new RangeError('blip interval must be finite and nonnegative');
+  const rest = Math.round(everyMs * pass.jitter / 80) * 80;
+  if (!Number.isSafeInteger(rest)) throw new RangeError('blip rest must be a safe integer');
+  return rest;
 }
 
 function check(options) {

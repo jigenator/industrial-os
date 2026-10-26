@@ -1,4 +1,5 @@
 import { GLYPHS, assertCells, fitLine, fitText, lineWidth, span, textSlot } from '../../foundation/cells.mjs';
+import { SIGNAL_COLORS } from '../../foundation/signal-colors.mjs';
 import { SURFACE_PALETTE as P } from '../../foundation/surface-palette.mjs';
 import { labelPlate } from '../label-plate/label-plate.mjs';
 
@@ -21,14 +22,16 @@ export function tabRule({ tabCells = 14, focused = false } = {}, { width } = {})
   return fitLine([span(' ', clear), span('━'.repeat(tab) + '─'.repeat(width - 1 - tab), { fg: focused ? 'accent' : P.rule, ...clear })], width, clear);
 }
 
+const neatlineSpans = text => [...text].map(ch => span(ch, ch === '┄' ? { fg: SIGNAL_COLORS.ghost, ...clear } : rule));
+
 export function neatline({ label = '' } = {}, { width, measure } = {}) {
   for (const value of arguments) if (value !== undefined && (value === null || typeof value !== 'object' || Array.isArray(value))) throw new TypeError('input and options must be objects');
   assertCells(width, 'neatline width');
   const content = fitText(label, Math.max(0, width - 6), { measure, style: { fg: 'decorative', ...clear } });
   const size = lineWidth(content, { measure });
-  if (width < 6 || !size) return fitLine([span(width > 1 ? ' ┼' + '┄'.repeat(Math.max(0, width - 4)) + (width > 3 ? '┼ ' : '') : '┼', rule)], width, clear);
+  if (width < 6 || !size) return fitLine(neatlineSpans(width > 1 ? ' ┼' + '┄'.repeat(Math.max(0, width - 4)) + (width > 3 ? '┼ ' : '') : '┼'), width, clear);
   const left = Math.floor((width - size - 2) / 2);
-  return fitLine([span(' ┼' + '┄'.repeat(Math.max(0, left - 2)) + ' ', rule), ...content, span(' ' + '┄'.repeat(Math.max(0, width - left - size - 4)) + '┼ ', rule)], width, clear, { measure });
+  return fitLine([...neatlineSpans(' ┼' + '┄'.repeat(Math.max(0, left - 2)) + ' '), ...content, ...neatlineSpans(' ' + '┄'.repeat(Math.max(0, width - left - size - 4)) + '┼ ')], width, clear, { measure });
 }
 
 export function nameRule({ plate = 'LUNALEE', label = '', time = '', meter = [], joins = [] } = {}, { width, measure } = {}) {

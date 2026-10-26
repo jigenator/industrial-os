@@ -1,4 +1,5 @@
 import { GLYPHS, assertCells, fitLine, fitText, lineWidth, span, textSlot } from '../../foundation/cells.mjs';
+import { SIGNAL_COLORS } from '../../foundation/signal-colors.mjs';
 import { SURFACE_PALETTE as P } from '../../foundation/surface-palette.mjs';
 import { actionLabel } from '../action-label/action-label.mjs';
 
@@ -39,14 +40,14 @@ export function feedBezel({ imageRect, callsign = '', channel = '', pose = '', m
   if (imageRect.width >= 3) { put(l,top,'┌─');put(r-1,top,'─┐'); }
   else { put(l,top,'┌');put(r,top,'┐'); }
   for(const y of new Set([top+1,top+2,bottom-2,bottom-1])) { put(l,y,'│');put(r,y,'│'); }
-  put(l,top+Math.ceil(imageRect.height/2),'╶');put(r,top+Math.ceil(imageRect.height/2),'╴');
+  put(l,top+Math.ceil(imageRect.height/2),'╶',{fg:SIGNAL_COLORS.ghost,...clear});put(r,top+Math.ceil(imageRect.height/2),'╴',{fg:SIGNAL_COLORS.ghost,...clear});
   const trace=structural(meter,measure), lampLine=structural(lamp,measure);
   const traceWidth=lineWidth(trace,{measure});
   const room=Math.max(0,r-l-6-traceWidth);
   const name=fitText(callsign,Infinity,{measure,style:{fg:'decorative',...clear,bold:true}});
-  const chan=fitText(channel,Infinity,{measure,style:{fg:'decorative',...clear}});
-  const readout=[...name,...(lineWidth(chan,{measure})?[span(' · ',clear),...chan]:[])];
-  if(lineWidth(readout,{measure})<=room) c.put(l+3,top,readout);
+  const chan=fitText(channel,Infinity,{measure,style:{fg:SIGNAL_COLORS.ghost,...clear}});
+  const readout=[...name,...(lineWidth(chan,{measure})?[span(' · ',{fg:SIGNAL_COLORS.ghost,...clear}),...chan]:[])];
+  if(lineWidth(readout,{measure})>0&&lineWidth(readout,{measure})<=room) c.put(l+3,top,readout);
   if(traceWidth&&traceWidth<=r-l-6) c.put(r-3-traceWidth,top,trace);
   c.put(r+2,bottom-1,lampLine);
   const poseLine=fitText(pose,Infinity,{measure,style:{fg:'decorative',...clear}});
@@ -57,7 +58,8 @@ export function imageLabel({label,missing=false,unsupported=false,hover=false}, 
   for (const value of arguments) if (value !== undefined && (value === null || typeof value !== 'object' || Array.isArray(value))) throw new TypeError('input and options must be objects');
   for(const flag of [missing,unsupported,hover]) if(typeof flag!=='boolean') throw new TypeError('image flags must be boolean');
   if(maxWidth!==Infinity&&(!Number.isInteger(maxWidth)||maxWidth<0||maxWidth>1000)) throw new RangeError('image maxWidth must be 0–1000 or Infinity');
-  const action=hover&&!missing&&!unsupported?actionLabel({}, {measure}):[];
+  const candidate=hover&&!missing&&!unsupported?actionLabel({}, {measure}):[];
+  const action=lineWidth(candidate,{measure})+4<=maxWidth?candidate:[];
   const suffix=missing?' (missing)':unsupported?' (unsupported)':'';
   const room=Math.max(0,maxWidth-2-lineWidth(action,{measure})-(action.length?2:0)-suffix.length);
   const text=fitText(label,room,{measure,style:{fg:hover?'primary':'secondary',...clear}});

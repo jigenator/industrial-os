@@ -1,6 +1,6 @@
 # Action label
 
-`actionLabel({label='open',kind='open',state='ready'},{maxWidth=Infinity,style,measure})` returns inline spans. `kind` is `open` or `keycap`; states are `ready`, `read`, `hover`, `focused`. Open adds `▸`; read uses `[open ▸]`, other states padded solid wheat. Style is a validated explicit override. Tiny widths clip the affordance, never create a hit target. This is not an informational label plate.
+`actionLabel({label='open',kind='open',state='ready'},{maxWidth=Infinity,style,measure})` returns inline spans. `kind` is `open` or `keycap`; states are `ready`, `read`, `hover`. Open adds `▸`; read uses `[open ▸]`, ready is padded solid wheat and hover uses wheat highlight (`wheatHi`, the info tone’s high ink). Read is not bold. There is no invented focused-button pose; focus remains host-owned. Style is a validated explicit override, including other tones and their hover ink. Tiny widths clip the affordance, never create a hit target. This is not an informational label plate.
 
 `keyHints([{key?,label}],{width,measure})` returns one exact-width row, starting at column 1. Keys are bone on surface; labels are decorative. Tokens drop whole at the first one that cannot fit; no clipped chord. No action, focus ownership, input listener or hit rectangle lives here. Host owns keyboard and mouse activation.
 

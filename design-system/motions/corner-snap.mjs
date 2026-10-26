@@ -29,7 +29,7 @@ export function cornerSnap(lines,options={}) {
     }
   }
   for(const {source,target} of moves) {
-    if(o.time<40) source.style={...source.style,fg:'accent'};
+    if(o.time<40) { if(source.style.fg==='primary') source.style={...source.style,fg:'accent'}; }
     else {target.text=source.text;target.style={...source.style};source.text=' ';source.style={bg:'default'};}
   }
   return cells.map(row=>row.map(c=>span(c.text,c.style)));

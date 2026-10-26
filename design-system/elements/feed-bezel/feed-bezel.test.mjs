@@ -36,3 +36,30 @@ test('feed-bezel measured callsign/channel/pose and image labels preserve slots'
 test('feed structural spans require a measurer for noncurated Unicode',()=>{
   assert.throws(()=>feedBezel({imageRect:{x:2,y:1,width:20,height:10},lamp:[span('日本')]},{width:40,height:15}),TypeError);
 });
+
+test('empty feed readouts cannot erase narrow top-right brackets', () => {
+  for (const imageWidth of [2,3]) {
+    const lines = feedBezel({imageRect:{x:3,y:1,width:imageWidth,height:6}},{width:20,height:10});
+    assert.equal(paint(lines[0],'none')[3+imageWidth],'┐');
+  }
+});
+
+test('image label drops the entire open action when its token cannot fit', () => {
+  for (let maxWidth = 0; maxWidth <= 40; maxWidth++) {
+    const line = imageLabel({label:'synthetic.png',hover:true},{maxWidth});
+    const text = paint(line,'none');
+    assert.ok(lineWidth(line)<=maxWidth);
+    assert.equal(text.includes(' open ▸ '),maxWidth>=12);
+    assert.ok(!text.includes(' open') || text.includes(' open ▸ '));
+  }
+});
+
+test('bezel ticks and channel separator use ghost ink', async () => {
+  const { SIGNAL_COLORS } = await import('../../foundation/signal-colors.mjs');
+  const lines = feedBezel({imageRect:{x:3,y:1,width:32,height:16},callsign:'M-02',channel:'CH 02'},{width:50,height:19});
+  const ticks=lines[8].filter(s => /[╶╴]/u.test(s.text));
+  assert.equal(ticks.length,2);
+  for (const s of ticks) assert.equal(s.style.fg,SIGNAL_COLORS.ghost);
+  assert.equal(lines[0].find(s => s.text===' · ').style.fg,SIGNAL_COLORS.ghost);
+  assert.equal(lines[0].find(s => s.text==='CH 02').style.fg,SIGNAL_COLORS.ghost);
+});

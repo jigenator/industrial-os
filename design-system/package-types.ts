@@ -75,7 +75,7 @@ import { scopeMeter } from './elements/scope-meter/scope-meter.mjs';
 import { soundingMeter } from './elements/sounding-meter/sounding-meter.mjs';
 import { feedBezel, imageLabel, imageInset } from './elements/feed-bezel/feed-bezel.mjs';
 import { inputFrame } from './elements/input-frame/input-frame.mjs';
-import { scopeTrace, blipPass } from './motions/scope-trace.mjs';
+import { scopeTrace, blipPass, blipRest } from './motions/scope-trace.mjs';
 import { soundingSweep } from './motions/sounding-sweep.mjs';
 import { feedScan } from './motions/feed-scan.mjs';
 import { cornerSnap } from './motions/corner-snap.mjs';
@@ -95,3 +95,11 @@ soundingSweep([soundingMeter()], { time: 40 });
 popupHeader({ plate: { spans: [], width: 0 } }, { width: 40 });
 // @ts-expect-error rich slots require a measurer
 inputFrame({ label: { spans: [], width: 0 } }, { width: 40 });
+
+blipRest(blipPass(1), 8000);
+noticeRow({ plate: 'LINK', plateFirst: true, glyph: '⠋', glyphInk: 'accent', plateStyle: { fg: 'field', bg: 'structural' }, detail: [{ kind: 'command', text: '$ cd synthetic-project', label: 'SH' }] }, { width: 66 });
+noticeRow({ detail: [{ kind: 'command', text: { spans: [], width: 0 }, label: { spans: [], width: 0 } }] }, { width: 66, measure: text => text.length });
+// @ts-expect-error command text slots require a measurer
+noticeRow({ detail: [{ kind: 'command', text: { spans: [], width: 0 } }] }, { width: 66 });
+// @ts-expect-error the mockup has no focused open-action state
+actionLabel({ state: 'focused' });

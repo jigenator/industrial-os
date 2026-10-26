@@ -136,3 +136,11 @@ test('draw-in opt-in rule style mode retains all glyphs with a white head on a s
   assert.equal(cells.filter(c=>c.fg==='accent').length,4);
   for(const options of [{mode:'unknown'},{steps:0},{head:0}]) assert.throws(()=>drawIn(lines,{...options,animate:false}),RangeError);
 });
+
+test('draw-in style mode defaults to 40 ms without changing the legacy 50-ms tick', () => {
+  const lines=[[span('━━━━━━━━━━━━━━────────────────────',{fg:'accent',bg:'default'})]];
+  assert.equal(DRAW_IN_DEFAULTS.tick,50);
+  assert.equal(drawInDuration(lines,{mode:'style'}),240);
+  for(const time of [0,39,40,79,80,239,240]) assert.deepEqual(drawIn(lines,{mode:'style',time}),drawIn(lines,{mode:'style',tick:40,time}));
+  assert.equal(drawInDuration(lines,{mode:'style',tick:60}),360);
+});
