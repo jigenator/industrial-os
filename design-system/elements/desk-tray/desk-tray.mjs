@@ -28,12 +28,13 @@ export function deskHeading({ count = '', hint = '' } = {}, options = {}) {
   const label = labelPlate('DESK', { form: 'slab', style: { fg: 'field', bg: 'critical' } });
   return line([...label, span(' ', clear), ...fitText(count, Infinity, { measure: options.measure, style: { fg: 'critical', bold: true, ...clear } })], hint, options, 3);
 }
-export function questionTitle({ label = '', title = '', open = false, meta = '' } = {}, options = {}) {
+export function questionTitle({ label = '', title = '', open = false, selected = false, meta = '' } = {}, options = {}) {
   for (const value of arguments) if (value !== undefined && (value === null || typeof value !== 'object' || Array.isArray(value))) throw new TypeError('input and options must be objects');
   if (typeof open !== 'boolean') throw new TypeError('open must be boolean');
+  if (typeof selected !== 'boolean') throw new TypeError('selected must be boolean');
   const bg = open ? 'critical' : P.tint, fg = open ? 'field' : 'primary';
   const content = [...fitText(label, Infinity, { measure: options.measure, style: { fg: open ? 'field' : 'decorative', bg } }), span('  ', { bg }), ...fitText(title, Infinity, { measure: options.measure, style: { fg, bg, bold: true } })];
-  return line(content, meta, options, 3, bg, [span(' ', clear), span('█', { fg: 'critical', ...clear }), span(open ? '▸' : ' ', { fg: 'field', bg })], open ? 'field' : 'decorative');
+  return line(content, meta, options, 3, bg, [span(' ', clear), span('█', { fg: 'critical', ...clear }), span(open || selected ? '▸' : ' ', { fg: open ? 'field' : 'accent', bg })], open ? 'field' : 'decorative');
 }
 export function questionBody({ prompt = [], options: choices = [] } = {}, { width, measure } = {}) {
   for (const value of arguments) if (value !== undefined && (value === null || typeof value !== 'object' || Array.isArray(value))) throw new TypeError('input and options must be objects');

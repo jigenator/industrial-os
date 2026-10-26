@@ -673,7 +673,7 @@ const DESK_TRAY = contentStory('desk-tray','DESK TRAY','One stripe/content/body 
     ['questionTitle',{label:'QUESTION 07',title:'Choose a fixture',open:true,meta:'1/2'}],
     ['questionBody',{prompt:['Choose one synthetic option.'],options:[{label:'1',body:'Fixture alpha',selected:true,pick:true},{label:'2',body:'Fixture beta'}]}],
     ['deskFooter',{state,text:state==='hint'?'1-2 choose - Enter confirms':state==='saving'?'saving your answer':state==='error'?'could not save - choice kept':state==='readonly'?'cached answer - read only':'Enter declines - Esc keeps it'}],
-    ['questionTitle',{label:'QUESTION 08',title:'Another synthetic question'}],
+    ['questionTitle',{label:'QUESTION 08',title:'Another synthetic question',selected:state==='hint'}],
     ['deskStrip',{state:'open',hint:'^O full sheet'}],
   ]})),
 ]);

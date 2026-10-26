@@ -4,7 +4,7 @@
 
 - `deskStrip({state='clear',count='',hint=''}, options) -> Line`: full surface strip; clear has no notch, waiting/open have a steady round critical lamp in column 1. DESK is grey when clear, solid critical otherwise. Waiting count text is supplied; open says `open above`. Hint text is supplied, not an inferred keyboard action.
 - `deskHeading({count,hint}, options) -> Line`: solid DESK plate + supplied count at column 3 and put-off hint at the right edge. No leader.
-- `questionTitle({label,title,open=false,meta=''}, options) -> Line`: critical stripe, solid critical open band with ▸, tint closed band, right meta.
+- `questionTitle({label,title,open=false,selected=false,meta=''}, options) -> Line`: critical stripe, solid critical open band with ▸, tint closed band, right meta. `selected` is keyboard focus on a closed title: an acid ▸ in the marker column on the tint band. `open` wins when both are set, so the solid band only ever means the expanded question.
 - `questionBody({prompt=[],options=[]}, options) -> Line[]`: prewrapped prompts + one row per supplied option `{label?,body,selected=false,pick=false,hint?}`. ○/● carries selection; optional `pick:true` is the orange `◆ her pick` readout. Dim critical hairline hangs in column 1. A selected choice never submits anything. Native form/editor/read-only body content remains host-owned supplied text.
 - `deskFooter({state='hint',text='',detail=''}, options) -> Line`: exactly one body-grid row. States are hint/saving/error/decline/readonly; saving has static ·, error ✕, decline a warning `▲ DECLINE?` plate. Error text and kept-choice notices are never hidden. The host supplies all recovery/confirmation wording and must explicitly activate Enter; this renderer never confirms a decline.
 
