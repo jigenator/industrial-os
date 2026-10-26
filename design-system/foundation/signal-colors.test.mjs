@@ -47,7 +47,8 @@ test('Herdr chrome colors are frozen lowercase values: the signal orange equals 
 
 test('Pi chrome colors are frozen lowercase values that shadow no role, signal or Herdr chrome name', () => {
   assert.ok(Object.isFrozen(PI_CHROME));
-  assert.deepEqual(PI_CHROME, { bone: '#e2dccb' });
+  assert.deepEqual(PI_CHROME, { bone: '#e2dccb', lamp: '#ff5c00' });
+  assert.equal(PI_CHROME.lamp, HERDR_CHROME.signalOrange);
   for (const [name, hex] of Object.entries(PI_CHROME)) {
     assert.match(hex, /^#[0-9a-f]{6}$/, name);
     assert.equal(resolveColor(hex), hex);
@@ -58,7 +59,7 @@ test('Pi chrome colors are frozen lowercase values that shadow no role, signal o
 test('every curated glyph is a single code point listed once', () => {
   const glyphs = [...GLYPHS];
   assert.equal(new Set(glyphs).size, glyphs.length);
-  for (const glyph of '━┃┏┓┗┛┼▀▄▒▓▚▞■▪·•◆▴⌑⑂×') assert.ok(GLYPHS.includes(glyph), glyph);
+  for (const glyph of '━┃┏┓┗┛┣┫┻┼▀▄▒▓▚▞■▪·•◆▴⌑⑂×') assert.ok(GLYPHS.includes(glyph), glyph);
 });
 
 test('mixOver rejects unknown terminal-default RGB rather than manufacturing a color', () => {

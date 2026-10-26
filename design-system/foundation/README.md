@@ -48,7 +48,7 @@ labelPlate(title, { form: 'slab', maxWidth: 20, measure });
 - `italic` and `underline` are optional boolean styles, preserved by `resolveStyle` when present and emitted as SGR 3/4 by `paint`. Existing omitted-style output stays byte-identical. Measured label-plate caps and new word/lamp chrome explicitly use `bg: 'default'` for transparent channels; this **does not** change historical `paint`/`resolveStyle` omission, which remains black field. Slot channel overrides remain explicit.
 - This is not blanket Unicode support for every element or motion. Measured label plates, word chips and survey chrome opt in individually. Reveal, feed-scan and corner-snap explicitly admit a measurer; other old motions still walk code points, so animate isolated narrow structural pieces, never opaque rich body slots. See each element/motion contract.
 
-The curated survey glyphs include `╴╶┄├└┬┤┴┸▤▣▸▾▼◇›` and the braille block (U+2800–U+28FF). Their one-cell rulers are tested algorithmically; actual terminal/font width verification remains a native-host check.
+The curated survey glyphs include `╴╶┄├└┬┤┴┸▤▣▸▾▼◇›` and the braille block (U+2800–U+28FF); the heavy junctions `┣┫┻` join a heavy frame to a divider or a tick, as in the Pi droid header. Their one-cell rulers are tested algorithmically; actual terminal/font width verification remains a native-host check.
 
 ## Surface
 
@@ -113,7 +113,7 @@ Signal colors now also serve Herdr chrome. `HERDR_CHROME`, exported from the sam
 
 ### Pi chrome colors
 
-`PI_CHROME`, exported from the same module, is a frozen object of the product colors [the Pi theme](../../pi/theme/industrial-os.json) restates that are neither roles nor status-bar colors: `bone` `#e2dccb`, a warm off-white for the editor border at every thinking level. It is a Marathon-inspired value chosen for this theme, not a published Marathon brand color. The theme's other values are roles or signal colors. Like `HERDR_CHROME`, it is not part of Acid / Black and is kept out of `SIGNAL_COLORS`, which status-bar maps to footer aliases. No storybook story shows it.
+`PI_CHROME`, exported from the same module, is a frozen object of the product colors [the Pi theme](../../pi/theme/industrial-os.json) and the Pi extensions use that are neither roles nor status-bar colors: `bone` `#e2dccb`, a warm off-white for the editor border at every thinking level, and `lamp` `#ff5c00`, the Pi droid header's signal lamp. `bone` is a Marathon-inspired value chosen for this theme, not a published Marathon brand color. `lamp` has the same value as `HERDR_CHROME.signalOrange` and `SIGNAL_COLORS.cld`, in a separate role, and a different name because no `PI_CHROME` name may shadow another object's. The theme's other values are roles or signal colors. Like `HERDR_CHROME`, they are not part of Acid / Black and are kept out of `SIGNAL_COLORS`, which status-bar maps to footer aliases. No storybook story shows them.
 
 ## Seeded randomness
 

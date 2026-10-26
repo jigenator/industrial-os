@@ -26,7 +26,7 @@ The product colors status-bar uses beside the Acid / Black roles (count tiers, m
 
 Signal colors now also serve Herdr chrome: the [Herdr theme](../../herdr/theme.toml) restates roles, `SIGNAL_COLORS.ghost`, and the two [Herdr chrome colors](../foundation/README.md#herdr-chrome-colors) in `HERDR_CHROME`, the Marathon signal orange `#ff5c00` and its 30% mix over the field `#4d1c00`. They are a separate object because status-bar does not use them; the SIGNAL COLORS story does not show them.
 
-The [Pi theme](../../pi/theme/industrial-os.json) likewise restates roles and signal colors, plus one [Pi chrome color](../foundation/README.md#pi-chrome-colors) in `PI_CHROME`: `bone` `#e2dccb`, the warm off-white of Pi's editor border. The SIGNAL COLORS story does not show it either.
+The [Pi theme](../../pi/theme/industrial-os.json) likewise restates roles and signal colors, plus one [Pi chrome color](../foundation/README.md#pi-chrome-colors) in `PI_CHROME`: `bone` `#e2dccb`, the warm off-white of Pi's editor border. `PI_CHROME.lamp` `#ff5c00` is the Pi droid header's signal lamp, the Marathon signal orange in its own role. The SIGNAL COLORS story shows neither.
 
 ## Motions
 

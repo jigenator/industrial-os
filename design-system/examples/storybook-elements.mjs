@@ -16,7 +16,7 @@ import { lamp } from '../elements/lamp/lamp.mjs';
 import { modePlate, pnytlPlate } from '../elements/mode-plate/mode-plate.mjs';
 import { SURFACE_PALETTE } from '../foundation/surface-palette.mjs';
 import { stateChip, stateChips } from '../elements/state-chip/state-chip.mjs';
-import { numeralAt, numeralGrid, numeralLines, pixelNumeral } from '../elements/pixel-numeral/pixel-numeral.mjs';
+import { numeralAt, numeralGrid, numeralLines, pixelNumeral, textGrid } from '../elements/pixel-numeral/pixel-numeral.mjs';
 import { providerColumn, segmentMeter } from '../elements/segment-meter/segment-meter.mjs';
 import { threadRail, threadRailPieces } from '../elements/thread-rail/thread-rail.mjs';
 import { frameGeometry, instrumentFrame } from '../elements/instrument-frame/instrument-frame.mjs';
@@ -341,6 +341,7 @@ const NUMERAL = element('pixel-numeral', {
     'Unknown is a decorative ?, never a zero numeral.',
     'A grid that cannot fit is never cropped: row one shows the exact small text, or # cells.',
     'numeralAt(target, from, progress, seed) rebuilds the new shape only; the host supplies progress and seed.',
+    'textGrid(text) draws digits and hex letters A-F exactly as wide as their glyphs, for unit codes.',
   ],
   variants: [
     { name: 'OK', note: 'White pixels at 64.', value: 64 },
@@ -350,9 +351,22 @@ const NUMERAL = element('pixel-numeral', {
     { name: 'HUNDRED', note: '100.0 widens the grid to 17 cells.', value: 100 },
     { name: 'REBUILD', note: 'numeralAt at progress 0.6, seed 42: 95 appearing from 64; no old digit is shown.', rebuild: { target: 95, from: 64, progress: 0.6, seed: 42 } },
     { name: 'NARROW', note: 'Under the grid width: the exact one-decimal text on row one.', value: 64, width: 10 },
+    { name: 'HEX UNIT', note: 'textGrid: a four-digit hex unit code, 15 cells wide, no 13-cell minimum.', text: 'C0DE' },
   ],
   specimen(variant, width) {
     const w = within(width, variant.width ?? 30);
+    if (variant.text) {
+      const grid = textGrid(variant.text);
+      const fits = grid.w <= w;
+      if (fits) return { lines: numeralLines(grid, { width: w }), calls: [`grid = ${call('textGrid', variant.text)}`, call('numeralLines', code('grid'), { width: w })], facts: [`GRID ${grid.w} cells wide`] };
+      // numeralLines rejects a grid that does not fit; the host chooses its own fallback, here the plain text.
+      const small = code(`[${call('span', variant.text, { fg: 'primary', bold: true })}]`);
+      return {
+        lines: [fitLine([span(variant.text, { fg: 'primary', bold: true })], w), fitLine([], w), fitLine([], w)],
+        calls: [call('fitLine', small, w), call('fitLine', code('[]'), w), call('fitLine', code('[]'), w)],
+        facts: [`HOST FALLBACK: the grid does not fit ${w} cells`],
+      };
+    }
     const r = variant.rebuild;
     if (r && numeralGrid(r.target).w <= w) {
       const grid = numeralAt(numeralGrid(r.target), numeralGrid(r.from), r.progress, r.seed);

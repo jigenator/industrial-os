@@ -1,6 +1,6 @@
 # Pixel numeral
 
-The status-bar context numeral: a 3×5 pixel font packed into three terminal rows with square half-block pixels. A reference renderer, not a percentage calculation or a clock.
+The status-bar context numeral: a 3×5 pixel font packed into three terminal rows with square half-block pixels. A reference renderer, not a percentage calculation or a clock. The same font with hex letters also draws short unit codes, such as the droid header's unit number.
 
 ## Usage
 
@@ -9,12 +9,13 @@ import { pixelNumeral, numeralGrid, numeralAt, numeralLines } from './pixel-nume
 pixelNumeral({ value: 64 }, { width: 30 });
 const target = numeralGrid(95), from = numeralGrid(64);
 numeralLines(numeralAt(target, from, 0.6, 42), { width: 30 });
+numeralLines(textGrid('C0DE'), { width: 15 });
 ```
 
 ```text
-█▀▀ █ █   █▀█
-█▀█ ▀▀█   █ █
-▀▀▀   ▀ ▀ ▀▀▀
+█▀▀ █ █   █▀█      █▀▀ █▀█ █▀▄ █▀▀
+█▀█ ▀▀█   █ █      █   █ █ █ █ █▀▀
+▀▀▀   ▀ ▀ ▀▀▀      ▀▀▀ ▀▀▀ ▀▀  ▀▀▀
 ```
 
 | Input/API | Contract | Default |
@@ -25,7 +26,8 @@ numeralLines(numeralAt(target, from, 0.6, 42), { width: 30 });
 | `numeralGrid(value, { tone })` | `{ w, g }`: six pixel rows of colors/null, min 13 columns, one blank column between glyphs; exponent form returns `undefined` | one decimal |
 | `numeralLines(grid, { width })` | packs upper/lower pixels to spans; width must fit entire grid | width required |
 | `numeralAt(target, from, progress, seed)` | new grid with target shape/width; progress finite 0–1, seed integer; input grids never mutated | all explicit |
-| `FONT`, `NUMERAL_TONES` | frozen digit/`.`/`-`/`?` font and tone ink table | exported references |
+| `textGrid(text, { ink })` | `{ w, g }` for 1–250 `FONT` or `HEX_FONT` characters, exactly as wide as the glyphs (no 13-column minimum, no number formatting); for `numeralLines` and `numeralAt`. Other characters, including lowercase hex, throw `RangeError`; a non-string `TypeError`; an invalid ink `TypeError` | ink `primary` |
+| `FONT`, `HEX_FONT`, `NUMERAL_TONES` | frozen digit/`.`/`-`/`?` font, frozen `A`–`F` hex letters, and tone ink table | exported references |
 
 Grid validation requires `w` 1–1000, six rows each with exactly `w` entries, each a palette role/literal RGB or null. Invalid grids/text colors throw `TypeError`; invalid numbers, widths, tones, progress or seed throw `RangeError`.
 
@@ -34,6 +36,8 @@ Grid validation requires `w` 1–1000, six rows each with exactly `w` entries, e
 OK ink is primary white, WARN is the `warning` role, HIGH is `critical`, and unknown `?` is decorative. Exactly 70 remains OK and exactly 90 remains WARN. Unknown is never a zero numeral. The fifth pixel row occupies the upper half of the third text row; the sixth row is empty.
 
 `numeralAt` uses the footer's 4×4 Bayer matrix plus foundation `hash` dither. Old-only pixels disappear immediately: **new shape only**. Current pixels shared in the same ink with `from` are already settled; other target pixels acquire the target ink from decorative grey (secondary grey when the target itself is decorative). Progress 1 is exactly the target, progress 0 retains all current pixel occupancy. No old digit is displayed. The host supplies progress, seed and grid memory; the helper contains no I/O, timer, clock or hidden state.
+
+Hex letters are separate from `FONT`, whose keys stay the characters a formatted reading can contain, so `numeralGrid` and `pixelNumeral` are unchanged. `B` and `D` keep notched corners so they never read as `8` and `0`; every glyph shape in both fonts is distinct. `textGrid` has no fallback of its own: `numeralLines` rejects a grid wider than its width, and the host chooses what to show instead.
 
 ## Width behavior
 
@@ -49,4 +53,4 @@ status-bar now consumes `numeralGrid`, `numeralAt` and `numeralLines` through ex
 
 ## Checks
 
-[pixel-numeral.test.mjs](pixel-numeral.test.mjs): exact extension snapshots, tone thresholds, unknown/zero distinction, exponent/narrow fallback, grid validation, seeded reconstruction/new-shape-only/immutability, two-ink pixels, every width 1–160, glyph allowlist, plain/color equivalence and E2 source purity. From `design-system/`: `node --test elements/pixel-numeral/pixel-numeral.test.mjs`, then `node --test`. Automated evidence only; native Herdr checks not run.
+[pixel-numeral.test.mjs](pixel-numeral.test.mjs): exact extension snapshots, hex text grids and their distinct shapes, tone thresholds, unknown/zero distinction, exponent/narrow fallback, grid validation, seeded reconstruction/new-shape-only/immutability, two-ink pixels, every width 1–160, glyph allowlist, plain/color equivalence and E2 source purity. From `design-system/`: `node --test elements/pixel-numeral/pixel-numeral.test.mjs`, then `node --test`. Automated evidence only; native Herdr checks not run.

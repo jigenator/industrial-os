@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { stripVTControlCharacters } from 'node:util';
 import { GLYPHS, lineWidth, paint } from '../../foundation/cells.mjs';
-import { FONT, NUMERAL_TONES, numeralAt, numeralGrid, numeralLines, pixelNumeral } from './pixel-numeral.mjs';
+import { FONT, HEX_FONT, NUMERAL_TONES, numeralAt, numeralGrid, numeralLines, pixelNumeral, textGrid } from './pixel-numeral.mjs';
 const text = (lines) => lines.map((line) => paint(line, 'none'));
 
 test('exact extension pixel snapshots and 13-column minimum', () => {
@@ -66,6 +66,27 @@ test('all widths 1–160: every tone, negative, exponent and frame paint equally
       }
     }
   }
+});
+test('hex text grids: exact width, distinct letters, the same packing and reconstruction', () => {
+  assert.deepEqual(Object.keys(HEX_FONT), ['A', 'B', 'C', 'D', 'E', 'F']);
+  assert.ok(Object.isFrozen(HEX_FONT) && Object.values(HEX_FONT).every(Object.isFrozen));
+  // A unit code: four glyphs and three gaps, no 13-column minimum and no number formatting.
+  const unit = textGrid('C0DE');
+  assert.equal(unit.w, 15);
+  assert.deepEqual(text(numeralLines(unit, { width: 15 })), ['█▀▀ █▀█ █▀▄ █▀▀', '█   █ █ █ █ █▀▀', '▀▀▀ ▀▀▀ ▀▀  ▀▀▀']);
+  assert.deepEqual(text(numeralLines(textGrid('ABDEF'), { width: 19 })), ['█▀█ █▀▄ █▀▄ █▀▀ █▀▀', '█▀█ █▀▄ █ █ █▀▀ █▀▀', '▀ ▀ ▀▀  ▀▀  ▀▀▀ ▀  ']);
+  // Every letter differs from every digit that shares its outline, and from the others.
+  const shapes = [...Object.values(FONT), ...Object.values(HEX_FONT)].map((rows) => rows.join('/'));
+  assert.equal(new Set(shapes).size, shapes.length);
+  assert.equal(textGrid('7').w, 3);
+  assert.ok(textGrid('BEEF').g.flat().filter(Boolean).every((ink) => ink === 'primary'));
+  assert.ok(textGrid('????', { ink: 'decorative' }).g.flat().filter(Boolean).every((ink) => ink === 'decorative'));
+  assert.deepEqual(numeralAt(unit, { w: 15, g: Array.from({ length: 6 }, () => Array(15).fill(null)) }, 1, 7), unit);
+  // numeralGrid keeps its digit-only reading contract.
+  assert.deepEqual(textGrid('64.0'), numeralGrid(64));
+  for (const bad of ['', 'c0de', 'G', '1 2', 'A'.repeat(251)]) assert.throws(() => textGrid(bad), RangeError, JSON.stringify(bad));
+  for (const bad of [null, 12, ['A']]) assert.throws(() => textGrid(bad), TypeError);
+  assert.throws(() => textGrid('A', { ink: 'bad' }), TypeError);
 });
 test('invalid dimensions, values, tones, grids, progress and seeds throw', () => {
   for (const value of [NaN, Infinity, '1', true]) assert.throws(() => numeralGrid(value), RangeError);

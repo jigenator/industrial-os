@@ -54,11 +54,14 @@ export const HERDR_CHROME = Object.freeze({
   signalOrange30: '#4d1c00',
 });
 
-// Pi chrome colors: product colors the Pi theme (../../pi/theme/industrial-os.json) restates that are neither roles nor
-// status-bar colors, kept apart from SIGNAL_COLORS for the same reason as HERDR_CHROME. Contract: README.md#pi-chrome-colors.
+// Pi chrome colors: product colors the Pi theme (../../pi/theme/industrial-os.json) and the Pi extensions use that are
+// neither roles nor status-bar colors, kept apart from SIGNAL_COLORS for the same reason as HERDR_CHROME.
+// Contract: README.md#pi-chrome-colors.
 export const PI_CHROME = Object.freeze({
   // A warm off-white: the editor border at every thinking level.
   bone: '#e2dccb',
+  // The droid header's signal lamp (../../pi/droid-header). The same value as HERDR_CHROME.signalOrange, a separate role.
+  lamp: '#ff5c00',
 });
 
 // Mixes declared as signal colors, matching status-bar's current computed values. The extension computed some of
