@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { stripVTControlCharacters } from 'node:util';
-import { fit, fitLine, lineWidth, paint, safeText, span } from './cells.mjs';
+import { GLYPHS, fit, fitLine, lineWidth, paint, safeText, span } from './cells.mjs';
 import { ACID_BLACK } from './palette.mjs';
 
 test('safeText replaces every non-printable-ASCII code point with one ?', () => {
@@ -150,5 +150,12 @@ test('measured strings and slots reject leading Extend or ZWJ before attaching t
     assert.throws(() => textSlot(slot.spans, slot.width, { measure }), RangeError);
     assert.throws(() => fitText(slot, 20, { measure }), RangeError);
     assert.throws(() => fitText(text, 20, { measure }), RangeError);
+  }
+});
+
+test('image graticule junction glyphs have the same narrow ruler contract',()=>{
+  for(const glyph of ['┬','┤']) {
+    assert.ok(GLYPHS.includes(glyph));
+    assert.equal(lineWidth([span(glyph.repeat(40))]),40);
   }
 });

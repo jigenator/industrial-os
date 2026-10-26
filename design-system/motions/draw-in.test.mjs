@@ -119,3 +119,20 @@ test('drawIn rejects invalid options and lines', () => {
   assert.deepEqual(drawIn([], { time: 0 }), []);
   assert.deepEqual(drawIn([[]], { time: 0 }), [[]]);
 });
+
+test('draw-in opt-in rule style mode retains all glyphs with a white head on a six-step 40-ms grid', () => {
+  const lines=[[span('━━━━━━━━━━━━━━────────────────────',{fg:'accent',bg:'default'})]];
+  const options={mode:'style',steps:6,tick:40,lag:0};
+  assert.equal(drawInDuration(lines,options),240);
+  for(const time of [0,39,40,80,120,160,200,239,240]) {
+    const out=drawIn(lines,{...options,time});
+    assert.deepEqual(out.map(line=>paint(line,'none')),lines.map(line=>paint(line,'none')));
+    assert.equal(lineWidth(out[0]),34);
+  }
+  assert.deepEqual(drawIn(lines,{...options,time:240}),lines);
+  assert.deepEqual(drawIn(lines,{...options,animate:false}),lines);
+  const cells=drawIn(lines,{...options,time:0})[0].flatMap(s=>[...s.text].map(ch=>({ch,...s.style})));
+  assert.equal(cells.filter(c=>c.fg==='primary').length,2);
+  assert.equal(cells.filter(c=>c.fg==='accent').length,4);
+  for(const options of [{mode:'unknown'},{steps:0},{head:0}]) assert.throws(()=>drawIn(lines,{...options,animate:false}),RangeError);
+});

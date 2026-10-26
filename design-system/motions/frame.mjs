@@ -1,6 +1,6 @@
 // Shared seam for the motion primitives: option and time validation, plus per-cell restyling.
 // Pure and I/O-free. See motions/README.md for the contract every motion shares.
-import { isTerminalDefault, lineWidth, resolveColor, span } from '../foundation/cells.mjs';
+import { isTerminalDefault, lineWidth, resolveColor, span, textSlot } from '../foundation/cells.mjs';
 
 // Shortest valid period. There is no frequency cap (../../docs/design.md#motion): any positive period is allowed,
 // and motion-off (animate: false) is what settles a motion.
@@ -109,7 +109,23 @@ function assertCue(cell, style, char) {
 // every line keeps its exact width. Adjacent cells with the same style are merged into one span.
 // Warning and critical cells are exempt unless the caller opts in with { stateCells: true }; then fn also sees
 // them, with state true, and every change must keep the state cue readable (see assertCue).
-export function restyleCells(lines, fn, { stateCells = false } = {}) {
+export function restyleCells(lines, fn, { stateCells = false, measure } = {}) {
+  if (measure !== undefined) return lines.map((line, row) => {
+    const source = textSlot(line, lineWidth(line, { measure }), { measure }).spans;
+    const out = []; let col = 0;
+    for (const s of source) for (const { segment: ch } of new Intl.Segmenter('und', { granularity: 'grapheme' }).segment(s.text)) {
+      const size = measure(ch), state = isStateCell(s.style);
+      const change = state && !stateCells ? undefined : fn(s.style, col, row, ch, state);
+      const style = change?.style ?? s.style, char = change?.char ?? ch;
+      textSlot([span(char, style)], size, { measure });
+      if (state && change) assertCue({ ch }, style, char);
+      const prev = out.at(-1);
+      if (prev && norm(prev.style) === norm(style) && prev.style.italic === style.italic && prev.style.underline === style.underline) prev.text += char;
+      else out.push(span(char, style));
+      col += size;
+    }
+    return out;
+  });
   return lines.map((line, row) => {
     const out = [];
     let col = 0;

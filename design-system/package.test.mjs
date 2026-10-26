@@ -47,6 +47,9 @@ const lunaleeModules = [
   'elements/label-plate', 'elements/lamp', 'elements/state-chip', 'elements/transcript-marker',
   'motions/flash', 'motions/ping', 'motions/wipe', 'motions/fade', 'motions/latch',
   'motions/reveal', 'motions/cycle', 'motions/beacon', 'motions/draw-in',
+  'elements/tab-rule', 'elements/action-label', 'elements/popup-header', 'elements/notice-row',
+  'elements/scope-meter', 'elements/sounding-meter', 'motions/scope-trace', 'motions/sounding-sweep',
+  'elements/feed-bezel', 'elements/input-frame', 'motions/feed-scan', 'motions/corner-snap',
 ];
 
 test('every planned Lunalee module is public and ships colocated declarations', () => {

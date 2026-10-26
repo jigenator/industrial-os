@@ -117,3 +117,12 @@ test('latch keeps opted-in full-block state cells visible against the field', ()
     }
   }
 });
+
+test('latch opt-in white lock preserves words and settles on its existing 150-ms boundary', () => {
+  const lines=[[span('▼ 3 NEW',{fg:'field',bg:'accent'})]];
+  assert.equal(latch(lines,{time:0,lockInk:'primary'})[0][0].style.bg,'primary');
+  assert.equal(paint(latch(lines,{time:50,lockInk:'primary'})[0],'none'),'▼ 3 NEW');
+  assert.deepEqual(latch(lines,{time:150,lockInk:'primary'}),lines);
+  assert.deepEqual(latch(lines,{animate:false,lockInk:'primary'}),lines);
+  assert.throws(()=>latch(lines,{animate:false,lockInk:'warning'}),RangeError);
+});

@@ -8,6 +8,7 @@ const LOCKED = Object.freeze({ fg: 'field', bg: 'accent', bold: true });
 const LOCKED_BLOCK = Object.freeze({ fg: 'accent', bg: 'accent', bold: true });
 
 function check(o) {
+  if (!['accent', 'primary'].includes(o.lockInk)) throw new RangeError('latch lockInk must be accent or primary');
   assertMs(o.lock, 'latch lock');
   assertMs(o.invert, 'latch invert');
   if (typeof o.stateCells !== 'boolean') throw new TypeError(`latch stateCells must be a boolean, got ${o.stateCells}`);
@@ -16,7 +17,7 @@ function check(o) {
 
 // Total ms until the latch has settled.
 export function latchDuration(options = {}) {
-  const o = resolveOptions('latch', options, LATCH_DEFAULTS);
+  const o = resolveOptions('latch', options, { ...LATCH_DEFAULTS, lockInk: 'accent' });
   check(o);
   return o.lock + o.invert;
 }
@@ -27,7 +28,7 @@ export function latchDuration(options = {}) {
 // color, or keeps its look on the field), then settled. Characters never change. Warning and critical
 // cells are exempt unless `stateCells` is true; every frame then keeps their shape and word readable.
 export function latch(lines, options = {}) {
-  const o = resolveOptions('latch', options, LATCH_DEFAULTS);
+  const o = resolveOptions('latch', options, { ...LATCH_DEFAULTS, lockInk: 'accent' });
   assertLines(lines);
   const region = check(o);
   assertTime(o, 'latch');
@@ -36,7 +37,7 @@ export function latch(lines, options = {}) {
   const locked = o.time < o.lock;
   return restyleCells(lines, (style, col, row, ch) => {
     if (!inRegion(region, col, row)) return undefined;
-    if (locked) return { style: ch === '█' ? LOCKED_BLOCK : LOCKED };
+    if (locked) return { style: o.lockInk === 'primary' ? { fg: ch === '█' ? 'primary' : 'field', bg: 'primary', bold: true } : ch === '█' ? LOCKED_BLOCK : LOCKED };
     // A swap that would hide the glyph (equal colors, or a full block on the field) keeps the cell.
     const next = invertCell({ fg: style.fg, bg: style.bg }, ch, { bold: true });
     return next && { style: next };

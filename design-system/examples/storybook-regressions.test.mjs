@@ -40,8 +40,23 @@ import { nudge } from '../motions/nudge.mjs';
 import { STORIES } from './storybook-stories.mjs';
 import { advance, composeStorybook, initialState, press } from './storybook-layout.mjs';
 
+import { tabRule, leader, neatline, nameRule } from '../elements/tab-rule/tab-rule.mjs';
+import { actionLabel, keyHints } from '../elements/action-label/action-label.mjs';
+import { popupHeader, popupFooter } from '../elements/popup-header/popup-header.mjs';
+import { noticeRow } from '../elements/notice-row/notice-row.mjs';
+import { scopeMeter } from '../elements/scope-meter/scope-meter.mjs';
+import { soundingMeter } from '../elements/sounding-meter/sounding-meter.mjs';
+import { scopeTrace } from '../motions/scope-trace.mjs';
+import { soundingSweep } from '../motions/sounding-sweep.mjs';
+
 // Everything the generated usage text may name.
+import { feedBezel, imageLabel, imageInset } from '../elements/feed-bezel/feed-bezel.mjs';
+import { inputFrame } from '../elements/input-frame/input-frame.mjs';
+import { feedScan } from '../motions/feed-scan.mjs';
+import { cornerSnap } from '../motions/corner-snap.mjs';
 const API = {
+  feedBezel, imageLabel, imageInset, inputFrame, feedScan, cornerSnap,
+  tabRule, leader, neatline, nameRule, actionLabel, keyHints, popupHeader, popupFooter, noticeRow, scopeMeter, soundingMeter, scopeTrace, soundingSweep,
   fitLine, span, lineMeter, columnBlock, SIGNAL_COLORS, gauge, gaugeScale, labelPlate, numberedPanel, panelInnerWidth, statusRow, COUNT_PLATES, countPlate,
   LAMP_DIM_STYLE, lamp, modePlate, pnytlPlate, stateChip, stateChips, numeralAt, numeralGrid, numeralLines, pixelNumeral, providerColumn,
   segmentMeter, threadRail, threadRailPieces, instrumentFrame, markerBars, markerPlate, transcriptMarker, scan, pulse, reveal,

@@ -18,6 +18,14 @@ import { frameGeometry, instrumentFrame } from '../elements/instrument-frame/ins
 import { transcriptMarker } from '../elements/transcript-marker/transcript-marker.mjs';
 import { lineMeter } from '../elements/line-meter/line-meter.mjs';
 import { columnBlock } from '../elements/column-block/column-block.mjs';
+import { tabRule, leader, neatline, nameRule } from '../elements/tab-rule/tab-rule.mjs';
+import { actionLabel, keyHints } from '../elements/action-label/action-label.mjs';
+import { popupHeader, popupFooter } from '../elements/popup-header/popup-header.mjs';
+import { noticeRow } from '../elements/notice-row/notice-row.mjs';
+import { scopeMeter } from '../elements/scope-meter/scope-meter.mjs';
+import { soundingMeter } from '../elements/sounding-meter/sounding-meter.mjs';
+import { feedBezel, imageLabel, imageInset } from '../elements/feed-bezel/feed-bezel.mjs';
+import { inputFrame } from '../elements/input-frame/input-frame.mjs';
 import { call, code } from './storybook-usage.mjs';
 
 // Specimens keep to a readable width, never wider than the cells they are given.
@@ -499,4 +507,97 @@ const COLUMN_BLOCK = element('column-block', {
   },
 });
 
-export const ELEMENT_STORIES = [PANEL, FRAME, PLATE, COUNT, MODE, CHIP, LAMP, ROW, GAUGE, NUMERAL, METER, RAIL, MARKER, LINE_METER, COLUMN_BLOCK];
+
+const TAB_RULE = element('tab-rule', {
+  title:'TAB RULE', summary:'Heavy operations tab plus hairline, registration neatlines and name-rule composition.',
+  rules:['Column 1 starts the fourteen-cell tab; focus is also named by the host.', 'Name survives before working label; readouts never invent a timestamp.', 'All chrome is transparent except the solid accent plate.'],
+  variants:[
+    {name:'IDLE',fn:'tabRule',input:{}}, {name:'FOCUSED',fn:'tabRule',input:{focused:true}},
+    {name:'NEATLINE',fn:'neatline',input:{label:'START OF CONVERSATION'}},
+    {name:'TIME',fn:'nameRule',input:{time:'09:41'}}, {name:'NO TIME',fn:'nameRule',input:{}},
+    {name:'WORKING',fn:'nameRule',input:{label:'thinking',meter:soundingMeter()}},
+    {name:'LEADER',fn:'leader',input:{glyph:'┄'}},
+  ],
+  specimen(v,width) {
+    const opts=v.fn==='leader'?{maxWidth:width}:{width};
+    const functions={tabRule,neatline,nameRule,leader};
+    return {lines:[functions[v.fn](v.input,opts)],calls:[call(v.fn,v.input,opts)],facts:[]};
+  },
+});
+const ACTION_LABEL = element('action-label', {
+  title:'ACTION LABEL', summary:'Open affordances and whole-token keyboard hints. Host owns activation.',
+  rules:['Read open actions have brackets, not just different ink.', 'Hints drop whole tokens, never part of a chord.'],
+  variants:['ready','read','hover','focused'].map(state=>({name:state.toUpperCase(),input:{state}})).concat([{name:'HINTS',hints:true}]),
+  specimen(v,width) {
+    if(!v.hints) return piece('actionLabel',o=>actionLabel(v.input,o),[v.input],{},width);
+    const tokens=[{key:'^O',label:'open'},{key:'Esc',label:'back'},{key:'^P',label:'sheets'}];
+    return {lines:[keyHints(tokens,{width})],calls:[call('keyHints',tokens,{width})],facts:[]};
+  },
+});
+const POPUP_HEADER = element('popup-header', {
+  title:'POPUP HEADER', summary:'Five popup headers share spacing-only chrome and an Esc footer.',
+  rules:['No ruler, no leader and no outer frame.', 'Title yields before right meta; plate and Esc have priority at tiny widths.'],
+  variants:[
+    {name:'SHEET',input:{plate:'SHEET 05',title:'SYNTHETIC SHORTLIST',meta:'handed over 09:41'}},
+    {name:'SHEETS',input:{plate:'SHEETS',title:'4 - NEWEST FIRST',meta:'^P'}},
+    {name:'LOG',input:{plate:'O-01',title:'OPERATIONS LOG',meta:'#004'}},
+    {name:'IMAGE',input:{plate:'IMAGE',title:'synthetic sample',meta:'1280 x 704'}},
+    {name:'WAITING',input:{plate:'DESK',title:'WAITING ON YOU',meta:'2 waiting',style:{fg:'field',bg:'critical'}}},
+  ],
+  specimen(v,width) {
+    const footer={escape:'back to the desk',meta:'synthetic fixture'};
+    return {lines:[popupHeader(v.input,{width}),popupFooter(footer,{width})],calls:[call('popupHeader',v.input,{width}),call('popupFooter',footer,{width})],facts:[]};
+  },
+});
+const NOTICE_ROW = element('notice-row', {
+  title:'NOTICE ROW', summary:'Supplied notice words and glyphs; recovery detail remains copyable.',
+  rules:['No inferred state or right-hand status column.', 'Detail wraps without discarding characters; no timer or command execution.'],
+  variants:[
+    {name:'SENDING',input:{glyph:'›',text:'sending'}}, {name:'STOPPED',input:{glyph:'■',text:'stopped'}},
+    {name:'WARNING',input:{glyph:'▲',tone:'warning',text:'synthetic warning'}},
+    {name:'ERROR',input:{glyph:'✕',tone:'critical',text:'not delivered'}},
+    {name:'LINK',input:{glyph:'✕',plate:'LINK',tone:'critical',text:'not running',detail:['run synthetic-service --retry']}},
+    {name:'EMPTY',input:{text:'No conversation yet'}}, {name:'OLDER',input:{glyph:'·',text:'loading older'}},
+  ],
+  specimen(v,width) { return {lines:noticeRow(v.input,{width}),calls:[call('noticeRow',v.input,{width})],facts:[]}; },
+});
+const SCOPE_METER = element('scope-meter', {
+  title:'SCOPE METER', summary:'Four-cell connection trace, never numeric signal strength.',
+  rules:['Connected is a joined carrier; reconnecting is jagged; lost retains a cross.', 'Still states are the reduced-motion poses; scheduling belongs to the host.'],
+  variants:['connected','reconnecting','lost'].map(state=>({name:state.toUpperCase(),input:{state}})),
+  specimen(v,width) { return piece('scopeMeter',o=>scopeMeter(v.input,o),[v.input],{},width); },
+});
+const SOUNDING_METER = element('sounding-meter', {
+  title:'SOUNDING METER', summary:'Six braille cells for supplied working state, not a percentage.',
+  rules:['Reduced motion rests the head left.', 'Small budgets clip decoration, not data.'],
+  variants:[{name:'REST'},{name:'NARROW',options:{maxWidth:3}}],
+  specimen(v,width) { return piece('soundingMeter',o=>soundingMeter({},o),[{}],v.options??{},width); },
+});
+
+for (const story of [TAB_RULE, ACTION_LABEL, POPUP_HEADER, NOTICE_ROW, SCOPE_METER, SOUNDING_METER]) {
+  for (const variant of story.variants) variant.note = `${variant.name}: synthetic presentation fixture, not live data.`;
+}
+
+
+const FEED_BEZEL = element('feed-bezel', {
+  title:'FEED BEZEL',summary:'Comms reticle and image chrome around an immutable empty image rectangle.',
+  rules:['No image reads, assets, allocation or scaling.', 'Readouts yield first; brackets never enter the image hole.'],
+  variants:[{name:'RX'},{name:'TX'},{name:'LOST'},{name:'IMAGE REST',image:{}},{name:'IMAGE HOVER',image:{hover:true}},{name:'MISSING',image:{missing:true}},{name:'UNSUPPORTED',image:{unsupported:true}},{name:'INSET',inset:true}],
+  specimen(v,width) {
+    if(v.image) return piece('imageLabel',o=>imageLabel({label:'synthetic.png',...v.image},o),[{label:'synthetic.png',...v.image}],{},width);
+    const rect={x:width>6?3:0,y:1,width:Math.max(1,Math.min(32,width-6)),height:8};
+    const opts={width,height:11};
+    if(v.inset) return {lines:imageInset(rect,opts),calls:[call('imageInset',rect,opts)],facts:[]};
+    const input={imageRect:rect,callsign:'M-02',channel:'CH 02',pose:'FRONT',meter:scopeMeter({state:v.name==='LOST'?'lost':'connected'}),lamp:[span(v.name==='LOST'?'○ NO LINK':v.name==='TX'?'● TX':'● RX',{fg:v.name==='LOST'?'critical':v.name==='TX'?'accent':'decorative',bg:'default'})]};
+    return {lines:feedBezel(input,opts),calls:[call('feedBezel',input,opts)],facts:[]};
+  },
+});
+const INPUT_FRAME = element('input-frame', {
+  title:'INPUT FRAME',summary:'Editor chrome only, with reserved diagonal gutters and no input body background.',
+  rules:['Body is an empty native-editor reservation, not a replacement editor.', 'Motion off uses home corners; the focused/form label stays meaningful.'],
+  variants:[{name:'EMPTY',input:{}},{name:'HOVER',input:{state:'hover',spread:true}},{name:'FOCUSED',input:{state:'focused'}},{name:'MULTILINE',input:{state:'focused',scroll:'2-4 OF 5'},rows:3},{name:'TAKEN BACK',input:{state:'focused',label:'TAKEN BACK'}},{name:'FORM',input:{state:'form',label:'QUESTION 07 - 1/2'}}],
+  specimen(v,width) {const opts={width,bodyRows:v.rows??1};return {lines:inputFrame(v.input,opts),calls:[call('inputFrame',v.input,opts)],facts:[]};},
+});
+for(const story of [FEED_BEZEL,INPUT_FRAME]) for(const v of story.variants) v.note=`${v.name}: synthetic chrome; image/editor content belongs to the host.`;
+
+export const ELEMENT_STORIES = [PANEL, FRAME, PLATE, COUNT, MODE, CHIP, LAMP, ROW, GAUGE, NUMERAL, METER, RAIL, MARKER, LINE_METER, COLUMN_BLOCK, TAB_RULE, ACTION_LABEL, POPUP_HEADER, NOTICE_ROW, SCOPE_METER, SOUNDING_METER, FEED_BEZEL, INPUT_FRAME];

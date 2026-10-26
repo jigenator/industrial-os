@@ -526,3 +526,35 @@ A new motion is a pure function `(lines, options) -> lines` in its own file here
 ## Checks
 
 [motions.test.mjs](motions.test.mjs) holds the shared checks: motion-off, time and option validation, exact scan/pulse/reveal frames, state-color exemption, text preservation, exact widths from 1 to 160 with real renderers, determinism and input immutability, plain/color equivalence, the absence of a frequency cap (a 50 ms period cycles 20 times a second), composition with a numbered panel, `restyleCells` and `resolveRegion`, and a source check that every file here imports only `foundation/` and uses no clock, timer, process, or randomness. Each other motion's `<name>.test.mjs` checks its frames at stated times, its duration helper where it has one, motion-off, invalid options, and state-cell behavior. Run one with `node --test motions/<name>.test.mjs` from `design-system/`. [Storybook regressions](../examples/storybook-regressions.test.mjs) also execute every storybook motion example, the host sketch with a manual clock, and the composed marker timeline against the [transcript marker](../elements/transcript-marker/README.md#extension-timeline) timeline. These are deterministic automated checks; no native-terminal or Herdr claim follows from them.
+
+## Survey chrome extensions
+
+All old exported defaults and omitted-option behavior remain unchanged. New options are explicit:
+
+- `drawIn(...,{mode:'style',steps:6,head:2,tick:40,lag:0})`: style-only front over a settled accent rule. Ahead is canonical rule gray; the two-cell head is white, trail retains input accent. Every glyph remains present, including plain output. Duration is `steps*tick` per row, plus lag. Default `mode:'blank'` retains the existing USG draw-in.
+- `beacon(...,{programme:'down',period:640,step:80})`: `▼` five times, then `▾`, `·`, `▾`, with levels 1/.75/.5/.75. Input is a steady `▼` off. Default programme is upward and unchanged. Period must hold all eight steps.
+- `latch(...,{lockInk:'primary'})`: optional white instead of acid lock, with existing 50-ms lock/150-ms total boundary. Default lock ink remains accent.
+- `wipe(...,{stateCells:true})` and `cycle(...,{stateCells:true})` explicitly admit state cells through the existing visibility/word guard. Selection uses caller times `[0,40,80,120]`, fractions `[.25,.5,.75,1]`, direction ltr; words/selection marker are immediate. Amber spinner uses ten curated braille glyphs at 80 ms; input is a still `·` off when the host chooses that reduced-motion pose.
+- `reveal(...,{measure})` is opt-in whole-grapheme/cell walking for already-wrapped optional presentation slots. A blank veil replaces an entire wide grapheme with its measured number of spaces; styles (including italic/underline) and geometry remain intact. Controls, forged slots and split graphemes are rejected. Error/validation/control rows stay outside the transform. Layout and answer controls are active from frame zero. Existing code-point default is unchanged.
+
+## `scopeTrace(lines, options)` and `blipPass(index, previousKey)`
+
+Four isolated structural meter cells; never rich body content. Frozen `SCOPE_TRACE_DEFAULTS`: carrier mode, index 0, no previous key, whole region, state cells exempt. `mode` is `carrier`, `noise` or `reacquire`; `region` selects the meter at cell coordinates. Only trace/braille glyphs in the first four region columns change. Lost crosses and ordinary text never change. Explicit `stateCells:true` admits amber reconnect braille through the shared cue guard.
+
+`blipPass` returns a frozen `{index,kind,dir,start,cells,key,jitter}` descriptor. Cells are a fit-constrained walk (3–4), hop (2), or flicker (on/off/on; -1 is off). Variation uses foundation's deterministic hash, not hidden state or a clock. Passing the previous key guarantees a different adjacent pattern. Jitter is separately hashed in .6–1.4; the host rounds its configured interval times jitter to 80 ms. The host owns pass index/start, rest, connection epochs and scheduling: this function never replays from pass zero.
+
+Carrier steps at 80 ms: white `┸` head, acid `┴` trail, joined carrier beneath. `scopeTraceDuration` returns that single pass's cell-count times 80. Noise rerolls at 80 ms (helper returns null for this loop). Reacquire samples a 40-ms grid: noise amplitude decays over 480 ms, white joined lock at 480–519, settled carrier at 520 (`scopeTraceDuration` returns 520). Start the next carrier pass separately; no scheduler lives here. Motion off returns input immediately. Plain retains jagged-to-joined and blip shapes.
+
+## `soundingSweep(lines, options)`
+
+Frozen `SOUNDING_SWEEP_DEFAULTS` selects the whole region; pass `region` to isolate six braille cells. Twelve dot columns travel back and forth on a 40-ms grid (22 steps, 880 ms), with a one-step trailing column. Initial frame rests left without a pre-start trail; the periodic programme follows. Head is accent, trail canonical accent50, track ghost. Only braille changes; state cells remain exempt. Motion off returns the left-resting sounding-meter input. Plain retains shape motion without tint.
+
+## `feedScan(lines, options)` and `feedScanDuration(options)`
+
+Frozen defaults: `{top:0,rows:16,rails:[],measure:undefined}`. Explicit `rails` lists side-rail columns; `top`/`rows` select image-height rows, never the image rectangle. A heavy `┃` advances one row every 40 ms, with accent50/accent25 tails. Only blank/rail/tick cells change, never words or state cells. Duration `(rows+2)*40` is 720 ms for 16 rows. Off/end return input, no scan. Plain keeps moving heavy ticks. Supply `measure` when rich measured slots precede a rail; it uses the measured walker without splitting graphemes.
+
+## `cornerSnap(lines, options)` and `cornerSnapSettling()`
+
+**Persistent state-pose transform, not a finite entrance.** Supervisor-approved exception to finite-preview input equality: input is a home input-frame including its two reserved outer gutters. At 0–39 ms corners take acid at home; from 40 ms the same corner glyphs hold one cell out diagonally until the host ends hover/focus. `cornerSnapSettling()` returns 40, not an animation duration. `animate:false` (leave/blur/reduced motion) returns home without spread, preserving focused/form labels. The story holds the pose; replay shows the transition again.
+
+Only the four known two-cell corner pairs can move. Destinations must be blank reserved gutters; occupied destinations leave the whole frame at home. Form/critical corner shapes are relocated intact, never dropped or replaced with state words; body and labels remain untouched. Supply `measure` for measured labels. Plain retains the geometry cue. No state, timer, focus inference or editor lives in this motion.

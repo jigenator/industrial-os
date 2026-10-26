@@ -30,7 +30,7 @@ The [Pi theme](../../pi/theme/industrial-os.json) likewise restates roles and si
 
 ## Motions
 
-Nineteen [motions](../motions/README.md) decorate already-rendered lines at an explicit time, under the shared [motion rules](../../docs/design.md#motion): scan, pulse, and reveal; the state and attention motions modeled on the extensions (draw-in, warm-up, latch, beacon, cycle, fade, blink, flash); and the signal, meter, and glitch motions (ping, wipe, fill-in, burn-out, edge pulse, restrike, ghost, nudge). `animate: false` is every motion's motion-off state. Warning and critical cells are exempt unless a motion opts in for a state cue (warm-up, latch, beacon, flash), and then every frame keeps the state's shape and word. This exemption protects cells, not an entire message. Motions that can hide or replace characters (reveal, draw-in, ghost, and the glyph motions) belong only on nonessential decoration; compose complete readings, labels, and status messages outside them.
+Twenty-three [motions](../motions/README.md) decorate already-rendered lines at an explicit time, under the shared [motion rules](../../docs/design.md#motion): scan, pulse, and reveal; the state and attention motions modeled on the extensions (draw-in, warm-up, latch, beacon, cycle, fade, blink, flash); and the signal, meter, and glitch motions (ping, wipe, fill-in, burn-out, edge pulse, restrike, ghost, nudge). `animate: false` is every motion's motion-off state. Warning and critical cells are exempt unless a motion opts in for a state cue (warm-up, latch, beacon, flash), and then every frame keeps the state's shape and word. This exemption protects cells, not an entire message. Motions that can hide or replace characters (reveal, draw-in, ghost, and the glyph motions) belong only on nonessential decoration; compose complete readings, labels, and status messages outside them.
 
 ### Fast and flashing motions
 
@@ -63,3 +63,9 @@ Open decisions: visual refinements to every element and motion. Shared open deci
 ## Survey surface and reuse extensions
 
 The [foundation surface](../foundation/README.md#surface) supplies the current charcoal gradient, stable hashed minor/major dots and per-cell fill blending. It owns color values and compositing, not Lunalee's alpha configuration or ANSI/copy/image adapter. Plain/NO_COLOR has no floor or generated colors. The SURFACE story uses synthetic cells for clear, locked translucent, solid and NO_COLOR views. Round lamps require explicit style and adjacent state words; word chips put optional markers after supplied words. Existing defaults remain unchanged. Measured text is opt-in; no native Unicode or surface acceptance is inferred from unit checks.
+
+## Survey chrome
+
+The tab-rule, action-label, popup-header, notice-row, scope-meter, sounding-meter, feed-bezel and input-frame families own Lunalee chrome, not host layout/state/I/O. Popup headers have no ruler or leader; operations dividers are tab plus hairline. INPUT has no body background. The scope carrier is option A only, never numeric strength. Feed/image rectangles remain empty and immutable.
+
+Scope carrier steps at 80 ms; reacquire and sounding/feed/corner poses use 40 ms. Downward beacon uses eight 80-ms steps. Draw-in's style mode uses six 40-ms steps; no characters hide. White latch retains the 50/150-ms boundaries. Corner snap is a persistent state pose: home off, spread after 40 ms while the host holds hover/focus. Detailed contracts and rates are in the motions guide. No photosensitivity certification is claimed.
