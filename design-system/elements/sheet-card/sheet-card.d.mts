@@ -1,5 +1,7 @@
 import type { Color, Line, Measure, Style, TextValue } from '../../foundation/cells.mjs';
 export interface Options { width: number; measure?: Measure }
+export interface ListOptions extends Options { columns?: { state?: number; updated?: number } }
+export interface MeasuredListOptions extends ListOptions { measure: Measure }
 export interface MeasuredOptions extends Options { measure: Measure }
 export type SheetState = 'unread' | 'read' | 'waiting' | 'answered' | 'declined' | 'delivery-waiting';
 export const SHEET_STATES: Readonly<Record<SheetState, Readonly<{ code: string; shape: string; tone: Color }>>>;
@@ -16,7 +18,7 @@ export function sheetCard(input: SheetInput<string>, options: Options): Line[];
 export function sheetCard(input: SheetInput<TextValue>, options: MeasuredOptions): Line[];
 export function stackRow(input: RowInput<string>, options: Options): Line;
 export function stackRow(input: RowInput<TextValue>, options: MeasuredOptions): Line;
-export function sheetListRow(input: RowInput<string>, options: Options): Line;
-export function sheetListRow(input: RowInput<TextValue>, options: MeasuredOptions): Line;
+export function sheetListRow(input: RowInput<string>, options: ListOptions): Line;
+export function sheetListRow(input: RowInput<TextValue>, options: MeasuredListOptions): Line;
 export function stackCard(input: StackInput<string>, options: Options): Line[];
 export function stackCard(input: StackInput<TextValue>, options: MeasuredOptions): Line[];

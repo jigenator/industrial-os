@@ -41,3 +41,11 @@ test('desk-tray: no validation/error content concealed and invalid inputs reject
   assert.throws(()=>deskFooter({state:'error',text:'\x1b[31m'},{width:40,measure}),TypeError);
   for(const fn of [deskStrip,deskHeading,questionTitle,questionBody,deskFooter]) {assert.throws(()=>fn(null,{width:40}),TypeError);assert.throws(()=>fn({}, {width:0}),RangeError);}
 });
+
+test('desk-tray: padded decline slab and bold waiting/option/error cues',()=>{
+  const decline=deskFooter({state:'decline',text:'Enter confirms'},{width:70});
+  const plate=decline.filter(s=>s.style.bg==='warning');assert.equal(plate.map(s=>s.text).join(''),' ▲ DECLINE? ');
+  assert.ok(deskStrip({state:'waiting',count:'2 waiting on you'},{width:70}).find(s=>s.text.includes('waiting')).style.bold);
+  for(const selected of [false,true]) assert.ok(questionBody({options:[{body:'fixture',selected}]},{width:70})[0].find(s=>s.text.includes(selected?'●':'○')).style.bold);
+  assert.ok(deskFooter({state:'error',text:'fixture'},{width:70}).find(s=>s.text.includes('✕')).style.bold);
+});

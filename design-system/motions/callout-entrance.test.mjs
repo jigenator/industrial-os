@@ -42,9 +42,10 @@ test('callout-entrance: measured rich text, bounded geometry and warning/critica
     const frame=calloutEntrance(input,{...o,time});assert.deepEqual(frame.slice(1),input.slice(1));
     frame.forEach((line,i)=>assert.equal(lineWidth(line,{measure}),lineWidth(input[i],{measure})));
   }
-  assert.throws(()=>calloutEntrance([[span('occupied')]],{time:0}),RangeError);
+  assert.deepEqual(calloutEntrance([[span('occupied')]],{time:0}),[[span('occupied')]]);
+  assert.deepEqual(calloutEntrance(blank(),{time:0,mode:'register'}),blank());
   for(const value of [null,4,[]]) assert.throws(()=>calloutEntrance([],value),TypeError);
-  for(const value of [{mode:'bad'},{time:-1},{time:0,gutter:{cols:Infinity}},{time:0,mode:'register'}]) assert.throws(()=>calloutEntrance([],value),RangeError);
+  for(const value of [{mode:'bad'},{time:-1},{time:0,gutter:{cols:Infinity}}]) assert.throws(()=>calloutEntrance([],value),RangeError);
 });
 
 test('callout-entrance: registration composes the real mirrored callout without moving body/readout', async()=>{
@@ -56,5 +57,22 @@ test('callout-entrance: registration composes the real mirrored callout without 
   for(const time of [0,40,80,160,600,699,700]) {
     const frame=calloutEntrance(input,{mode:'register',gutter,time});
     assert.equal(plain(frame)[2],plain(input)[2]);assert.ok(plain(frame)[3].includes('09:41'));
+  }
+});
+
+test('callout-entrance: helper-derived regions hide timestamp before 120 ms and tolerate misplaced gutters', async()=>{
+  const {callout,calloutGeometry}=await import('../elements/callout/callout.mjs');
+  for (const width of [1,2,7,24,66,100]) for (const body of [[],['short'],['a considerably longer synthetic reply']]) {
+    const input={body,readout:'09:41'},options={width},geometry=calloutGeometry(input,options),lines=callout(input,options);
+    const motion={gutter:geometry.plotGutter,textRegion:geometry.textRegion,readoutRegion:geometry.readoutRegion,timestampRegion:geometry.timestampRegion};
+    for (const time of [0,40,80,119,120,160,900]) {
+      const frame=calloutEntrance(lines,{...motion,time});
+      frame.forEach(l=>assert.equal(lineWidth(l),width));
+      if(width>=24) assert.equal(plain(frame).join('').includes('09:41'),time>=120);
+      for(const delta of [-1,0,1]) {
+        assert.doesNotThrow(()=>calloutEntrance(lines,{...motion,gutter:{...motion.gutter,left:motion.gutter.left+delta},time}));
+        assert.doesNotThrow(()=>calloutEntrance(lines,{mode:'register',gutter:{...geometry.registerGutter,left:geometry.registerGutter.left+delta,rows:geometry.registerGutter.rows+delta},time}));
+      }
+    }
   }
 });

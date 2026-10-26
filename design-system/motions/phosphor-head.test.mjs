@@ -19,7 +19,17 @@ test('phosphor-head: measured grapheme head and state cues remain whole',()=>{
   }
 });
 test('phosphor-head: invalid options, head positions and control injection rejected',()=>{
-  for(const head of [null,{},[],{row:-1,col:0},{row:0,col:0.5}]) assert.throws(()=>phosphorHead([],{time:0,head}),RangeError);
+  for(const head of [null,{},[],{row:0,col:0.5}]) assert.throws(()=>phosphorHead([],{time:0,head}),RangeError);
+  assert.deepEqual(phosphorHead([[span('body')]],{time:0,head:{row:-1,col:0}}),[[span('body')]]);
   assert.throws(()=>phosphorHead([],{time:0,color:1}),TypeError);assert.throws(()=>phosphorHead([],{time:0,unknown:1}),TypeError);
   assert.throws(()=>phosphorHead([[span('\x1b[31m')]],{time:0,head:{row:0,col:0},measure:s=>s.length}),TypeError);
+});
+
+test('phosphor-head: off-by-one coordinates and wide continuation cells are harmless',()=>{
+  const input=[[span('日é👩‍💻',{fg:'primary',bg:'default'})]];
+  const measure=s=>[...new Intl.Segmenter('und',{granularity:'grapheme'}).segment(s)].reduce((n,{segment})=>n+(/日|👩/u.test(segment)?2:1),0);
+  for(const row of [-1,0,1]) for(const col of [-1,0,1,2,3,4,5,6]) {
+    const frame=phosphorHead(input,{time:0,head:{row,col},measure});
+    assert.equal(lineWidth(frame[0],{measure}),5);assert.equal(frame[0].map(s=>s.text).join(''),'日é👩‍💻');
+  }
 });

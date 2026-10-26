@@ -36,3 +36,9 @@ test('operation-row: invalid arguments, styles, columns and injection are reject
   assert.throws(()=>operationRow({selected:1},{width:40}),TypeError);
   for(const fn of [operationHeading,operationRow,operationDetail]) {assert.throws(()=>fn(null,{width:40}),TypeError);assert.throws(()=>fn({}, {width:0}),RangeError);}
 });
+
+test('operation-row: dots approach short durations, bold selection, detail label gap',()=>{
+  const row=operationRow({detail:'Fixture',duration:'2.3s',selected:true},{width:70});
+  assert.ok(plain(row).endsWith('· 2.3s'));assert.ok(row.find(s=>s.text==='▸').style.bold);
+  assert.ok(plain(operationDetail({label:'STATUS',value:'running'},{width:40})).startsWith('STATUS ·'));
+});

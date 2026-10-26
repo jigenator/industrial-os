@@ -471,3 +471,17 @@ test('snapshots and clipped names have no clickable geometry; resizing recompose
   const small = composeStorybook(at('gauge'), { columns: 20, rows: 4 });
   for (const t of normal.targets.filter((t) => t.action.startsWith('story:'))) assert.equal(hitAction(small, { column: t.column, row: t.row }), undefined);
 });
+
+test('content variant tabs are reachable by mouse in the tab row at 120 columns', () => {
+  for (const id of ['callout','document-block','sheet-card','desk-tray','operation-row','callout-entrance','phosphor-head']) {
+    let state=at(id);
+    for(let variant=1;variant<STORIES[state.story].variants.length;variant++) {
+      const view=composeStorybook(state,{columns:120,rows:40,mode:'TRUECOLOR'});
+      const tabsRow=view.targets.find(t=>t.action===`variant:${state.variant}`).row;
+      const target=view.targets.find(t=>t.row===tabsRow&&(t.action===`variant:${variant}`||t.action==='next-variant'));
+      assert.ok(target,`${id}/${variant}: next variant is reachable within the tab row`);
+      state=press(state,hitAction(view,{column:target.column,row:target.row}),{now:0,mode:'TRUECOLOR'});
+      assert.equal(state.variant,variant);
+    }
+  }
+});

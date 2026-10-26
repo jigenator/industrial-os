@@ -2,6 +2,7 @@ import { assertCells, fitLine, fitText, lineWidth, span } from '../../foundation
 import { SURFACE_PALETTE as P } from '../../foundation/surface-palette.mjs';
 import { INDUSTRIALOS_COLORS } from '../../foundation/industrialos-colors.mjs';
 import { labelPlate } from '../label-plate/label-plate.mjs';
+import { SIGNAL_COLORS } from '../../foundation/signal-colors.mjs';
 import { leader } from '../tab-rule/tab-rule.mjs';
 const clear = { bg: 'default' };
 const ink = id => INDUSTRIALOS_COLORS.find(c => c.id === id).hex;
@@ -26,7 +27,7 @@ export function documentHeading({ text: value = '', level = 1 } = {}, { width, m
   const fg = level === 1 ? 'accent' : level === 2 ? P.yellow : level === 3 ? ink('pale-blue') : 'primary';
   const content = fitText(value, Math.max(0, width - (level === 2 ? 1 : 0)), { measure, style: { fg, bold: true, ...clear } });
   const lines = [fitLine([...(level === 2 ? [span('▍', { fg, ...clear })] : []), ...content], width, clear, { measure })];
-  if (level === 1) lines.push(fitLine([span('━'.repeat(Math.min(width, size(content, measure) + 8)), { fg: 'structural', ...clear })], width, clear));
+  if (level === 1) lines.push(fitLine([span('━'.repeat(Math.min(width, size(content, measure) + 8)), { fg: SIGNAL_COLORS.accent50, ...clear })], width, clear));
   return lines;
 }
 export function listRow({ body = '', marker = '▪', checked, indent = 0 } = {}, { width, measure } = {}) {
@@ -53,8 +54,8 @@ export function codeBand({ language = '', body = [] } = {}, { width, measure } =
   for (const value of arguments) if (value !== undefined && (value === null || typeof value !== 'object' || Array.isArray(value))) throw new TypeError('input and options must be objects');
   assertCells(width, 'code width');
   if (!Array.isArray(body) || body.length > 1000) throw new TypeError('code body must be text rows');
-  const plate = labelPlate(language, { form: 'slab', tone: 'neutral', maxWidth: width, measure, style: { fg: 'primary', bg: 'structural' } });
-  const head = fitLine([...plate, ...leader({}, { maxWidth: width - size(plate, measure) })], width, clear, { measure });
+  const plate = labelPlate(language, { form: 'slab', tone: 'neutral', maxWidth: width, measure, style: { fg: 'field', bg: 'structural' } });
+  const head = fitLine([...plate, ...leader({}, { maxWidth: width - size(plate, measure) }).map(s => span(s.text, { ...s.style, fg: SIGNAL_COLORS.ghost }))], width, clear, { measure });
   return [head, ...body.flatMap(value => wrap(value, Math.max(1, width - 1), measure, { fg: P.code, bg: 'surface' }).map(l => fitLine([...(width > 1 ? [span(' ', { bg: 'surface' })] : []), ...l], width, { bg: 'surface' }, { measure })))];
 }
 export function inlineCode(value, { maxWidth = Infinity, measure } = {}) {
@@ -67,7 +68,7 @@ export function specTable({ headings = [], rows = [], align = [] } = {}, { width
   assertCells(width, 'table width');
   if (!Array.isArray(headings) || !headings.length || headings.length > 100 || !Array.isArray(rows) || rows.length > 1000 || rows.some(r => !Array.isArray(r) || r.length !== headings.length)) throw new TypeError('table needs headings and rectangular rows');
   if (!Array.isArray(align) || align.length > headings.length || align.some(a => !['left', 'right', 'center'].includes(a))) throw new RangeError('invalid table alignment');
-  const data = [headings, ...rows].map((r, ri) => r.map(v => text(v, measure, { fg: ri === 0 ? P.yellow : 'secondary', bold: ri === 0 })));
+  const data = [headings, ...rows].map((r, ri) => r.map((v, i) => text(v, measure, { fg: ri === 0 ? P.yellow : i === 0 ? 'primary' : 'secondary', bold: ri === 0 })));
   const widths = headings.map((_, i) => Math.max(1, ...data.map(r => size(r[i], measure))));
   if (widths.reduce((a,b) => a+b, 0) + (headings.length - 1) * 2 > width) {
     // Stacked records keep every heading and value, including at one column.

@@ -41,3 +41,39 @@ test('callout: invalid inputs, injection and forged slots are rejected', () => {
   assert.throws(()=>subtitle({body:[{spans:[span('wide')],width:1}]},{width:20,measure}),RangeError);
   assert.throws(()=>timestampLeader({cells:-1},{width:20}),RangeError);
 });
+
+test('callout: public geometry follows short, long, measured and empty bodies', async () => {
+  const { calloutGeometry } = await import('./callout.mjs');
+  for (let width=1;width<=160;width++) for (const side of ['left','right']) for (const body of [[],['short'],['much longer synthetic text'],[rich('日本 é 👩‍💻')]]) {
+    const input={side,body,readout:'09:41'}, options={width,measure};
+    const bounds=calloutGeometry(input,options), lines=callout(input,options);
+    assert.equal(bounds.rows,lines.length);assert.ok(lines.length>=3);
+    assert.ok(bounds.left>=0&&bounds.left<=bounds.right&&bounds.right<width);
+    for (const region of [bounds.textRegion,bounds.readoutRegion,bounds.timestampRegion,bounds.plotGutter]) assert.ok(region.left>=0&&region.left+region.cols<=width);
+  }
+  assert.equal(callout({body:[]},{width:40}).length,3);
+});
+
+test('subtitle: reveal uses full-line centering, marker uses floor(W/2), head is grapheme-safe', async () => {
+  const { subtitleGeometry } = await import('./callout.mjs');
+  for (const width of [20,21,40]) for (const body of [['fixture'],[rich('日é👩‍💻')],['first','second']]) {
+    const full=subtitle({body},{width,measure});
+    for (let revealed=0;revealed<=12;revealed++) {
+      const input={body,revealed}, options={width,measure};
+      const lines=subtitle(input,options);geometry(lines,width,measure);
+      const {head}=subtitleGeometry(input,options);
+      if(head) {
+        // All visible graphemes occupy their settled cells, never re-centered prefixes.
+        const row=plain(lines[head.row]), settled=plain(full[head.row]);
+        assert.equal(row.length-row.trimStart().length, settled.length-settled.trimStart().length);
+      }
+    }
+    assert.equal(plain(subtitle({body:[],marker:'▼'},{width,measure})[0]).indexOf('▼'),Math.floor(width/2));
+    assert.ok(full.length);
+  }
+  const body=['abcdef'];
+  assert.equal(plain(subtitle({body,revealed:1},{width:20})[0]).indexOf('a'),7);
+  assert.equal(plain(subtitle({body,revealed:3},{width:20})[0]).indexOf('a'),7);
+  assert.deepEqual(subtitleGeometry({body,revealed:3},{width:20}),{head:{row:0,col:9}});
+  assert.throws(()=>subtitle({body,revealed:-1},{width:20}),RangeError);
+});

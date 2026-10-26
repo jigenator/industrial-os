@@ -1,4 +1,4 @@
-import { callout, subtitle } from '../elements/callout/callout.mjs';
+import { callout, calloutGeometry, subtitle, subtitleGeometry } from '../elements/callout/callout.mjs';
 import { calloutEntrance, calloutEntranceDuration, CALLOUT_ENTRANCE_DEFAULTS } from '../motions/callout-entrance.mjs';
 import { phosphorHead, PHOSPHOR_HEAD_DEFAULTS } from '../motions/phosphor-head.mjs';
 // Motion stories: each motion with named examples over real renderer output, framed by a still numbered
@@ -718,7 +718,7 @@ const CALLOUT_ENTRANCE = {
   id: 'callout-entrance', kind: 'motion', module: 'motions/callout-entrance.mjs', contract: 'motions/README.md',
   title: 'CALLOUT ENTRANCE', summary: 'Plot marks and diagonal registration around the actual callout API.',
   motion: { name: 'calloutEntrance', defaults: CALLOUT_ENTRANCE_DEFAULTS, units: {}, defaultsName: 'CALLOUT_ENTRANCE_DEFAULTS' },
-  rules: ['Plot-in settles at 900 ms; register at 700 ms.', 'Diagonal marks use reserved gutters. Tiny previews omit the optional registration, never content.'],
+  rules: ['Plot-in settles at 900 ms; register at 700 ms.', 'Geometry comes from calloutGeometry; occupied gutter cells are left untouched.'],
   variants: [
     { name: 'PLOT-IN', note: '40-ms host grid, uneven glyph phases and a four-step readout.', options: { mode: 'plot-in' }, plainVisible: true },
     { name: 'REGISTER', note: 'Out 0–80; white home 80–160; bone to 600; grey to 700.', options: { mode: 'register' }, plainVisible: true },
@@ -729,11 +729,11 @@ const CALLOUT_ENTRANCE = {
     const rendered = callout(input,{width:w});
     const empty = () => fitLine([],w,{bg:'default'});
     const lines = mode === 'register' ? [empty(),...rendered,empty()] : rendered;
-    const left = Math.max(0,w-19);
+    const geometry = calloutGeometry(input,{width:w});
     const options = mode === 'register'
-      ? { mode, gutter: { top:0, left, rows:5, cols:Math.max(3,w-left) } }
-      : { mode, gutter:{top:1,left:1,rows:1,cols:1}, textRegion:{top:1,left:3,rows:1,cols:50}, readoutRegion:{top:2,left:3,rows:1,cols:8} };
-    const play = animate && (mode !== 'register' || w >= 24);
+      ? { mode, gutter: geometry.registerGutter }
+      : { mode, gutter:geometry.plotGutter, textRegion:geometry.textRegion, readoutRegion:geometry.readoutRegion, timestampRegion:geometry.timestampRegion };
+    const play = animate;
     const expression = call('callout',input,{width:w});
     const source = mode === 'register' ? `[fitLine([], ${w}, { bg: 'default' }), ...${expression}, fitLine([], ${w}, { bg: 'default' })]` : expression;
     return { lines:calloutEntrance(lines,{...options,animate:play,time}),
@@ -744,16 +744,17 @@ const CALLOUT_ENTRANCE = {
 };
 const PHOSPHOR_HEAD = {
   id: 'phosphor-head', kind: 'motion', module: 'motions/phosphor-head.mjs', contract: 'motions/README.md',
-  title: 'PHOSPHOR HEAD', summary: 'A host-supplied head on already-revealed text, never a second reveal implementation.',
+  title: 'PHOSPHOR HEAD', summary: 'A supplied reveal count keeps the full subtitle fixed; its geometry locates the head.',
   motion: { name: 'phosphorHead', defaults: PHOSPHOR_HEAD_DEFAULTS, units: {}, defaultsName: 'PHOSPHOR_HEAD_DEFAULTS' },
-  rules: ['All text is already visible; only the supplied head changes.', 'Motion off and plain have no head; state-role cells are exempt.'],
-  variants: [{ name: 'REVEALED HEAD', options: {}, note: 'Synthetic host head locations, sampled every 40 ms; no reveal pacing.' }],
+  rules: ['The full line fixes centering; a supplied count reveals graphemes in place.', 'Motion off and plain have no head; state-role cells are exempt.'],
+  variants: [{ name: 'REVEALED HEAD', options: {}, note: 'Synthetic host reveal counts, sampled every 40 ms; DS owns no clock.', plainVisible: true }],
   specimen(_variant, width, { animate = false, time = 0 } = {}) {
     const w = within(width,60);
-    const input = { body: ['Fixture '.repeat(Math.ceil(w / 8)).slice(0,w)] };
+    const full = 'Synthetic fixture.';
+    const input = { body: [full], ...(animate ? { revealed: Math.min(full.length, Math.floor(time / 40) + 1) } : {}) };
     const options = { width: w };
     const lines = subtitle(input, options);
-    const head = { row: 0, col: Math.floor(time / 40) % w };
+    const { head } = subtitleGeometry(input,options);
     const opts = animate ? { head, time: code('time') } : { animate: false };
     return { lines: phosphorHead(lines, { head, time, animate }),
       calls: [`body = ${call('subtitle', input, options)}`, call('phosphorHead', code('body'), opts)], facts: [] };

@@ -1,4 +1,4 @@
-import { callout, subtitle, timestampLeader } from '../elements/callout/callout.mjs';
+import { callout, calloutGeometry, subtitle, subtitleGeometry, timestampLeader } from '../elements/callout/callout.mjs';
 import { documentHeading, listRow, quoteRows, linkLines, codeBand, inlineCode, specTable } from '../elements/document-block/document-block.mjs';
 import { cardState, cardHeading, sheetCard, stackCard, stackRow, sheetListRow } from '../elements/sheet-card/sheet-card.mjs';
 import { deskStrip, deskHeading, questionTitle, questionBody, deskFooter } from '../elements/desk-tray/desk-tray.mjs';
@@ -62,7 +62,7 @@ import { inputFrame } from '../elements/input-frame/input-frame.mjs';
 import { feedScan } from '../motions/feed-scan.mjs';
 import { cornerSnap } from '../motions/corner-snap.mjs';
 const API = {
-  callout, subtitle, timestampLeader, documentHeading, listRow, quoteRows, linkLines, codeBand, inlineCode, specTable, cardState, cardHeading, sheetCard, stackCard, stackRow, sheetListRow, deskStrip, deskHeading, questionTitle, questionBody, deskFooter, operationHeading, operationRow, operationDetail, calloutEntrance, phosphorHead,
+  callout, calloutGeometry, subtitle, subtitleGeometry, timestampLeader, documentHeading, listRow, quoteRows, linkLines, codeBand, inlineCode, specTable, cardState, cardHeading, sheetCard, stackCard, stackRow, sheetListRow, deskStrip, deskHeading, questionTitle, questionBody, deskFooter, operationHeading, operationRow, operationDetail, calloutEntrance, phosphorHead,
   feedBezel, imageLabel, imageInset, inputFrame, feedScan, cornerSnap,
   tabRule, leader, neatline, nameRule, actionLabel, keyHints, popupHeader, popupFooter, noticeRow, scopeMeter, soundingMeter, scopeTrace, soundingSweep,
   fitLine, span, lineMeter, columnBlock, SIGNAL_COLORS, gauge, gaugeScale, labelPlate, numberedPanel, panelInnerWidth, statusRow, COUNT_PLATES, countPlate,

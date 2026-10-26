@@ -20,7 +20,7 @@ export function deskStrip({ state = 'clear', count = '', hint = '' } = {}, optio
   const notch = waiting ? lamp('working', { appearance: 'round', style: { fg: 'critical', bg } }) : [span(' ', { bg })];
   const label = labelPlate('DESK', { form: 'slab', style: { fg: 'field', bg: waiting ? 'critical' : P.plateGrey } });
   const words = state === 'clear' ? 'clear' : state === 'open' ? 'open above' : count;
-  const content = [...label, span(' ', { bg }), ...fitText(words, Infinity, { measure: options.measure, style: { fg: waiting && state !== 'open' ? 'primary' : 'secondary', bg } })];
+  const content = [...label, span(' ', { bg }), ...fitText(words, Infinity, { measure: options.measure, style: { fg: waiting && state !== 'open' ? 'primary' : 'secondary', bold: state === 'waiting', bg } })];
   return line(content, hint, options, 3, bg, [span(' ', { bg }), ...notch]);
 }
 export function deskHeading({ count = '', hint = '' } = {}, options = {}) {
@@ -43,7 +43,7 @@ export function questionBody({ prompt = [], options: choices = [] } = {}, { widt
   const row = (content,right='') => line(content,right,{width,measure},5,'default',prefix);
   return [...prompt.map(p => row(fitText(p,Infinity,{measure,style:{fg:'primary',bold:true,...clear}}))), ...choices.map(choice => {
     if (!choice || typeof choice !== 'object' || typeof (choice.selected ?? false) !== 'boolean' || typeof (choice.pick ?? false) !== 'boolean') throw new TypeError('question option must be an object with boolean selection');
-    return row([span(choice.selected ? '● ' : '○ ',{fg:choice.selected?'accent':'decorative',...clear}),...fitText(choice.label ?? '',Infinity,{measure,style:{fg:'decorative',...clear}}),span('  ',clear),...fitText(choice.body,Infinity,{measure,style:{fg:choice.selected?'primary':'secondary',bold:!!choice.selected,...clear}})],choice.pick ? [span('◆ her pick',{fg:P.orange,...clear})] : choice.hint??'');
+    return row([span(choice.selected ? '● ' : '○ ',{fg:choice.selected?'accent':'decorative',bold:true,...clear}),...fitText(choice.label ?? '',Infinity,{measure,style:{fg:'decorative',...clear}}),span('  ',clear),...fitText(choice.body,Infinity,{measure,style:{fg:choice.selected?'primary':'secondary',bold:!!choice.selected,...clear}})],choice.pick ? [span('◆ her pick',{fg:P.orange,...clear})] : choice.hint??'');
   })];
 }
 export function deskFooter({ state = 'hint', text = '', detail = '' } = {}, options = {}) {
@@ -51,7 +51,7 @@ export function deskFooter({ state = 'hint', text = '', detail = '' } = {}, opti
   if (!['hint','saving','error','decline','readonly'].includes(state)) throw new RangeError('unknown desk footer state');
   const prefix = [span(' ',clear),span('│',{fg:mixOver('critical',0.5),...clear})];
   const glyph = state === 'saving' ? '· ' : state === 'error' ? '✕ ' : '';
-  const body = state === 'decline' ? [span(' ▲ ',{fg:'field',bg:'warning',bold:true}),...labelPlate('DECLINE?',{form:'slab',tone:'warning',pad:0}),span(' ',clear)] : [span(glyph,{fg:state==='error'?'critical':'accent',...clear})];
+  const body = state === 'decline' ? [...labelPlate('▲ DECLINE?', { form:'slab', tone:'warning', measure: text => [...text].length }),span(' ',clear)] : [span(glyph,{fg:state==='error'?'critical':'accent',bold:state==='error',...clear})];
   body.push(...fitText(text,Infinity,{measure:options.measure,style:{fg:state==='hint'?'decorative':'secondary',...clear}}));
   return line(body,detail,options,5,'default',prefix);
 }

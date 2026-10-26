@@ -29,20 +29,20 @@ export function operationRow({ state = 'neutral', time = '', category = '', deta
   // Reserve the right duration before optional fixed columns and long detail.
   const dw=Math.min(cols.duration,Math.max(0,width-2));
   const stamp=fitText(duration,dw,{measure,style:{fg:state==='running'?'accent':'decorative',...base,...styles.duration}});
-  const prefix=[span(color?'█':STATES[state][0],{fg:STATES[state][1],bg}),span(selected?'▸':' ',{fg:'accent',bg})];
+  const prefix=[span(color?'█':STATES[state][0],{fg:STATES[state][1],bg}),span(selected?'▸':' ',{fg:'accent',bg,bold:selected})];
   const available=Math.max(0,width-2-dw-1), tw=Math.min(cols.time,available), cw=Math.min(cols.category,Math.max(0,available-tw-2));
   prefix.push(...cell(time,tw,'time','decorative'),span(' ',base),...cell(category,cw,'category','primary'),span(' ',base));
   const room=Math.max(0,width-dw-1-size(prefix,measure));
   const content=fitText(detail,room,{measure,style:{fg:state==='failed'?'critical':'secondary',...base,...styles.detail}});
   const gap = room > size(content,measure) ? [span(' ',base)] : [];
-  const rail=leader({glyph:'·'},{maxWidth:Math.max(0,room-size(content,measure)-gap.length)}).map(s=>span(s.text,{...s.style,fg:P.floor,bg}));
-  return fitLine([...fitLine([...prefix,...content,...gap,...rail],Math.max(0,width-dw),base,{measure}),...fitLine([span(' '.repeat(dw-size(stamp,measure)),base),...stamp],dw,base,{measure})],width,base,{measure});
+  const rail=leader({glyph:'·'},{maxWidth:Math.max(0,width-size(prefix,measure)-size(content,measure)-gap.length-size(stamp,measure)-1)}).map(s=>span(s.text,{...s.style,fg:P.floor,bg}));
+  return fitLine([...fitLine([...prefix,...content,...gap,...rail],Math.max(Math.min(width,2),width-size(stamp,measure)-1),base,{measure}),span(' ',base),...stamp],width,base,{measure});
 }
 export function operationDetail({ label = '', value = '' } = {}, { width, labelWidth = 14, measure, style = {} } = {}) {
   for (const value of arguments) if (value !== undefined && (value === null || typeof value !== 'object' || Array.isArray(value))) throw new TypeError('input and options must be objects');
   assertCells(width,'operation detail width'); resolveStyle(style);
   if(!Number.isInteger(labelWidth)||labelWidth<0||labelWidth>1000) throw new RangeError('labelWidth must be 0–1000');
   const left=Math.min(labelWidth,Math.max(0,width-2));
-  const title=fitText(label,left,{measure,style:{fg:'decorative',...clear}});
-  return fitLine([...title,...leader({glyph:'·'},{maxWidth:left-size(title,measure)}),span(' ',clear),...fitText(value,Math.max(0,width-left-1),{measure,style:{fg:'secondary',...clear,...style}})],width,clear,{measure});
+  const title=fitText(label,Math.max(0,left-1),{measure,style:{fg:'decorative',...clear}});
+  return fitLine([...title,span(left > size(title,measure) ? ' ' : '',clear),...leader({glyph:'·'},{maxWidth:Math.max(0,left-size(title,measure)-1)}),span(' ',clear),...fitText(value,Math.max(0,width-left-1),{measure,style:{fg:'secondary',...clear,...style}})],width,clear,{measure});
 }

@@ -15,3 +15,9 @@ Every caller text field accepts a string (the historical printable-ASCII sanitiz
 ## Checks
 
 Run `node --test` from `design-system/`; the colocated source-named tests cover states, widths 1–160, invalid inputs, measured wide/combining/emoji/ZWJ slots, plain/color geometry and immutability. Stories execute the actual public API calls printed below their specimens. Native evidence and limits are recorded in [Contributing](../../CONTRIBUTING.md#lunalee-ds-2b-content-verification-2026-10-27), not inferred from unit tests.
+
+## Geometry and stable reveal
+
+`calloutGeometry(input, {width,measure?})` uses the same layout as `callout` and returns zero-based inclusive registration-box `left`/`right`, total `rows`, and bounded `{top,left,rows,cols}` regions: `textRegion`, `readoutRegion` (leader only), `timestampRegion` (readout text), and `plotGutter`. `registerGutter` reserves the diagonal box around a callout composed with **one blank row above and below**; its coordinates address that padded frame. Other regions address the unpadded callout. No caller should copy the private widest-line arithmetic. At tiny widths the frame clips; entrance skips occupied mark targets instead of throwing.
+
+`subtitle({...input,revealed}, options)` takes the **full prewrapped body** and an optional nonnegative grapheme count across its rows (default Infinity). It centers on the full clipped line and replaces unrevealed graphemes with their exact-width spaces, so prefixes never drift. The independently supplied marker remains visible and starts at `floor(width/2)`. `subtitleGeometry(input, options)` returns `{head}` for the last newly revealed grapheme's start cell, or an undefined head when no finite count lands on a grapheme. Pass that head to phosphor-head; the host still owns count/pacing and the head's lifetime. Measured slots retain whole wide/combining/emoji/ZWJ graphemes. Empty callouts reserve one body row, even without text.

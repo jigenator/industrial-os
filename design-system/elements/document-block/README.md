@@ -23,3 +23,5 @@ Every caller text field accepts a string (the historical printable-ASCII sanitiz
 ## Checks
 
 Run `node --test` from `design-system/`; the colocated source-named tests cover states, widths 1–160, invalid inputs, measured wide/combining/emoji/ZWJ slots, plain/color geometry and immutability. Stories execute the actual public API calls printed below their specimens. Native evidence and limits are recorded in [Contributing](../../CONTRIBUTING.md#lunalee-ds-2b-content-verification-2026-10-27), not inferred from unit tests.
+
+Adapter note: link/code/table fallback wrapping is grapheme-based, not word-based, so it may break inside a word. At tiny budgets the adapter must handle the documented too-wide-grapheme `RangeError`; this review does not change that policy or discard values. Fill-alpha policy, including critical, card tint and selection roles, remains host-owned.

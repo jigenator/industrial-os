@@ -153,3 +153,18 @@ operationRow({ detail: slot }, { width: 40 });
 operationRow({ state: 'missing' }, { width: 40 });
 // @ts-expect-error invalid entrance mode
 calloutEntrance([], { time: 0, mode: 'other' });
+
+import { calloutGeometry, subtitleGeometry } from './elements/callout/callout.mjs';
+const calloutBounds = calloutGeometry({ body: [slot], readout: slot }, contentOptions);
+calloutBounds.left satisfies number;
+calloutBounds.timestampRegion.cols satisfies number;
+calloutEntrance(callout({ body: ['fixture'] }, { width: 40 }), { time: 0, gutter: calloutBounds.plotGutter, timestampRegion: calloutBounds.timestampRegion });
+const subtitleInput = { body: [slot], revealed: 2 };
+phosphorHead(subtitle(subtitleInput, contentOptions), { time: 0, head: subtitleGeometry(subtitleInput, contentOptions).head, measure });
+sheetListRow({ state: 'read', title: slot, updated: slot }, { ...contentOptions, columns: { state: 20, updated: 32 } });
+// @ts-expect-error geometry slots require a measurer
+calloutGeometry({ body: [slot] }, { width: 40 });
+// @ts-expect-error subtitle geometry slots require a measurer
+subtitleGeometry({ body: [slot], revealed: 1 }, { width: 40 });
+// @ts-expect-error column positions are numeric
+sheetListRow({}, { width: 40, columns: { state: '20' } });

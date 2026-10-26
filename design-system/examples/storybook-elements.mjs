@@ -650,7 +650,7 @@ const SHEET_CARD = contentStory('sheet-card','SHEET CARD','Shared card words, ba
   ...['unread','read','waiting','answered','declined','delivery-waiting'].map(state=>({name:state.toUpperCase(),fn:'sheetCard',input:{heading:{number:'05',time:'09:41',state,answer:state==='answered'?'fixture option':''},kind:['waiting','answered','declined','delivery-waiting'].includes(state)?'question':'info',read:['read','answered','declined'].includes(state),title:'Synthetic briefing',gist:['Fixture summary line one.','Fixture summary line two.'],footer:'24 rows - no answer needed'}})),
   {name:'HOVER',fn:'sheetCard',input:{heading:{number:'05',state:'unread'},hover:true,title:'Synthetic briefing',gist:['Hovered fixture.']}},
   {name:'STACK',fn:'stackCard',input:{heading:'2 handed over 09:41 - 1 waiting on you',rows:[{label:'SHEET 05',title:'Synthetic briefing',state:'unread'},{label:'QUESTION 07',title:'Choose a fixture',state:'waiting',selected:true}]}},
-  ...[false,true].map(selected=>({name:selected?'LIST SELECTED':'LIST READ',fn:'sheetListRow',input:{label:'05',title:'Synthetic briefing',state:selected?'waiting':'read',updated:'Mon',selected}})),
+  ...[false,true].map(selected=>({name:selected?'LIST SELECTED':'LIST READ',fn:'sheetListRow',options:{columns:{state:48,updated:70}},input:{label:'05',title:'Synthetic briefing',state:selected?'waiting':'read',updated:'Mon',selected}})),
 ]);
 const DESK_TRAY = contentStory('desk-tray','DESK TRAY','One stripe/content/body grid at columns 1/3/5; state is never inferred.',[
   ...['clear','waiting','open'].map(state=>({name:state.toUpperCase(),fn:'deskStrip',input:{state,count:'2 waiting on you',hint:state==='clear'?'':state==='open'?'^O full sheet':'^O open'}})),

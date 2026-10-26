@@ -55,3 +55,12 @@ test('document-block: invalid arguments and injection fail at the text boundary'
   assert.throws(()=>codeBand({body:['\u202eunsafe']},{width:30,measure}),TypeError);
   assert.throws(()=>quoteRows({body:[{spans:[span('abc')],width:1}]},{width:30,measure}),RangeError);
 });
+
+test('document-block: review heading/table/code inks match the visual reference',()=>{
+  const heading=documentHeading({text:'Fixture'},{width:30});assert.equal(heading[1][0].style.fg,'#607f02');
+  const table=specTable({headings:['A','B'],rows:[['first','second']]},{width:30});
+  assert.equal(table[2].find(s=>s.text==='first').style.fg,'primary');
+  assert.equal(table[2].find(s=>s.text==='second').style.fg,'secondary');
+  const code=codeBand({language:'SH',body:['fixture']},{width:30})[0];
+  assert.equal(code.find(s=>s.text.includes('SH')).style.fg,'field');assert.equal(code.find(s=>s.text.includes('┄')).style.fg,'#333333');
+});

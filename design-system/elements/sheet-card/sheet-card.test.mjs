@@ -26,7 +26,8 @@ test('sheet-card: shared state words, heading, read band and fixed card row coun
 test('sheet-card: selection is immediate, tree columns are reserved and list rows share words', () => {
   const row={label:'QUESTION 07',title:'Fixture',state:'waiting',selected:true,last:true};
   assert.ok(plain(stackRow(row,{width:70})).startsWith(' └─█▸'));
-  assert.ok(plain(sheetListRow({...row,updated:'Mon'},{width:70})).includes('waiting on you ●  Mon'));
+  const list = plain(sheetListRow({...row,updated:'Mon'},{width:70}));
+  assert.equal(list.slice(40,56),'waiting on you ●'); assert.equal(list.slice(62,65),'Mon');
   const stack=stackCard({heading:'2 fixtures',rows:[row,row]},{width:70});assert.equal(stack.length,3);assert.ok(plain(stack[1]).startsWith(' ├─'));assert.ok(plain(stack[2]).startsWith(' └─'));
 });
 test('sheet-card: widths 1–160, every state, measured slots, plain/color geometry and immutability', () => {
@@ -44,4 +45,25 @@ test('sheet-card: invalid states, flags, dimensions and unsafe slots are rejecte
   assert.throws(()=>cardHeading({number:'\x1b[31m'},{width:40,measure}),TypeError);
   assert.throws(()=>stackCard({rows:null},{width:40}),TypeError);
   assert.throws(()=>sheetCard({gist:[rich('abc')]},{width:40}),TypeError);
+});
+
+test('sheet-card: ^P fixed columns, no tint, floor leaders and wheat selected read fill', () => {
+  const columns={state:60,updated:82};
+  for(const state of ['unread','waiting','read','answered','declined','delivery-waiting']) {
+    const row=sheetListRow({label:'05',title:'Fixture',state,updated:'Mon'},{width:100,columns});
+    const text=plain(row);assert.equal(text.slice(60,60+plain(cardState({state})).length),plain(cardState({state})));assert.equal(text.slice(82,85),'Mon');
+    assert.ok(text.slice(20,60).includes('·'));assert.ok(row.every(s=>s.style.bg==='default'));
+  }
+  const selected=sheetListRow({label:'05',title:'Fixture',state:'read',selected:true},{width:100,columns});
+  assert.ok(selected.some(s=>s.style.bg==='#e3cfa0'));assert.ok(!plain(selected).includes('·'));
+  assert.throws(()=>sheetListRow({}, {width:40,columns:{state:30,updated:20}}),RangeError);
+});
+
+test('sheet-card: review inks and read STACK tint', () => {
+  const read=sheetCard({heading:{state:'read'},title:'Title',read:true,footer:'Footer'},{width:70});
+  assert.equal(read[1].find(s=>s.text.includes('Title')).style.fg,'secondary');
+  assert.equal(read[4].find(s=>s.text.includes('Footer')).style.fg,'decorative');
+  assert.equal(read[1].find(s=>s.text.includes('█')).style.fg,'#333333');
+  assert.ok(cardState({state:'unread'}).every(s=>s.style.bold));
+  assert.ok(stackRow({state:'read',title:'Fixture'},{width:70}).some(s=>s.style.bg==='#1d1a12'));
 });
