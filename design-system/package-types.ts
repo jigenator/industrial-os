@@ -103,3 +103,53 @@ noticeRow({ detail: [{ kind: 'command', text: { spans: [], width: 0 }, label: { 
 noticeRow({ detail: [{ kind: 'command', text: { spans: [], width: 0 } }] }, { width: 66 });
 // @ts-expect-error the mockup has no focused open-action state
 actionLabel({ state: 'focused' });
+import { callout, subtitle, timestampLeader } from './elements/callout/callout.mjs';
+import { documentHeading, listRow, quoteRows, linkLines, codeBand, inlineCode, specTable } from './elements/document-block/document-block.mjs';
+import { cardState, cardHeading, sheetCard, stackCard, stackRow, sheetListRow } from './elements/sheet-card/sheet-card.mjs';
+import { deskStrip, deskHeading, questionTitle, questionBody, deskFooter } from './elements/desk-tray/desk-tray.mjs';
+import { operationHeading, operationRow, operationDetail } from './elements/operation-row/operation-row.mjs';
+import { calloutEntrance, calloutEntranceDuration } from './motions/callout-entrance.mjs';
+import { phosphorHead } from './motions/phosphor-head.mjs';
+const contentOptions = { width: 40, measure };
+callout({ name: slot, body: [slot], readout: slot, reference: slot }, contentOptions);
+subtitle({ body: [slot], marker: slot, aside: true }, contentOptions);
+timestampLeader({ readout: slot }, contentOptions);
+documentHeading({ text: slot, level: 2 }, contentOptions);
+listRow({ body: slot, marker: slot }, contentOptions);
+quoteRows({ body: [slot] }, contentOptions);
+linkLines({ label: slot, url: slot }, contentOptions);
+codeBand({ language: slot, body: [slot] }, contentOptions);
+inlineCode(slot, { measure });
+specTable({ headings: [slot], rows: [[slot]], align: ['right'] }, contentOptions);
+cardState({ state: 'answered', answer: slot }, { measure });
+cardHeading({ number: slot, time: slot, state: 'waiting' }, contentOptions);
+sheetCard({ heading: { number: slot }, gist: [slot], title: slot, button: slot }, contentOptions);
+stackCard({ heading: slot, rows: [{ label: slot, title: slot, state: 'read' }] }, contentOptions);
+stackRow({ label: slot, title: slot, state: 'read' }, contentOptions);
+sheetListRow({ title: slot, updated: slot }, contentOptions);
+deskStrip({ count: slot, hint: slot }, contentOptions);
+deskHeading({ count: slot, hint: slot }, contentOptions);
+questionTitle({ label: slot, title: slot, meta: slot }, contentOptions);
+questionBody({ prompt: [slot], options: [{ label: slot, body: slot, pick: true }] }, contentOptions);
+deskFooter({ text: slot, detail: slot }, contentOptions);
+operationHeading({ label: slot, code: slot, count: slot }, contentOptions);
+operationRow({ time: slot, category: slot, detail: slot, duration: slot }, { ...contentOptions, color: false });
+operationDetail({ label: slot, value: slot }, contentOptions);
+calloutEntrance(callout({ body: ['fixture'] }, { width: 40 }), { time: 200, gutter: { top: 1, left: 1, rows: 1, cols: 1 } });
+calloutEntranceDuration([], { mode: 'register', gutter: { rows: 5, cols: 5 } }) satisfies number;
+phosphorHead([plate], { time: 0, head: { row: 0, col: 0 }, measure });
+SURFACE_PALETTE.code satisfies `#${string}`;
+// @ts-expect-error rich body slots require a measurer
+callout({ body: [slot] }, { width: 40 });
+// @ts-expect-error nested card slots require a measurer
+sheetCard({ heading: { number: slot } }, { width: 40 });
+// @ts-expect-error nested table slots require a measurer
+specTable({ headings: ['fixture'], rows: [[slot]] }, { width: 40 });
+// @ts-expect-error question option slots require a measurer
+questionBody({ options: [{ body: slot }] }, { width: 40 });
+// @ts-expect-error operation detail slots require a measurer
+operationRow({ detail: slot }, { width: 40 });
+// @ts-expect-error invalid operation state
+operationRow({ state: 'missing' }, { width: 40 });
+// @ts-expect-error invalid entrance mode
+calloutEntrance([], { time: 0, mode: 'other' });

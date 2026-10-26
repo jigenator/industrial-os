@@ -1,3 +1,8 @@
+import { callout, subtitle, timestampLeader } from '../elements/callout/callout.mjs';
+import { documentHeading, listRow, quoteRows, linkLines, codeBand, inlineCode, specTable } from '../elements/document-block/document-block.mjs';
+import { cardState, cardHeading, sheetCard, stackCard, stackRow, sheetListRow } from '../elements/sheet-card/sheet-card.mjs';
+import { deskStrip, deskHeading, questionTitle, questionBody, deskFooter } from '../elements/desk-tray/desk-tray.mjs';
+import { operationHeading, operationRow, operationDetail } from '../elements/operation-row/operation-row.mjs';
 // Element stories: each element with named state variants. Pure and I/O-free. Every specimen comes from
 // the real renderer, and its usage text is built from the same arguments that drew it. Values are labeled
 // demonstration fixtures, many modeled on the Pi extensions' own fixtures in the element READMEs.
@@ -601,4 +606,68 @@ const INPUT_FRAME = element('input-frame', {
 });
 for(const story of [FEED_BEZEL,INPUT_FRAME]) for(const v of story.variants) v.note=`${v.name}: synthetic chrome; image/editor content belongs to the host.`;
 
-export const ELEMENT_STORIES = [PANEL, FRAME, PLATE, COUNT, MODE, CHIP, LAMP, ROW, GAUGE, NUMERAL, METER, RAIL, MARKER, LINE_METER, COLUMN_BLOCK, TAB_RULE, ACTION_LABEL, POPUP_HEADER, NOTICE_ROW, SCOPE_METER, SOUNDING_METER, FEED_BEZEL, INPUT_FRAME];
+
+// These are presentation fixtures; no conversation, document parser or host state is included.
+// Measured fixtures below contain only ASCII and curated one-cell structural glyphs.
+const CONTENT_RENDERERS = { callout, subtitle, timestampLeader, documentHeading, listRow, quoteRows, linkLines, codeBand, inlineCode, specTable, cardHeading, sheetCard, stackCard, stackRow, sheetListRow, deskStrip, deskHeading, questionTitle, questionBody, deskFooter, operationHeading, operationRow, operationDetail };
+const CONTENT_BLOCKS = new Set(['callout','subtitle','documentHeading','quoteRows','linkLines','codeBand','specTable','sheetCard','stackCard','questionBody']);
+function contentStory(id, title, summary, variants) {
+  return element(id, { title, summary,
+    rules: ['Pure supplied presentation; layout, state and activation remain host-owned.', 'Measured slots preserve whole graphemes; narrow single rows yield optional text first.'],
+    variants: variants.map(v => ({...v,note:`${v.name}: synthetic public-API fixture.`})),
+    specimen(v,width) {
+      const parts=v.parts??[[v.fn,v.input,v.options??{}]];
+      const lines=[],calls=[];
+      for(const [fn,input,options] of parts) {
+        const opts={...(fn === 'inlineCode' ? {maxWidth:width} : {width}),...options,...(v.measured ? { measure: text => [...text].length } : {})};
+        const shown={...opts,...(v.measured ? { measure:code('(text) => [...text].length') } : {})};
+        const result=CONTENT_RENDERERS[fn](input,opts);
+        lines.push(...(CONTENT_BLOCKS.has(fn)?result:[fitLine(result,width,{bg:'default'})])); calls.push(fn === 'inlineCode' ? call('fitLine',code(call(fn,input,shown)),width,{bg:'default'}) : call(fn,input,shown));
+      }
+      return {lines,calls,facts:[]};
+    },
+  });
+}
+const CALLOUT = contentStory('callout','CALLOUT','Mirrored survey corners, timestamp leaders and centered subtitles.',[
+  ...['left','right'].flatMap(side=>[true,false].map(first=>({name:`${side.toUpperCase()} ${first?'FIRST':'CONTINUATION'}`,fn:'callout',input:{side,name:side==='left'?'LUNALEE':'OPERATOR',first,body:['Fixture handover is ready.','Two synthetic records follow.'],readout:'09:41'}}))),
+  ...['delivered','waiting','sending','not delivered','queued','with her'].map(readout=>({name:readout.toUpperCase(),fn:'callout',measured:true,input:{side:'right',name:'OPERATOR',body:['Fixture message.'],readout:readout==='not delivered'?{spans:[span('✕ not delivered',{fg:'critical',bg:'default',bold:true})],width:15}:readout==='sending'?'⠋ sending':readout,reference:'answer to QUESTION 07'}})),
+  {name:'LIVE',fn:'subtitle',measured:true,input:{body:['A synthetic latest line.'],marker:'▼'}},
+  {name:'HISTORY',fn:'subtitle',input:{body:['A retired fixture line.']}},
+  {name:'AMBIENT ASIDE',fn:'subtitle',input:{body:['A quiet synthetic aside.'],ambient:true,aside:true}},
+  {name:'TIMESTAMP',fn:'timestampLeader',input:{readout:'09:41',cells:18}},
+]);
+const DOCUMENT_BLOCK = contentStory('document-block','DOCUMENT BLOCK','Markdown presentation only: open tables, surface code and visible URLs.',[
+  ...[1,2,3,4,5,6].map(level=>({name:`H${level}`,fn:'documentHeading',input:{text:'Fixture heading',level}})),
+  {name:'LIST',fn:'listRow',input:{body:'A synthetic list item.'}},
+  {name:'TASK',parts:[['listRow',{body:'Reserved fixture task',checked:false}],['listRow',{body:'Completed fixture task',checked:true}]]},
+  {name:'QUOTE',fn:'quoteRows',input:{body:['A quoted fixture.','No stored conversation.']}},
+  {name:'LINK',fn:'linkLines',input:{label:'Reference fixture',url:'https://example.invalid/reference'}},
+  {name:'CODE',fn:'codeBand',input:{language:'SH',body:['printf fixture','echo complete']}},
+  {name:'INLINE CODE',fn:'inlineCode',input:'fixture.call()'},
+  {name:'TABLE',fn:'specTable',input:{headings:['ITEM','COUNT','STATE'],rows:[['alpha','12','ready'],['beta','4','waiting']],align:['left','right','left']}},
+]);
+const SHEET_CARD = contentStory('sheet-card','SHEET CARD','Shared card words, banded sheets, tree STACK and sheet-list rows.',[
+  ...['unread','read','waiting','answered','declined','delivery-waiting'].map(state=>({name:state.toUpperCase(),fn:'sheetCard',input:{heading:{number:'05',time:'09:41',state,answer:state==='answered'?'fixture option':''},kind:['waiting','answered','declined','delivery-waiting'].includes(state)?'question':'info',read:['read','answered','declined'].includes(state),title:'Synthetic briefing',gist:['Fixture summary line one.','Fixture summary line two.'],footer:'24 rows - no answer needed'}})),
+  {name:'HOVER',fn:'sheetCard',input:{heading:{number:'05',state:'unread'},hover:true,title:'Synthetic briefing',gist:['Hovered fixture.']}},
+  {name:'STACK',fn:'stackCard',input:{heading:'2 handed over 09:41 - 1 waiting on you',rows:[{label:'SHEET 05',title:'Synthetic briefing',state:'unread'},{label:'QUESTION 07',title:'Choose a fixture',state:'waiting',selected:true}]}},
+  ...[false,true].map(selected=>({name:selected?'LIST SELECTED':'LIST READ',fn:'sheetListRow',input:{label:'05',title:'Synthetic briefing',state:selected?'waiting':'read',updated:'Mon',selected}})),
+]);
+const DESK_TRAY = contentStory('desk-tray','DESK TRAY','One stripe/content/body grid at columns 1/3/5; state is never inferred.',[
+  ...['clear','waiting','open'].map(state=>({name:state.toUpperCase(),fn:'deskStrip',input:{state,count:'2 waiting on you',hint:state==='clear'?'':state==='open'?'^O full sheet':'^O open'}})),
+  ...['hint','saving','error','decline','readonly'].map(state=>({name:state.toUpperCase(),parts:[
+    ['deskHeading',{count:'2 waiting on you',hint:'Esc puts off'}],
+    ['questionTitle',{label:'QUESTION 07',title:'Choose a fixture',open:true,meta:'1/2'}],
+    ['questionBody',{prompt:['Choose one synthetic option.'],options:[{label:'1',body:'Fixture alpha',selected:true,pick:true},{label:'2',body:'Fixture beta'}]}],
+    ['deskFooter',{state,text:state==='hint'?'1-2 choose - Enter confirms':state==='saving'?'saving your answer':state==='error'?'could not save - choice kept':state==='readonly'?'cached answer - read only':'Enter declines - Esc keeps it'}],
+    ['questionTitle',{label:'QUESTION 08',title:'Another synthetic question'}],
+    ['deskStrip',{state:'open',hint:'^O full sheet'}],
+  ]})),
+]);
+const OPERATION_ROW = contentStory('operation-row','OPERATION ROW','Fixed data columns, right duration and explicit selected/state shapes.',[
+  ...[false,true].map(focused=>({name:focused?'FOCUSED':'HEADING',fn:'operationHeading',input:{focused,code:'O-01',count:'1-3 OF 4'}})),
+  ...['running','done','failed','neutral','waiting'].map(state=>({name:state.toUpperCase(),fn:'operationRow',input:{state,time:'09:40',category:'TOOL',detail:'fetch_fixture - synthetic result',duration:state==='running'?'running 1:00':'2.3s',selected:state==='running'},options:{color:false}})),
+  {name:'HOVER',fn:'operationRow',input:{state:'done',time:'09:40',category:'TASK',detail:'Fixture summary',duration:'2.3s',hover:true}},
+  {name:'DETAIL',fn:'operationDetail',input:{label:'STATUS',value:'running - synthetic fixture'}},
+]);
+
+export const ELEMENT_STORIES = [PANEL, FRAME, PLATE, COUNT, MODE, CHIP, LAMP, ROW, GAUGE, NUMERAL, METER, RAIL, MARKER, LINE_METER, COLUMN_BLOCK, TAB_RULE, ACTION_LABEL, POPUP_HEADER, NOTICE_ROW, SCOPE_METER, SOUNDING_METER, FEED_BEZEL, INPUT_FRAME, CALLOUT, DOCUMENT_BLOCK, SHEET_CARD, DESK_TRAY, OPERATION_ROW];

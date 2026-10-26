@@ -52,7 +52,7 @@ The curated survey glyphs include `╴╶┄├└┬┤┴┸▤▣▸▾▼◇
 
 ## Surface
 
-[surface.mjs](surface.mjs) is a pure, I/O-free **cell compositor**, not a span renderer or ANSI parser. [surface-palette.mjs](surface-palette.mjs) exports the frozen `SURFACE_PALETTE`, the canonical survey colors including neutral plate `#a8a8a8`, the four minor-dot inks and the major-dot ink. These do not change Acid / Black roles. Lunalee owns role selection and alpha configuration; the story's locked strength-1.5 values are a synthetic fixture, not defaults in the compositor.
+[surface.mjs](surface.mjs) is a pure, I/O-free **cell compositor**, not a span renderer or ANSI parser. [surface-palette.mjs](surface-palette.mjs) exports the frozen `SURFACE_PALETTE`, the canonical survey colors including neutral plate `#a8a8a8`, code cyan and the operation dot-leader grey, the four minor-dot inks and the major-dot ink. These do not change Acid / Black roles. Lunalee owns role selection and alpha configuration; the story's locked strength-1.5 values are a synthetic fixture, not defaults in the compositor.
 
 - `surfaceAt(x, y, { width, height })` returns the current gradient RGB: `l = round(19 - 10*y/(height-1) - 3*u²)`, `u = 2*x/(width-1)-1`, RGB `(l,l+1,l+3)`. Height 1 samples the top; width 1 samples the center. Coordinates are nonnegative safe integers inside a 1–1000 by 1–1000 surface. Invalid dimensions/coordinates throw `RangeError`.
 - `dotAt(x, y)` returns an ink or null. The lattice starts at `(2,1)`, steps `(4,2)`, and every fifth intersection on **both** axes is major. Minor ink uses the stable unsigned coordinate hash; neither scroll position, time nor viewport size enters it.

@@ -481,8 +481,9 @@ function click(s, state, action, options = {}) {
 }
 
 test('clicking every story row and variant name matches keyboard browsing exactly', async () => {
-  const mouse = live({ columns: 160, rows: 40 });
-  const keyboard = live({ columns: 160, rows: 40 });
+  // The expanded content families have more named states; keep every tab visible here.
+  const mouse = live({ columns: 400, rows: 40 });
+  const keyboard = live({ columns: 400, rows: 40 });
   let state = initialState();
   for (const [i, story] of STORIES.entries()) {
     let m = mouse.output.written.length;

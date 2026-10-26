@@ -49,6 +49,7 @@ const lunaleeModules = [
   'motions/reveal', 'motions/cycle', 'motions/beacon', 'motions/draw-in',
   'elements/tab-rule', 'elements/action-label', 'elements/popup-header', 'elements/notice-row',
   'elements/scope-meter', 'elements/sounding-meter', 'motions/scope-trace', 'motions/sounding-sweep',
+  'elements/callout', 'elements/document-block', 'elements/sheet-card', 'elements/desk-tray', 'elements/operation-row', 'motions/callout-entrance', 'motions/phosphor-head',
   'elements/feed-bezel', 'elements/input-frame', 'motions/feed-scan', 'motions/corner-snap',
 ];
 

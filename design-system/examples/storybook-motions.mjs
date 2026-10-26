@@ -1,3 +1,6 @@
+import { callout, subtitle } from '../elements/callout/callout.mjs';
+import { calloutEntrance, calloutEntranceDuration, CALLOUT_ENTRANCE_DEFAULTS } from '../motions/callout-entrance.mjs';
+import { phosphorHead, PHOSPHOR_HEAD_DEFAULTS } from '../motions/phosphor-head.mjs';
 // Motion stories: each motion with named examples over real renderer output, framed by a still numbered
 // panel, plus one composed example (the transcript marker's timeline). Pure and I/O-free. Each example
 // states how often the host redraws it: the motion's own step grid, or CONTINUOUS_FRAME_MS for motions
@@ -710,4 +713,52 @@ CYCLE.variants.push({name:'BRAILLE',note:'Ten-step 80-ms spinner; amber cue opts
 WIPE.variants.push({name:'STATE SELECTION',note:'Immediate selection words; four 40-ms fill fractions.',options:{direction:'ltr',times:[0,40,80,120],fractions:[.25,.5,.75,1],fromStyle:{fg:'primary',bg:'default'},stateCells:true},body:()=>one(labelPlate('waiting on you',{form:'slab',tone:'critical'}),call('labelPlate','waiting on you',{form:'slab',tone:'critical'}))});
 REVEAL.variants.push({name:'OPTION ROWS',note:'Reserved presentation rows unfold 40 ms apart; essential controls stay host-owned.',options:{duration:40,stagger:40,veil:'blank'},plainVisible:true,fixed:bayBlock,body:width=>{const lines=['OPTION A','OPTION B','OPTION C'].map(text=>fitLine([span(text)],width));return body(lines,`[${lines.map(line=>JSON.stringify(line)).join(',')}]`);}});
 
-export const MOTION_STORIES = [SCAN, PULSE, REVEAL, DRAW_IN, WARM_UP, LATCH, BEACON, CYCLE, FADE, BLINK, FLASH, PING, WIPE, FILL_IN, BURN_OUT, EDGE_PULSE, RESTRIKE, GHOST, NUDGE, MARKER_TIMELINE_STORY, SCOPE_TRACE, SOUNDING_SWEEP, FEED_SCAN, CORNER_SNAP];
+
+const CALLOUT_ENTRANCE = {
+  id: 'callout-entrance', kind: 'motion', module: 'motions/callout-entrance.mjs', contract: 'motions/README.md',
+  title: 'CALLOUT ENTRANCE', summary: 'Plot marks and diagonal registration around the actual callout API.',
+  motion: { name: 'calloutEntrance', defaults: CALLOUT_ENTRANCE_DEFAULTS, units: {}, defaultsName: 'CALLOUT_ENTRANCE_DEFAULTS' },
+  rules: ['Plot-in settles at 900 ms; register at 700 ms.', 'Diagonal marks use reserved gutters. Tiny previews omit the optional registration, never content.'],
+  variants: [
+    { name: 'PLOT-IN', note: '40-ms host grid, uneven glyph phases and a four-step readout.', options: { mode: 'plot-in' }, plainVisible: true },
+    { name: 'REGISTER', note: 'Out 0–80; white home 80–160; bone to 600; grey to 700.', options: { mode: 'register' }, plainVisible: true },
+  ],
+  specimen(variant, width, { animate = false, time = 0 } = {}) {
+    const w = within(width,60), mode = variant.options.mode;
+    const input = { side: mode === 'register' ? 'right' : 'left', name: mode === 'register' ? 'OPERATOR' : 'LUNALEE', body: ['Fixture reply.'], readout: '09:41' };
+    const rendered = callout(input,{width:w});
+    const empty = () => fitLine([],w,{bg:'default'});
+    const lines = mode === 'register' ? [empty(),...rendered,empty()] : rendered;
+    const left = Math.max(0,w-19);
+    const options = mode === 'register'
+      ? { mode, gutter: { top:0, left, rows:5, cols:Math.max(3,w-left) } }
+      : { mode, gutter:{top:1,left:1,rows:1,cols:1}, textRegion:{top:1,left:3,rows:1,cols:50}, readoutRegion:{top:2,left:3,rows:1,cols:8} };
+    const play = animate && (mode !== 'register' || w >= 24);
+    const expression = call('callout',input,{width:w});
+    const source = mode === 'register' ? `[fitLine([], ${w}, { bg: 'default' }), ...${expression}, fitLine([], ${w}, { bg: 'default' })]` : expression;
+    return { lines:calloutEntrance(lines,{...options,animate:play,time}),
+      calls:[`body = ${source}`,call('calloutEntrance',code('body'),play?{...options,time:code('time')}:{...options,animate:false})], facts:[] };
+  },
+  duration: variant => calloutEntranceDuration([], variant.options.mode === 'register' ? {mode:'register',gutter:{rows:5,cols:3}} : {}),
+  loop: () => null, frameMs: () => 40,
+};
+const PHOSPHOR_HEAD = {
+  id: 'phosphor-head', kind: 'motion', module: 'motions/phosphor-head.mjs', contract: 'motions/README.md',
+  title: 'PHOSPHOR HEAD', summary: 'A host-supplied head on already-revealed text, never a second reveal implementation.',
+  motion: { name: 'phosphorHead', defaults: PHOSPHOR_HEAD_DEFAULTS, units: {}, defaultsName: 'PHOSPHOR_HEAD_DEFAULTS' },
+  rules: ['All text is already visible; only the supplied head changes.', 'Motion off and plain have no head; state-role cells are exempt.'],
+  variants: [{ name: 'REVEALED HEAD', options: {}, note: 'Synthetic host head locations, sampled every 40 ms; no reveal pacing.' }],
+  specimen(_variant, width, { animate = false, time = 0 } = {}) {
+    const w = within(width,60);
+    const input = { body: ['Fixture '.repeat(Math.ceil(w / 8)).slice(0,w)] };
+    const options = { width: w };
+    const lines = subtitle(input, options);
+    const head = { row: 0, col: Math.floor(time / 40) % w };
+    const opts = animate ? { head, time: code('time') } : { animate: false };
+    return { lines: phosphorHead(lines, { head, time, animate }),
+      calls: [`body = ${call('subtitle', input, options)}`, call('phosphorHead', code('body'), opts)], facts: [] };
+  },
+  duration: () => null, loop: () => 2400, frameMs: () => 40,
+};
+
+export const MOTION_STORIES = [SCAN, PULSE, REVEAL, DRAW_IN, WARM_UP, LATCH, BEACON, CYCLE, FADE, BLINK, FLASH, PING, WIPE, FILL_IN, BURN_OUT, EDGE_PULSE, RESTRIKE, GHOST, NUDGE, MARKER_TIMELINE_STORY, SCOPE_TRACE, SOUNDING_SWEEP, FEED_SCAN, CORNER_SNAP, CALLOUT_ENTRANCE, PHOSPHOR_HEAD];
