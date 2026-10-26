@@ -59,6 +59,13 @@
     "./elements/feed-bezel": "./elements/feed-bezel/feed-bezel.mjs",
     "./elements/input-frame": "./elements/input-frame/input-frame.mjs",
     "./motions/feed-scan": "./motions/feed-scan.mjs",
-    "./motions/corner-snap": "./motions/corner-snap.mjs"
+    "./motions/corner-snap": "./motions/corner-snap.mjs",
+    "./elements/callout": "./elements/callout/callout.mjs",
+    "./elements/document-block": "./elements/document-block/document-block.mjs",
+    "./elements/sheet-card": "./elements/sheet-card/sheet-card.mjs",
+    "./elements/desk-tray": "./elements/desk-tray/desk-tray.mjs",
+    "./elements/operation-row": "./elements/operation-row/operation-row.mjs",
+    "./motions/callout-entrance": "./motions/callout-entrance.mjs",
+    "./motions/phosphor-head": "./motions/phosphor-head.mjs"
   }
 }

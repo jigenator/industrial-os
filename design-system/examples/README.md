@@ -148,3 +148,7 @@ Checks: `storybook-layout.test.mjs` (every width 1–160 at short and unbounded 
 ## Survey chrome stories
 
 Eight new component stories use public rule, action, popup, notice, meter, bezel/image and input APIs. Scope-trace, sounding-sweep, feed-scan and corner-snap have motion stories, alongside opt-in downward beacon, white latch, critical selection wipe, braille cycle, row unfold and style-only draw-in variants. Corner snap holds its spread until the host ends that state; `r` replays its home-to-spread transition. Its 40-ms settling helper is not a finite entrance duration.
+
+## Survey content stories
+
+CALLOUT, DOCUMENT BLOCK, SHEET CARD, DESK TRAY and OPERATION ROW use synthetic public API fixtures for every supplied content state. The two new motion stories cover plot-in/register and a host-supplied phosphor head. Error/decline/read-only and receipt words are fixtures, never live statuses. When all variant names cannot fit, the tab row shows clickable `<`/`>` arrows around the selected name wherever space permits, including normal 120-column views. H/L and footer controls remain available at tiny widths. The executable-usage regression suite covers these calls too.

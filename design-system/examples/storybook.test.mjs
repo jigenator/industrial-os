@@ -481,8 +481,8 @@ function click(s, state, action, options = {}) {
 }
 
 test('clicking every story row and variant name matches keyboard browsing exactly', async () => {
-  const mouse = live({ columns: 160, rows: 40 });
-  const keyboard = live({ columns: 160, rows: 40 });
+  const mouse = live({ columns: 120, rows: 40 });
+  const keyboard = live({ columns: 120, rows: 40 });
   let state = initialState();
   for (const [i, story] of STORIES.entries()) {
     let m = mouse.output.written.length;
@@ -494,7 +494,9 @@ test('clicking every story row and variant name matches keyboard browsing exactl
     for (let variant = 1; variant < story.variants.length; variant++) {
       m = mouse.output.written.length;
       k = keyboard.output.written.length;
-      state = click(mouse, state, `variant:${variant}`);
+      const view = composeStorybook(state, { columns: 120, rows: 40, mode: 'TRUECOLOR' });
+      const direct = view.targets.some(t => t.action === `variant:${variant}`);
+      state = click(mouse, state, direct ? `variant:${variant}` : 'next-variant');
       keyboard.keys('l');
       assert.equal(mouse.output.written.slice(m), keyboard.output.written.slice(k), `${story.id} variant ${variant}`);
     }

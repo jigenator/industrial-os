@@ -25,6 +25,8 @@ A motion decorates rendered lines; it does not supply data. Most preserve every 
 | [restrike](#restrikelines-options-and-restrikedurationlines-options) | once, seeded | `restrikeDuration` | style | exempt |
 | [ghost](#ghostlines-options-and-ghostdurationlines-options) | once, seeded | `ghostDuration` | glyphs, style | exempt |
 | [nudge](#nudgelines-options) | loop | | glyph position | exempt |
+| [callout entrance](#calloutentrancelines-options-and-calloutentrancedurationlines-options) | once | `calloutEntranceDuration` | reserved gutter glyphs, allowed text/readout styling | exempt |
+| [phosphor head](#phosphorheadlines-options) | supplied pose | | one grapheme foreground | exempt |
 
 Each motion lives in its own file here, named like its row, with its checks beside it in `<name>.test.mjs` (scan, pulse, and reveal are checked in `motions.test.mjs`).
 
@@ -560,3 +562,20 @@ Frozen defaults: `{top:0,rows:16,rails:[],measure:undefined}`. Explicit `rails` 
 **Persistent state-pose transform, not a finite entrance.** Supervisor-approved exception to finite-preview input equality: input is a home input-frame including its two reserved outer gutters. At 0–39 ms only hover corners take acid at home; focused corners remain bone and form corners remain critical; from 40 ms the same corner glyphs hold one cell out diagonally until the host ends hover/focus. `cornerSnapSettling()` returns 40, not an animation duration. `animate:false` (leave/blur/reduced motion) returns home without spread, preserving focused/form labels. The story holds the pose; replay shows the transition again.
 
 Only the four known two-cell corner pairs can move. Destinations must be blank reserved gutters; occupied destinations leave the whole frame at home. Form/critical corner shapes are relocated intact, never dropped or replaced with state words; body and labels remain untouched. Supply `measure` for measured labels. Plain retains the geometry cue. No state, timer, focus inference or editor lives in this motion.
+
+## `calloutEntrance(lines, options)` and `calloutEntranceDuration(lines, options)`
+
+New arrays, same cell geometry. Frozen `CALLOUT_ENTRANCE_DEFAULTS`: mode `plot-in`, gutter `{top:0,left:0,rows:1,cols:1}`, optional `textRegion`/`readoutRegion`/`measure`, `color:true`. Gutter is a finite cell reservation; register draws only in reservations of at least 3×3. Rectangles use the shared region contract. The host clips/crops the reservation to its frame; marks never allocate new rows.
+
+- **plot-in, duration 900 ms:** blank cell at gutter top-left takes + at 0, ◇ at 80, ◆ at 200, ◇ in acid50 at 700, · in acid25 at 800; from 900 equals input. The optional textRegion settles dim to normal at 80 (style only). Only `┄` inside explicit readoutRegion draws over four 40-ms steps (complete at 120; no stamp hiding). Essential receipt words stay outside leader and timestamp hiding regions.
+- **register, duration 700 ms:** crop corners on the reservation's outer corners at 0–80, one cell inward at 80; white until 160, bone until 600, grey until 700, then input. These must be reserved blank/corner cells; an attempted overwrite of other content leaves that cell unchanged. No whole-block inversion or text relocation. The host supplies the settled callout separately within these diagonal gutter reservations.
+
+Hosts sample at 40 ms, but helpers keep exact 700/900-ms lifetimes and choose phases by elapsed time, never frame count. Motion off is the settled input. `color:false` retains glyph/leader geometry without tint/fade. State-role cells are exempt. `measure` admits complete graphemes and validates slots even with motion off; otherwise target narrow structural spans only. Frozen defaults and the duration helper add no scheduler.
+
+## `phosphorHead(lines, options)`
+
+Frozen `PHOSPHOR_HEAD_DEFAULTS`: optional `head:{row,col}`, optional `measure`, `color:true`. Head is an integral **start-cell coordinate** of the already-revealed grapheme; an absent, negative or out-of-frame head changes nothing. While animating, that grapheme takes accent foreground and retains text/italic/underline/background; warning/critical cells remain exempt. There is no reveal, concealment, grapheme count, duration or pacing here. The host's existing Dialogue owns 40-graphemes/s release and the 40-ms head lifetime. A supplied pose lasts until the host changes it. Motion off or `color:false` equals input; measured validation still runs. The story's head positions are synthetic host fixtures, not a second reveal implementation.
+
+### DS-2b review geometry refinements
+
+Callout-entrance accepts optional `timestampRegion`; plot-in hides only that explicitly supplied text region before 120 ms. Supply it for timestamps, **not essential receipt/error words**. ReadoutRegion continues to address only the leader. Use `calloutGeometry()` rather than copied layout arithmetic. Negative integral region coordinates/extents clamp to zero; empty or undersized registration reservations no-op; occupied mark targets are left untouched. Malformed options and unsafe measured text still fail validation. Off-by-one head coordinates in phosphor-head (negative, out-of-frame or inside a wide continuation) safely leave text alone. `subtitleGeometry()` supplies a head from the full line and explicit revealed count, without host reimplementation of centering.

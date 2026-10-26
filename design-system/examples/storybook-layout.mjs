@@ -233,6 +233,18 @@ function tabsLine(story, state, width) {
   if (lineWidth(all) <= width) return { line: fitLine(all, width), targets };
   const name = `[${story.variants[state.variant].name}]`;
   const count = `${state.variant + 1}/${story.variants.length}`;
+  if (width >= name.length + 6) {
+    const lead = count.length + 1 + name.length <= width - 6 ? `${count} ` : '';
+    const middle = lead + name;
+    return {
+      line: fitLine([text(' < ', picked), text(middle, picked), text(' > ', picked)], width),
+      targets: [
+        { column: 2, width: 1, action: 'prev-variant' },
+        { column: 4 + lead.length, width: name.length, action: `variant:${state.variant}` },
+        { column: 5 + middle.length, width: 1, action: 'next-variant' },
+      ],
+    };
+  }
   const options = [[`${label} ${count} `, name], [`${count} `, name], ['', name]];
   const [lead, shown] = options.find(([l, n]) => l.length + n.length <= width) ?? options.at(-1);
   return {
