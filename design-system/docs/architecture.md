@@ -58,7 +58,7 @@ Evidence: design-system inventory with canonical Markdown guidance, `foundation/
 | `elements/ambient-field/` | Dashboard decoration grid, dots and registration marks | `ambientField()`; [README](../elements/ambient-field/README.md) | `foundation/` |
 | `elements/section-head/` | Board section and group heading (automations monitor) | `sectionHead()`; [README](../elements/section-head/README.md) | `foundation/` |
 | `elements/board-marks/` | Board one-cell marks: run outcomes, schedule times, state cells, pointer, spine | `runMark()`, `runTrail()`, `endMark()`, `scheduleMark()`, `stateCell()`, `pointer()`, `spine()`, `RUN_MARKS`, `BOARD_GLYPHS`; [README](../elements/board-marks/README.md) | `foundation/` |
-| `elements/time-lane/` | Board time axis, lane track, runs and the NOW line | `laneScale()`, `laneAxis()`, `laneTrack()`, `laneRun()`, `crossNow()`, `laneLine()`; [README](../elements/time-lane/README.md) | `foundation/`, board marks |
+| `elements/time-lane/` | Board time axis, lane track, runs and the NOW line | `laneScale()`, `laneAxis()`, `laneTrack()`, `laneRun()`, `crossNow()`; [README](../elements/time-lane/README.md) | `foundation/`, board marks |
 | `elements/readout/` | Board readouts: numbered tall-numeral block, one-line form, slot strip, split bar, phase steps | `readoutBlock()`, `readoutLine()`, `slotStrip()`, `splitBar()`, `phaseSteps()`; [README](../elements/readout/README.md) | `foundation/`, pixel numeral, tab-rule |
 | `elements/event-row/` | Board event log row and popup event row | `eventRow()`; [README](../elements/event-row/README.md) | `foundation/` |
 | `elements/scroll-rail/` | One-column scroll rail | `scrollRail()`; [README](../elements/scroll-rail/README.md) | `foundation/` |

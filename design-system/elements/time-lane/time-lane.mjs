@@ -1,6 +1,6 @@
 // The board's time axis: a scale from time to columns, the axis ruler with hour labels, a lane's track, runs on it and
 // the NOW line. Columns are relative to the lane's first cell; the host places the pieces. Contract: README.md.
-import { assertCells, fitLine, fitText, lineWidth, resolveColor, span } from '../../foundation/cells.mjs';
+import { assertCells, fitText, lineWidth, resolveColor, span } from '../../foundation/cells.mjs';
 import { BOARD_INKS } from '../../foundation/signal-colors.mjs';
 import { BOARD_GLYPHS, endMark } from '../board-marks/board-marks.mjs';
 
@@ -120,35 +120,4 @@ export function crossNow(cell, { quiet = false } = {}) {
   if (quiet) return text === ' ' ? span('│', { fg: BOARD_INKS.faint }) : null;
   const onField = style.bg === undefined || resolveColor(style.bg) === resolveColor('field');
   return onField && [' ', '─', '·', '┄'].includes(text) ? span('│', { fg: 'accent' }) : null;
-}
-
-// For line hosts: `pieces` laid over a `base` line, `width` cells. A piece cell keeps any color it leaves unset from
-// the cell under it, and a blank span with neither color is not drawn, as a canvas host would draw them.
-export function laneLine(base, pieces, { width } = {}) {
-  assertCells(width, 'lane width');
-  if (!Array.isArray(base) || !Array.isArray(pieces)) throw new TypeError('lane base and pieces must be arrays');
-  const cells = Array.from({ length: width }, () => [' ', {}]);
-  const lay = (at, line) => {
-    let x = at;
-    for (const s of line) {
-      const chars = [...s.text], style = s.style ?? {};
-      const drawn = style.fg !== undefined || style.bg !== undefined || style.bold || chars.some((ch) => ch !== ' ');
-      for (const ch of chars) {
-        if (drawn && x >= 0 && x < width) {
-          const under = cells[x][1];
-          cells[x] = [ch, { ...(under.fg === undefined ? {} : { fg: under.fg }), ...(under.bg === undefined ? {} : { bg: under.bg }), ...style }];
-          if (!style.bold) delete cells[x][1].bold;
-        }
-        x += 1;
-      }
-    }
-  };
-  lay(0, base);
-  for (const piece of pieces) {
-    object(piece, 'lane piece');
-    column(piece.at, 'piece at');
-    if (!Array.isArray(piece.line)) throw new TypeError('lane piece line must be an array');
-    lay(piece.at, piece.line);
-  }
-  return fitLine(runs(cells.map(([ch, style]) => [ch, style])), width);
 }

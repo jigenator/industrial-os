@@ -64,17 +64,6 @@ export const PI_CHROME = Object.freeze({
   lamp: '#ff5c00',
 });
 
-// The board's white mixes over the field (the automations monitor's time-axis board): the selection band, faint
-// rules and tracks, chip fills, history bars and hatching. Each is mixOver('primary', p); base is SIGNAL_COLORS.ghost's
-// value in its own role.
-export const BOARD_INKS = Object.freeze({
-  selection: '#1a1a1a', // 10%
-  faint: '#242424', // 14%
-  chip: '#292929', // 16%
-  base: '#333333', // 20%
-  hatch: '#3d3d3d', // 24%
-});
-
 // Mixes declared as signal colors, matching status-bar's current computed values. The extension computed some of
 // them with a different tie rule, so mixOver returns these exactly rather than recomputing them.
 const MIRRORED_MIXES = [
@@ -100,3 +89,14 @@ export function mixOver(color, proportion) {
   if (mirrored) return mirrored;
   return '#' + [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * proportion).toString(16).padStart(2, '0')).join('');
 }
+
+// The board's white mixes over the field (the automations monitor's time-axis board): the selection band, faint
+// rules and tracks, chip fills, history bars and hatching. Derived, not new values: each is mixOver('primary', p), and
+// base is SIGNAL_COLORS.ghost (the 20% mix) in its own role, as the dashboard's rule ink is.
+export const BOARD_INKS = Object.freeze({
+  selection: mixOver('primary', 0.1),
+  faint: mixOver('primary', 0.14),
+  chip: mixOver('primary', 0.16),
+  base: SIGNAL_COLORS.ghost,
+  hatch: mixOver('primary', 0.24),
+});

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GLYPHS, lineWidth, paint, span } from '../../foundation/cells.mjs';
+import { GLYPHS, lineWidth, paint } from '../../foundation/cells.mjs';
 import { BOARD_INKS } from '../../foundation/signal-colors.mjs';
 import { crossNow, laneAxis, laneRun, laneScale, laneTrack } from './time-lane.mjs';
 
@@ -104,17 +104,4 @@ test('every lane piece uses curated glyphs and stays inside the lane', () => {
     const run = laneRun({ from: col(-H), to: now, verified: col(-0.5 * H), live: true, label: '42', fill: 'accent', ink: 'field', head: true }, { width });
     for (const p of run?.pieces ?? []) assert.ok(p.at >= 0 && p.at + lineWidth(p.line) <= width, `${width}: ${p.at}`);
   }
-});
-
-test('laneLine lays pieces over a base line for line hosts, keeping any color a piece leaves unset', async () => {
-  const { laneLine } = await import('./time-lane.mjs');
-  const base = laneTrack({ now: 5 }, { width: 10 });
-  const run = laneRun({ from: 1, to: 3, outcome: 'failed' }, { width: 10 });
-  const line = laneLine(base, run.pieces, { width: 10 });
-  assert.equal(paint(line, 'none'), '─  ✕──· · ');
-  assert.deepEqual(line.slice(0, 3), [span('─', { fg: BOARD_INKS.faint }), span('  ', { fg: BOARD_INKS.faint, bg: BOARD_INKS.base }), span('✕', { fg: 'critical', bg: BOARD_INKS.base, bold: true })]);
-  // Pieces outside the lane are clipped; a blank piece with no color is not drawn.
-  assert.equal(paint(laneLine(base, [{ at: -2, line: [span('NOW', { fg: 'primary' })] }, { at: 8, line: [span('XYZ')] }, { at: 4, line: [span('  ')] }], { width: 10 }), 'none'), 'W─────· XY');
-  assert.equal(lineWidth(laneLine([], [], { width: 7 })), 7);
-  assert.throws(() => laneLine(base, [{ at: 1.5, line: [] }], { width: 10 }), RangeError);
 });

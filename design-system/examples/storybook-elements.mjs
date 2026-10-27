@@ -34,7 +34,8 @@ import { feedBezel, imageLabel, imageInset } from '../elements/feed-bezel/feed-b
 import { inputFrame } from '../elements/input-frame/input-frame.mjs';
 import { endMark, pointer, runTrail, scheduleMark, spine, stateCell } from '../elements/board-marks/board-marks.mjs';
 import { sectionHead } from '../elements/section-head/section-head.mjs';
-import { laneAxis, laneLine, laneRun, laneScale, laneTrack } from '../elements/time-lane/time-lane.mjs';
+import { laneAxis, laneRun, laneScale, laneTrack } from '../elements/time-lane/time-lane.mjs';
+import { CellGrid } from '../foundation/cell-grid.mjs';
 import { phaseSteps, readoutBlock, readoutLine, slotStrip, splitBar } from '../elements/readout/readout.mjs';
 import { eventRow } from '../elements/event-row/event-row.mjs';
 import { scrollRail } from '../elements/scroll-rail/scroll-rail.mjs';
@@ -755,7 +756,7 @@ const TIME_LANE = element('time-lane', {
     'History is grey; a fill color appears only on a live run, so color marks work happening now.',
     'A live run is hatched until verified; its label sits on the fill, or to the left when the bar is short.',
     'Since the source went quiet the track is dashed (stopped) or hatched (not heard from).',
-    'laneLine lays pieces over a line for line hosts; canvas hosts place the pieces themselves.',
+    'The host places the pieces: here a one-row CellGrid, in the monitor its canvas.',
   ],
   variants: [
     { name: 'AXIS', note: 'The ruler with quarter marks and hour labels; NOW in acid.', axis: true },
@@ -773,11 +774,19 @@ const TIME_LANE = element('time-lane', {
   ],
   specimen(v, w) {
     const width = within(w, 60), { col, now } = laneScale(LANE, { width });
+    // The host's part: pieces placed in order on a one-row grid, clipped to the lane.
+    const placed = (base, pieces) => {
+      const grid = new CellGrid(width, 1);
+      if (base) grid.place(0, 0, [base]);
+      for (const piece of pieces) grid.place(piece.at, 0, [piece.line]);
+      return grid.lines()[0];
+    };
+    const place = (grid, list) => `for (const piece of ${list}) ${grid}.place(piece.at, 0, [piece.line])`;
     if (v.axis) {
       const { ruler, labels } = laneAxis(LANE, { width });
       return {
-        lines: [laneLine([], labels, { width }), fitLine(ruler, width)],
-        calls: [`axis = ${call('laneAxis', LANE, { width })}`, call('laneLine', code('[]'), code('axis.labels'), { width }), call('fitLine', code('axis.ruler'), width)],
+        lines: [placed(null, labels), fitLine(ruler, width)],
+        calls: [`axis = ${call('laneAxis', LANE, { width })}`, `labels = new ${call('CellGrid', width, 1)}`, place('labels', 'axis.labels'), 'labels.lines()', call('fitLine', code('axis.ruler'), width)],
         facts: [`NOW at lane column ${now}`],
       };
     }
@@ -785,8 +794,13 @@ const TIME_LANE = element('time-lane', {
     const runs = v.runs(col);
     const pieces = runs.flatMap((run) => laneRun(run, { width })?.pieces ?? []);
     return {
-      lines: [laneLine(laneTrack(track, { width }), pieces, { width })],
-      calls: [call('laneLine', code(call('laneTrack', track, { width })), code(`[${runs.map((run) => `...(${call('laneRun', run, { width })}?.pieces ?? [])`).join(', ')}]`), { width })],
+      lines: [placed(laneTrack(track, { width }), pieces)],
+      calls: [
+        `lane = new ${call('CellGrid', width, 1)}`,
+        `lane.place(0, 0, [${call('laneTrack', track, { width })}])`,
+        ...runs.map((run) => place('lane', `${call('laneRun', run, { width })}?.pieces ?? []`)),
+        'lane.lines()',
+      ],
       facts: [`NOW at lane column ${now}`],
     };
   },

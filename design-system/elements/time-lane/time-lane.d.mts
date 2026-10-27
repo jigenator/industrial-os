@@ -11,4 +11,3 @@ export interface LaneRunInput {
 }
 export function laneRun(run: LaneRunInput, options: { width: number; measure?: Measure }): { pieces: LanePiece[]; span: [number, number] | null } | null;
 export function crossNow(cell: { text: string; style?: Style }, options?: { quiet?: boolean }): Span | null;
-export function laneLine(base: Line, pieces: readonly LanePiece[], options: { width: number }): Line;

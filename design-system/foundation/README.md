@@ -113,7 +113,7 @@ Signal colors now also serve Herdr chrome. `HERDR_CHROME`, exported from the sam
 
 ### Board inks and tones
 
-`BOARD_INKS`, exported from the same module, is a frozen object of white mixed over the field for the automations monitor's board, each the exact `mixOver('primary', p)` value: `selection` `#1a1a1a` (10%), `faint` `#242424` (14%, rules and dots), `chip` `#292929` (16%, quiet chip fills), `base` `#333333` (20%, history bars, the same value as `SIGNAL_COLORS.ghost`) and `hatch` `#3d3d3d` (24%, a quiet track).
+`BOARD_INKS`, exported from the same module, is a frozen object of white mixed over the field for the automations monitor's board. Its values are derived, not restated: each is computed as `mixOver('primary', p)`, and `base` aliases `SIGNAL_COLORS.ghost`, as `DASHBOARD_INKS.rule` does: `selection` `#1a1a1a` (10%), `faint` `#242424` (14%, rules and dots), `chip` `#292929` (16%, quiet chip fills), `base` `#333333` (20%, history bars) and `hatch` `#3d3d3d` (24%, a quiet track).
 
 [board-tones.mjs](board-tones.mjs) maps the board's six states to colors. `BOARD_TONES[tone]` (or `boardTone(tone)`, which throws `RangeError` for an unknown or inherited name) gives `ink` (text), `cell` (a one-cell state color) and `chip` (`{ fg, bg }`):
 

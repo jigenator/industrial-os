@@ -77,4 +77,6 @@ test('board inks are frozen lowercase white mixes over the field, named for thei
   }
   // The history-bar base is the same grey as a lost segment, in its own role.
   assert.equal(BOARD_INKS.base, SIGNAL_COLORS.ghost);
+  // Derived, not restated: the values the automations monitor's frames were captured with.
+  assert.deepEqual({ ...BOARD_INKS }, { selection: '#1a1a1a', faint: '#242424', chip: '#292929', base: '#333333', hatch: '#3d3d3d' });
 });

@@ -87,7 +87,7 @@ export function textGrid(text, { ink = 'primary', face = 'instrument' } = {}) {
   }
   resolveColor(ink);
   if (typeof face !== 'string' || !Object.hasOwn(FACES, face)) throw new RangeError('pixel face must be instrument, dashboard or tall');
-  return face === 'tall' ? gridOf(chars, ink, 1, FACES.tall, 10) : gridOf(chars, ink, 1, FACES[face]);
+  return gridOf(chars, ink, 1, FACES[face], face === 'tall' ? 10 : 6);
 }
 function validateGrid(grid) {
   if (!grid || !Number.isInteger(grid.w) || grid.w < 1 || grid.w > 1000 ||
