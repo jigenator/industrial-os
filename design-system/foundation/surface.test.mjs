@@ -153,3 +153,17 @@ test('surface preserves opaque host metadata on decorated and plain cells withou
   }
   assert.deepEqual(input, original);
 });
+
+test('surface gradient is configurable; defaults are unchanged', () => {
+  const size = { width: 66, height: 79 };
+  for (const [x, y] of [[0, 0], [33, 0], [65, 78], [10, 40]]) assert.equal(surfaceAt(x, y, { ...size, gradient: {} }), surfaceAt(x, y, size));
+  assert.equal(surfaceAt(32, 0, { ...size, gradient: { top: 40 } }), '#28292b');
+  assert.equal(surfaceAt(0, 78, { ...size, gradient: { top: 10, drop: 20, edge: 20 } }), '#000103');
+  assert.throws(() => surfaceAt(0, 0, { ...size, gradient: { top: 300 } }), RangeError);
+  assert.throws(() => surfaceAt(0, 0, { ...size, gradient: { drop: -1 } }), RangeError);
+  assert.throws(() => surfaceAt(0, 0, { ...size, gradient: { edge: 'x' } }), TypeError);
+  const row = [[{ text: ' ' }, { text: 'a' }]];
+  const strong = composeSurface(row, { width: 2, height: 1, gradient: { top: 40 } })[0];
+  assert.equal(strong[1].style.bg, surfaceAt(1, 0, { width: 2, height: 1, gradient: { top: 40 } }));
+  assert.equal(composeSurface(row, { width: 2, height: 1 })[0][1].style.bg, surfaceAt(1, 0, { width: 2, height: 1 }));
+});

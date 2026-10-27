@@ -10,15 +10,28 @@ const integer = (n, name) => {
 };
 const coordinate = (x, y) => { integer(x, 'x'); integer(y, 'y'); };
 
-// Current gradient, in absolute pane/popup cells. A one-cell axis samples its top/center.
-export function surfaceAt(x, y, { width, height }) {
+// The current gradient: top-centre lightness, its drop to the bottom and its extra drop to the sides.
+export const SURFACE_GRADIENT = Object.freeze({ top: 19, drop: 10, edge: 3 });
+const gradientOf = (gradient) => {
+  if (gradient === undefined) return SURFACE_GRADIENT;
+  if (!gradient || typeof gradient !== 'object' || Array.isArray(gradient)) throw new TypeError('gradient must be an object');
+  const g = { ...SURFACE_GRADIENT, ...gradient };
+  for (const key of ['top', 'drop', 'edge']) if (typeof g[key] !== 'number' || !Number.isFinite(g[key])) throw new TypeError(`gradient ${key} must be a finite number`);
+  if (g.top < 0 || g.top > 252) throw new RangeError('gradient top must be 0–252');
+  if (g.drop < 0 || g.edge < 0) throw new RangeError('gradient drop and edge must be nonnegative');
+  return g;
+};
+
+// The gradient in absolute pane/popup cells. A one-cell axis samples its top/center. Lightness clamps at 0.
+export function surfaceAt(x, y, { width, height, gradient } = {}) {
   assertCells(width, 'surface width');
   assertCells(height, 'surface height');
   coordinate(x, y);
   if (x >= width || y >= height) throw new RangeError('surface coordinate is outside its size');
+  const { top, drop, edge } = gradientOf(gradient);
   const t = height === 1 ? 0 : y / (height - 1);
   const u = width === 1 ? 0 : 2 * x / (width - 1) - 1;
-  const l = Math.round(19 - 10 * t - 3 * u * u);
+  const l = Math.max(0, Math.round(top - drop * t - edge * u * u));
   return hex([l, l + 1, l + 3]);
 }
 
@@ -43,11 +56,12 @@ export function blendFill(fill, under, alpha) {
 }
 
 // Cell rows are already parsed by the host. No ANSI parsing, environment lookup or token interpretation happens here.
-export function composeSurface(rows, { width, height, origin = { x: 0, y: 0 }, fills = {}, exclude = [], color = true } = {}) {
+export function composeSurface(rows, { width, height, origin = { x: 0, y: 0 }, fills = {}, exclude = [], color = true, gradient } = {}) {
   assertCells(width, 'surface width');
   assertCells(height, 'surface height');
   coordinate(origin.x, origin.y);
   if (typeof color !== 'boolean') throw new TypeError('color must be boolean');
+  gradient = gradientOf(gradient);
   if (!Array.isArray(rows) || !rows.length || !Array.isArray(rows[0]) || !rows[0].length) throw new TypeError('surface needs nonempty cell rows');
   const columns = rows[0].length;
   if (origin.x + columns > width || origin.y + rows.length > height) throw new RangeError('cell rows exceed surface size');
@@ -101,7 +115,7 @@ export function composeSurface(rows, { width, height, origin = { x: 0, y: 0 }, f
       }
       if (masks[y][x] === 2) return cell;
       const absoluteX = origin.x + x, absoluteY = origin.y + y;
-      const under = surfaceAt(absoluteX, absoluteY, { width, height });
+      const under = surfaceAt(absoluteX, absoluteY, { width, height, gradient });
       const own = cell.style.bg === undefined || cell.style.bg === 'default' ? null : resolveColor(cell.style.bg).toLowerCase();
       const alpha = own === null ? 0 : fillMap.get(own);
       // Explicit unconfigured backgrounds (including white locks and black) remain opaque.
