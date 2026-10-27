@@ -36,6 +36,12 @@ function run(argv: string[], cwd: string): string {
 
 // Every frame of the monitor in `monitor` (a checkout's herdr-plugins/automations-monitor) into `out`.
 async function render(monitor: string, out: string): Promise<void> {
+  // `out` is emptied first, so refuse anything that could be someone's files: a path inside the repository, or a
+  // folder holding anything but earlier frames.
+  const repo = resolve(run(['git', '-C', MONITOR, 'rev-parse', '--show-toplevel'], MONITOR).trim());
+  const target = resolve(out);
+  if (target === repo || target.startsWith(`${repo}/`) || repo.startsWith(`${target}/`)) throw new Error(`refusing ${out}: keep the output outside the repository`);
+  if (existsSync(target) && readdirSync(target).some((n) => !n.endsWith('.ansi') && !n.endsWith('.err'))) throw new Error(`refusing ${out}: it holds files other than golden frames`);
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
   const env: Record<string, string | undefined> = {
