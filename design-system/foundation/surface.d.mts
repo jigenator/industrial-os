@@ -1,5 +1,8 @@
 import type { Color, Style } from './cells.mjs';
 export interface SurfaceSize { width: number; height: number }
+/** Lightness of the top centre, its drop to the bottom edge and its extra drop to the sides. */
+export interface SurfaceGradient { top: number; drop: number; edge: number }
+export const SURFACE_GRADIENT: Readonly<SurfaceGradient>;
 export interface SurfaceOrigin { x: number; y: number }
 /** One parsed viewport cell; a two-cell grapheme is followed by one empty continuation. */
 export interface SurfaceCell { text: string; style?: Style; continuation?: boolean }
@@ -11,8 +14,10 @@ export interface SurfaceOptions extends SurfaceSize {
   exclude?: readonly SurfaceExclusion[];
   /** The host sets false for plain output or NO_COLOR; no environment is read here. */
   color?: boolean;
+  /** Overrides any of the default gradient's numbers. */
+  gradient?: Partial<SurfaceGradient>;
 }
-export function surfaceAt(x: number, y: number, size: SurfaceSize): `#${string}`;
+export function surfaceAt(x: number, y: number, size: SurfaceSize & { gradient?: Partial<SurfaceGradient> }): `#${string}`;
 export function dotAt(x: number, y: number): `#${string}` | null;
 export function blendFill(fill: Color, under: Color, alpha: number): `#${string}`;
 /** Compose full viewport rows so same-row text clearance has its complete context. Extra cell properties pass through. */
