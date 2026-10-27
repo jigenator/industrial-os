@@ -67,3 +67,14 @@ test('sheet-card: review inks and read STACK tint', () => {
   assert.ok(cardState({state:'unread'}).every(s=>s.style.bold));
   assert.ok(stackRow({state:'read',title:'Fixture'},{width:70}).some(s=>s.style.bg==='#1d1a12'));
 });
+
+test('sheetCard read hover brightens the title and action without a band', () => {
+  const input = { heading: { number: '05', time: '09:41', state: 'read' }, title: 'Fixture', gist: ['one', 'two'], footer: 'from a synthetic source', read: true };
+  const rest = sheetCard(input, { width: 60 }), hover = sheetCard({ ...input, hover: true }, { width: 60 });
+  const find = (row, text) => row.find(part => part.text.includes(text));
+  assert.deepEqual(hover.map(plain), rest.map(plain));
+  assert.equal(find(rest[1], 'Fixture').style.fg, 'secondary');
+  assert.equal(find(hover[1], 'Fixture').style.fg, 'primary');
+  assert.notEqual(find(hover[1], 'open').style.fg, find(rest[1], 'open').style.fg);
+  assert.deepEqual(hover.slice(1).map(row => row.map(part => part.style.bg)), rest.slice(1).map(row => row.map(part => part.style.bg)));
+});

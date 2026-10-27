@@ -42,10 +42,10 @@ export function sheetCard({ heading = {}, kind = 'info', title = '', gist = [], 
   const style = { bg }, room = Math.max(0, width - 4);
   const band = (value, strong = false, action, footer = false) => {
     const textRoom = Math.max(0, room - (action ? size(action, measure) + 1 : 0));
-    const content = fitText(value, textRoom, { measure, style: { fg: footer ? 'decorative' : strong ? (read ? 'secondary' : 'primary') : read ? 'decorative' : 'secondary', bold: strong && !read, bg } }).map(s => span(s.text, { ...s.style, bg }));
+    const content = fitText(value, textRoom, { measure, style: { fg: footer ? 'decorative' : strong ? (read && !hover ? 'secondary' : 'primary') : read ? 'decorative' : 'secondary', bold: strong && !read, bg } }).map(s => span(s.text, { ...s.style, bg }));
     return fitLine([span(' ', clear), span('█ ', { fg: read ? SIGNAL_COLORS.ghost : ink, bg }), ...fitLine(content, textRoom, style, { measure }), ...(action ? [span(' ', style), ...action] : []), span(' ', clear)], width, clear, { measure });
   };
-  const action = actionLabel({ label: button, state: read ? 'read' : hover ? 'hover' : 'ready' }, { maxWidth: room, measure, style: read ? { bg: 'default' } : { bg: ink, fg: 'field' } });
+  const action = actionLabel({ label: button, state: read ? 'read' : hover ? 'hover' : 'ready' }, { maxWidth: room, measure, style: read ? { bg: 'default', ...(hover ? { fg: P.wheatHi } : {}) } : { bg: ink, fg: 'field' } });
   return [cardHeading({ ...heading, state }, { width, measure }), band(title, true, action), band(gist[0] ?? ''), ...(kind === 'info' ? [band(gist[1] ?? ''), band(footer, false, undefined, true)] : [])];
 }
 function itemRow({ label = '', title = '', state = 'unread', answer = '', selected = false, hover = false, last = false, updated }, { width, measure }, tree) {
