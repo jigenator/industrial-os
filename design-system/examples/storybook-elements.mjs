@@ -575,6 +575,7 @@ const NOTICE_ROW = element('notice-row', {
     {name:'SENDING',input:{glyph:'›',text:'sending'}}, {name:'STOPPED',input:{glyph:'■',text:'stopped'}},
     {name:'WARNING',input:{glyph:'▲',tone:'warning',text:'synthetic warning'}},
     {name:'ERROR',input:{glyph:'✕',tone:'critical',text:'not delivered'}},
+    {name:'WRAPPED',input:{glyph:'▲',tone:'warning',text:'warning: synthetic routing unavailable; continuing in conversation without a new worker',wrap:true,inset:3}},
     {name:'LINK',input:{glyph:'■',plate:'LINK',plateFirst:true,tone:'critical',text:'not running',detail:[{kind:'command',text:'$ cd synthetic-project',label:'SH'},{kind:'command',text:'  service && bun run src/main.ts',label:''}]}},
     {name:'CONNECTING',input:{glyph:'⠋',plate:'LINK',plateFirst:true,glyphInk:'accent',plateStyle:{fg:'field',bg:SURFACE_PALETTE.plateGrey},text:'connecting'}},
     {name:'EMPTY',input:{text:'No conversation yet'}}, {name:'OLDER',input:{glyph:'·',text:'loading older'}},
