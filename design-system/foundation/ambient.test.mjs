@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {AMBIENT_GRID as A,AMBIENT_MARKS,ambientPosition,ambientInk,ambientSweepLift} from './ambient.mjs';
+import {decodeGlyph} from './decode-glyph.mjs';
+test('shared ambient geometry, inks, clocks and bounded glyph decode',()=>{assert.equal(A.pitchX,8);assert.equal(A.pitchY,4);assert.deepEqual(AMBIENT_MARKS[0],{x:28,y:47,label:'M04',start:700,seed:200});assert.ok(ambientPosition(4,3).gx&&ambientPosition(4,3).gy);assert.equal(ambientInk('field',0),'#000000');assert.equal(ambientSweepLift(3,54,0),0);assert.ok(ambientSweepLift(27,54,2000)>0);assert.equal(decodeGlyph('A',0,7,600,600),'A');assert.equal(decodeGlyph('A',0,7,-1,600),' ');assert.throws(()=>decodeGlyph('\x1b',0,0,0,450));assert.throws(()=>ambientInk('field',2));assert.throws(()=>ambientSweepLift(0,0,0));});

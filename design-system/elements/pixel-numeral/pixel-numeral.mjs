@@ -18,6 +18,15 @@ export const HEX_FONT = Object.freeze(Object.fromEntries(Object.entries({
   C: ['111', '100', '100', '100', '111'], D: ['110', '101', '101', '101', '110'],
   E: ['111', '100', '111', '100', '111'], F: ['111', '100', '111', '100', '100'],
 }).map(([key, rows]) => [key, Object.freeze(rows)])));
+// The dashboard face: rounded strokes for digits and ?, as the dispatch-feed type units draw counts. Other
+// characters keep their FONT or HEX_FONT glyph. Selected by textGrid's face option; FONT itself is unchanged.
+export const DASHBOARD_FONT = Object.freeze(Object.fromEntries(Object.entries({
+  2: ['110', '001', '010', '100', '111'], 3: ['110', '001', '010', '001', '110'],
+  5: ['111', '100', '110', '001', '110'], 6: ['011', '100', '111', '101', '111'],
+  7: ['111', '001', '010', '010', '010'], 9: ['111', '101', '111', '001', '110'],
+  '?': ['110', '001', '010', '000', '010'],
+}).map(([key, rows]) => [key, Object.freeze(rows)])));
+const FACES = Object.freeze({ instrument: Object.freeze({}), dashboard: DASHBOARD_FONT });
 export const NUMERAL_TONES = Object.freeze({ ok: 'primary', warn: 'warning', high: 'critical', unknown: 'decorative' });
 function reading(value, tone) {
   const known = value !== null && value !== undefined;
@@ -28,10 +37,10 @@ function reading(value, tone) {
 }
 
 // footer.ts:332-346: six pixel rows (last empty), one empty column between glyphs, at least minWidth columns.
-function gridOf(chars, ink, minWidth) {
+function gridOf(chars, ink, minWidth, face = FACES.instrument) {
   const cols = [];
   chars.forEach((ch, i) => {
-    const glyph = FONT[ch] ?? HEX_FONT[ch];
+    const glyph = face[ch] ?? FONT[ch] ?? HEX_FONT[ch];
     if (i) cols.push(Array(5).fill(false));
     for (let x = 0; x < glyph[0].length; x++) cols.push(glyph.map((row) => row[x] === '1'));
   });
@@ -44,14 +53,16 @@ export function numeralGrid(value, { tone } = {}) {
   return gridOf([...text], ink, 13);
 }
 // Any FONT or HEX_FONT characters, exactly as wide as their glyphs: no minimum width and no number formatting.
-export function textGrid(text, { ink = 'primary' } = {}) {
+// face 'dashboard' swaps in DASHBOARD_FONT's digits; the default 'instrument' face is FONT.
+export function textGrid(text, { ink = 'primary', face = 'instrument' } = {}) {
   if (typeof text !== 'string') throw new TypeError('pixel text must be a string');
   const chars = [...text];
   if (chars.length === 0 || chars.length > 250 || !chars.every((ch) => Object.hasOwn(FONT, ch) || Object.hasOwn(HEX_FONT, ch))) {
     throw new RangeError('pixel text must be 1–250 characters from FONT or HEX_FONT');
   }
   resolveColor(ink);
-  return gridOf(chars, ink, 1);
+  if (typeof face !== 'string' || !Object.hasOwn(FACES, face)) throw new RangeError('pixel face must be instrument or dashboard');
+  return gridOf(chars, ink, 1, FACES[face]);
 }
 function validateGrid(grid) {
   if (!grid || !Number.isInteger(grid.w) || grid.w < 1 || grid.w > 1000 ||

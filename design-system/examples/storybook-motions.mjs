@@ -1,6 +1,12 @@
 import { callout, calloutGeometry, subtitle, subtitleGeometry } from '../elements/callout/callout.mjs';
 import { calloutEntrance, calloutEntranceDuration, CALLOUT_ENTRANCE_DEFAULTS } from '../motions/callout-entrance.mjs';
 import { phosphorHead, PHOSPHOR_HEAD_DEFAULTS } from '../motions/phosphor-head.mjs';
+import { ambientLoad, ambientLoadDuration, AMBIENT_LOAD_DEFAULTS } from '../motions/ambient-load.mjs';
+import { ambientField } from '../elements/ambient-field/ambient-field.mjs';
+import { decode, DECODE_DEFAULTS, decodeDuration } from '../motions/decode.mjs';
+import { breathe, BREATHE_DEFAULTS } from '../motions/breathe.mjs';
+import { arrivalPing, ARRIVAL_PING_DEFAULTS, arrivalPingDuration } from '../motions/arrival-ping.mjs';
+import { ambientSweep, AMBIENT_SWEEP_DEFAULTS } from '../motions/ambient-sweep.mjs';
 // Motion stories: each motion with named examples over real renderer output, framed by a still numbered
 // panel, plus one composed example (the transcript marker's timeline). Pure and I/O-free. Each example
 // states how often the host redraws it: the motion's own step grid, or CONTINUOUS_FRAME_MS for motions
@@ -46,6 +52,7 @@ import { scopeTrace, scopeTraceDuration, SCOPE_TRACE_DEFAULTS } from '../motions
 import { soundingSweep, SOUNDING_SWEEP_DEFAULTS } from '../motions/sounding-sweep.mjs';
 import { feedBezel } from '../elements/feed-bezel/feed-bezel.mjs';
 import { inputFrame } from '../elements/input-frame/input-frame.mjs';
+import { typeUnit } from '../elements/type-unit/type-unit.mjs';
 import { feedScan, feedScanDuration, FEED_SCAN_DEFAULTS } from '../motions/feed-scan.mjs';
 import { cornerSnap, CORNER_SNAP_DEFAULTS } from '../motions/corner-snap.mjs';
 import { call, code, literal, spread } from './storybook-usage.mjs';
@@ -707,6 +714,11 @@ const CORNER_SNAP = motionStory({id:'corner-snap',fn:'cornerSnap',title:'CORNER 
   rules:['Persistent state pose, not a finite entrance; 40-ms settling helper.', 'Off and leave return home without spread. Focused/form label stays.'],
   variants:['hover','focused','form'].map(state=>({name:state.toUpperCase(),note:'Holds the state pose; replay to see home again.',options:{},plainVisible:true,body:width=>{const input={state},opts={width};return body(inputFrame(input,opts),call('inputFrame',input,opts));}})),
 });
+CORNER_SNAP.variants.push({name:'HEAVY UNIT',note:'Heavy type-unit corners in input-frame gutters; the dashboard host ends the pose at 180 ms.',options:{corners:'heavy'},plainVisible:true,body:width=>{
+  const input={label:'EXAMPLE UNIT',state:'planned'},opts={width:Math.max(1,width-3)};
+  const lines=[fitLine([],width),...typeUnit(input,opts).map(line=>fitLine([span(' '),...line],width)),fitLine([],width)];
+  return body(lines,`[fitLine([], ${width}), ...${call('typeUnit',input,opts)}.map((line) => fitLine([span(' '), ...line], ${width})), fitLine([], ${width})]`);
+}});
 BEACON.variants.push({name:'WAYPOINT',note:'Eight 80-ms downward phases, 640-ms loop.',options:{programme:'down',step:80,period:640},plainVisible:true,body:()=>one([span('▼',{fg:'accent',bg:'default'})],`[${call('span','▼',{fg:'accent',bg:'default'})}]`)});
 LATCH.variants.push({name:'WHITE LOCK',note:'N-new cue; white lock for 50 ms, inverted to 150 ms.',options:{lockInk:'primary'},body:()=>one(labelPlate('3 NEW',{form:'slab',tone:'accent'}),call('labelPlate','3 NEW',{form:'slab',tone:'accent'}))});
 CYCLE.variants.push({name:'BRAILLE',note:'Ten-step 80-ms spinner; amber cue opts in explicitly.',options:{glyphs:[...'⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'],step:80,stateCells:true},plainVisible:true,body:()=>one([span('⠋',{fg:'warning'})],`[${call('span','⠋',{fg:'warning'})}]`)});
@@ -762,4 +774,19 @@ const PHOSPHOR_HEAD = {
   duration: () => null, loop: () => 2400, frameMs: () => 40,
 };
 
-export const MOTION_STORIES = [SCAN, PULSE, REVEAL, DRAW_IN, WARM_UP, LATCH, BEACON, CYCLE, FADE, BLINK, FLASH, PING, WIPE, FILL_IN, BURN_OUT, EDGE_PULSE, RESTRIKE, GHOST, NUDGE, MARKER_TIMELINE_STORY, SCOPE_TRACE, SOUNDING_SWEEP, FEED_SCAN, CORNER_SNAP, CALLOUT_ENTRANCE, PHOSPHOR_HEAD];
+const DASH_DECODE = motionStory({id:'decode',fn:'decode',title:'DECODE',summary:'Bounded dashboard demonstration.',motion:decode,defaults:DECODE_DEFAULTS,units:{}, duration: (lines,o)=>decodeDuration(o),frame:()=>70, rules:['Motion off settles immediately. Warning/critical cells are exempt.'], variants:[{name:'DEMO',note:'Fixture only; decode 70 ms steps, breathe 4 s, sweep 16 s, ping 50 ms steps.',options:{seed:0},plainVisible:true,body:(width) => body([fitLine([span('EXAMPLE 42')],width)], `[fitLine([span('EXAMPLE 42')], ${width})]`)}]});
+const DASH_BREATHE = motionStory({id:'breathe',fn:'breathe',title:'BREATHE',summary:'Bounded dashboard demonstration.',motion:breathe,defaults:BREATHE_DEFAULTS,units:{}, loop:o=>o.period, rules:['Motion off settles immediately. Warning/critical cells are exempt.'], variants:[{name:'DEMO',note:'Fixture only; decode 70 ms steps, breathe 4 s, sweep 16 s, ping 50 ms steps.',options:{},plainVisible:false,body:(width) => body(Array.from({length:12},()=>fitLine([span('▆ ┼ ·', {fg:'decorative'})],width)), `Array.from({length:12},()=>fitLine([span('\\u2586 \\u253c \\u00b7', {fg:'decorative'})],${width}))`)}]});
+const DASH_ARRIVAL_PING = motionStory({id:'arrival-ping',fn:'arrivalPing',title:'ARRIVAL-PING',summary:'Bounded dashboard demonstration.',motion:arrivalPing,defaults:ARRIVAL_PING_DEFAULTS,units:{}, duration:(lines,o)=>arrivalPingDuration(o),frame:()=>50, rules:['Motion off settles immediately. Warning/critical cells are exempt.'], variants:[{name:'DEMO',note:'Fixture only; decode 70 ms steps, breathe 4 s, sweep 16 s, ping 50 ms steps.',options:{x:5,y:4,region:{left:0,top:0,rows:12,cols:40}},plainVisible:true,body:(width) => body(Array.from({length:12},()=>fitLine([],width)), `Array.from({length:12},()=>fitLine([],${width}))`)}]});
+const DASH_AMBIENT_SWEEP = motionStory({id:'ambient-sweep',fn:'ambientSweep',title:'AMBIENT-SWEEP',summary:'Bounded dashboard demonstration.',motion:ambientSweep,defaults:AMBIENT_SWEEP_DEFAULTS,units:{}, loop:o=>o.period, rules:['Motion off settles immediately. Warning/critical cells are exempt.'], variants:[{name:'DEMO',note:'Fixture only; decode 70 ms steps, breathe 4 s, sweep 16 s, ping 50 ms steps.',options:{},plainVisible:false,body:(width) => body(Array.from({length:12},()=>fitLine([span('▆ ┼ ·', {fg:'decorative'})],width)), `Array.from({length:12},()=>fitLine([span('\\u2586 \\u253c \\u00b7', {fg:'decorative'})],${width}))`)}]});
+
+
+
+const AMBIENT_LOAD = motionStory({
+  id:'ambient-load',fn:'ambientLoad',title:'AMBIENT LOAD',summary:'Exact grid reach, dot fade, registration arms/decode and first sweep; decoration only.',
+  motion:ambientLoad,defaults:AMBIENT_LOAD_DEFAULTS,units:{},duration:(lines,o)=>ambientLoadDuration(lines,o),frame:()=>25,
+  rules:['Vertical lines reach over 500 ms with 30 ms column stagger; horizontal lines have 60 ms row stagger.','Dots fade after 500–1000 ms; registration arms start at 700+60n ms, labels decode 150 ms later for 300 ms.','The first 4 s sweep is included; motion off shows the complete field instantly.'],
+  variants:[{name:'V20 FIELD',note:'DEMO, 25 ms samples; mark glyphs change on a 70 ms grid.',options:{},plainVisible:true,
+    body:(width)=>body(ambientField(Array.from({length:54},()=>fitLine([],width))),`ambientField(Array.from({length:54},()=>fitLine([],${width})))`)}],
+});
+
+export const MOTION_STORIES = [SCAN, PULSE, REVEAL, DRAW_IN, WARM_UP, LATCH, BEACON, CYCLE, FADE, BLINK, FLASH, PING, WIPE, FILL_IN, BURN_OUT, EDGE_PULSE, RESTRIKE, GHOST, NUDGE, MARKER_TIMELINE_STORY, SCOPE_TRACE, SOUNDING_SWEEP, FEED_SCAN, CORNER_SNAP, CALLOUT_ENTRANCE, PHOSPHOR_HEAD, DASH_DECODE, DASH_BREATHE, DASH_ARRIVAL_PING, DASH_AMBIENT_SWEEP, AMBIENT_LOAD];

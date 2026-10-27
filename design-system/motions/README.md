@@ -2,7 +2,7 @@
 
 Small, reusable motion primitives for instrument-like terminal details. Each is a pure function: rendered lines and an explicit time in, new lines out. Nothing here reads a clock, starts a timer, writes to the terminal, or keeps state. The host owns time, redraws, and cleanup. See [foundation](../foundation/README.md) for the line model.
 
-A motion decorates rendered lines; it does not supply data. Most preserve every character. Reveal and draw-in hide cells they have not reached, and ghost, ping, cycle, beacon, edge pulse, nudge, and blink with an `offGlyph` change or blank glyphs; each section says which. Apply anything that can obscure text only to nonessential decoration, and compose complete readings, labels, and status rows outside the transform.
+A motion decorates rendered lines; it does not supply data. Most preserve every character. Reveal and draw-in hide cells they have not reached, and ghost, ping, cycle, beacon, edge pulse, nudge, and blink with an `offGlyph` change or blank glyphs; each section says which. Except for explicitly declared bounded decode (below), apply anything that can obscure text only to nonessential decoration, and compose complete readings, labels, and status rows outside the transform.
 
 | Motion | Runs | Ends at | Changes | State cells |
 | --- | --- | --- | --- | --- |
@@ -27,6 +27,11 @@ A motion decorates rendered lines; it does not supply data. Most preserve every 
 | [nudge](#nudgelines-options) | loop | | glyph position | exempt |
 | [callout entrance](#calloutentrancelines-options-and-calloutentrancedurationlines-options) | once | `calloutEntranceDuration` | reserved gutter glyphs, allowed text/readout styling | exempt |
 | [phosphor head](#phosphorheadlines-options) | supplied pose | | one grapheme foreground | exempt |
+| [decode](#decodelines-options-and-decodedurationoptions) | once | decodeDuration | plain text scramble | exempt |
+| [breathe](#breathelines-options) | loop | | foreground | exempt |
+| [arrival ping](#arrivalpinglines-options-and-arrivalpingdurationoptions) | once | arrivalPingDuration | blank-space dots | exempt |
+| [ambient sweep](#ambientsweeplines-options) | loop | | decorative foreground | exempt |
+| [ambient load](#ambientloadlines-options-and-ambientloaddurationlines-options) | once | ambientLoadDuration | grid/dots/registration glyphs and ink | exempt |
 
 Each motion lives in its own file here, named like its row, with its checks beside it in `<name>.test.mjs` (scan, pulse, and reveal are checked in `motions.test.mjs`).
 
@@ -561,7 +566,7 @@ Frozen defaults: `{top:0,rows:16,rails:[],measure:undefined}`. Explicit `rails` 
 
 **Persistent state-pose transform, not a finite entrance.** Supervisor-approved exception to finite-preview input equality: input is a home input-frame including its two reserved outer gutters. At 0–39 ms only hover corners take acid at home; focused corners remain bone and form corners remain critical; from 40 ms the same corner glyphs hold one cell out diagonally until the host ends hover/focus. `cornerSnapSettling()` returns 40, not an animation duration. `animate:false` (leave/blur/reduced motion) returns home without spread, preserving focused/form labels. The story holds the pose; replay shows the transition again.
 
-Only the four known two-cell corner pairs can move. Destinations must be blank reserved gutters; occupied destinations leave the whole frame at home. Form/critical corner shapes are relocated intact, never dropped or replaced with state words; body and labels remain untouched. Supply `measure` for measured labels. Plain retains the geometry cue. No state, timer, focus inference or editor lives in this motion.
+`corners` (default `'light'`) selects the pairs: `'light'` is input-frame's `┌╴ ╶┐ └╴ ╶┘`, `'heavy'` a heavy frame's `┏━ ━┓ ┗━ ━┛`, such as the dashboard type unit wrapped in the same reserved gutters. Any other value throws `RangeError`. Only the four known two-cell corner pairs can move. Destinations must be blank reserved gutters; occupied destinations leave the whole frame at home. Form/critical corner shapes are relocated intact, never dropped or replaced with state words; body and labels remain untouched. Supply `measure` for measured labels. Plain retains the geometry cue. No state, timer, focus inference or editor lives in this motion.
 
 ## `calloutEntrance(lines, options)` and `calloutEntranceDuration(lines, options)`
 
@@ -579,3 +584,33 @@ Frozen `PHOSPHOR_HEAD_DEFAULTS`: optional `head:{row,col}`, optional `measure`, 
 ### DS-2b review geometry refinements
 
 Callout-entrance accepts optional `timestampRegion`; plot-in hides only that explicitly supplied text region before 120 ms. Supply it for timestamps, **not essential receipt/error words**. ReadoutRegion continues to address only the leader. Use `calloutGeometry()` rather than copied layout arithmetic. Negative integral region coordinates/extents clamp to zero; empty or undersized registration reservations no-op; occupied mark targets are left untouched. Malformed options and unsafe measured text still fail validation. Off-by-one head coordinates in phosphor-head (negative, out-of-frame or inside a wide continuation) safely leave text alone. `subtitleGeometry()` supplies a head from the full line and explicit revealed count, without host reimplementation of centering.
+
+## Dashboard motions
+
+The dashboard reuses `wipe` for the selection (160 ms, ltr, style only), `fillIn` for bars/blocks, `restrike` for numeral ink and `cornerSnap` with `corners: 'heavy'` for the type unit's hover/pick snap. No duplicate motions implement those behaviors.
+
+### `decode(lines, options)` and `decodeDuration(options)`
+
+Bounded scramble-and-settle, the declared dispatch-feed exception to the [shared motion rule](../../docs/design.md#motion). Changes **plain text**, including letters/digits: before each seeded landing, blank then scramble from the v20 alphabet. Spaces stay spaces. Options: duration (default 450, 1–600 ms), seed (integer, default 0), scramble (boolean, default true; false keeps characters with bold re-strike), region. DECODE_DEFAULTS exports them. 70 ms glyph steps (14.3 per second), settled exactly at duration. Warning/critical cells are always exempt. Motion-off shows the true text immediately. Hosts must not send entire warnings/errors through it: compose their complete messages outside decode.
+
+### `breathe(lines, options)`
+
+Slow smooth foreground lift toward white: 60% at half-period, original at phase zero. BREATHE_DEFAULTS: period 4000 ms (1–60000), region. Characters unchanged; warning/critical exempt. Use only an actually current activity block. Motion-off unchanged. Looping; host frames at 67 ms.
+
+### `arrivalPing(lines, options)` and `arrivalPingDuration(options)`
+
+Two expanding dot rings over blank cells only in an **explicit decoration-only region**. ARRIVAL_PING_DEFAULTS: duration 1600 ms, x/y 0, radius 16 cells (integer geometry 0–1000). Horizontal radius is doubled for terminal proportions. Last ring ends at duration × 1.25. Changes plain text; nonblank content and warning/critical cells remain untouched. 50 ms host frames. Motion-off is unchanged input, no rings. The host admits only genuinely observed arrivals and clear space, not inferred activity.
+
+### `ambientSweep(lines, options)`
+
+AMBIENT_SWEEP_DEFAULTS: period 16000 ms, run 4000 ms (positive, run ≤ period), region. Lifts only decorative ┼│─· foreground by at most 5% white, moving vertically. Compose essential content outside it. Characters unchanged, warning/critical exempt. Motion-off unchanged; continuous host frames at 67 ms. Ambient grid/dots/registration marks come from ambient-field. Use ambient-load for the exact initial projection, then ambient-sweep after its duration, so the first sweep is not applied twice. Registered mark ink is never lifted by the sweep.
+
+All four follow shared validation/immutability/time/region contracts and own no timers. Every exported primitive has a colocated deterministic test and a storybook preview.
+
+### `ambientLoad(lines, options)` and `ambientLoadDuration(lines, options)`
+
+Pure exact v20 load projection over an already-admitted ambient-field decoration layer. AMBIENT_LOAD_DEFAULTS contains region; time/animate follow the shared contract. No new cells outside that input's grid/dot/registration positions are admitted. Grid vertical reach: 500 ms, 30 ms column lag; horizontal reach: 500 ms, 60 ms row lag. Dots start at 500 + seeded coordinate hash × 500 ms and fade for 300 ms. Registration n starts at 700 + 60n ms, grows arms at 60 ms steps and decodes its three-character label after another 150 ms for 300 ms (70 ms glyph grid, using global event time). Shared geometry/ink lives in foundation/ambient.mjs; glyph projection is shared with decode through foundation/decode-glyph.mjs.
+
+The initial 4 s ambient sweep is included, with exact row-background mixing and dot-fade multiplication; mark ink stays fixed. Duration is max(4000 ms, last grid reach, last dot fade, last admitted registration decode); at normal dashboard dimensions it is 4000 ms. Host frames at 25 ms to sample all load phases, then uses the existing recurring sweep. Changes plain text; state cells and cells outside region remain unchanged. Motion-off returns the supplied complete field immediately. Default terminal colors are unknown and cannot be mixed. No clock, timer, mutable module state or I/O.
+
+Tests compare every cell/glyph/background and every occupied-cell foreground against an independent literal v20 oracle at 18 explicit times, plus region/state protection, widths 1–160, immutability, validation, completion and motion-off. The AMBIENT LOAD story uses actual ambient-field output and executable usage.

@@ -20,6 +20,7 @@ Independent projects are here. They share code only through the private design-s
 - [pi/droid-header](pi/droid-header/README.md): replaces Pi's startup header with the droid details panel, this session's identity and a manifest of what Pi's settings load; TUI only.
 - [herdr](herdr/README.md): Herdr agents and Spaces sidebar configuration, merged by hand.
 - [herdr-plugins/spaces](herdr-plugins/spaces/README.md): one Node daemon per Herdr socket reports space counts/names/quiet ages and moves quiet units below current work.
+- [herdr-plugins/dispatch-feed](herdr-plugins/dispatch-feed/README.md): source-collector task triage in a Bun terminal pane, with shared dashboard elements and truthful live state.
 - [herdr-plugins/whiteboard](herdr-plugins/whiteboard/README.md): a Rust whiteboard in a Herdr split or tab, with sticky notes and text, driven by the mouse, one board per workspace.
 
 Other Herdr tooling still lives in separate repositories and is planned to move in.
@@ -45,6 +46,7 @@ industrial-os/
 ├── herdr/                    Herdr agents and Spaces configuration, merged by hand
 ├── herdr-plugins/            Herdr plugins, each its own project
 │   ├── spaces/              workspace tokens, quiet history and ordering daemon
+│   ├── dispatch-feed/       source-collector dashboard and task triage in Bun
 │   ├── whiteboard/          sticky notes and text in a Herdr pane, in Rust
 │   └── automations-monitor/ read-only Tatsu pipelines and schedules dashboard, in Bun and Effect
 ├── docs/

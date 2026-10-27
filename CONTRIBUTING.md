@@ -15,6 +15,7 @@ This guide covers the workflow for every change and the checks that apply to the
 | `pi/image-preview/` | Node.js 22.19+, npm, strict TypeScript; pinned Pi 1.3.0 loader tests, an installed Pi for the load check | [pi/image-preview/CONTRIBUTING.md](pi/image-preview/CONTRIBUTING.md) |
 | `pi/droid-header/` | Node.js 22.19+, TypeScript run by type stripping, the root install, the globally installed Pi for its tests and the load check | [pi/droid-header/CONTRIBUTING.md](pi/droid-header/CONTRIBUTING.md) |
 | `pi/theme/` | JSON; Node.js 22.19+ for its check, the root install and an installed Pi | [pi/theme/CONTRIBUTING.md](pi/theme/CONTRIBUTING.md) |
+| `herdr-plugins/dispatch-feed/` | Bun 1.4.4, strict TypeScript, oxlint/oxfmt, fake socket and PTY checks | [herdr-plugins/dispatch-feed/CONTRIBUTING.md](herdr-plugins/dispatch-feed/CONTRIBUTING.md) |
 | `herdr-plugins/spaces/` | Node.js 22 standard library; fake Unix socket tests | [herdr-plugins/spaces/CONTRIBUTING.md](herdr-plugins/spaces/CONTRIBUTING.md) |
 | `herdr/` | TOML; Node.js 22 for its check; an installed Herdr for the parser check | [herdr/CONTRIBUTING.md](herdr/CONTRIBUTING.md) |
 

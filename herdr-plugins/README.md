@@ -9,6 +9,8 @@ checks and guides; shared rules are in [AGENTS.md](AGENTS.md).
 | [Whiteboard](whiteboard/README.md) | Sticky notes and text on a mouse-driven board, one per workspace, in a split or a tab | Rust, built with Cargo |
 | [Automations Monitor](automations-monitor/README.md) | Read-only dashboard of this machine's Tatsu automation pipelines and schedules, in a split or a tab | Bun 1.4.4 with TypeScript and Effect, dependencies installed from `bun.lock` |
 
+| [Dispatch feed](dispatch-feed/README.md) | Source-collector task dashboard and triage, in a split or tab | Bun 1.4.4, TypeScript, design-system imports |
+
 ## Install
 
 Review the manifest and source first: plugins run as your user, with Herdr's

@@ -109,3 +109,18 @@ test('E2 renderers import only foundation and contain no clock, timer, I/O or un
     assert.doesNotMatch(source, /\b(?:Date|performance|process|setTimeout|setInterval|fetch)\b|Math\.random/);
   }
 });
+
+test('dashboard face: rounded digits through textGrid, default face unchanged', async () => {
+  const { DASHBOARD_FONT } = await import('./pixel-numeral.mjs');
+  assert.ok(Object.isFrozen(DASHBOARD_FONT) && Object.values(DASHBOARD_FONT).every(Object.isFrozen));
+  assert.deepEqual(textGrid('42'), textGrid('42', { face: 'instrument' }));
+  assert.deepEqual(text(numeralLines(textGrid('2357', { face: 'dashboard' }), { width: 15 })), ['▀▀▄ ▀▀▄ █▀▀ ▀▀█', '▄▀   ▀▄ ▀▀▄  █ ', '▀▀▀ ▀▀  ▀▀   ▀ ']);
+  for (const value of ['0', '1', '42', String(Number.MAX_SAFE_INTEGER), '?']) {
+    const grid = textGrid(value, { face: 'dashboard', ink: 'decorative' });
+    assert.equal(grid.w, value.length * 4 - 1);
+    assert.equal(lineWidth(numeralLines(grid, { width: grid.w })[0]), grid.w);
+  }
+  assert.notDeepEqual(textGrid('?', { face: 'dashboard' }), textGrid('0', { face: 'dashboard' }));
+  assert.notDeepEqual(textGrid('2', { face: 'dashboard' }), textGrid('2'));
+  for (const face of ['', 'Dashboard', '__proto__', null]) assert.throws(() => textGrid('1', { face }), RangeError);
+});

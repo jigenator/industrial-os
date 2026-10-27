@@ -66,6 +66,22 @@
     "./elements/desk-tray": "./elements/desk-tray/desk-tray.mjs",
     "./elements/operation-row": "./elements/operation-row/operation-row.mjs",
     "./motions/callout-entrance": "./motions/callout-entrance.mjs",
-    "./motions/phosphor-head": "./motions/phosphor-head.mjs"
+    "./motions/phosphor-head": "./motions/phosphor-head.mjs",
+    "./foundation/type-colors": "./foundation/type-colors.mjs",
+    "./foundation/cell-grid": "./foundation/cell-grid.mjs",
+    "./elements/type-unit": "./elements/type-unit/type-unit.mjs",
+    "./elements/plan-counter": "./elements/plan-counter/plan-counter.mjs",
+    "./elements/activity-strip": "./elements/activity-strip/activity-strip.mjs",
+    "./elements/activity-trace": "./elements/activity-trace/activity-trace.mjs",
+    "./elements/alert-ticker": "./elements/alert-ticker/alert-ticker.mjs",
+    "./elements/ambient-field": "./elements/ambient-field/ambient-field.mjs",
+    "./motions/decode": "./motions/decode.mjs",
+    "./motions/breathe": "./motions/breathe.mjs",
+    "./motions/arrival-ping": "./motions/arrival-ping.mjs",
+    "./motions/ambient-sweep": "./motions/ambient-sweep.mjs",
+    "./foundation/dashboard-colors": "./foundation/dashboard-colors.mjs",
+    "./foundation/ambient": "./foundation/ambient.mjs",
+    "./foundation/decode-glyph": "./foundation/decode-glyph.mjs",
+    "./motions/ambient-load": "./motions/ambient-load.mjs"
   }
 }
