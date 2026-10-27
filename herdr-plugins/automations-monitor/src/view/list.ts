@@ -1,5 +1,6 @@
 // The scrolling list both screens share: entries at virtual rows, clipped to the list rows, the selection
 // kept in view, a scrollbar, and the position row with the filter and a legend.
+import { scrollRail } from '@industrial-os/design-system/elements/scroll-rail';
 import type { Canvas } from '../canvas.ts';
 import { FILTERS, type Filter } from '../model.ts';
 import { T } from '../theme.ts';
@@ -54,14 +55,7 @@ export function drawList(c: Canvas, lay: Layout, entries: readonly Entry[], ui: 
   }
   c.clipY = null;
   if (emptyText) c.text(4, lay.list0 + 1, emptyText, { fg: T.decorative, bold: true });
-  if (total > vis) {
-    const th = Math.max(2, Math.round((vis * vis) / total));
-    const ty = lay.list0 + Math.round((scroll / (total - vis)) * (vis - th));
-    for (let j = lay.list0; j <= lay.list1; j++) {
-      const on = j >= ty && j < ty + th;
-      c.put(lay.scrollX, j, on ? '┃' : '│', { fg: on ? T.primary : T.faint });
-    }
-  }
+  scrollRail({ total, visible: vis, offset: scroll }).forEach((line, j) => c.blit(lay.scrollX, lay.list0 + j, line));
   // Position: the first and last item at least partly in view.
   const inView = placed.filter((p) => p.e.key !== undefined && lay.list0 + p.vy - scroll <= lay.list1 && lay.list0 + p.vy - scroll + (p.e.body ?? p.e.rows) > lay.list0);
   const a = inView.length ? items.indexOf(inView[0]!.e.key!) + 1 : 0;

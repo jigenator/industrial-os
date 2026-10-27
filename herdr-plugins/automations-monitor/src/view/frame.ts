@@ -2,7 +2,11 @@
 // state, pane size, wall clock, motion time and the motion flag in; exactly `rows` lines of exactly `cols`
 // cells out, with the hit regions and list geometry that keys and clicks act on.
 import { fitLine, span, type Line } from '@industrial-os/design-system/foundation/cells';
-import { Canvas, type Hit, type Screen } from '../canvas.ts';
+import { BOARD_TONES } from '@industrial-os/design-system/foundation/board-tones';
+import { labelPlate } from '@industrial-os/design-system/elements/label-plate';
+import { sectionHead } from '@industrial-os/design-system/elements/section-head';
+import { tabRule } from '@industrial-os/design-system/elements/tab-rule';
+import { Canvas, measure, type Hit, type Screen } from '../canvas.ts';
 import { age, clock, pipelineEvents, pipelineViews, reportingOf, runnerEvents, scheduleEvents, scheduleViews, type Reporting } from '../model.ts';
 import { T, type Tone } from '../theme.ts';
 import { logShown, type AppState, type Feed } from '../ui.ts';
@@ -81,15 +85,15 @@ export function renderFrame(state: AppState, { cols, rows, now, t }: FrameOption
 }
 
 function header(c: Canvas, state: AppState, screen: Screen, feed: Feed<unknown>, now: number): void {
-  c.put(L, 0, '■', { fg: T.primary });
-  let x = c.text(L + 2, 0, 'AUTOMATIONS', { fg: T.primary, bold: true }) + 4;
+  const title = 'AUTOMATIONS';
+  let x = c.blit(L, 0, sectionHead({ title }, { width: title.length + 2 })) + 4;
   const counts: Record<Screen, number | null> = {
     pipelines: state.pipelines.value?.pipelines.length ?? null,
     schedules: state.schedules.value?.schedules.length ?? null,
   };
   for (const [k, key, label] of [['pipelines', '1', 'PIPELINES'], ['schedules', '2', 'SCHEDULES']] as const) {
     const on = screen === k, x0 = x;
-    x = c.text(x, 0, key, { fg: on ? T.field : T.secondary, bg: on ? T.accent : T.chip, bold: true });
+    x = c.blit(x, 0, labelPlate(key, { form: 'slab', pad: false, style: on ? BOARD_TONES.live.chip : BOARD_TONES.idle.chip }));
     x = c.text(x + 1, 0, label, { fg: on ? T.primary : T.decorative, bold: on });
     x = c.text(x + 1, 0, counts[k] === null ? '?' : pad2(counts[k]), { fg: T.decorative });
     c.hit(x0, 0, x - x0, 1, { kind: 'screen', screen: k });
@@ -108,8 +112,11 @@ function header(c: Canvas, state: AppState, screen: Screen, feed: Feed<unknown>,
       rx = c.text(rx, 0, s, { fg: t === null ? T.decorative : t === 'crit' ? T.critical : t === 'warn' ? T.warning : T.decorative, bold: t === 'crit' || t === 'warn' });
     });
   }
-  for (let i = L; i < c.w - 2; i++) c.put(i, 1, i < L + 14 ? '━' : '─', { fg: i < L + 14 ? T.accent : T.faint });
+  c.blit(L, 1, rule(c, 14));
 }
+
+// A full-width rule under a row: an acid tab of `tab` cells, then a faint hairline.
+const rule = (c: Canvas, tab: number): Line => tabRule({ tabCells: tab, inks: { tab: T.accent, rule: T.faint } }, { width: c.w - 2 - L, lead: false });
 
 function readStatus(state: AppState, feed: Feed<unknown>, now: number): readonly [string, Tone | null] {
   if (feed.failure) return [feed.okAt === null ? 'READ FAILED' : `READ FAILED · LAST OK ${ago(now - feed.okAt)}`, 'crit'];
@@ -150,10 +157,7 @@ function machineRow(c: Canvas, lay: Layout, state: AppState, feed: Feed<unknown>
       c.text(after + 1, y, banner[2], { fg: banner[1] === 'crit' ? T.critical : T.warning });
     }
   }
-  if (lay.machineRule) {
-    for (let k = L; k < c.w - 2; k++) c.put(k, y + 1, '─', { fg: T.faint });
-    for (let k = L; k < nameEnd; k++) c.put(k, y + 1, '━', { fg: T.accent });
-  }
+  if (lay.machineRule) c.blit(L, y + 1, rule(c, nameEnd - L));
 }
 
 function noData(c: Canvas, area: { x: number; y: number; w: number; h: number }, state: AppState, feed: Feed<unknown>): void {
@@ -169,7 +173,7 @@ const SHORT: Record<string, string> = { SCREEN: '', SELECT: '', OPEN: '', 'EVENT
 function footer(c: Canvas, state: AppState, lay: Layout, now: number): void {
   const ui = state.ui;
   const y = c.h - 1;
-  for (let i = L; i < c.w - 2; i++) c.put(i, y - 1, '─', { fg: T.faint });
+  c.blit(L, y - 1, rule(c, 0));
   const keys: Array<readonly [string, string]> = ui.modal
     ? [['↑ ↓', 'RUN'], ['ESC', 'CLOSE'], ['M', 'MOTION'], ['Q', 'QUIT']]
     : [['1 2', 'SCREEN'], ['↑ ↓', 'SELECT'], ...(ui.screen === 'pipelines' ? [['ENTER', 'OPEN'] as const] : []), ['F', 'FILTER'],
@@ -184,7 +188,7 @@ function footer(c: Canvas, state: AppState, lay: Layout, now: number): void {
   const tier = [0, 1].find((t) => width(t) + room <= c.w - 2) ?? [0, 1].find((t) => width(t) <= c.w) ?? 2;
   let x = L;
   keys.forEach(([k], i) => {
-    x = c.text(x, y, ` ${k} `, { fg: T.secondary, bg: T.chip, bold: true }, c.w - x);
+    x = c.blit(x, y, labelPlate(k, { form: 'slab', style: BOARD_TONES.idle.chip, measure, maxWidth: c.w - x }));
     const label = tiers[tier]![i];
     if (label) x = c.text(x + 1, y, label, { fg: T.decorative }, c.w - x - 1);
     x += gaps[tier]!;

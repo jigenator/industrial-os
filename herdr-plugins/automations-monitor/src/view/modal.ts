@@ -1,49 +1,42 @@
 // The run modal over the pipelines screen: a title bar in the pipeline's color while it is live, its live
 // runs, the selected run with a large elapsed time, phase segments and key values, recent runs and events.
 // It only shows; Esc closes it. Design: ../../docs/design.md#run-modal.
-import { mixOver } from '@industrial-os/design-system/foundation/signal-colors';
-import type { Canvas } from '../canvas.ts';
+import { eventRow } from '@industrial-os/design-system/elements/event-row';
+import { operationDetail } from '@industrial-os/design-system/elements/operation-row';
+import { popupBackdrop, popupFrame, popupTitleBar } from '@industrial-os/design-system/elements/popup-header';
+import { phaseSteps } from '@industrial-os/design-system/elements/readout';
+import { verticalRule } from '@industrial-os/design-system/elements/tab-rule';
+import { cleanText, CUT, measure, type Canvas } from '../canvas.ts';
 import { age, clock, type LogEvent, type PipelineView, type Reporting } from '../model.ts';
-import { CATEGORIES, cell, ink, lampOn, T, type Color } from '../theme.ts';
-import { chip, head, pad2 } from './parts.ts';
-import { resultGlyph, resultInk } from './pipelines.ts';
+import { CATEGORIES, cell, ink, lampOn, T } from '../theme.ts';
+import { chip, head, numeral, pad2 } from './parts.ts';
+import { resultMark } from './pipelines.ts';
 
 const OUTCOME_WORD = { succeeded: 'OK', failed: 'FAILED', cancelled: 'CNCL', interrupted: 'INTR', dropped: 'DROPPED' } as const;
 
-const dimmed = new Map<string, Color>();
-const dim = (color: Color): Color => {
-  let d = dimmed.get(color);
-  if (!d) dimmed.set(color, (d = mixOver(color, 0.25) as Color));
-  return d;
-};
-
 export function runModal(c: Canvas, v: PipelineView, runIndex: number, machine: string | null, reporting: Reporting, events: readonly LogEvent[], now: number, t: number, motion: boolean): void {
   // Everything behind the modal fades toward the field.
-  for (const row of c.cells) for (const q of row) Object.assign(q, { fg: dim(q.fg), bg: dim(q.bg), bold: false });
+  for (const row of c.cells) {
+    for (const q of row) {
+      const faded = popupBackdrop({ fg: q.fg, bg: q.bg });
+      Object.assign(q, faded);
+    }
+  }
   c.hits.length = 0;
   const w = Math.min(96, c.w - 4), h = Math.min(31, c.h - 2);
   const x0 = Math.floor((c.w - w) / 2), y0 = Math.max(1, Math.floor((c.h - h) / 2));
   const bottom = y0 + h - 1;
-  c.fill(x0, y0, w, h, T.field);
-  c.hline(x0, y0, w, '━', T.primary);
-  c.hline(x0, bottom, w, '─', T.structural);
-  c.vline(x0, y0 + 1, h - 2, '│', T.structural);
-  c.vline(x0 + w - 1, y0 + 1, h - 2, '│', T.structural);
+  popupFrame({ height: h }, { width: w }).forEach((line, j) => c.blit(x0, y0 + j, line));
   c.hit(0, 0, c.w, c.h, { kind: 'modal-close' });
   c.hit(x0, y0, w, h, { kind: 'modal-inside' });
 
   const X = x0 + 3, right = x0 + w - 4;
   const cat = CATEGORIES[v.category]!;
   const hot = v.live.length > 0 && reporting === 'live';
-  const titleInk = hot ? cat.ink : T.primary, subInk = hot ? cat.ink : T.decorative;
-  const tb = hot ? { bg: cat.fill } : {};
-  if (hot) c.fill(X, y0 + 2, right - X + 1, 1, cat.fill);
-  else c.put(X, y0 + 2, '█', { fg: cell(v.tone) });
-  const closeX = c.rtext(right, y0 + 2, 'ESC CLOSE', { fg: subInk, ...tb });
-  let tx = c.text(X + 2, y0 + 2, v.name.toUpperCase(), { fg: titleInk, bold: true, ...tb }, closeX - X - 4);
-  tx = c.text(tx + 2, y0 + 2, v.word, { fg: hot ? cat.ink : ink(v.tone), bold: true, ...tb }, Math.max(0, closeX - tx - 4));
   const sub = [machine?.toUpperCase(), v.scope?.toUpperCase(), `${v.slots ?? '?'} SLOTS`].filter(Boolean).join(' · ');
-  c.text(tx + 2, y0 + 2, sub, { fg: subInk, ...tb }, Math.max(0, closeX - tx - 4));
+  c.blit(X, y0 + 2, popupTitleBar({
+    ...(hot ? { band: cat } : { mark: cell(v.tone) }), title: cleanText(v.name.toUpperCase()), word: cleanText(v.word), wordInk: ink(v.tone), detail: cleanText(sub), meta: 'ESC CLOSE',
+  }, { width: right - X + 1, ...CUT }));
 
   const two = w >= 80;
   const LW = two ? 30 : 0;
@@ -53,7 +46,7 @@ export function runModal(c: Canvas, v: PipelineView, runIndex: number, machine: 
   const r = live[ri];
 
   if (two) {
-    for (let j = y0 + 4; j < bottom - 1; j++) c.put(RX - 3, j, '│', { fg: T.faint });
+    verticalRule({ ink: T.faint }, { height: bottom - y0 - 5 }).forEach((line, j) => c.blit(RX - 3, y0 + 4 + j, line));
     head(c, X, y0 + 4, 'LIVE RUNS', LW, pad2(live.length));
     const liveRows = Math.max(1, Math.min(live.length, 9));
     live.slice(0, liveRows).forEach((q, i) => {
@@ -72,7 +65,7 @@ export function runModal(c: Canvas, v: PipelineView, runIndex: number, machine: 
       head(c, X, recentY, 'RECENT RUNS', LW);
       v.done.slice(0, Math.max(0, bottom - recentY - 3)).forEach((q, i) => {
         const y = recentY + 2 + i;
-        c.put(X, y, resultGlyph(q), { fg: resultInk(q), bold: true });
+        c.blit(X, y, resultMark(q));
         c.text(X + 2, y, q.issue, { fg: T.secondary }, 10);
         c.text(X + 13, y, q.outcome ? OUTCOME_WORD[q.outcome] : '?', { fg: q.outcome === 'failed' ? T.critical : T.decorative }, 7);
         c.rtext(X + LW - 1, y, q.endedAt === null ? '?' : `${age(now - q.endedAt)} AGO`, { fg: T.decorative });
@@ -98,33 +91,24 @@ export function runModal(c: Canvas, v: PipelineView, runIndex: number, machine: 
     : s < 3600 ? [pad2(Math.floor(s / 60)), 'MIN', `${pad2(s % 60)}S SINCE ${since}`]
     : [`${Math.min(99, Math.floor(s / 3600))}:${pad2(Math.floor((s % 3600) / 60))}`, 'H:M', `SINCE ${since}`];
   if (y0 + 13 < bottom) {
-    const bw = c.tall(RX, y0 + 8, big, frozen ? T.decorative : T.primary);
+    const bw = numeral(c, RX, y0 + 8, big, frozen ? T.decorative : T.primary, 'tall');
     c.text(RX + bw + 2, y0 + 11, unit, { fg: T.decorative });
     c.text(RX + bw + 2, y0 + 12, rest, { fg: T.decorative }, RW - bw - 2);
   }
 
   // Phase segments: claim, verify, run, each with its time from the record.
   const cur = r.phase === 'claiming' ? 0 : r.phase === 'verifying' ? 1 : 2;
-  const sw = Math.floor((RW - 2) / 3);
   const segY = y0 + 15;
   if (segY + 2 < bottom) {
-    const segs: ReadonlyArray<readonly [string, number | null]> = [['CLAIM', r.claimedAt], ['VERIFY', r.verifiedAt], ['RUN', r.startedAt]];
-    const fill = frozen ? T.decorative : cat.fill;
-    segs.forEach(([lab, at], i) => {
-      const x = RX + i * (sw + 1);
-      const color = i < cur ? fill : i === cur && !frozen && lampOn(t, motion) ? fill : T.faint;
-      c.hline(x, segY, sw, '▄', color);
-      c.text(x, segY + 1, lab, { fg: i <= cur ? T.primary : T.decorative, bold: i === cur });
-      c.text(x, segY + 2, at !== null ? clock(at) : i === cur ? 'IN PROGRESS' : '--:--:--', { fg: T.decorative }, sw);
-    });
+    const steps = ([['CLAIM', r.claimedAt], ['VERIFY', r.verifiedAt], ['RUN', r.startedAt]] as const)
+      .map(([label, at], i) => ({ label, detail: at !== null ? clock(at) : i === cur ? 'IN PROGRESS' : '--:--:--' }));
+    phaseSteps({ steps, current: cur, ink: frozen ? T.decorative : cat.fill, lit: !frozen && lampOn(t, motion) }, { width: RW, measure })
+      .forEach((line, j) => c.blit(RX, segY + j, line));
   }
 
   const kv = (y: number, k: string, val: string) => {
     if (y >= bottom - 1) return;
-    c.text(RX, y, k, { fg: T.decorative });
-    const vx = RX + RW - Math.min(val.length, RW - k.length - 2);
-    for (let i = RX + k.length + 1; i < vx - 1; i++) c.put(i, y, '·', { fg: T.faint });
-    c.text(vx, y, val, { fg: T.primary, bold: true }, RW - k.length - 2);
+    c.blit(RX, y, operationDetail({ label: k, value: cleanText(val) }, { width: RW, align: 'right', leaderInk: T.faint, style: { fg: T.primary, bold: true }, measure }));
   };
   kv(segY + 4, 'PIPELINE', v.name.toUpperCase());
   kv(segY + 5, 'PHASE', r.phase.toUpperCase());
@@ -135,10 +119,7 @@ export function runModal(c: Canvas, v: PipelineView, runIndex: number, machine: 
   if (evY + 2 < bottom) {
     head(c, RX, evY, 'EVENTS', RW);
     events.filter((e) => e.pipeline === v.name).slice(0, Math.min(3, bottom - evY - 2)).forEach((e, i) => {
-      const y = evY + 1 + i;
-      c.text(RX, y, clock(e.at), { fg: T.decorative });
-      c.text(RX + 10, y, e.verb, { fg: e.tone === 'crit' ? T.critical : e.tone === 'live' ? T.accent : e.tone === 'warn' ? T.warning : T.secondary, bold: true });
-      c.text(RX + 16, y, e.ref, { fg: T.secondary }, RW - 16);
+      c.blit(RX, evY + 1 + i, eventRow({ time: clock(e.at), tone: e.tone, verb: e.verb, ref: cleanText(e.ref) }, { width: RW, form: 'detail', ...CUT }));
     });
   }
 }

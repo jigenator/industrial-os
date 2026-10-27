@@ -1,12 +1,14 @@
 // Screen 2: four readouts and one row per schedule: cadence, state, last run, next run and a −3h…+1h strip.
 // The CLI reports only a schedule's last result, any active run and its next fire, so the strip shows those
 // three and nothing else; there is no fire history to draw. Design: ../../docs/design.md#schedules.
+import { pointer, scheduleMark, stateCell } from '@industrial-os/design-system/elements/board-marks';
+import { crossNow, laneScale } from '@industrial-os/design-system/elements/time-lane';
 import type { Canvas } from '../canvas.ts';
 import { age, applyFilter, FUTURE_MS, PAST_MS, SCHEDULE_GROUPS, type Filter, type ScheduleView } from '../model.ts';
-import { cell, ink, lampOn, T } from '../theme.ts';
+import { ink, lampOn, T } from '../theme.ts';
 import type { Layout } from './layout.ts';
 import { drawList, type Entry, type ListResult } from './list.ts';
-import { countdown, countdownUnit, groupHead, head, lineReadouts, pad2, tallReadouts, unknownReadout, type Readout } from './parts.ts';
+import { countdown, countdownUnit, groupHead, head, lineReadouts, pad2, part as p, tallReadouts, unknownReadout, type Readout } from './parts.ts';
 
 const L = 2;
 
@@ -22,13 +24,13 @@ export function scheduleReadouts(c: Canvas, lay: Layout, views: readonly Schedul
     const attInk = att ? T.critical : T.structural, heldInk = held ? T.warning : T.structural;
     const nextText = d === null ? '--:--' : countdown(d), nextInk = d === null ? T.structural : T.primary;
     readouts = [
-      { label: 'NEEDS ATTENTION', value: pad2(att), valueInk: attInk, unit: [['SCHEDULES', T.decorative]], line: [['ATTENTION', T.decorative], [pad2(att), attInk]] },
+      { label: 'NEEDS ATTENTION', value: pad2(att), valueInk: attInk, unit: [p('SCHEDULES', T.decorative)], line: [p('ATTENTION', T.decorative), p(pad2(att), attInk)] },
       {
-        label: 'NEXT RUN', value: nextText, valueInk: nextInk, unit: [[d === null ? '' : countdownUnit(d), T.decorative]], sub: [next ? next.id.toUpperCase() : 'NONE QUEUED', T.decorative],
-        line: [['NEXT', T.decorative], [nextText, nextInk], [next ? next.id.toUpperCase() : 'NONE QUEUED', T.decorative]],
+        label: 'NEXT RUN', value: nextText, valueInk: nextInk, unit: [p(d === null ? '' : countdownUnit(d), T.decorative)], sub: p(next ? next.id.toUpperCase() : 'NONE QUEUED', T.decorative),
+        line: [p('NEXT', T.decorative), p(nextText, nextInk), p(next ? next.id.toUpperCase() : 'NONE QUEUED', T.decorative)],
       },
-      { label: 'ON', value: pad2(on), valueInk: T.primary, unit: [['/', T.decorative], [`${views.length}`, T.secondary], ['SCHEDULES', T.decorative]], line: [['ON', T.decorative], [`${pad2(on)}/${views.length}`, T.primary]] },
-      { label: 'HELD OR OFF', value: pad2(held), valueInk: heldInk, unit: [['SCHEDULES', T.decorative]], line: [['HELD/OFF', T.decorative], [pad2(held), heldInk]] },
+      { label: 'ON', value: pad2(on), valueInk: T.primary, unit: [p('/', T.decorative), p(`${views.length}`, T.secondary), p('SCHEDULES', T.decorative)], line: [p('ON', T.decorative), p(`${pad2(on)}/${views.length}`, T.primary)] },
+      { label: 'HELD OR OFF', value: pad2(held), valueInk: heldInk, unit: [p('SCHEDULES', T.decorative)], line: [p('HELD/OFF', T.decorative), p(pad2(held), heldInk)] },
     ];
   }
   if (lay.tallReadouts) tallReadouts(c, lay, readouts);
@@ -59,7 +61,8 @@ export function scheduleList(c: Canvas, lay: Layout, views: readonly ScheduleVie
   now: number, t: number, motion: boolean): ListResult {
   const C = columns(lay);
   const strip = C.lane1 - C.lane0 >= 12;
-  const col = (at: number) => C.lane0 + Math.round(((at - now + PAST_MS) / (PAST_MS + FUTURE_MS)) * (C.lane1 - C.lane0));
+  const scale = laneScale({ past: PAST_MS, future: FUTURE_MS }, { width: Math.max(1, C.lane1 - C.lane0 + 1) });
+  const col = (at: number) => C.lane0 + scale.col(at - now);
   const items = applyFilter(views, filter);
   head(c, L, lay.listHeadY, 'SCHEDULES', Math.min(C.lane0, C.lane1) - 4 - L, pad2(items.length));
   const label = (x: number, s: string) => c.text(x, lay.axisY, s, { fg: T.structural });
@@ -92,16 +95,16 @@ export function scheduleList(c: Canvas, lay: Layout, views: readonly ScheduleVie
 function row(c: Canvas, C: Columns, col: ((at: number) => number) | null, v: ScheduleView, y: number, sel: boolean, now: number, t: number, motion: boolean): void {
   if (sel) {
     c.fill(L, y, C.lane1 + 1 - L, 1, T.selection);
-    c.put(0, y, '▶', { fg: T.primary });
+    c.blit(0, y, pointer());
   }
   const st = sel ? { bg: T.selection } : {};
-  c.put(L, y, '█', { fg: cell(v.tone), ...st });
+  c.blit(L, y, stateCell(v.tone), st);
   c.text(C.name, y, v.id.toUpperCase(), { fg: v.group >= 2 ? T.decorative : T.primary, bold: true, ...st }, C.nameW);
   if (C.cadence !== null) c.text(C.cadence, y, v.cadence, { fg: T.decorative, ...st }, 12);
   c.text(C.state, y, v.word, { fg: ink(v.tone), bold: true, ...st }, C.last - C.state - 1);
   if (v.last) {
     const failed = v.last.outcome === 'failed';
-    c.put(C.last, y, failed ? '✕' : v.last.outcome === 'succeeded' ? '■' : '◩', { fg: failed ? T.critical : v.last.outcome === 'succeeded' ? T.secondary : T.warning, bold: true, ...st });
+    c.blit(C.last, y, scheduleMark('result', { outcome: v.last.outcome }), st);
     c.text(C.last + 2, y, `${age(now - v.last.at)} AGO`, { fg: failed ? T.critical : T.decorative, ...st }, C.next - C.last - 3);
   } else c.text(C.last, y, '—', { fg: T.decorative, ...st });
   // A paused schedule has no next run until someone re-enables it; its pause reason takes that column.
@@ -112,11 +115,10 @@ function row(c: Canvas, C: Columns, col: ((at: number) => number) | null, v: Sch
   if (!col) return;
   const inStrip = (x: number) => x >= C.lane0 && x <= C.lane1;
   const nowX = col(now);
-  if (v.last && inStrip(col(v.last.at))) {
-    const failed = v.last.outcome === 'failed';
-    c.put(col(v.last.at), y, failed ? '✕' : '◆', { fg: failed ? T.critical : T.secondary, bold: true, ...st });
-  }
-  if (v.next !== null && inStrip(col(v.next))) c.put(col(v.next), y, '◇', { fg: T.decorative, ...st });
-  if (v.firing !== null && inStrip(col(v.firing))) c.put(col(v.firing), y, '◆', { fg: lampOn(t, motion) ? T.accent : T.decorative, bold: true, ...st });
-  if (c.at(nowX, y)?.ch === ' ') c.put(nowX, y, '│', { fg: T.faint, ...st });
+  if (v.last && inStrip(col(v.last.at))) c.blit(col(v.last.at), y, scheduleMark('last', { outcome: v.last.outcome }), st);
+  if (v.next !== null && inStrip(col(v.next))) c.blit(col(v.next), y, scheduleMark('next'), st);
+  if (v.firing !== null && inStrip(col(v.firing))) c.blit(col(v.firing), y, scheduleMark('firing', { lit: lampOn(t, motion) }), st);
+  const q = c.at(nowX, y);
+  const quiet = q && crossNow({ text: q.ch }, { quiet: true });
+  if (quiet) c.blit(nowX, y, [quiet], st);
 }

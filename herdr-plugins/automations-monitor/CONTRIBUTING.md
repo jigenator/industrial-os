@@ -62,6 +62,28 @@ Use a throwaway Herdr that shares nothing with a live session, as in the [Spaces
 
 ## Verification records
 
+### 2026-10-28 · drawn with design-system parts · Bun 1.4.4, TypeScript 7.0.2, Effect 4.0.6, macOS, Herdr 0.9.5
+
+The views now place design-system elements (section head, label plates, board marks, time lane, readout, pixel numerals in the instrument and tall faces, event row, tab and vertical rules, scroll rail, the board popup's frame, title bar and backdrop, phase steps and right-aligned detail rows) through `Canvas.blit`; the local numeral fonts, rules, marks, lanes and colour mixes are gone, and `theme.ts` takes its inks, tones and category colours from the design system.
+
+**Frames — identical.** Before any source change, `--frame` output (with colour) was captured outside the repository for 13 fake scenarios (`floor`, `empty`, `stopped`, `unreachable`, `no-schedules`, `schedules-error`, `error`, `garbage`, `exit`, `unsupported`, `invalid`, `no-lists`, `big`) at 200×50, 160×51, 120×40, 80×24, 60×16, 59×16, 50×10 and 30×5, on both screens, with no flags, `--log`, `--modal`, `--no-motion` and all three, at `--time 0` and `600` (lamp lit and dim): **2080 frames**, with the wall clock and `Date` frozen by a Bun preload and `TZ=UTC`. Two captures of the unchanged tree were identical. After the change every frame was **byte-identical** (0 differences). `stubborn`, `leaves-child`, `hang` and `orphan-exit` were left out: a frozen clock stops the read timeout, and `orphan-exit` draws the `floor` frame.
+
+**Automated — passed.**
+
+- `bun install --frozen-lockfile`: `Checked 11 installs across 31 packages (no changes)`.
+- `tsc --noEmit -p .` (Version 7.0.2): no errors.
+- `bun test`: 58 pass, 0 fail, 19,356 expectations, 7 files (two new canvas tests: every `EXTRA_GLYPHS` glyph is a design-system glyph, and `blit` keeps colours a line leaves unset and skips blank unstyled cells).
+- `sh -n bin/automations-monitor.sh`: exit 0. `sh bin/automations-monitor.sh bad`: usage, exit 2.
+- `bun test/pty-check.ts`: all 6 cases passed, no fake process left.
+
+**Rendered — not re-run.** The frames are byte-identical to those before the change, so their renders are unchanged.
+
+**Isolated Herdr 0.9.5 — passed.** Every command ran under `env -i` with a temporary home, XDG directories and socket, and a `PATH` without `tatsu`. `plugin link` accepted the manifest; `open` split the shell pane and the monitor drew at the pane's size. Through an attached 200×50 client, `m` showed `MOTION OFF`, `2` the schedules, and `r` a fresh read (`READ 0S AGO`). Resizing wider added `OBSERVE ONLY`; resizing to 52 columns drew `AUTOMATIONS 50x47: TOO SMALL`. `open-tab` drew the tall-readout layout at full width. `q` in the split closed only the monitor's pane, leaving the shell, and `q` in the tab closed that tab. `herdr plugin log list` showed both actions succeeded with exit 0 and empty stderr. After `herdr server stop` no process remained under the temporary directory, which was deleted, and the live `config.toml` and `plugins.json` SHA-256 checksums were unchanged.
+
+**Not run:** the real CLI and live Herdr.
+
+**Rebased onto `8d35990` (dispatch feed) — passed.** The design system names the small pixel face `instrument`, so the readout's slot numeral asks for that face (same glyphs). A fresh capture from `origin/main`'s monitor matched the earlier baseline in all 2080 frames, and the rebased monitor's frames differ from it in none. The frozen install made no change, and `tsc` is clean. `bun test` passes 58/58, `sh -n` and the usage exit pass, and `bun test/pty-check.ts` passes 6/6. The isolated Herdr 0.9.5 check repeated steps 1–7 through a 300×50 client: 14 of 14 assertions passed, no process remained, and the live checksums were unchanged.
+
 ### 2026-10-23 · first version · Bun 1.4.4, TypeScript 7.0.2, Effect 4.0.6, macOS, Herdr 0.9.5
 
 **Automated — passed.**
