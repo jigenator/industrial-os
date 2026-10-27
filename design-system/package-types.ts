@@ -85,6 +85,9 @@ neatline({ label: 'START' }, { width: 40 });
 actionLabel({ state: 'read' }); keyHints([{ key: '^O', label: 'open' }], { width: 40 });
 popupHeader({ plate: 'IMAGE' }, { width: 40 }); popupFooter({}, { width: 40 });
 noticeRow({ text: 'synthetic notice' }, { width: 40 });
+noticeRow({ glyph: '▲', tone: 'warning', text: 'synthetic notice', wrap: true, inset: 3 }, { width: 40 });
+// @ts-expect-error inset is a cell count
+noticeRow({ text: 'synthetic notice', inset: '3' }, { width: 40 });
 const rect = { x: 3, y: 1, width: 32, height: 16 };
 feedBezel({ imageRect: rect, meter: scopeMeter() }, { width: 40, height: 20 });
 imageInset(rect, { width: 40, height: 20 }); imageLabel({ label: 'sample' });

@@ -111,3 +111,69 @@ test('connection variants compose measured word inks without host-drawn chrome',
     assert.deepEqual(input,before);
   }
 });
+
+test('wrapped headlines hang under the text after the glyph and keep the inset clear, at exact columns', () => {
+  const input={glyph:'▲',tone:'warning',text:'warning: synthetic routing unavailable; continuing in conversation without a new worker',wrap:true,inset:3};
+  const rows=width=>noticeRow(input,{width}).map(l=>paint(l,'none'));
+  assert.deepEqual(rows(40),[
+    ' ▲ warning: synthetic routing           ',
+    '   unavailable; continuing in           ',
+    '   conversation without a new worker    ',
+  ]);
+  assert.deepEqual(rows(64),[
+    ' ▲ warning: synthetic routing unavailable; continuing in        ',
+    '   conversation without a new worker                            ',
+  ]);
+  assert.deepEqual(rows(100),[' ▲ warning: synthetic routing unavailable; continuing in conversation without a new worker'.padEnd(100)]);
+  const lines=noticeRow(input,{width:40});
+  assert.equal(lines[0].find(s=>s.text==='▲ ').style.fg,'warning');
+  assert.ok(lines.flat().filter(s=>s.text.trim()&&s.text!=='▲ ').every(s=>s.style.fg==='decorative'&&s.style.bg==='default'));
+  for(let width=1;width<=160;width++) for(const line of noticeRow(input,{width})) {
+    assert.equal(lineWidth(line),width);
+    if(width>6) assert.equal(paint(line,'none').slice(width-3).trim(),'');
+  }
+});
+
+test('wrapping keeps every word, hard-breaks over-long words and hangs after a plate', () => {
+  const text='a supercalifragilistic synthetic   word';
+  assert.deepEqual(noticeRow({text,wrap:true},{width:14}).map(l=>paint(l,'none')),[
+    ' · a          ',
+    '   supercalifr',
+    '   agilistic  ',
+    '   synthetic  ',
+    '   word       ',
+  ]);
+  assert.deepEqual(noticeRow({plate:'LINK',plateFirst:true,glyph:'■',text:'not running here',wrap:true},{width:20}).map(l=>paint(l,'none')),[
+    '  LINK  ■ not       ',
+    '          running   ',
+    '          here      ',
+  ]);
+  assert.deepEqual(noticeRow({text:'',wrap:true},{width:10}).map(l=>paint(l,'none')),[' ·        ']);
+  assert.deepEqual(noticeRow({text:'  lead',wrap:true},{width:10}).map(l=>paint(l,'none')),[' ·   lead ']);
+});
+
+test('wrapping respects measured wide graphemes and falls back to one clipped row when a grapheme cannot fit', () => {
+  const measure=text=>[...new Intl.Segmenter('und',{granularity:'grapheme'}).segment(text)].reduce((n,{segment})=>n+(['日','本','👩‍💻'].includes(segment)?2:1),0);
+  const value=textSlot([span('日本 é 👩‍💻 日本日本',{italic:true})],18,{measure});
+  const before=structuredClone(value);
+  assert.deepEqual(noticeRow({text:value,wrap:true,inset:1},{width:10,measure}).map(l=>paint(l,'none')),[
+    ' · 日本 é ',
+    '   👩‍💻     ',
+    '   日本日 ',
+    '   本     ',
+  ]);
+  for(let width=1;width<=40;width++) for(const line of noticeRow({text:value,wrap:true,inset:1},{width,measure})) assert.equal(lineWidth(line,{measure}),width);
+  assert.ok(noticeRow({text:value,wrap:true},{width:10,measure}).flat().some(s=>s.style.italic));
+  assert.deepEqual(noticeRow({text:value,wrap:true},{width:4,measure}),noticeRow({text:value},{width:4,measure}));
+  assert.deepEqual(value,before);
+});
+
+test('wrap and inset are opt-in: explicit defaults match the existing output, and invalid values throw', () => {
+  const inputs=[{glyph:'✕',plate:'LINK',tone:'critical',text:'not running',detail:['Synthetic recovery command']},{text:'synthetic notice with several words'},{detail:['run synthetic-command --retry']},
+    {plate:'LINK',plateFirst:true,glyph:'■',text:'x',detail:[{kind:'command',text:'$ cd synthetic-project',label:'SH'}]}];
+  for(const input of inputs) for(let width=1;width<=160;width++) assert.deepEqual(noticeRow({...input,wrap:false,inset:0},{width}),noticeRow(input,{width}));
+  assert.deepEqual(noticeRow({detail:['synthetic detail row'],inset:4},{width:12}).slice(1).map(l=>paint(l,'none')),['syntheti    ','c detail    ',' row        ']);
+  assert.equal(paint(noticeRow({text:'synthetic notice',inset:4},{width:16})[0],'none'),' · syntheti…    ');
+  assert.throws(()=>noticeRow({wrap:1},{width:20}),TypeError);
+  for(const inset of [-1,1.5,1001,'3']) assert.throws(()=>noticeRow({inset},{width:20}),RangeError);
+});

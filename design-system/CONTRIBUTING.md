@@ -182,3 +182,13 @@ Node v22.23.4, macOS; installed Pi 1.4.0. For the Pi droid header: `textGrid()` 
 - Strict NodeNext declarations: `./pi/claude-interrupt/node_modules/.bin/tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 design-system/package-types.ts pi/status-bar/test/design-system-types.ts $(find design-system -name '*.d.mts' -print)` from the repository root, after claude-interrupt's `npm ci`: exit 0.
 - Consumers: status-bar `npm test` **135/135** and `test/footer-colors.test.ts` **1/1** (`SIGNAL_COLORS` unchanged), Pi theme **5/5** against the installed Pi 1.4.0, Herdr configuration **20/20**, whiteboard palette **2/2**, claude-interrupt strict types and **34/34**.
 - **Not run:** native Herdr or real-PTY checks of the new story variant, glyphs or color; physical glyph-width or contrast review.
+
+## Notice-row wrap verification (2026-10-27)
+
+Node v22.23.4, macOS. `noticeRow` gains opt-in `wrap` (word-wrapped headline hanging under the text after the glyph/plate prefix) and `inset` (right-edge cells kept clear), for Lunalee's service warnings. A WRAPPED story variant shows it; no module or export entry is added.
+
+- `node --test`: **535/535 passed**, including exact 40/64/100-column rows, every width 1–160 keeping the inset clear, hard-broken long words, a plate prefix, measured wide/ZWJ graphemes with the clipped-row fallback, explicit defaults equal to the existing output, and invalid `wrap`/`inset`.
+- An external corpus compared the default output with `9e57db6`'s `noticeRow` in **859** span-level comparisons (ASCII inputs at widths 1–160, measured slots at 2–60): no differences.
+- Strict NodeNext declarations and `package-types.ts` (with a new `@ts-expect-error` for a non-numeric inset) passed with TypeScript 7.0.2 from the Lunalee worktree, because claude-interrupt's compiler was not installed in this worktree.
+- Required plain CLI snapshots (showcase 120/100/80/48/40/23; storybook 120/80/48/24/12 at 24 rows) exited 0.
+- **Not run:** native Herdr or real-PTY checks of the new variant; consumer suites (no consumer source changed).
