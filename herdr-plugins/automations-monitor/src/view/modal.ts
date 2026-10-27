@@ -15,11 +15,14 @@ import { resultMark } from './pipelines.ts';
 const OUTCOME_WORD = { succeeded: 'OK', failed: 'FAILED', cancelled: 'CNCL', interrupted: 'INTR', dropped: 'DROPPED' } as const;
 
 export function runModal(c: Canvas, v: PipelineView, runIndex: number, machine: string | null, reporting: Reporting, events: readonly LogEvent[], now: number, t: number, motion: boolean): void {
-  // Everything behind the modal fades toward the field.
+  // Everything behind the modal fades toward the field; a screen has few colour pairs, so each is mixed once.
+  const faded = new Map<string, ReturnType<typeof popupBackdrop>>();
   for (const row of c.cells) {
     for (const q of row) {
-      const faded = popupBackdrop({ fg: q.fg, bg: q.bg });
-      Object.assign(q, faded);
+      const key = `${q.fg} ${q.bg}`;
+      let fade = faded.get(key);
+      if (!fade) faded.set(key, (fade = popupBackdrop({ fg: q.fg, bg: q.bg })));
+      Object.assign(q, fade);
     }
   }
   c.hits.length = 0;

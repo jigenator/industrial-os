@@ -173,8 +173,9 @@ function block(c: Canvas, G: Geometry, v: PipelineView, y: number, sel: boolean,
 const outcomeOf = (r: RunView): RunOutcome => r.outcome ?? 'interrupted';
 export const resultMark = (r: RunView) => runMark(outcomeOf(r), { bold: true });
 
-// Lane columns relative to the lane's first cell; anything before it is clamped just off the lane.
-const laneAt = (G: Geometry, dt: number): number => Math.max(-2, G.col(dt) - G.lane0);
+// Lane columns relative to the lane's first cell. Anything outside the lane is clamped just off it on that side, since
+// only the side matters there: a run recorded ahead of this clock starts past the lane and draws nothing.
+const laneAt = (G: Geometry, dt: number): number => Math.min(G.lane1 - G.lane0 + 2, Math.max(-2, G.col(dt) - G.lane0));
 
 function laneBase(c: Canvas, G: Geometry, y: number, reporting: Reporting, recordedAt: number | null, now: number): void {
   // Since the runner stopped the lane is dashed; since it was last heard from (unreachable) it is hatched.

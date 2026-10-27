@@ -116,6 +116,17 @@ describe('frames', () => {
     expect(text(stateAt(NOW - 8_000), 160, 51)[0]).toContain('READ 8S AGO');
   });
 
+  test('runs recorded ahead of the local clock draw nothing past the lane, however far ahead', () => {
+    // A remote clock ahead of this one puts run starts in the future: just past the lane, and far past it.
+    for (const behind of [2 * 3_600_000, 30 * 86_400_000, 2 * 365 * 86_400_000]) {
+      for (const [cols, rows] of [[200, 50], [160, 51], [120, 40]] as const) {
+        const lines = text(stateAt(NOW), cols, rows, 0, NOW - behind);
+        expect(lines).toHaveLength(rows);
+        for (const line of lines) expect([...line]).toHaveLength(cols);
+      }
+    }
+  });
+
   test('unknown is never zero: with nothing read, counts are ? and readouts are not 00', () => {
     const screen = text(stateAt(NOW, { failure: { kind: 'missing' } }), 160, 51);
     expect(screen[0]).toContain('PIPELINES ?');
