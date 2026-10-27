@@ -1,12 +1,17 @@
 // Screen 1: four readouts, then one block per pipeline with a lane per slot on a 3h-back to 1h-ahead axis.
 // History is grey; a pipeline's category color appears only on its live runs, so color always marks work
 // happening now. Design: ../../docs/design.md#pipelines.
-import type { Canvas } from '../canvas.ts';
+import { fitLine, fitText, lineWidth, span } from '@industrial-os/design-system/foundation/cells';
+import { pointer, runMark, runTrail, spine, type RunOutcome } from '@industrial-os/design-system/elements/board-marks';
+import { labelPlate } from '@industrial-os/design-system/elements/label-plate';
+import { slotStrip, splitBar } from '@industrial-os/design-system/elements/readout';
+import { crossNow, laneAxis, laneRun, laneScale, laneTrack } from '@industrial-os/design-system/elements/time-lane';
+import { cleanText, CUT, measure, type Canvas } from '../canvas.ts';
 import type { PipelinesData, SchedulesData } from '../contract.ts';
 import { alerts, applyFilter, FUTURE_MS, PAST_MS, PIPELINE_GROUPS, reportingOf, type Filter, type PipelineView, type Reporting, type RunView } from '../model.ts';
 import { CATEGORIES, ink, lampOn, T, type Color } from '../theme.ts';
 import type { Layout } from './layout.ts';
-import { chip, countdown, countdownUnit, groupHead, head, lineReadouts, pad2, tallReadouts, unknownReadout, type Readout } from './parts.ts';
+import { chip, countdown, countdownUnit, groupHead, head, lineReadouts, numeral, pad2, part as p, tallReadouts, unknownReadout, type Readout } from './parts.ts';
 import { type ListResult, drawList, type Entry } from './list.ts';
 
 const L = 2;
@@ -26,40 +31,37 @@ export function pipelineReadouts(c: Canvas, lay: Layout, data: PipelinesData | n
   const readouts: Readout[] = data ? [
     {
       label: 'ACTIVE RUNS', value: pad2(live.length), valueInk: T.primary,
-      unit: [['/', T.decorative], [`${slots ?? '?'}`, T.secondary], ['SLOTS', T.decorative]],
-      line: [['ACTIVE', T.decorative], [`${pad2(live.length)}/${slots ?? '?'}`, T.primary]],
+      unit: [p('/', T.decorative), p(`${slots ?? '?'}`, T.secondary), p('SLOTS', T.decorative)],
+      line: [p('ACTIVE', T.decorative), p(`${pad2(live.length)}/${slots ?? '?'}`, T.primary)],
       // One cell per busy slot in its pipeline's color (grey while not reporting), then the free slots.
-      strip: (cv, x, y, w) => {
-        live.slice(0, w).forEach(({ v }, i) => cv.put(x + i, y, reporting === 'live' ? '█' : '▒', { fg: reporting === 'live' ? CATEGORIES[v.category]!.fill : T.decorative }));
-        for (let i = live.length; i < Math.min(slots ?? 0, w); i++) cv.put(x + i, y, '▁', { fg: T.structural });
-      },
+      strip: (w) => slotStrip({ busy: live.map(({ v }) => CATEGORIES[v.category]!.fill), slots, reporting: reporting === 'live' }, { maxWidth: w }),
     },
     {
       label: 'FINISHED · 3H', value: pad2(done.length), valueInk: T.primary,
-      unit: [['RUNS', T.decorative], [`${fails}`, fails ? T.critical : T.secondary], ['FAIL', T.decorative]],
-      line: [['3H', T.decorative], [pad2(done.length), T.primary], ['RUNS', T.decorative], [`${fails}`, fails ? T.critical : T.secondary], ['FAIL', T.decorative]],
-      strip: (cv, x, y, w) => {
-        const n = done.length, ok = n ? Math.round(((n - fails - amber) / n) * w) : 0, mid = n ? Math.round((amber / n) * w) : 0;
-        for (let i = 0; i < w; i++) cv.put(x + i, y, '▀', { fg: !n ? T.faint : i < ok ? T.primary : i < ok + mid ? T.warning : T.critical });
-      },
+      unit: [p('RUNS', T.decorative), p(`${fails}`, fails ? T.critical : T.secondary), p('FAIL', T.decorative)],
+      line: [p('3H', T.decorative), p(pad2(done.length), T.primary), p('RUNS', T.decorative), p(`${fails}`, fails ? T.critical : T.secondary), p('FAIL', T.decorative)],
+      strip: (w) => splitBar({ ok: done.length - fails - amber, warn: amber, fail: fails }, { width: w }),
     },
     {
       // The next time the runner polls its queue for work; the CLI has no per-pipeline dispatch time.
       label: 'NEXT POLL', value: pollIn === null ? '--:--' : countdown(pollIn), valueInk: pollIn === null ? T.structural : T.primary,
-      unit: [[pollIn === null ? '' : countdownUnit(pollIn), T.decorative]],
-      line: [['POLL', T.decorative], [pollIn === null ? '--:--' : countdown(pollIn), pollIn === null ? T.structural : T.primary], ...(blocked.length ? [[`BLOCKED ${blocked[0]!.toUpperCase()}`, T.warning] as const] : [])],
-      sub: reporting !== 'live' ? [reporting === 'stopped' ? 'RUNNER STOPPED' : 'RUNNER NOT REPORTING', T.warning]
-        : blocked.length ? [`BLOCKED ${blocked[0]!.toUpperCase()}`, T.warning] : nextPoll === null ? ['NOT SCHEDULED', T.decorative] : [`QUEUE · EVERY ${Math.round(data.polling.interval_seconds / 60)}M`, T.decorative],
+      unit: [p(pollIn === null ? '' : countdownUnit(pollIn), T.decorative)],
+      line: [p('POLL', T.decorative), p(pollIn === null ? '--:--' : countdown(pollIn), pollIn === null ? T.structural : T.primary), ...(blocked.length ? [p(`BLOCKED ${blocked[0]!.toUpperCase()}`, T.warning)] : [])],
+      sub: reporting !== 'live' ? p(reporting === 'stopped' ? 'RUNNER STOPPED' : 'RUNNER NOT REPORTING', T.warning)
+        : blocked.length ? p(`BLOCKED ${blocked[0]!.toUpperCase()}`, T.warning) : nextPoll === null ? p('NOT SCHEDULED', T.decorative) : p(`QUEUE · EVERY ${Math.round(data.polling.interval_seconds / 60)}M`, T.decorative),
     },
     {
       label: 'ALERTS', value: pad2(al!.length), valueInk: al!.length ? T.critical : T.structural,
-      unit: [[al!.length ? 'OPEN' : 'CLEAR', T.decorative]],
-      line: [['ALERTS', T.decorative], [pad2(al!.length), al!.length ? T.critical : T.structural], ...(al![0] ? [[al![0].text.toUpperCase(), ink(al![0].tone)] as const] : [])],
-      strip: (cv, x, y, w) => {
+      unit: [p(al!.length ? 'OPEN' : 'CLEAR', T.decorative)],
+      line: [p('ALERTS', T.decorative), p(pad2(al!.length), al!.length ? T.critical : T.structural), ...(al![0] ? [p(al![0].text.toUpperCase(), ink(al![0].tone))] : [])],
+      // The first alert, and how many more there are at the right.
+      strip: (w) => {
         const first = al![0];
-        if (!first) return;
-        cv.text(x, y, first.text.toUpperCase(), { fg: ink(first.tone) }, al!.length > 1 ? w - 4 : w);
-        if (al!.length > 1) cv.rtext(x + w - 1, y, `+${al!.length - 1}`, { fg: T.decorative });
+        if (!first) return [];
+        const text = fitText(cleanText(first.text.toUpperCase()), al!.length > 1 ? w - 4 : w, { ...CUT, style: { fg: ink(first.tone) } });
+        if (al!.length === 1) return text;
+        const more = `+${al!.length - 1}`;
+        return fitLine([...text, span(' '.repeat(Math.max(0, w - lineWidth(text, { measure }) - more.length))), span(more, { fg: T.decorative })], w, {}, { measure });
       },
     },
   ] : [unknownReadout('ACTIVE RUNS', 'ACTIVE'), unknownReadout('FINISHED · 3H', '3H'), unknownReadout('NEXT POLL', 'POLL'), unknownReadout('ALERTS', 'ALERTS')];
@@ -83,7 +85,8 @@ function geometry(lay: Layout): Geometry {
   const lane1 = lay.scrollX - 2;
   const full = lane1 - 54 >= 40;
   const lane0 = full ? 54 : L + 36;
-  const col = (dt: number) => lane0 + Math.round(((dt + PAST_MS) / (PAST_MS + FUTURE_MS)) * (lane1 - lane0));
+  const scale = laneScale({ past: PAST_MS, future: FUTURE_MS }, { width: lane1 - lane0 + 1 });
+  const col = (dt: number) => lane0 + scale.col(dt);
   return { full, name: L + 5, nameW: full ? 19 : 15, chip: full ? L + 36 : L + 21, lane0, lane1, col, nowX: col(0) };
 }
 
@@ -111,19 +114,16 @@ export function pipelineList(c: Canvas, lay: Layout, views: readonly PipelineVie
   // NOW through the visible lanes and gaps.
   for (let j = lay.list0; j <= lay.list1; j++) {
     const q = c.at(G.nowX, j);
-    if (q && ' ─·┄'.includes(q.ch) && q.bg === T.field) c.put(G.nowX, j, '│', { fg: T.accent });
+    const now = q && crossNow({ text: q.ch, style: { bg: q.bg } });
+    if (now) c.blit(G.nowX, j, [now]);
   }
   return result;
 }
 
 function axis(c: Canvas, lay: Layout, G: Geometry): void {
-  for (let x = G.lane0; x <= G.lane1; x++) c.put(x, lay.axisY, '─', { fg: T.structural });
-  for (let q = -11; q <= 3; q++) if (q % 4) c.put(G.col(q * 900_000), lay.axisY, '┴', { fg: T.faint });
-  for (let h = -3; h <= 1; h++) {
-    const x = G.col(h * 3600_000), label = h === 0 ? 'NOW' : `${h > 0 ? '+' : ''}${h}H`;
-    c.put(x, lay.axisY, h === 0 ? '┼' : '┬', { fg: h === 0 ? T.accent : T.structural });
-    c.text(Math.min(x - Math.floor(label.length / 2), G.lane1 - label.length + 1), lay.listHeadY, label, { fg: h === 0 ? T.primary : T.decorative, bold: h === 0 });
-  }
+  const { ruler, labels } = laneAxis({ past: PAST_MS, future: FUTURE_MS }, { width: G.lane1 - G.lane0 + 1 });
+  c.blit(G.lane0, lay.axisY, ruler);
+  for (const label of labels) c.blit(G.lane0 + label.at, lay.listHeadY, label.line);
 }
 
 function block(c: Canvas, G: Geometry, v: PipelineView, y: number, sel: boolean, reporting: Reporting, recordedAt: number | null, now: number, t: number, motion: boolean): void {
@@ -135,21 +135,21 @@ function block(c: Canvas, G: Geometry, v: PipelineView, y: number, sel: boolean,
   const left = G.lane0 - 4 - L;
   if (sel) {
     c.fill(L, y, left, rows, T.selection);
-    c.put(0, y, '▶', { fg: T.primary, bold: true });
+    c.blit(0, y, pointer({ bold: true }));
   }
   const bg = sel ? { bg: T.selection } : {};
-  c.text(L, y, ` ${pad2(v.number)} `, { fg: plateFg, bg: plateBg, bold: true });
-  for (let j = 1; j < rows; j++) c.put(L, y + j, '▌', { fg: plateBg, ...bg });
+  c.blit(L, y, labelPlate(pad2(v.number), { form: 'slab', style: { fg: plateFg, bg: plateBg } }));
+  for (let j = 1; j < rows; j++) c.blit(L, y + j, spine(plateBg), bg);
   const dim = v.tone === 'off';
   c.text(G.name, y, v.name.toUpperCase(), { fg: dim ? T.decorative : T.primary, bold: true, ...bg }, G.nameW);
   c.text(G.name, y + 1, (v.scope ?? 'NO DEFINITION').toUpperCase(), { fg: T.decorative, ...bg }, G.nameW);
   // The newest eight results, newest first.
-  v.done.slice(0, 8).forEach((r, i) => c.put(G.name + i * 2, y + 2, resultGlyph(r), { fg: resultInk(r), ...bg }));
+  c.blit(G.name, y + 2, runTrail(v.done.slice(0, 8).map(outcomeOf)), bg);
   const busy = String(v.live.length);
   if (G.full) {
     const numX = L + 25;
     const numInk = dim || v.slots === null ? T.structural : v.live.length ? T.primary : T.decorative;
-    c.numeral(numX, y, v.slots === null ? '?' : busy, numInk);
+    numeral(c, numX, y, v.slots === null ? '?' : busy, numInk, 'instrument');
     c.text(numX + 4, y, 'SLOTS', { fg: T.decorative, ...bg });
     c.text(numX + 4, y + 2, `/${v.slots ?? '?'}`, { fg: T.secondary, ...bg });
   } else c.text(G.chip, y + 2, `${v.slots === null ? '?' : busy}/${v.slots ?? '?'} SLOTS`, { fg: v.live.length ? T.primary : T.decorative, ...bg }, G.lane0 - 4 - G.chip);
@@ -169,18 +169,18 @@ function block(c: Canvas, G: Geometry, v: PipelineView, y: number, sel: boolean,
   }
 }
 
-export const resultGlyph = (r: RunView): string => (r.outcome === 'failed' ? '✕' : r.outcome === 'succeeded' ? '■' : r.outcome === 'cancelled' ? '□' : '◩');
-export const resultInk = (r: RunView): Color => (r.outcome === 'failed' ? T.critical : r.outcome === 'succeeded' ? T.primary : r.outcome === 'cancelled' ? T.decorative : T.warning);
+// A run with no recorded outcome reads as interrupted.
+const outcomeOf = (r: RunView): RunOutcome => r.outcome ?? 'interrupted';
+export const resultMark = (r: RunView) => runMark(outcomeOf(r), { bold: true });
+
+// Lane columns relative to the lane's first cell. Anything outside the lane is clamped just off it on that side, since
+// only the side matters there: a run recorded ahead of this clock starts past the lane and draws nothing.
+const laneAt = (G: Geometry, dt: number): number => Math.min(G.lane1 - G.lane0 + 2, Math.max(-2, G.col(dt) - G.lane0));
 
 function laneBase(c: Canvas, G: Geometry, y: number, reporting: Reporting, recordedAt: number | null, now: number): void {
   // Since the runner stopped the lane is dashed; since it was last heard from (unreachable) it is hatched.
-  const fromX = recordedAt === null || reporting === 'live' ? null : G.col(recordedAt - now);
-  for (let x = G.lane0; x <= G.lane1; x++) {
-    if (fromX !== null && reporting === 'unreachable' && x > fromX && x <= G.nowX) c.put(x, y, '╱', { fg: T.hatch });
-    else if (x > G.nowX) {
-      if (x % 2 === 0) c.put(x, y, '·', { fg: T.faint });
-    } else c.put(x, y, fromX !== null && x > fromX ? '┄' : '─', { fg: T.faint });
-  }
+  const since = recordedAt === null || reporting === 'live' ? null : laneAt(G, recordedAt - now);
+  c.blit(G.lane0, y, laneTrack({ now: G.nowX - G.lane0, since, after: reporting === 'unreachable' ? 'hatched' : 'dashed' }, { width: G.lane1 - G.lane0 + 1, origin: G.lane0 }));
 }
 
 // One run on its lane. Finished: a grey bar, marked at its end when it did not succeed. Live: hatched while
@@ -189,25 +189,13 @@ function laneBase(c: Canvas, G: Geometry, y: number, reporting: Reporting, recor
 function runBar(c: Canvas, G: Geometry, y: number, r: RunView, cat: { fill: Color; ink: Color }, reporting: Reporting, now: number, t: number, motion: boolean): readonly [number, number] | null {
   const end = r.live ? now : r.endedAt;
   if (end === null) return null;
-  const head = r.live && reporting === 'live';
-  let x0 = G.col(r.start - now);
-  const x1 = Math.max(x0, G.col(end - now) - (head ? 1 : 0));
-  if (x1 < G.lane0) return null;
-  x0 = Math.max(G.lane0, x0);
-  if (!r.live) {
-    for (let x = x0; x <= x1; x++) c.put(x, y, ' ', { bg: T.base });
-    if (r.outcome !== 'succeeded') c.put(x1, y, r.outcome === 'failed' ? '✕' : '▪', { fg: resultInk(r), bg: T.base, bold: true });
-    return null;
-  }
-  const fill = reporting === 'live' ? cat.fill : T.decorative;
-  const onFill = reporting === 'live' ? cat.ink : T.field;
-  const xv = r.verifiedAt !== null ? Math.max(x0, G.col(r.verifiedAt - now)) : r.verifying ? x1 + 1 : x0;
-  for (let x = x0; x <= x1; x++) {
-    if (x < xv) c.put(x, y, '▒', { fg: fill, bg: T.field });
-    else c.put(x, y, ' ', { bg: fill });
-  }
-  if (x1 - x0 >= r.num.length + 1) c.text(Math.max(x0, Math.min(xv, x1 - r.num.length)), y, r.num, { fg: onFill, bg: fill, bold: true });
-  else c.text(Math.max(G.lane0, x0 - r.num.length - 1), y, r.num, { fg: T.secondary, bold: true });
-  if (head) c.put(x1 + 1, y, ' ', { bg: lampOn(t, motion) && r.phase === 'running' ? T.accent : fill });
-  return [x0, head ? x1 + 1 : x1];
+  const drawn = laneRun({
+    from: laneAt(G, r.start - now), to: laneAt(G, end - now), verified: r.verifiedAt === null ? null : laneAt(G, r.verifiedAt - now),
+    verifying: r.verifying, live: r.live, outcome: outcomeOf(r), label: cleanText(r.num),
+    fill: reporting === 'live' ? cat.fill : T.decorative, ink: reporting === 'live' ? cat.ink : T.field,
+    head: reporting === 'live', lit: lampOn(t, motion) && r.phase === 'running',
+  }, { width: G.lane1 - G.lane0 + 1, measure });
+  if (!drawn) return null;
+  for (const piece of drawn.pieces) c.blit(G.lane0 + piece.at, y, piece.line);
+  return drawn.span && [G.lane0 + drawn.span[0], G.lane0 + drawn.span[1]];
 }

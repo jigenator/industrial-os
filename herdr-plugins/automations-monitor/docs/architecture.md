@@ -17,12 +17,13 @@ Status: current. Evidence: the source and tests in this directory, the manifest 
 | `src/redact.ts` | Redaction of the one free-text value, an error message | — |
 | `src/model.ts` | Pure derivation: pipeline and schedule states, groups, lanes, cadence, events, alerts, ages | `contract` |
 | `src/ui.ts` | `AppState` and its pure transitions for poll results, keys, clicks and the wheel | `model`, `poller`, `reader` types |
-| `src/theme.ts` | Colour roles, category colours and the lamp cadence, all from the design system | `@industrial-os/design-system` |
-| `src/canvas.ts` | A cell grid with text, rules, numerals and hit regions, emitted as design-system lines | `@industrial-os/design-system` |
-| `src/view/*.ts` | Pure drawing: `frame` (header, machine row, footer, failures), `layout`, `list` (scrolling), `pipelines`, `schedules`, `modal`, `parts` | `canvas`, `model`, `theme`, `ui` types |
+| `src/theme.ts` | Exact colours for the canvas: the roles, the board inks, the board tones' inks and cells, the category colours, and the lamp cadence, all from the design system | `@industrial-os/design-system` |
+| `src/canvas.ts` | A cell grid with text, design-system lines laid in by `blit`, and hit regions, emitted as design-system lines | `@industrial-os/design-system` |
+| `src/view/*.ts` | Pure placement of design-system parts and plain text: `frame` (header, machine row, footer, failures), `layout`, `list` (scrolling), `pipelines`, `schedules`, `modal`, `parts` (the shared calls into the design system) | `canvas`, `model`, `theme`, `ui` types, `@industrial-os/design-system` elements |
 | `fixtures/` | Invented replies and the fake `tatsu` with its scenarios | — |
+| `test/golden/` | The golden-frame harness: every fast fake scenario's `--frame` output under a frozen clock, captured at a git ref and compared with this checkout ([how](../CONTRIBUTING.md#golden-frames)) | `bin/automations-monitor.ts`, `fixtures/`, Git |
 
-Runtime dependencies are `effect` and `@effect/platform-bun`, both exactly 4.0.6; development dependencies are `typescript` 7.0.2 and `@types/bun` 1.4.4. All are locked in `bun.lock`. `@industrial-os/design-system` is not in the manifest: Bun resolves it from the repository root's `node_modules`, which the root `npm install` links, and it is imported only through exported subpaths. All six consumed subpaths ship colocated `.d.mts` declarations in the design system, including `foundation/industrialos-colors`; no local ambient shim or `allowJs` is needed.
+Runtime dependencies are `effect` and `@effect/platform-bun`, both exactly 4.0.6; development dependencies are `typescript` 7.0.2 and `@types/bun` 1.4.4. All are locked in `bun.lock`. `@industrial-os/design-system` is not in the manifest: Bun resolves it from the repository root's `node_modules`, which the root `npm install` links, and it is imported only through exported subpaths. Every consumed subpath ships colocated `.d.mts` declarations in the design system; no local ambient shim or `allowJs` is needed.
 
 ## Flows
 
@@ -70,7 +71,8 @@ Enumerated display words (reasons, problems, drift) decode as bounded identifier
 - One `tatsu` process at a time, and none outlives its read or the pane.
 - The terminal is restored on every exit path: `q`, `Ctrl-C`, `SIGTERM`, `SIGHUP`, an interrupt, and an uncaught error.
 - Rendering is pure: state, size, wall clock and motion time in; exactly `rows` lines of exactly `cols` cells out, each glyph single-cell by the design system's text contract.
-- No colour value is written in this project; every colour is a design-system value or a mix of one.
+- No colour value is written in this project; every colour is a design-system value.
+- Every visual component is a design-system element: section heads, chips and plates, board marks, the time lane (axis, track, runs, NOW), readouts and their slot strips, the tall and instrument-face numerals, event rows, rules, the scroll rail, and the run modal's frame, title bar, backdrop, phase steps and key–value rows. `Canvas.blit` lays their lines into the grid, keeping any colour a line leaves unset, so the frames are what the design system draws. The views keep only layout and plain text: the header tabs and status, the machine row, the message box, the modal's live-runs list, the schedule column headings, the position row, and the ALERTS readout's strip (the first alert cut to fit, and a right-aligned `+n` count of the rest, composed from foundation spans in `src/view/pipelines.ts`).
 
 ## Where the next change belongs
 

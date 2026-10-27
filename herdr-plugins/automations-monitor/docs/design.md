@@ -65,7 +65,7 @@ Newest first, at most what fits, with local time, a verb and the subject. Verbs:
 
 ## Color
 
-Colour means state; words and shapes carry the same meaning. Values come from the design system: the Acid / Black roles, mixes of them over the field, and the seven IndustrialOS category colours (pale blue, magenta, mint, lavender, yellow, steel blue, violet), chosen by the pipeline's place in name order modulo seven.
+Colour means state; words and shapes carry the same meaning. Values come from the design system: the Acid / Black roles, its board inks (white mixed over the field), its board tones for each state, and the seven IndustrialOS category colours (pale blue, magenta, mint, lavender, yellow, steel blue, violet), chosen by the pipeline's place in name order modulo seven.
 
 | Meaning | Colour |
 | --- | --- |
@@ -111,6 +111,6 @@ The footer lists the keys; on narrow panes the labels shorten, then all but `QUI
 - **NEXT DISPATCH is NEXT POLL.** The CLI has no per-pipeline dispatch time. The runner's next queue poll is the nearest truthful value.
 - **No slot identity.** Lanes are packed by time, and the modal has no `SLOT n` column or SOURCE row; the CLI reports neither.
 - **Schedule strip.** Only the last, active and next run are drawn; the mockup's fire history does not exist in the CLI.
-- **Large numerals** use a 4-column, 5-row face drawn with half blocks for the readouts and the design system's 3×5 pixel numerals elsewhere, rather than the mockup's canvas font.
+- **Large numerals** use the design system's tall face (4 columns, 5 rows of half blocks) for the readouts and its 3×5 pixel numerals elsewhere, rather than the mockup's canvas font.
 - **Failed schedules.** The mockup put a schedule whose last run failed under NEEDS ATTENTION; it now follows the pipeline rule, and only paused schedules need attention.
 - **Footer** lists keys only; the mockup's colour legend sits in the position row instead.

@@ -1,74 +1,76 @@
 // Drawing parts both screens share: section heads, readouts, chips, the event log, failure wording and the
 // centred message box.
-import type { Canvas } from '../canvas.ts';
+import type { Line } from '@industrial-os/design-system/foundation/cells';
+import { boardTone } from '@industrial-os/design-system/foundation/board-tones';
+import { eventRow } from '@industrial-os/design-system/elements/event-row';
+import { labelPlate } from '@industrial-os/design-system/elements/label-plate';
+import { numeralLines, textGrid } from '@industrial-os/design-system/elements/pixel-numeral';
+import { readoutBlock, readoutLine } from '@industrial-os/design-system/elements/readout';
+import { sectionHead } from '@industrial-os/design-system/elements/section-head';
+import { verticalRule } from '@industrial-os/design-system/elements/tab-rule';
+import { cleanText, CUT, measure, type Canvas } from '../canvas.ts';
 import { age, clock, type LogEvent } from '../model.ts';
 import type { ReadFailure } from '../reader.ts';
-import { cell, chip as chipColors, ink, T, type Color, type Tone } from '../theme.ts';
+import { cell, T, type Color, type Tone } from '../theme.ts';
 import { LOG_WIDTH, type Layout } from './layout.ts';
 
 export const pad2 = (n: number): string => String(n).padStart(2, '0');
 
 // `■ TITLE  count ──────` across `w` cells.
 export function head(c: Canvas, x: number, y: number, title: string, w: number, count?: string, tone: Tone = 'live'): void {
-  c.put(x, y, '■', { fg: tone === 'live' ? T.primary : cell(tone) });
-  let nx = c.text(x + 2, y, title, { fg: T.primary, bold: true });
-  if (count !== undefined) nx = c.text(nx + 2, y, count, { fg: T.decorative });
-  for (let i = nx + 2; i < x + w; i++) c.put(i, y, '─', { fg: T.faint });
+  c.blit(x, y, sectionHead({ title: cleanText(title), ...(count === undefined ? {} : { count }), mark: tone === 'live' ? T.primary : cell(tone) }, { width: w, ...CUT }));
 }
 
 // A group heading inside a list: state cell, title, count, rule to `right`.
 export function groupHead(c: Canvas, y: number, title: string, tone: Tone, count: number, right: number): void {
-  c.put(2, y, '■', { fg: cell(tone) });
-  const nx = c.text(4, y, title, { fg: T.primary, bold: true });
-  const cx = c.text(nx + 2, y, pad2(count), { fg: T.decorative });
-  for (let i = cx + 2; i < right; i++) c.put(i, y, '─', { fg: T.faint });
+  c.blit(2, y, sectionHead({ title: cleanText(title), count: pad2(count), mark: cell(tone) }, { width: right - 2, ...CUT }));
 }
 
 export function chip(c: Canvas, x: number, y: number, word: string, tone: Tone): number {
-  const [fg, bg] = chipColors(tone);
-  return c.text(x, y, ` ${word} `, { fg, bg, bold: true });
+  return c.blit(x, y, labelPlate(cleanText(word), { form: 'slab', style: boardTone(tone).chip, measure }));
 }
+
+// Pixel numerals in the instrument (three rows) or tall (five rows) face. Returns the width in cells.
+export function numeral(c: Canvas, x: number, y: number, value: string, color: Color, face: 'instrument' | 'tall'): number {
+  const grid = textGrid(value, { ink: color, face });
+  numeralLines(grid, { width: grid.w }).forEach((line, j) => c.blit(x, y + j, line));
+  return grid.w;
+}
+
+export interface ReadoutPart { readonly text: string; readonly ink: Color }
+export const part = (text: string, ink: Color): ReadoutPart => ({ text: cleanText(text), ink });
 
 export interface Readout {
   readonly label: string;
   readonly value: string;
   readonly valueInk: Color;
-  readonly unit: ReadonlyArray<readonly [string, Color]>;
-  readonly sub?: readonly [string, Color];
+  readonly unit: readonly ReadoutPart[];
+  readonly sub?: ReadoutPart;
   // The same reading as words, for the one-line form.
-  readonly line: ReadonlyArray<readonly [string, Color]>;
-  // Row under the numerals, such as slot cells or the outcome bar.
-  readonly strip?: (c: Canvas, x: number, y: number, w: number) => void;
+  readonly line: readonly ReadoutPart[];
+  // Row under the numerals, such as slot cells or the outcome bar, for a readout `w` cells wide.
+  readonly strip?: (w: number) => Line;
 }
+
 
 // Four readouts across the list width: numbered label, rule, tall numerals with their unit, then a sub-line.
 export function tallReadouts(c: Canvas, lay: Layout, readouts: readonly Readout[]): void {
   const w = Math.min(27, lay.readoutStep - 1);
   readouts.forEach((r, i) => {
-    const x = 2 + i * lay.readoutStep, y = lay.readY;
-    c.text(x, y, pad2(i + 1), { fg: T.decorative });
-    c.text(x + 3, y, r.label, { fg: T.primary, bold: true }, w - 3);
-    for (let k = 0; k < w; k++) c.put(x + k, y + 1, k < 3 ? '━' : '─', { fg: k < 3 ? T.primary : T.faint });
-    const vw = c.tall(x, y + 2, r.value, r.valueInk);
-    let ux = x + vw + 2;
-    for (const [s, fg] of r.unit) if (s) ux = c.text(ux, y + 6, s, { fg, bold: fg !== T.decorative }, x + w - ux) + 1;
-    if (r.strip) r.strip(c, x, y + 7, w);
-    else if (r.sub) c.text(x, y + 7, r.sub[0], { fg: r.sub[1] }, w);
+    const block = readoutBlock({
+      number: i + 1, label: cleanText(r.label), value: r.value, ink: r.valueInk, unit: r.unit, sub: r.sub ?? null, strip: r.strip ? r.strip(w) : null,
+    }, { width: w, ...CUT });
+    block.forEach((line, j) => c.blit(2 + i * lay.readoutStep, lay.readY + j, line));
   });
 }
 
 // The readouts as one line, for panes too small for numerals.
 export function lineReadouts(c: Canvas, y: number, right: number, readouts: readonly Readout[]): void {
-  let x = 2;
-  readouts.forEach((r, i) => {
-    if (i) x = c.text(x, y, '·', { fg: T.structural }, right - x) + 2;
-    for (const [s, fg] of r.line) x = c.text(x, y, s, { fg, bold: fg !== T.decorative }, right - x) + 1;
-    x += 1;
-  });
+  c.blit(2, y, readoutLine(readouts.map((r) => r.line), { width: right - 2, ...CUT }));
 }
 
 export const unknownReadout = (label: string, short: string): Readout =>
-  ({ label, value: '?', valueInk: T.structural, unit: [], line: [[short, T.decorative], ['?', T.structural]] });
+  ({ label, value: '?', valueInk: T.structural, unit: [], line: [part(short, T.decorative), part('?', T.structural)] });
 
 export const countdown = (ms: number): string => {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -80,7 +82,7 @@ export const countdownUnit = (ms: number): string => (ms < 3600_000 ? 'M:S' : 'H
 export function eventLog(c: Canvas, lay: Layout, title: string, events: readonly LogEvent[] | null): void {
   if (!lay.log) return;
   const { x, y } = lay.log;
-  for (let j = y; j <= lay.posY; j++) c.put(x - 3, j, '│', { fg: T.faint });
+  verticalRule({ ink: T.faint }, { height: lay.posY - y + 1 }).forEach((line, j) => c.blit(x - 3, y + j, line));
   head(c, x, y, 'EVENT LOG', LOG_WIDTH, title);
   if (events === null) {
     c.text(x, y + 2, 'NO DATA', { fg: T.decorative, bold: true });
@@ -88,13 +90,7 @@ export function eventLog(c: Canvas, lay: Layout, title: string, events: readonly
   }
   if (!events.length) c.text(x, y + 2, 'NO EVENTS', { fg: T.decorative, bold: true });
   events.slice(0, Math.max(0, lay.posY - y - 1)).forEach((e, i) => {
-    const row = y + 2 + i;
-    c.text(x, row, clock(e.at, false), { fg: T.decorative });
-    c.put(x + 6, row, '█', { fg: cell(e.tone) });
-    c.text(x + 8, row, e.verb.padEnd(5), { fg: e.tone === 'crit' || e.tone === 'warn' ? ink(e.tone) : T.secondary, bold: e.tone === 'crit' || e.tone === 'warn' });
-    let tx = x + 14;
-    if (e.ref) tx = c.text(tx, row, e.ref, { fg: T.primary }, x + LOG_WIDTH - tx) + 1;
-    c.text(tx, row, e.text, { fg: T.decorative }, x + LOG_WIDTH - tx);
+    c.blit(x, y + 2 + i, eventRow({ time: clock(e.at, false), tone: e.tone, verb: e.verb, ref: cleanText(e.ref), text: cleanText(e.text) }, { width: LOG_WIDTH, ...CUT }));
   });
 }
 

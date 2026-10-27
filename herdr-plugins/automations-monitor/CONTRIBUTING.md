@@ -38,11 +38,18 @@ Reading the real CLI (`bun bin/automations-monitor.ts --frame 160x51` without th
 | 3 | `bun test` | Decoding and every failure kind against the fake (exact argv; timeout and interrupt killing a process group whose leader and descendant ignore SIGTERM; a descendant left by a leader that exits; too large; error envelope; unsupported; garbage; a missing binary); polling with no overlap and the interval after each read; states, groups and the failed-last-run rule; frame size and glyphs at 200×50, 160×51, 120×40, 80×24, 60×16 and smaller; no path on screen; each failure's wording; motion-off stillness; keys, the modal, clicks and scrolling; no colour literal and only exported design-system imports |
 | 4 | `sh -n` and a bad argument on the launcher | Launcher syntax and usage |
 | 5 | `bun test/pty-check.ts` | Terminal lifecycle and process teardown in a real PTY |
-| 6 | Rendered frames | `--frame` output for each scenario rendered as PNGs outside the repository and compared with the approved mockup; see [Rendered check](#rendered-check) |
-| 7 | Isolated Herdr | [Isolated Herdr check](#isolated-herdr-check) |
-| 8 | Live Herdr | Interactive use in the operator's own session; requires the operator to link the plugin; not a development check |
+| 6 | `bun test/golden/golden.ts compare <base-ref> <out-dir>` | Every golden frame byte-identical to the base's; required for a change meant to leave the screen alone. See [Golden frames](#golden-frames) |
+| 7 | Rendered frames | `--frame` output for each scenario rendered as PNGs outside the repository and compared with the approved mockup; see [Rendered check](#rendered-check) |
+| 8 | Isolated Herdr | [Isolated Herdr check](#isolated-herdr-check) |
+| 9 | Live Herdr | Interactive use in the operator's own session; requires the operator to link the plugin; not a development check |
 
 Then the [repository-wide checks](../../CONTRIBUTING.md#repository-wide-checks).
+
+### Golden frames
+
+`test/golden/golden.ts` draws the monitor's `--frame` output, with colour, for 13 fake scenarios. Each is drawn at eight sizes from 200×50 to 30×5, on both screens, with five flag sets (none, `--log`, `--modal`, `--no-motion`, and all three), at `--time 0` and `600` (lamp lit and dim): 2080 frames. The wall clock is frozen by the `test/golden/freeze.ts` preload in both the monitor and the fake (`test/golden/fake-tatsu.sh`), with `TZ=UTC`. No baseline is stored. `compare <base-ref> <out-dir>` draws the base ref from a temporary `git archive` of its monitor and design system into `<out-dir>/base`, then draws this checkout into `<out-dir>/head`. It compares every frame and its stderr byte for byte and exits 1 on any difference. `capture <out-dir> [--ref <ref>]` and `diff <base-dir> <out-dir>` do the two halves separately. Each run spawns Bun about 6,000 times, and takes about two minutes on an Apple-silicon laptop. Keep `<out-dir>` outside the repository, for example under `/tmp`; the harness empties it first, so it refuses a folder inside the repository or one holding anything but earlier frames.
+
+The `stubborn`, `leaves-child`, `hang` and `orphan-exit` scenarios are left out. Their reads end only through the reader's timeout or its TERM-to-KILL grace, which the frozen clock stops, and `orphan-exit` would draw the `floor` frame. `bun test` and the PTY check cover them.
 
 ### Rendered check
 
@@ -61,6 +68,35 @@ Use a throwaway Herdr that shares nothing with a live session, as in the [Spaces
 7. `herdr server stop`, check no process remains under the temporary directory, delete it, and compare the live checksums.
 
 ## Verification records
+
+### 2026-10-28 · drawn with design-system parts · Bun 1.4.4, TypeScript 7.0.2, Effect 4.0.6, macOS, Herdr 0.9.5
+
+The views now place design-system elements (section head, label plates, board marks, time lane, readout, pixel numerals in the instrument and tall faces, event row, tab and vertical rules, scroll rail, the board popup's frame, title bar and backdrop, phase steps and right-aligned detail rows) through `Canvas.blit`; the local numeral fonts, rules, marks, lanes and colour mixes are gone, and `theme.ts` takes its inks, tones and category colours from the design system.
+
+**Frames — identical.** Before any source change, `--frame` output (with colour) was captured for 13 fake scenarios (`floor`, `empty`, `stopped`, `unreachable`, `no-schedules`, `schedules-error`, `error`, `garbage`, `exit`, `unsupported`, `invalid`, `no-lists`, `big`) at 200×50, 160×51, 120×40, 80×24, 60×16, 59×16, 50×10 and 30×5, on both screens, with no flags, `--log`, `--modal`, `--no-motion` and all three, at `--time 0` and `600` (lamp lit and dim): **2080 frames**, with the wall clock and `Date` frozen by a Bun preload and `TZ=UTC`. Two captures of the unchanged tree were identical. After the change every frame was **byte-identical** (0 differences). `stubborn`, `leaves-child`, `hang` and `orphan-exit` were left out: a frozen clock stops the read timeout, and `orphan-exit` draws the `floor` frame. This harness is now [`test/golden/`](#golden-frames).
+
+**Automated — passed.**
+
+- `bun install --frozen-lockfile`: `Checked 11 installs across 31 packages (no changes)`.
+- `tsc --noEmit -p .` (Version 7.0.2): no errors.
+- `bun test`: 58 pass, 0 fail, 19,356 expectations, 7 files (two new canvas tests: every `EXTRA_GLYPHS` glyph is a design-system glyph, and `blit` keeps colours a line leaves unset and skips blank unstyled cells).
+- `sh -n bin/automations-monitor.sh`: exit 0. `sh bin/automations-monitor.sh bad`: usage, exit 2.
+- `bun test/pty-check.ts`: all 6 cases passed, no fake process left.
+
+**Rendered — not re-run.** The frames are byte-identical to those before the change, so their renders are unchanged.
+
+**Isolated Herdr 0.9.5 — passed.** Every command ran under `env -i` with a temporary home, XDG directories and socket, and a `PATH` without `tatsu`. `plugin link` accepted the manifest; `open` split the shell pane and the monitor drew at the pane's size. Through an attached 200×50 client, `m` showed `MOTION OFF`, `2` the schedules, and `r` a fresh read (`READ 0S AGO`). Resizing wider added `OBSERVE ONLY`; resizing to 52 columns drew `AUTOMATIONS 50x47: TOO SMALL`. `open-tab` drew the tall-readout layout at full width. `q` in the split closed only the monitor's pane, leaving the shell, and `q` in the tab closed that tab. `herdr plugin log list` showed both actions succeeded with exit 0 and empty stderr. After `herdr server stop` no process remained under the temporary directory, which was deleted, and the live `config.toml` and `plugins.json` SHA-256 checksums were unchanged.
+
+**Not run:** the real CLI and live Herdr.
+
+**Rebased onto `8d35990` (dispatch feed) — passed.** The design system names the small pixel face `instrument`, so the readout's slot numeral asks for that face (same glyphs). A fresh capture from `origin/main`'s monitor matched the earlier baseline in all 2080 frames, and the rebased monitor's frames differ from it in none. The frozen install made no change, and `tsc` is clean. `bun test` passes 58/58, `sh -n` and the usage exit pass, and `bun test/pty-check.ts` passes 6/6. The isolated Herdr 0.9.5 check repeated steps 1–7 through a 300×50 client: 14 of 14 assertions passed, no process remained, and the live checksums were unchanged.
+
+**Review fixes — passed.** The fixes are:
+
+- Lane columns are clamped just off the lane on the right, as on the left. A run recorded ahead of this clock draws nothing, and a start far enough ahead no longer exceeds the time lane's column bound. A new frames test renders the fixtures 2 hours, 30 days and 2 years behind their clock. It failed before the clamp, with `RangeError: from must be an integer column`.
+- The modal backdrop mixes each colour pair once per frame.
+- The golden harness is committed as `test/golden/`. Run at `origin/main`, its capture matched the original out-of-repository baseline in all 2080 frames. This checkout then showed 0 differences across 2080 frames.
+- `tsc` is clean, and `bun test` passes 59/59. `bun test/pty-check.ts` passes 6/6. The isolated Herdr 0.9.5 check (steps 1–7) passes 14/14 with the live checksums unchanged.
 
 ### 2026-10-23 · first version · Bun 1.4.4, TypeScript 7.0.2, Effect 4.0.6, macOS, Herdr 0.9.5
 
