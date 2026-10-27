@@ -171,3 +171,49 @@ calloutGeometry({ body: [slot] }, { width: 40 });
 subtitleGeometry({ body: [slot], revealed: 1 }, { width: 40 });
 // @ts-expect-error column positions are numeric
 sheetListRow({}, { width: 40, columns: { state: '20' } });
+
+// Board parts (the automations monitor's vocabulary), through their package subpaths.
+import { BOARD_TONES, boardTone, CATEGORY_TONES } from '@industrial-os/design-system/foundation/board-tones';
+import { BOARD_INKS } from '@industrial-os/design-system/foundation/signal-colors';
+import { endMark, runTrail, scheduleMark, stateCell } from '@industrial-os/design-system/elements/board-marks';
+import { sectionHead } from '@industrial-os/design-system/elements/section-head';
+import { crossNow, laneAxis, laneRun, laneScale, laneTrack } from '@industrial-os/design-system/elements/time-lane';
+import { phaseSteps, readoutBlock, readoutLine, slotStrip, splitBar } from '@industrial-os/design-system/elements/readout';
+import { eventRow } from '@industrial-os/design-system/elements/event-row';
+import { scrollRail } from '@industrial-os/design-system/elements/scroll-rail';
+import { popupBackdrop, popupFrame, popupTitleBar } from '@industrial-os/design-system/elements/popup-header';
+import { TALL_FONT, textGrid as boardGrid } from '@industrial-os/design-system/elements/pixel-numeral';
+import { tabRule as boardRule, verticalRule } from '@industrial-os/design-system/elements/tab-rule';
+BOARD_TONES.live.chip.bg satisfies string;
+boardTone('crit').ink satisfies string;
+CATEGORY_TONES[0]!.fill satisfies string;
+stateCell('warn');
+endMark('failed');
+runTrail(['succeeded', 'dropped'], { gap: 1 });
+scheduleMark('firing', { lit: false });
+scheduleMark('result', { outcome: 'failed' });
+sectionHead({ title: 'EVENT LOG', count: '12', mark: BOARD_INKS.faint }, { width: 35 });
+const scale = laneScale({ past: 3 * 3_600_000, future: 3_600_000 }, { width: 80 });
+laneAxis({ past: 1, future: 1 }, { width: 80 }).labels[0]?.at satisfies number | undefined;
+laneTrack({ now: scale.now, since: 10, after: 'hatched' }, { width: 80, origin: 4 });
+laneRun({ from: 1, to: 9, live: true, label: '1234', fill: CATEGORY_TONES[0]!.fill, ink: CATEGORY_TONES[0]!.ink }, { width: 80 })?.span;
+crossNow({ text: ' ' }, { quiet: true });
+readoutBlock({ number: 1, label: 'ACTIVE', value: '04', ink: 'primary', strip: slotStrip({ busy: ['accent'], slots: 3 }) }, { width: 27 });
+readoutLine([[{ text: 'ACTIVE', ink: 'decorative' }]], { width: 40 });
+splitBar({ ok: 1, warn: 0, fail: 0 }, { width: 10 });
+phaseSteps({ steps: [{ label: 'RUN', detail: '-' }], current: 0, ink: 'accent' }, { width: 20 });
+eventRow({ time: '09:41', tone: 'ok', verb: 'OK' }, { width: 35, form: 'log' });
+scrollRail({ total: 20, visible: 10, offset: 0 }).length satisfies number;
+popupFrame({ height: 3 }, { width: 10 });
+popupTitleBar({ mark: 'accent', title: 'X', meta: 'ESC CLOSE' }, { width: 40 });
+popupBackdrop({ fg: 'primary' }).bold satisfies false;
+TALL_FONT['0']!.length satisfies number;
+boardGrid('12:05', { face: 'tall' });
+boardRule({ tabCells: 3, inks: { tab: 'primary' } }, { width: 10, lead: false });
+verticalRule({}, { height: 2 });
+// @ts-expect-error unknown board tone
+stateCell('hot');
+// @ts-expect-error unknown event row form
+eventRow({ time: '09:41', tone: 'ok', verb: 'OK' }, { width: 35, form: 'table' });
+// @ts-expect-error unknown pixel face
+boardGrid('1', { face: 'huge' });

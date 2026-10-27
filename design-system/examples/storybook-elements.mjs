@@ -24,14 +24,22 @@ import { frameGeometry, instrumentFrame } from '../elements/instrument-frame/ins
 import { transcriptMarker } from '../elements/transcript-marker/transcript-marker.mjs';
 import { lineMeter } from '../elements/line-meter/line-meter.mjs';
 import { columnBlock } from '../elements/column-block/column-block.mjs';
-import { tabRule, leader, neatline, nameRule } from '../elements/tab-rule/tab-rule.mjs';
+import { tabRule, leader, neatline, nameRule, verticalRule } from '../elements/tab-rule/tab-rule.mjs';
 import { actionLabel, keyHints } from '../elements/action-label/action-label.mjs';
-import { popupHeader, popupFooter } from '../elements/popup-header/popup-header.mjs';
+import { popupHeader, popupFooter, popupFrame, popupTitleBar } from '../elements/popup-header/popup-header.mjs';
 import { noticeRow } from '../elements/notice-row/notice-row.mjs';
 import { scopeMeter } from '../elements/scope-meter/scope-meter.mjs';
 import { soundingMeter } from '../elements/sounding-meter/sounding-meter.mjs';
 import { feedBezel, imageLabel, imageInset } from '../elements/feed-bezel/feed-bezel.mjs';
 import { inputFrame } from '../elements/input-frame/input-frame.mjs';
+import { endMark, pointer, runTrail, scheduleMark, spine, stateCell } from '../elements/board-marks/board-marks.mjs';
+import { sectionHead } from '../elements/section-head/section-head.mjs';
+import { laneAxis, laneLine, laneRun, laneScale, laneTrack } from '../elements/time-lane/time-lane.mjs';
+import { phaseSteps, readoutBlock, readoutLine, slotStrip, splitBar } from '../elements/readout/readout.mjs';
+import { eventRow } from '../elements/event-row/event-row.mjs';
+import { scrollRail } from '../elements/scroll-rail/scroll-rail.mjs';
+import { CATEGORY_TONES } from '../foundation/board-tones.mjs';
+import { BOARD_INKS } from '../foundation/signal-colors.mjs';
 import { call, code } from './storybook-usage.mjs';
 
 // Specimens keep to a readable width, never wider than the cells they are given.
@@ -353,13 +361,16 @@ const NUMERAL = element('pixel-numeral', {
     { name: 'REBUILD', note: 'numeralAt at progress 0.6, seed 42: 95 appearing from 64; no old digit is shown.', rebuild: { target: 95, from: 64, progress: 0.6, seed: 42 } },
     { name: 'NARROW', note: 'Under the grid width: the exact one-decimal text on row one.', value: 64, width: 10 },
     { name: 'HEX UNIT', note: 'textGrid: a four-digit hex unit code, 15 cells wide, no 13-cell minimum.', text: 'C0DE' },
+    { name: 'TALL', note: "textGrid face tall: the automations monitor's condensed 4x9 face in five rows.", text: '12:05', face: 'tall' },
   ],
   specimen(variant, width) {
     const w = within(width, variant.width ?? 30);
     if (variant.text) {
-      const grid = textGrid(variant.text);
+      const options = variant.face ? { face: variant.face } : undefined;
+      const grid = textGrid(variant.text, options);
       const fits = grid.w <= w;
-      if (fits) return { lines: numeralLines(grid, { width: w }), calls: [`grid = ${call('textGrid', variant.text)}`, call('numeralLines', code('grid'), { width: w })], facts: [`GRID ${grid.w} cells wide`] };
+      const made = options ? call('textGrid', variant.text, options) : call('textGrid', variant.text);
+      if (fits) return { lines: numeralLines(grid, { width: w }), calls: [`grid = ${made}`, call('numeralLines', code('grid'), { width: w })], facts: [`GRID ${grid.w} cells wide`] };
       // numeralLines rejects a grid that does not fit; the host chooses its own fallback, here the plain text.
       const small = code(`[${call('span', variant.text, { fg: 'primary', bold: true })}]`);
       return {
@@ -537,9 +548,12 @@ const TAB_RULE = element('tab-rule', {
     {name:'TIME',fn:'nameRule',input:{time:'09:41'}}, {name:'NO TIME',fn:'nameRule',input:{}},
     {name:'WORKING',fn:'nameRule',input:{label:'thinking',meter:soundingMeter()}},
     {name:'LEADER',fn:'leader',input:{glyph:'┄'}},
+    {name:'BOARD',note:'Board rule: a three-cell primary tab, a faint hairline, no lead cell.',fn:'tabRule',input:{tabCells:3,inks:{tab:'primary',rule:BOARD_INKS.faint}},options:{lead:false}},
+    {name:'VERTICAL',note:'A faint vertical hairline three cells tall.',fn:'verticalRule',input:{ink:BOARD_INKS.faint},rows:3},
   ],
   specimen(v,width) {
-    const opts=v.fn==='leader'?{maxWidth:width}:{width};
+    if(v.fn==='verticalRule') return {lines:verticalRule(v.input,{height:v.rows}).map(line=>fitLine(line,width)),calls:[call(v.fn,v.input,{height:v.rows})],facts:[]};
+    const opts={...(v.fn==='leader'?{maxWidth:width}:{width}),...v.options};
     const functions={tabRule,neatline,nameRule,leader};
     return {lines:[functions[v.fn](v.input,opts)],calls:[call(v.fn,v.input,opts)],facts:[]};
   },
@@ -556,15 +570,25 @@ const ACTION_LABEL = element('action-label', {
 });
 const POPUP_HEADER = element('popup-header', {
   title:'POPUP HEADER', summary:'Five popup headers share spacing-only chrome and an Esc footer.',
-  rules:['No ruler, no leader and no outer frame.', 'Title stays whole before meta; meta clips only with eight spare cells.'],
+  rules:['popupHeader has no ruler, no leader and no outer frame; the board popup composes popupFrame and popupTitleBar.', 'Title stays whole before meta; meta clips only with eight spare cells.'],
   variants:[
     {name:'SHEET',input:{plate:'SHEET 05',title:'SYNTHETIC SHORTLIST',meta:'handed over 09:41'}},
     {name:'SHEETS',input:{plate:'SHEETS',title:'4 - NEWEST FIRST',meta:'^P'}},
     {name:'LOG',input:{plate:'O-01',title:'OPERATIONS LOG',meta:'#004'}},
     {name:'IMAGE',input:{plate:'IMAGE',title:'synthetic sample',meta:'1280 x 704'}},
     {name:'WAITING',input:{plate:'DESK',title:'WAITING ON YOU',meta:'2 waiting',style:{fg:'field',bg:'critical'}}},
+    {name:'BOARD',note:'The board popup: a heavy top rule, structural sides and floor, and a title bar with a state cell.',board:{mark:'structural',title:'DOCS-SWEEP',word:'IDLE',wordInk:'decorative',detail:'DEMOMACHINE - 2 SLOTS',meta:'ESC CLOSE'}},
+    {name:'BOARD LIVE',note:'A live title bar is a band in the category fill.',board:{band:CATEGORY_TONES[0],title:'IMPLEMENT',word:'RUNNING',detail:'3 SLOTS',meta:'ESC CLOSE'}},
   ],
   specimen(v,width) {
+    if(v.board) {
+      const band=v.board.band?{fill:v.board.band.fill,ink:v.board.band.ink}:undefined;
+      const input=band?{...v.board,band}:v.board, w=Math.max(1,width-6);
+      const frame=popupFrame({height:4},{width});
+      const bar=fitLine([span('   '),...popupTitleBar(input,{width:w})],width);
+      return {lines:[frame[0],bar,...frame.slice(2)],
+        calls:[`frame = ${call('popupFrame',{height:4},{width})}`,'frame[0]',call('fitLine',code(`[${call('span','   ')}, ...${call('popupTitleBar',input,{width:w})}]`),width),'...frame.slice(2)'],facts:['Title bar shown over the frame at column 3; the host lays it there.']};
+    }
     const footer={escape:'back to the desk',meta:'synthetic fixture'};
     return {lines:[popupHeader(v.input,{width}),popupFooter(footer,{width})],calls:[call('popupHeader',v.input,{width}),call('popupFooter',footer,{width})],facts:[]};
   },
@@ -685,6 +709,133 @@ const OPERATION_ROW = contentStory('operation-row','OPERATION ROW','Fixed data c
   {name:'SELECTED',fn:'operationRow',input:{state:'done',time:'09:40',category:'TASK',detail:'Fixture summary',duration:'2.3s',selected:true}},
   {name:'HOVER',fn:'operationRow',input:{state:'done',time:'09:40',category:'TASK',detail:'Fixture summary',duration:'2.3s',hover:true}},
   {name:'DETAIL',fn:'operationDetail',input:{label:'STATUS',value:'running - synthetic fixture'}},
+  {name:'RIGHT DETAIL',fn:'operationDetail',input:{label:'PIPELINE',value:'IMPLEMENT'},options:{align:'right',leaderInk:BOARD_INKS.faint,style:{fg:'primary',bold:true}}},
 ]);
 
-export const ELEMENT_STORIES = [PANEL, FRAME, PLATE, COUNT, MODE, CHIP, LAMP, ROW, GAUGE, NUMERAL, METER, RAIL, MARKER, LINE_METER, COLUMN_BLOCK, TAB_RULE, ACTION_LABEL, POPUP_HEADER, NOTICE_ROW, SCOPE_METER, SOUNDING_METER, FEED_BEZEL, INPUT_FRAME, CALLOUT, DOCUMENT_BLOCK, SHEET_CARD, DESK_TRAY, OPERATION_ROW, ...DASHBOARD_STORIES];
+// Board parts: the automations monitor's vocabulary. Fixtures only; the monitor supplies every value.
+const BOARD_RENDERERS = { endMark, pointer, runTrail, scheduleMark, spine, stateCell, sectionHead, laneAxis, laneTrack, laneRun, readoutBlock, readoutLine, slotStrip, splitBar, phaseSteps, eventRow, scrollRail };
+// Each part is [function, ...arguments]; a part returns one line or several. `inline` parts take no width.
+function boardSpecimen(v, width) {
+  const lines = [], calls = [];
+  for (const [fn, input, options] of v.parts(width)) {
+    const result = options === undefined ? BOARD_RENDERERS[fn](input) : BOARD_RENDERERS[fn](input, options);
+    lines.push(...(Array.isArray(result[0]) ? result : [result]).map((line) => fitLine(line, width)));
+    calls.push(options === undefined ? call(fn, input) : call(fn, input, options));
+  }
+  return { lines, calls, facts: [] };
+}
+const boardStory = (id, title, summary, rules, variants) => element(id, { title, summary, rules, variants, specimen: boardSpecimen });
+
+const SECTION_HEAD = boardStory('section-head', 'SECTION HEAD', 'A square mark, a bold title, an optional count and a faint rule to the edge.', [
+  'The count yields before the title; the rule keeps a two-cell gap and needs three spare cells.',
+  'The mark takes the caller ink: primary for a section, a state cell for a group.',
+], [
+  { name: 'SECTION', note: 'Fixture: a list section with its count.', parts: (w) => [['sectionHead', { title: 'PIPELINES', count: '07' }, { width: within(w, 48) }]] },
+  { name: 'GROUP', note: 'Fixture: a group heading marked with the critical state cell.', parts: (w) => [['sectionHead', { title: 'NEEDS ATTENTION', count: '02', mark: 'critical' }, { width: within(w, 48) }]] },
+  { name: 'NARROW', note: 'Sixteen cells: the count is dropped, the rule stays.', parts: (w) => [['sectionHead', { title: 'EVENT LOG', count: 'PIPELINES' }, { width: within(w, 16) }]] },
+]);
+
+const BOARD_MARKS = boardStory('board-marks', 'BOARD MARKS', 'One-cell marks: run outcomes, schedule times, state cells, the pointer and the plate spine.', [
+  'Every mark is a shape as well as a color: plain output keeps its meaning.',
+  'A finished bar ends in a cross for a failure and a small square for any other miss; a success has no mark.',
+], [
+  { name: 'RUNS', note: 'Newest first: succeeded, failed, interrupted, cancelled, dropped.', parts: () => [['runTrail', ['succeeded', 'failed', 'interrupted', 'cancelled', 'dropped']]] },
+  { name: 'BAR ENDS', note: 'The end of a failed and of a cancelled bar.', parts: () => [['endMark', 'failed'], ['endMark', 'cancelled']] },
+  { name: 'SCHEDULE', note: 'A last result, a last run, the next run and a firing run.', parts: () => [['scheduleMark', 'result', { outcome: 'failed' }], ['scheduleMark', 'last', { outcome: 'succeeded' }], ['scheduleMark', 'next'], ['scheduleMark', 'firing', { lit: true }]] },
+  { name: 'STATES', note: 'The state cell of each tone: live, crit, warn, idle, off, ok.', parts: () => ['live', 'crit', 'warn', 'idle', 'off', 'ok'].map((tone) => ['stateCell', tone]) },
+  { name: 'POINTER', note: 'The selection pointer and a plate spine in a category fill.', parts: () => [['pointer', { bold: true }], ['spine', CATEGORY_TONES[0].fill]] },
+]);
+
+const HOUR = 3_600_000;
+const LANE = { past: 3 * HOUR, future: HOUR };
+const TIME_LANE = element('time-lane', {
+  title: 'TIME LANE',
+  summary: 'A three-hours-back to one-hour-ahead axis, a lane track, runs on it and the NOW line. Columns are lane-relative.',
+  rules: [
+    'History is grey; a fill color appears only on a live run, so color marks work happening now.',
+    'A live run is hatched until verified; its label sits on the fill, or to the left when the bar is short.',
+    'Since the source went quiet the track is dashed (stopped) or hatched (not heard from).',
+    'laneLine lays pieces over a line for line hosts; canvas hosts place the pieces themselves.',
+  ],
+  variants: [
+    { name: 'AXIS', note: 'The ruler with quarter marks and hour labels; NOW in acid.', axis: true },
+    { name: 'LIVE', note: 'A finished failure and a live run past verification, with an acid head at NOW.', runs: (col) => [
+      { from: col(-2.6 * HOUR), to: col(-2.1 * HOUR), outcome: 'failed' },
+      { from: col(-1.2 * HOUR), to: col(0), verified: col(-HOUR), live: true, label: '1234', fill: CATEGORY_TONES[0].fill, ink: CATEGORY_TONES[0].ink, head: true, lit: true },
+    ] },
+    { name: 'VERIFYING', note: 'A live run still verifying is hatched all along; a short bar puts its label on the left.', runs: (col) => [
+      { from: col(-0.2 * HOUR), to: col(0), verifying: true, live: true, label: '77', fill: CATEGORY_TONES[1].fill, ink: CATEGORY_TONES[1].ink, head: true, lit: false },
+    ] },
+    { name: 'STOPPED', note: 'Dashed since the runner stopped an hour ago; the last-known run is grey with no head.', track: (col) => ({ since: col(-HOUR), after: 'dashed' }), runs: (col) => [
+      { from: col(-1.5 * HOUR), to: col(0), live: true, label: '1234', fill: 'decorative', ink: 'field' },
+    ] },
+    { name: 'UNREACHABLE', note: 'Hatched since the runner was last heard from.', track: (col) => ({ since: col(-0.75 * HOUR), after: 'hatched' }), runs: () => [] },
+  ],
+  specimen(v, w) {
+    const width = within(w, 60), { col, now } = laneScale(LANE, { width });
+    if (v.axis) {
+      const { ruler, labels } = laneAxis(LANE, { width });
+      return {
+        lines: [laneLine([], labels, { width }), fitLine(ruler, width)],
+        calls: [`axis = ${call('laneAxis', LANE, { width })}`, call('laneLine', code('[]'), code('axis.labels'), { width }), call('fitLine', code('axis.ruler'), width)],
+        facts: [`NOW at lane column ${now}`],
+      };
+    }
+    const track = { now, ...(v.track ? v.track(col) : {}) };
+    const runs = v.runs(col);
+    const pieces = runs.flatMap((run) => laneRun(run, { width })?.pieces ?? []);
+    return {
+      lines: [laneLine(laneTrack(track, { width }), pieces, { width })],
+      calls: [call('laneLine', code(call('laneTrack', track, { width })), code(`[${runs.map((run) => `...(${call('laneRun', run, { width })}?.pieces ?? [])`).join(', ')}]`), { width })],
+      facts: [`NOW at lane column ${now}`],
+    };
+  },
+});
+
+const SLOTS = [CATEGORY_TONES[0].fill, CATEGORY_TONES[1].fill];
+const READOUT = element('readout', {
+  title: 'READOUT',
+  summary: 'A numbered readout with a tall numeral, the same readings as one line, and the strips under a numeral.',
+  rules: [
+    'Unknown is a grey ?, never zero; a value too wide for the block falls back to its exact text.',
+    'Value parts are bold unless they are a decorative caption.',
+    'Slot strips show busy slots in their supplied colors, hatched grey while the source is not reporting.',
+  ],
+  variants: [
+    { name: 'SLOTS', note: 'Fixture: two of five slots busy.', block: { number: 1, label: 'ACTIVE RUNS', value: '02', ink: 'primary', unit: [{ text: '/', ink: 'decorative' }, { text: '5', ink: 'secondary' }, { text: 'SLOTS', ink: 'decorative' }] }, strip: { busy: SLOTS, slots: 5 } },
+    { name: 'COUNTDOWN', note: 'A countdown with its unit and a sub-line.', block: { number: 3, label: 'NEXT POLL', value: '01:20', ink: 'primary', unit: [{ text: 'M:S', ink: 'decorative' }], sub: { text: 'QUEUE - EVERY 2M', ink: 'decorative' } } },
+    { name: 'UNKNOWN', note: 'No data: a structural ?.', block: { number: 4, label: 'ALERTS', value: '?', ink: 'structural' } },
+    { name: 'LINE', note: 'The one-line form: readouts separated by a structural dot.', line: [[{ text: 'ACTIVE', ink: 'decorative' }, { text: '02/5', ink: 'primary' }], [{ text: '3H', ink: 'decorative' }, { text: '06', ink: 'primary' }, { text: 'RUNS', ink: 'decorative' }]] },
+    { name: 'SPLIT', note: 'Six ok, one warning, one failure, by rounded share.', split: { ok: 6, warn: 1, fail: 1 } },
+    { name: 'PHASES', note: 'Claim done, verify current and lit, run still to come.', phases: { steps: [{ label: 'CLAIM', detail: '09:40:00' }, { label: 'VERIFY', detail: 'IN PROGRESS' }, { label: 'RUN', detail: '--:--:--' }], current: 1, ink: CATEGORY_TONES[0].fill } },
+  ],
+  specimen(v, w) {
+    const width = within(w, 27);
+    if (v.line) return { lines: [readoutLine(v.line, { width: within(w, 40) })], calls: [call('readoutLine', v.line, { width: within(w, 40) })], facts: [] };
+    if (v.split) return { lines: [fitLine(splitBar(v.split, { width }), w)], calls: [call('splitBar', v.split, { width })], facts: [] };
+    if (v.phases) return { lines: phaseSteps(v.phases, { width: within(w, 40) }), calls: [call('phaseSteps', v.phases, { width: within(w, 40) })], facts: [] };
+    const input = v.strip ? { ...v.block, strip: slotStrip(v.strip, { maxWidth: width }) } : v.block;
+    const shown = v.strip ? { ...v.block, strip: code(call('slotStrip', v.strip, { maxWidth: width })) } : v.block;
+    return { lines: readoutBlock(input, { width }), calls: [call('readoutBlock', shown, { width })], facts: [] };
+  },
+});
+
+const EVENT_ROW = boardStory('event-row', 'EVENT ROW', 'One event as a row: the board log, or a popup event list with a seconds clock.', [
+  'Only warnings and failures take their ink and weight in the log; the state cell always does.',
+  'The subject is cut first; a row without a reference starts its subject at once.',
+], [
+  { name: 'FAIL', note: 'Fixture: a failed run.', parts: (w) => [['eventRow', { time: '09:41', tone: 'crit', verb: 'FAIL', ref: '1234', text: 'IMPLEMENT' }, { width: within(w, 35) }]] },
+  { name: 'CLAIM', note: 'A claim reads quietly.', parts: (w) => [['eventRow', { time: '09:40', tone: 'live', verb: 'CLAIM', ref: '1234', text: 'IMPLEMENT' }, { width: within(w, 35) }]] },
+  { name: 'NO REF', note: 'A runner event has no reference.', parts: (w) => [['eventRow', { time: '09:12', tone: 'warn', verb: 'STOP', text: 'RUNNER STOPPED' }, { width: within(w, 35) }]] },
+  { name: 'DETAIL', note: 'The popup form: seconds, a bold verb in its state ink, the reference.', parts: (w) => [['eventRow', { time: '09:40:07', tone: 'live', verb: 'CLAIM', ref: '1234' }, { width: within(w, 35), form: 'detail' }]] },
+]);
+
+const SCROLL_RAIL = boardStory('scroll-rail', 'SCROLL RAIL', 'A faint one-column track with a heavy thumb sized to the visible share.', [
+  'Nothing to scroll draws no rail; the thumb is never shorter than two cells.',
+], [
+  { name: 'TOP', note: 'Fixture: 40 rows, 8 visible, at the top.', parts: () => [['scrollRail', { total: 40, visible: 8, offset: 0 }]] },
+  { name: 'MIDDLE', note: 'Halfway down.', parts: () => [['scrollRail', { total: 40, visible: 8, offset: 16 }]] },
+  { name: 'END', note: 'At the end.', parts: () => [['scrollRail', { total: 40, visible: 8, offset: 32 }]] },
+]);
+
+export const ELEMENT_STORIES = [PANEL, FRAME, PLATE, COUNT, MODE, CHIP, LAMP, ROW, GAUGE, NUMERAL, METER, RAIL, MARKER, LINE_METER, COLUMN_BLOCK, TAB_RULE, ACTION_LABEL, POPUP_HEADER, NOTICE_ROW, SCOPE_METER, SOUNDING_METER, FEED_BEZEL, INPUT_FRAME, CALLOUT, DOCUMENT_BLOCK, SHEET_CARD, DESK_TRAY, OPERATION_ROW, ...DASHBOARD_STORIES, SECTION_HEAD, BOARD_MARKS, TIME_LANE, READOUT, EVENT_ROW, SCROLL_RAIL];

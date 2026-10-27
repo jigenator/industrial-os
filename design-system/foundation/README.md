@@ -25,7 +25,7 @@ Low-level `span()` and `fitLine()` store styles without validation. They and `pa
 This is a deliberately bounded contract, not a general Unicode width engine.
 
 - **Caller text** (labels, values, titles, units) must be a string. Its display form keeps printable ASCII (`U+0020`–`U+007E`). Every other code point—controls, `ESC`, C1 controls, combining marks, wide characters, emoji—is shown as one `?`. Source values are not modified. Non-strings throw `TypeError`.
-- **Structural glyphs** come only from `GLYPHS`: light and heavy box drawing, block and half-block elements, eighth blocks, shades and quadrant patterns, squares, dots, diamonds, triangles, a square lozenge, a fork, chevrons, the multiplication sign and braille patterns. They have East Asian Width Narrow, Ambiguous or Neutral; the host must render every curated glyph as one cell, including Neutral braille and `›`.
+- **Structural glyphs** come only from `GLYPHS`: light and heavy box drawing, block and half-block elements, eighth blocks, shades and quadrant patterns, squares (including hollow `□` and half-filled `◩`), dots, diamonds, triangles, a square lozenge, a fork, chevrons, the multiplication sign, a low bar `▁`, the pointer `▶`, the arrows `↑` `↓`, the en and em dashes `–` `—` (the automations monitor's glyph set) and braille patterns. They have East Asian Width Narrow, Ambiguous or Neutral; the host must render every curated glyph as one cell, including Neutral braille and `›`.
 - **Prerequisite:** the terminal must render Ambiguous-width glyphs in one cell. This is the usual setting for Western locales. If a terminal renders them two cells wide, frames and bars will misalign. There is no ASCII-glyph fallback yet.
 - Without a measurer multilingual and emoji text is replaced, not measured. The opt-in contract below preserves it.
 
@@ -44,7 +44,7 @@ labelPlate(title, { form: 'slab', maxWidth: 20, measure });
 - A slot is `{ spans, width }`: `textSlot(spans, width, { measure })` checks its supplied width against the measured concatenation and sum of spans, validates styles and copies the input. Elements revalidate supplied slot objects, so forging the shape does not bypass the boundary. Slots require a measurer; strings without one retain the historical ASCII sanitising.
 - Controls (including ESC/C1/newline/tab), bidi controls and line/paragraph separators are rejected with `TypeError`, not passed through as trusted text. Wide, combining, emoji and ZWJ graphemes remain literal, never `?`. Span boundaries inside a grapheme are rejected (`RangeError`); the host must keep each cluster in one span. Measured strings and slots starting with an Extend code point (including combining marks/emoji modifiers) or ZWJ are also rejected with `RangeError`, before they can attach to element padding or gaps.
 - `cells(text, { measure })`, `lineWidth(line, { measure })`, `fit(text, n, { measure })` and `fitLine(line, n, padStyle, { measure })` opt in individually. `fitLine` clips complete `Intl.Segmenter` graphemes and pads spaces to exactly n cells. It does not split a wide character into a one-cell fragment.
-- `fitText(stringOrSlot, n, { measure, style })` returns spans no wider than n; it preserves rich slot styles and applies `style` to a string. An overflow uses a whole-grapheme prefix and `…` when it fits (at n=1 a fitting first grapheme is kept). Budgets are 0–1000 or Infinity; wrong text/measurer types throw `TypeError`, invalid widths/mismatches throw `RangeError`. No input is mutated.
+- `fitText(stringOrSlot, n, { measure, style })` returns spans no wider than n; it preserves rich slot styles and applies `style` to a string. An overflow uses a whole-grapheme prefix and `…` when it fits (at n=1 a fitting first grapheme is kept, unless `ellipsis: 'always'`, which shows `…` alone so a one-cell cut still reads as cut; the automations monitor relies on this). Budgets are 0–1000 or Infinity; wrong text/measurer types throw `TypeError`, invalid widths/mismatches throw `RangeError`. No input is mutated.
 - `italic` and `underline` are optional boolean styles, preserved by `resolveStyle` when present and emitted as SGR 3/4 by `paint`. Existing omitted-style output stays byte-identical. Measured label-plate caps and new word/lamp chrome explicitly use `bg: 'default'` for transparent channels; this **does not** change historical `paint`/`resolveStyle` omission, which remains black field. Slot channel overrides remain explicit.
 - This is not blanket Unicode support for every element or motion. Measured label plates, word chips and survey chrome opt in individually. Reveal, feed-scan and corner-snap explicitly admit a measurer; other old motions still walk code points, so animate isolated narrow structural pieces, never opaque rich body slots. See each element/motion contract.
 
@@ -110,6 +110,23 @@ The IndustrialOS reference collection is separate data. Where one of its colors 
 ### Herdr chrome colors
 
 Signal colors now also serve Herdr chrome. `HERDR_CHROME`, exported from the same module, is a frozen object of the two product colors [herdr/theme.toml](../../herdr/theme.toml) restates that are neither roles nor status-bar colors: `signalOrange` `#ff5c00`, the Marathon signal orange (Herdr's `overlay1`), and `signalOrange30` `#4d1c00`, `mixOver(signalOrange, 0.3)`, 30% of it over the field (Herdr's `surface1`). The other Herdr theme values are roles or `SIGNAL_COLORS.ghost`. They are not part of Acid / Black and status-bar does not mirror or import them. `signalOrange` has the same value as `SIGNAL_COLORS.cld` and the IndustrialOS collection's `Signal orange`, in a separate role: a Herdr chrome color, not the Claude provider's ink. They are kept out of `SIGNAL_COLORS` because status-bar maps every value there to a footer alias (`pi/status-bar/test/footer-colors.test.ts`); these colors have a different consumer, so they get their own object rather than an unused status-bar alias. The SIGNAL COLORS story shows `SIGNAL_COLORS` only.
+
+### Board inks and tones
+
+`BOARD_INKS`, exported from the same module, is a frozen object of white mixed over the field for the automations monitor's board, each the exact `mixOver('primary', p)` value: `selection` `#1a1a1a` (10%), `faint` `#242424` (14%, rules and dots), `chip` `#292929` (16%, quiet chip fills), `base` `#333333` (20%, history bars, the same value as `SIGNAL_COLORS.ghost`) and `hatch` `#3d3d3d` (24%, a quiet track).
+
+[board-tones.mjs](board-tones.mjs) maps the board's six states to colors. `BOARD_TONES[tone]` (or `boardTone(tone)`, which throws `RangeError` for an unknown or inherited name) gives `ink` (text), `cell` (a one-cell state color) and `chip` (`{ fg, bg }`):
+
+| Tone | Ink | Cell | Chip |
+| --- | --- | --- | --- |
+| `live` | primary | accent | field on accent |
+| `crit` | critical | critical | primary on critical |
+| `warn` | warning | warning | field on warning |
+| `idle` | decorative | structural | secondary on `BOARD_INKS.chip` |
+| `off` | decorative | `BOARD_INKS.faint` | primary on structural |
+| `ok` | secondary | structural | secondary on `BOARD_INKS.chip` |
+
+State colors are role names so motions recognise warning and critical cells. `CATEGORY_TONES` is seven [IndustrialOS](#industrialos-colors) fills for categories such as pipelines, in this order, each with the ink that reads on it: pale-blue, magenta, mint, lavender and yellow with the field, steel-blue and violet with primary.
 
 ### Pi chrome colors
 

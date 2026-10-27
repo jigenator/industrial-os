@@ -26,7 +26,29 @@ export const DASHBOARD_FONT = Object.freeze(Object.fromEntries(Object.entries({
   7: ['111', '001', '010', '010', '010'], 9: ['111', '101', '111', '001', '110'],
   '?': ['110', '001', '010', '000', '010'],
 }).map(([key, rows]) => [key, Object.freeze(rows)])));
-const FACES = Object.freeze({ instrument: Object.freeze({}), dashboard: DASHBOARD_FONT });
+// The tall face: a condensed 4×9 font with one-pixel strokes (the automations monitor's readouts), packed into five
+// rows. The colon is one column and the minus three.
+export const TALL_FONT = Object.freeze(Object.fromEntries(Object.entries({
+  0: ['0110', '1001', '1001', '1001', '1001', '1001', '1001', '1001', '0110'],
+  1: ['0010', '0110', '0010', '0010', '0010', '0010', '0010', '0010', '0010'],
+  2: ['0110', '1001', '0001', '0001', '0010', '0100', '1000', '1000', '1111'],
+  3: ['1110', '0001', '0001', '0001', '0110', '0001', '0001', '0001', '1110'],
+  4: ['1001', '1001', '1001', '1001', '1111', '0001', '0001', '0001', '0001'],
+  5: ['1111', '1000', '1000', '1000', '1110', '0001', '0001', '0001', '1110'],
+  6: ['0110', '1000', '1000', '1000', '1110', '1001', '1001', '1001', '0110'],
+  7: ['1111', '0001', '0001', '0010', '0010', '0010', '0100', '0100', '0100'],
+  8: ['0110', '1001', '1001', '1001', '0110', '1001', '1001', '1001', '0110'],
+  9: ['0110', '1001', '1001', '1001', '0111', '0001', '0001', '0001', '0110'],
+  ':': ['0', '0', '1', '0', '0', '0', '1', '0', '0'],
+  '-': ['000', '000', '000', '000', '111', '000', '000', '000', '000'],
+  '?': ['0110', '1001', '0001', '0001', '0010', '0100', '0100', '0000', '0100'],
+}).map(([key, rows]) => [key, Object.freeze(rows)])));
+// Each face's glyph for a character; the instrument and dashboard faces fall back to FONT and HEX_FONT.
+const FACES = Object.freeze({
+  instrument: (ch) => FONT[ch] ?? HEX_FONT[ch],
+  dashboard: (ch) => DASHBOARD_FONT[ch] ?? FONT[ch] ?? HEX_FONT[ch],
+  tall: (ch) => TALL_FONT[ch],
+});
 export const NUMERAL_TONES = Object.freeze({ ok: 'primary', warn: 'warning', high: 'critical', unknown: 'decorative' });
 function reading(value, tone) {
   const known = value !== null && value !== undefined;
@@ -37,37 +59,40 @@ function reading(value, tone) {
 }
 
 // footer.ts:332-346: six pixel rows (last empty), one empty column between glyphs, at least minWidth columns.
-function gridOf(chars, ink, minWidth, face = FACES.instrument) {
+// The tall face's nine pixel rows round up to ten, five text rows.
+function gridOf(chars, ink, minWidth, glyphOf = FACES.instrument, rows = 6) {
   const cols = [];
   chars.forEach((ch, i) => {
-    const glyph = face[ch] ?? FONT[ch] ?? HEX_FONT[ch];
-    if (i) cols.push(Array(5).fill(false));
+    const glyph = glyphOf(ch);
+    if (i) cols.push(Array(glyph.length).fill(false));
     for (let x = 0; x < glyph[0].length; x++) cols.push(glyph.map((row) => row[x] === '1'));
   });
   const w = Math.max(minWidth, cols.length);
-  return { w, g: Array.from({ length: 6 }, (_, y) => Array.from({ length: w }, (_, x) => cols[x]?.[y] ? ink : null)) };
+  return { w, g: Array.from({ length: rows }, (_, y) => Array.from({ length: w }, (_, x) => cols[x]?.[y] ? ink : null)) };
 }
 export function numeralGrid(value, { tone } = {}) {
   const { text, ink } = reading(value, tone);
   if (![...text].every((ch) => Object.hasOwn(FONT, ch))) return undefined;
   return gridOf([...text], ink, 13);
 }
-// Any FONT or HEX_FONT characters, exactly as wide as their glyphs: no minimum width and no number formatting.
+// Any FONT or HEX_FONT characters (faces `instrument` and `dashboard`, six pixel rows), or TALL_FONT characters
+// (face `tall`, ten pixel rows), exactly as wide as their glyphs: no minimum width and no number formatting.
 // face 'dashboard' swaps in DASHBOARD_FONT's digits; the default 'instrument' face is FONT.
 export function textGrid(text, { ink = 'primary', face = 'instrument' } = {}) {
   if (typeof text !== 'string') throw new TypeError('pixel text must be a string');
   const chars = [...text];
-  if (chars.length === 0 || chars.length > 250 || !chars.every((ch) => Object.hasOwn(FONT, ch) || Object.hasOwn(HEX_FONT, ch))) {
-    throw new RangeError('pixel text must be 1–250 characters from FONT or HEX_FONT');
+  const known = face === 'tall' ? (ch) => Object.hasOwn(TALL_FONT, ch) : (ch) => Object.hasOwn(FONT, ch) || Object.hasOwn(HEX_FONT, ch);
+  if (chars.length === 0 || chars.length > 250 || !chars.every(known)) {
+    throw new RangeError(face === 'tall' ? 'tall pixel text must be 1–250 characters from TALL_FONT' : 'pixel text must be 1–250 characters from FONT or HEX_FONT');
   }
   resolveColor(ink);
-  if (typeof face !== 'string' || !Object.hasOwn(FACES, face)) throw new RangeError('pixel face must be instrument or dashboard');
-  return gridOf(chars, ink, 1, FACES[face]);
+  if (typeof face !== 'string' || !Object.hasOwn(FACES, face)) throw new RangeError('pixel face must be instrument, dashboard or tall');
+  return face === 'tall' ? gridOf(chars, ink, 1, FACES.tall, 10) : gridOf(chars, ink, 1, FACES[face]);
 }
 function validateGrid(grid) {
   if (!grid || !Number.isInteger(grid.w) || grid.w < 1 || grid.w > 1000 ||
-      !Array.isArray(grid.g) || grid.g.length !== 6 || grid.g.some((row) => !Array.isArray(row) || row.length !== grid.w)) {
-    throw new TypeError('numeral grid must have w (1–1000) and six rows of w colors or null');
+      !Array.isArray(grid.g) || (grid.g.length !== 6 && grid.g.length !== 10) || grid.g.some((row) => !Array.isArray(row) || row.length !== grid.w)) {
+    throw new TypeError('numeral grid must have w (1–1000) and six (instrument, dashboard) or ten (tall) rows of w colors or null');
   }
   for (const row of grid.g) for (const color of row) if (color !== null) resolveColor(color);
 }
@@ -76,6 +101,7 @@ const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 export function numeralAt(target, from, progress, seed) {
   validateGrid(target);
   validateGrid(from);
+  if (target.g.length !== from.g.length) throw new RangeError('numeralAt grids must share a face');
   if (typeof progress !== 'number' || !Number.isFinite(progress) || progress < 0 || progress > 1) throw new RangeError('progress must be 0–1');
   if (!Number.isInteger(seed)) throw new RangeError('seed must be an integer');
   return { w: target.w, g: target.g.map((row, y) => row.map((now, x) => {
@@ -89,7 +115,7 @@ export function numeralLines(grid, { width } = {}) {
   assertCells(width, 'numeral width');
   validateGrid(grid);
   if (width < grid.w) throw new RangeError('numeralLines width must fit the entire grid; use pixelNumeral for narrow fallback');
-  return Array.from({ length: 3 }, (_, y) => fitLine(Array.from({ length: grid.w }, (_, x) => {
+  return Array.from({ length: grid.g.length / 2 }, (_, y) => fitLine(Array.from({ length: grid.w }, (_, x) => {
     const top = grid.g[2 * y][x], bottom = grid.g[2 * y + 1][x];
     return !top && !bottom ? span(' ') : !top ? span('▄', { fg: bottom }) : !bottom ? span('▀', { fg: top }) :
       top === bottom ? span('█', { fg: top }) : span('▀', { fg: top, bg: bottom });

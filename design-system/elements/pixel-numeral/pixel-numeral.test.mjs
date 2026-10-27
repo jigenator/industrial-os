@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { stripVTControlCharacters } from 'node:util';
-import { GLYPHS, lineWidth, paint } from '../../foundation/cells.mjs';
+import { GLYPHS, lineWidth, paint, span } from '../../foundation/cells.mjs';
 import { FONT, HEX_FONT, NUMERAL_TONES, numeralAt, numeralGrid, numeralLines, pixelNumeral, textGrid } from './pixel-numeral.mjs';
 const text = (lines) => lines.map((line) => paint(line, 'none'));
 
@@ -123,4 +123,34 @@ test('dashboard face: rounded digits through textGrid, default face unchanged', 
   assert.notDeepEqual(textGrid('?', { face: 'dashboard' }), textGrid('0', { face: 'dashboard' }));
   assert.notDeepEqual(textGrid('2', { face: 'dashboard' }), textGrid('2'));
   for (const face of ['', 'Dashboard', '__proto__', null]) assert.throws(() => textGrid('1', { face }), RangeError);
+});
+
+test('the tall face: a condensed 4×9 font in five rows, with a narrow colon and minus', async () => {
+  const { TALL_FONT } = await import('./pixel-numeral.mjs');
+  assert.ok(Object.isFrozen(TALL_FONT));
+  assert.deepEqual(Object.keys(TALL_FONT).sort(), ['-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', '?']);
+  for (const [ch, rows] of Object.entries(TALL_FONT)) {
+    assert.equal(rows.length, 9, ch);
+    assert.equal(new Set(rows.map((r) => r.length)).size, 1, ch);
+    assert.ok(rows.every((r) => /^[01]+$/.test(r)), ch);
+  }
+  assert.equal(new Set(Object.values(TALL_FONT).map((rows) => rows.join('/'))).size, 13, 'every tall glyph is distinct');
+  const grid = textGrid('12:05', { ink: 'accent', face: 'tall' });
+  assert.equal(grid.w, 4 + 1 + 4 + 1 + 1 + 1 + 4 + 1 + 4);
+  assert.equal(grid.g.length, 10);
+  assert.ok(grid.g[9].every((c) => c === null), 'the tenth pixel row is empty');
+  const lines = numeralLines(grid, { width: grid.w });
+  assert.equal(lines.length, 5);
+  assert.deepEqual(numeralLines(textGrid('0', { face: 'tall' }), { width: 4 }).map((l) => paint(l, 'none')), ['▄▀▀▄', '█  █', '█  █', '█  █', ' ▀▀ ']);
+  assert.deepEqual(numeralLines(textGrid('-', { face: 'tall' }), { width: 3 }).map((l) => paint(l, 'none')), ['   ', '   ', '▀▀▀', '   ', '   ']);
+  assert.deepEqual(numeralLines(textGrid('?', { face: 'tall' }), { width: 4 }).map((l) => paint(l, 'none')), ['▄▀▀▄', '   █', ' ▄▀ ', ' ▀  ', ' ▀  ']);
+  // Blank cells carry no style, so a host can lay the numeral over its own background.
+  assert.deepEqual(lines[0][4], span(' '));
+  assert.throws(() => textGrid('1.5', { face: 'tall' }), RangeError);
+  assert.throws(() => textGrid('A', { face: 'tall' }), RangeError);
+  assert.throws(() => textGrid('1', { face: 'huge' }), RangeError);
+  // Faces keep their own row counts; a reconstruction needs matching faces.
+  assert.throws(() => numeralAt(grid, textGrid('12345', { face: 'dashboard' }), 0.5, 1), RangeError);
+  assert.deepEqual(numeralAt(grid, grid, 0.5, 1), grid);
+  assert.throws(() => textGrid('1', { face: 'small' }), RangeError);
 });

@@ -7,7 +7,7 @@ export interface RowInput<T = string> { state?: OperationState; time?: T; catego
 /** Fixed gutter: stripe at 0, marker at 1, gap at 2, time from 3 in every state. */
 export interface RowOptions extends Options { columns?: { time?: number; category?: number; duration?: number }; styles?: Partial<Record<'time' | 'category' | 'detail' | 'duration', Style>>; color?: boolean }
 export interface DetailInput<T = string> { label?: T; value?: T }
-export interface DetailOptions extends Options { labelWidth?: number; style?: Style }
+export interface DetailOptions extends Options { labelWidth?: number; style?: Style; align?: 'left' | 'right'; leaderInk?: Color }
 export function operationHeading(input: HeadingInput<string>, options: Options): Line;
 export function operationHeading(input: HeadingInput<TextValue>, options: MeasuredOptions): Line;
 export function operationRow(input: RowInput<string>, options: RowOptions): Line;

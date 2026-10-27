@@ -1,0 +1,14 @@
+import type { Color, Line } from '../../foundation/cells.mjs';
+import type { BoardToneName } from '../../foundation/board-tones.mjs';
+export type RunOutcome = 'succeeded' | 'failed' | 'cancelled' | 'interrupted' | 'dropped';
+export const BOARD_GLYPHS: Readonly<Record<'succeeded' | 'failed' | 'interrupted' | 'cancelled' | 'ended' | 'last' | 'next' | 'verifying' | 'cell' | 'pointer' | 'spine', string>>;
+export const RUN_MARKS: Readonly<Record<RunOutcome, Readonly<{ glyph: string; ink: Color }>>>;
+export function runMark(outcome: RunOutcome, options?: { bold?: boolean }): Line;
+export function runTrail(outcomes: readonly RunOutcome[], options?: { gap?: number }): Line;
+export function endMark(outcome: RunOutcome): Line;
+export function scheduleMark(kind: 'result' | 'last', options: { outcome: RunOutcome }): Line;
+export function scheduleMark(kind: 'next'): Line;
+export function scheduleMark(kind: 'firing', options?: { lit?: boolean }): Line;
+export function stateCell(tone: BoardToneName): Line;
+export function pointer(options?: { bold?: boolean }): Line;
+export function spine(ink: Color): Line;

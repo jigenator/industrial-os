@@ -6,7 +6,7 @@
 
 States running/done/failed/neutral/waiting use role inks; `color:false` switches the strip to **▒/█/✕/·/▲**. `paint(...,'none')` alone does not select glyphs: the host passes its color flag here. Selection adds immediate ▸ and a selection band, hover a hover band. A shared dot leader fills the detail-to-duration gap. Running pulse is an existing fade on the **strip only**, with caller-configured eight levels/1280-ms period; the host ends it at 10 seconds, while the truthful duration keeps updating separately.
 
-`operationDetail({label,value}, {width,labelWidth=14,measure?,style={}}) -> Line` is a label + shared dot leader + value row. LabelWidth is 0–1000; long values clip or are prewrapped by the host. Detail section headings, table records and popup chrome compose the existing document-block/popup families.
+`operationDetail({label,value}, {width,labelWidth=14,measure?,style={},align='left',leaderInk}) -> Line` is a label + shared dot leader + value row. LabelWidth is 0–1000; long values clip or are prewrapped by the host. `align: 'right'` puts the value against the right edge, cut to `width − label − 2`, with the leader between the label and the value one cell clear of each (`labelWidth` is unused); this is the automations monitor's key-value row. `leaderInk` colors the leader in either alignment. The defaults leave existing output unchanged. Detail section headings, table records and popup chrome compose the existing document-block/popup families.
 
 ## Shared contract
 

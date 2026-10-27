@@ -4,7 +4,7 @@
 import { ACID_BLACK } from './palette.mjs';
 
 // Curated structural glyphs: Narrow, Ambiguous or Neutral East Asian Width; the host must render each one cell wide.
-export const GLYPHS = '─│┌┐└┘╵╱▐▌█▏▎▍▋▊▉░○●▲✕…━┃┏┓┗┛┼▀▄▒▓▚▞■▪·•◆▴⌑⑂×╴╶┄├┬┤┴┸▤▣▸▾▼◇›┣┫┻▆□⏎◢◤' + Array.from({ length: 256 }, (_, i) => String.fromCodePoint(0x2800 + i)).join('');
+export const GLYPHS = '─│┌┐└┘╵╱▐▌█▏▎▍▋▊▉░○●▲✕…━┃┏┓┗┛┼▀▄▒▓▚▞■▪·•◆▴⌑⑂×╴╶┄├┬┤┴┸▤▣▸▾▼◇›┣┫┻▆□⏎◢◤◩▁▶↑↓–—' + Array.from({ length: 256 }, (_, i) => String.fromCodePoint(0x2800 + i)).join('');
 
 const PRINTABLE_ASCII = /[^\x20-\x7e]/gu;
 
@@ -60,8 +60,10 @@ export function textSlot(spans, width, { measure } = {}) {
 }
 
 // Shared text-bearing element seam. Structured slots retain their styles; string text uses the supplied style.
-export function fitText(value, n, { measure, style = {} } = {}) {
+// `ellipsis: 'always'` marks an overflow with `…` even at one cell, where the default keeps the first grapheme.
+export function fitText(value, n, { measure, style = {}, ellipsis = 'fit' } = {}) {
   if (n !== Infinity && (!Number.isInteger(n) || n < 0 || n > 1000)) throw new RangeError('text budget must be 0–1000 or Infinity');
+  if (ellipsis !== 'fit' && ellipsis !== 'always') throw new RangeError('ellipsis must be fit or always');
   resolveStyle(style);
   let line;
   if (typeof value === 'string') {
@@ -75,6 +77,7 @@ export function fitText(value, n, { measure, style = {} } = {}) {
   }
   const width = lineWidth(line, { measure });
   if (width <= n) return line;
+  if (n === 1 && ellipsis === 'always' && cells('…', { measure }) === 1) return [span('…', typeof value === 'string' ? style : line[0]?.style ?? style)];
   if (measure === undefined) return [span(fit(line[0].text, n), style)];
   if (n === 0) return [];
   const markWidth = cells('…', { measure });

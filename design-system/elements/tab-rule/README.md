@@ -2,6 +2,10 @@
 
 `tabRule({tabCells=14,focused=false},{width})` returns one exact-width line: column 0 is blank, columns 1–14 are heavy `━`, then a `─` hairline to the edge. No ruler marks. Focus is acid; the host must also name focus outside the rule.
 
+`tabRule({tabCells,focused,inks},{width,lead})` also takes separate `inks.tab` and `inks.rule` colors (an omitted one keeps its default) and `lead: false` to drop the blank first column, for board hosts such as the automations monitor: `tabRule({tabCells:3,inks:{tab:'primary',rule:BOARD_INKS.faint}},{width,lead:false})` is a readout rule, and `tabCells: 0` a plain hairline. Without `inks` and with the default lead, output is unchanged.
+
+`verticalRule({ink},{height})` returns `height` one-cell lines of `│` in `ink` (default the rule ink), for a column divider.
+
 `leader({glyph='┄'},{maxWidth=0})` repeats `┄` or `·` for exactly that budget (0–1000).
 
 `neatline({label=''},{width,measure})` centers a supplied reference between ghost-ink dashed registration marks (the junctions retain rule ink). At tiny widths decoration yields.
