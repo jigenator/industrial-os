@@ -41,6 +41,8 @@ test('a caller strip replaces the sub-line; an unknown value is a grey ?, never 
 
 test('a value too wide for the block falls back to its exact text, and every width is exact', () => {
   assert.equal(plain(readoutBlock({ ...ACTIVE, value: '--:--' }, { width: 10 })[2]), '--:--     ');
+  // The value is drawn in the tall face: a character outside TALL_FONT is a caller error, even where the text fallback would fit.
+  for (const value of ['1.5', 'A', '12%', '']) assert.throws(() => readoutBlock({ ...ACTIVE, value }, { width: 27 }), RangeError, value);
   for (let width = 1; width <= 160; width++) {
     const lines = readoutBlock({ ...ACTIVE, sub: { text: 'NOT SCHEDULED', ink: 'decorative' } }, { width });
     assert.equal(lines.length, 8);

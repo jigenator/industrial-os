@@ -791,7 +791,17 @@ const TIME_LANE = element('time-lane', {
       };
     }
     const track = { now, ...(v.track ? v.track(col) : {}) };
-    const runs = v.runs(col);
+    // A one-row CellGrid replaces a cell's style, so a label set beside its bar would hide any bar it covers:
+    // where it would, the story leaves the label out rather than show a wrong colour. A canvas host keeps the bar.
+    const columns = (piece, keep) => {
+      let x = piece.at;
+      return piece.line.flatMap((s) => [...s.text].map(() => x++).filter(() => keep(s)));
+    };
+    const drawn = v.runs(col).map((run) => ({ run, pieces: laneRun(run, { width })?.pieces ?? [] }));
+    const barred = new Set(drawn.flatMap((d) => d.pieces.flatMap((p) => columns(p, (s) => s.style.bg !== undefined))));
+    const covers = (d) => d.pieces.some((p) => p.line.every((s) => s.style.bg === undefined) && columns(p, () => true).some((x) => barred.has(x)));
+    const left = drawn.filter(covers).length;
+    const runs = drawn.map((d) => (covers(d) ? { ...d.run, label: '' } : d.run));
     const pieces = runs.flatMap((run) => laneRun(run, { width })?.pieces ?? []);
     return {
       lines: [placed(laneTrack(track, { width }), pieces)],
@@ -801,7 +811,7 @@ const TIME_LANE = element('time-lane', {
         ...runs.map((run) => place('lane', `${call('laneRun', run, { width })}?.pieces ?? []`)),
         'lane.lines()',
       ],
-      facts: [`NOW at lane column ${now}`],
+      facts: [`NOW at lane column ${now}`, ...(left ? ['Label left out here: beside its bar it would cover a bar'] : [])],
     };
   },
 });

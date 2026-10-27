@@ -155,3 +155,7 @@ CALLOUT, DOCUMENT BLOCK, SHEET CARD, DESK TRAY and OPERATION ROW use synthetic p
 Dashboard fixtures add TYPE UNIT, ACTIVITY STRIP, PLAN COUNTER, ACTIVITY TRACE, ALERT TICKER and AMBIENT FIELD, and CORNER SNAP's HEAVY UNIT variant; decode, breathe, arrival-ping and ambient-sweep previews are marked demonstrations, never real activity. Type tokens are shown in the TYPE UNIT variants.
 
 AMBIENT LOAD demonstrates the exact v20 grid/dot/registration load clocks and initial sweep over an actual ambient-field specimen, including marks reachable by paging. It is sampled at 25 ms and settles immediately with motion off.
+
+## Board stories
+
+SECTION HEAD, BOARD MARKS, TIME LANE, READOUT, EVENT ROW and SCROLL RAIL show the automations monitor's board parts with synthetic fixtures: pipeline names, issue numbers, times and counts are examples, never live Tatsu data. TIME LANE places its pieces on a one-row `CellGrid`, as a host would, and leaves out a run label that would cover a bar at narrow widths (see the [time lane contract](../elements/time-lane/README.md)).

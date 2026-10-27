@@ -35,4 +35,4 @@ An unknown value is a structural `?`, never zero; the caller supplies it.
 
 ## Errors and checks
 
-Non-object inputs, non-string text and non-boolean flags throw `TypeError`; out-of-range numbers, counts and indexes throw `RangeError`; unknown colors throw `TypeError`. Every width from 1 to 160 is exact. Run [readout.test.mjs](readout.test.mjs) with `node --test`, then the [full validation sequence](../../CONTRIBUTING.md#full-validation-sequence). The storybook's READOUT story shows each part.
+Non-object inputs, non-string text and non-boolean flags throw `TypeError`; out-of-range numbers, counts and indexes throw `RangeError`, as does a `readoutBlock` value that is empty or has a character outside the pixel numeral's [tall face](../pixel-numeral/README.md) (digits, `:`, `-` and `?`), even when the value would fall back to text; unknown colors throw `TypeError`. Every width from 1 to 160 is exact. Run [readout.test.mjs](readout.test.mjs) with `node --test`, then the [full validation sequence](../../CONTRIBUTING.md#full-validation-sequence). The storybook's READOUT story shows each part.
