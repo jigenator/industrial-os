@@ -14,7 +14,7 @@ import {
 import { dirname, join } from "node:path";
 import { Effect } from "effect";
 import { expandPath } from "./config.ts";
-import { fail, SourceOutput, decode } from "./contract.ts";
+import { fail, SourceOutput, decode, type OutputItem } from "./contract.ts";
 
 export type Todo = {
   key: string;
@@ -99,6 +99,12 @@ export function checklistOutput(read: ChecklistRead, previous?: ChecklistRead): 
   } catch {
     throw fail("invalid_output", "Checklist does not match SourceOutput v1");
   }
+}
+/** Done (`[x]`) lines as items; the store decides which have a known completion time. */
+export function checklistDone(read: ChecklistRead): OutputItem[] {
+  return read.todos
+    .filter((t) => t.done)
+    .map(({ key, title, since, who, where }) => ({ key, title, since, kind: "todo", who, where }));
 }
 export function checklistPath(path: string, folder: string, home?: string) {
   return expandPath(path, folder, home);

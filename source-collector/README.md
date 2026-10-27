@@ -42,9 +42,11 @@ Service operations are opt-in; none are needed for foreground use.
 
 Read the full v1 snapshot with `source-collector get`, or use
 `source-collector get --items` for one compact v1 JSON object per item. Each line
-contains key, source, source state, plan, pinned, handled and title. Stale means
-last-known data, not a successful fresh observation; use full `get` for timestamps
-and source errors. An empty successful item listing prints no lines.
+contains key, source, source state, plan, pinned, handled, done and title. A
+to-do done today stays listed with `done: true` until local midnight, so it can be
+reopened; it is not counted. Stale means last-known data, not a successful fresh
+observation; use full `get` for timestamps and source errors. An empty successful
+item listing prints no lines.
 
 In full `get` output an item with `source: "fake"` and `key: "demo"` is addressed
 as `fake:demo`. Always pass the entire composite key, quoted when it contains spaces;
@@ -59,13 +61,16 @@ source-collector handled fake:demo --agent review-session
 source-collector handled fake:demo --undo --agent review-session
 source-collector look --agent review-session
 source-collector action fake:demo open --agent review-session
+source-collector todo add 'Write the summary' --source todo --agent review-session
 ```
 
 The action example requires an `open` action configured on that source; available
-names are in `get`'s source `writable` list. Plan accepts only today, inbox or later.
-Handled hides an item from counts, not from the snapshot. Look sets the shared
-last-look cursor. Each mutation prints `{ "rev": number }` JSON, not a fresh
-snapshot; read again to see the resulting state. `--agent` alone records actor
+names are in `get`'s source `writable` list. `todo add` writes to the only checklist
+unless `--source <id>` names one; with several checklists, name it. Plan accepts
+only today, inbox or later. Handled hides an item from counts, not from the
+snapshot. Look sets the shared last-look cursor. Each mutation prints
+`{ "rev": number }` JSON, not a fresh snapshot; read again to see the resulting
+state. `--agent` alone records actor
 agent; an optional session follows it (or use `--agent=review-session`). Without
 this flag, actor is you. These operations share the existing exit codes:
 0 success, 1 operational failure (including no engine), 2 invalid input/config/output,

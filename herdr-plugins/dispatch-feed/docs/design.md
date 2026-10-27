@@ -34,9 +34,10 @@ identity with seenAt newer than the preceding snapshot, never a startup fixture.
 Offline retains last-good data dimmed with a persistent ENGINE OFFLINE diagnostic
 and retries. Empty with failed sources also says sources unavailable. Failed
 mutations preserve state and drafts; outcome unknown is explicit and never
-blindly retried. Handled rows remain selectable for undo. Acknowledged done rows
-stay in place dimmed with `[done]`, **session-only**, so x can reopen; no completed
-todo history is available across restarts. See the [key contract](../README.md#keys).
+blindly retried. Handled rows remain selectable for undo. A to-do done today stays
+in place dimmed with `[done]`, a `×` mark and DONE status until local midnight, as
+the engine reports it, so x can reopen it; other triage keys say to reopen first.
+See the [key contract](../README.md#keys).
 
 ## Motion exception and palette
 

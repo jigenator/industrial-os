@@ -22,10 +22,10 @@ records Bun without Effect; commands are in [contributing](../CONTRIBUTING.md).
 - `app.ts`: server snapshots, connection state and reconciliation; local selection,
   filter/sort, one-line draft, motion/ambient toggles and focus freshness hold.
   Polling coalesces concurrent reads and requests one immediate follow-up after
-  an acknowledged action. No optimistic domain update. Session completed records
-  are stored only after acknowledged done; reopen removes the record after ack.
-  Source removal clears these records. Mark, arrival and activity memory is
-  bounded/pruned; snapshot limits are 256 sources and 20,000 items.
+  an acknowledged action. No optimistic domain update. Done to-dos are snapshot
+  items with doneAt; the pane keeps no completed records. A draft keeps the list
+  chosen when it opened and sends it as todo.add source. Mark, arrival and
+  activity memory is bounded/pruned; snapshot limits are 256 sources and 20,000 items.
 - `text.ts`: the terminal measure (`Bun.stringWidth`), display sanitising that
   turns controls and bidi characters into `?`, and grapheme-safe draft tail/Backspace.
 - `render.ts`: pure geometry, component composition through a measured design-system
@@ -59,9 +59,9 @@ state are introduced. There is no automatic deployment or install migration.
 
 ## Evolution and limits
 
-Snapshot lacks completed-item state. Session-only done records are the approved
-client seam, not authoritative completed history. Focus fallback cannot observe
-blur on hosts that do not report it. A global last-look cursor is shared by other
+The engine owns done to-dos: it returns each with doneAt until the local midnight
+after it was done, so the pane shows nothing it was not given. Focus fallback
+cannot observe blur on hosts that do not report it. A global last-look cursor is shared by other
 clients; this pane freezes only its own initially fresh markers. Data ceilings
 produce an explicit read failure rather than silent truncation. Broader terminal,
 font, accessibility and large-source performance support need separate evidence.

@@ -1,5 +1,5 @@
-import { decodeSnapshot, itemId, object } from "./snapshot.ts";
-import type { Item, Snapshot } from "./snapshot.ts";
+import { decodeSnapshot, isDone, itemId, object } from "./snapshot.ts";
+import type { Item, Snapshot, Source } from "./snapshot.ts";
 import type { Rpc } from "./transport.ts";
 import { dropLast, UNSAFE } from "./text.ts";
 import { RpcError } from "./transport.ts";
@@ -42,7 +42,6 @@ export class App {
   busy = false;
   focused = false;
   readonly freshHold = new Set<string>();
-  readonly completed = new Map<string, { item: Item; index: number }>();
   readonly arrivals = new Map<string, number>();
   readonly marks = new Map<string, Mark>();
   activity: { at: number; n: number }[] = [];
@@ -102,9 +101,6 @@ export class App {
           `source:${source.id}`,
           JSON.stringify([source.label, source.state, next.counts.bySource[source.id]]),
         );
-      for (const key of this.completed.keys())
-        if (!next.sources.some((source) => source.id === this.completed.get(key)?.item.source))
-          this.completed.delete(key);
       for (const key of this.marks.keys())
         if (
           key.startsWith("source:") &&
@@ -139,11 +135,15 @@ export class App {
     }
   }
   items(): Item[] {
-    const items = [...(this.snapshot?.items ?? [])];
-    for (const [key, entry] of this.completed)
-      if (!items.some((it) => itemId(it) === key))
-        items.splice(Math.min(entry.index, items.length), 0, entry.item);
-    return items;
+    return this.snapshot?.items ?? [];
+  }
+  /** Sources that can take a to-do now: they declare todo.add and their data is ok or stale. */
+  addable(): Source[] {
+    return (
+      this.snapshot?.sources.filter(
+        (s) => s.writable.includes("todo.add") && ["ok", "stale"].includes(s.state),
+      ) ?? []
+    );
   }
   visible(): Item[] {
     const rank = new Map(this.snapshot?.sources.map((s, i) => [s.id, i]));
@@ -248,34 +248,16 @@ export class App {
         const text = this.input.trim(),
           source = this.inputSource;
         if (text && source) {
-          const target = this.snapshot?.sources.find(
-            (s) =>
-              s.id === source &&
-              s.writable.includes("todo.add") &&
-              ["ok", "stale"].includes(s.state),
-          );
-          if (!target) {
+          if (!this.addable().some((s) => s.id === source)) {
             this.message = "Selected to-do list is unavailable";
             this.changed();
             return;
           }
-          const lists =
-            this.snapshot?.sources.filter(
-              (s) => s.writable.includes("todo.add") && s.state !== "disabled",
-            ) ?? [];
-          const item = this.snapshot?.items.find((it) => it.source === source);
-          if (lists.length > 1 && !item) {
-            this.message = "Can't choose a to-do list";
-            this.changed();
-            return;
-          }
-          await this.act(
-            { do: "todo.add", text, ...(lists.length > 1 && item ? { key: itemId(item) } : {}) },
-            () => {
-              this.input = null;
-              this.inputSource = null;
-            },
-          );
+          // The list chosen when the draft opened is always named, so nothing can redirect it.
+          await this.act({ do: "todo.add", text, source }, () => {
+            this.input = null;
+            this.inputSource = null;
+          });
         }
       } else if (!this.busy && key === "Backspace") this.input = dropLast(this.input);
       else if (
@@ -332,16 +314,14 @@ export class App {
     } else if (/^[0-9]$/.test(key))
       this.filter = key === "0" ? "" : (this.snapshot?.sources[Number(key) - 1]?.id ?? this.filter);
     else if (key === "a") {
-      const writable =
-        this.snapshot?.sources.filter(
-          (s) => s.writable.includes("todo.add") && ["ok", "stale"].includes(s.state),
-        ) ?? [];
-      const source = writable.find((s) => s.id === this.filter) ?? writable[0];
+      // The selected item's list, else the only list; otherwise the target is ambiguous.
+      const lists = this.addable(),
+        source = lists.find((s) => s.id === item?.source) ?? (lists.length === 1 ? lists[0] : null);
       if (source) {
         this.input = "";
         this.message = "";
         this.inputSource = source.id;
-      } else this.message = "No writable to-do source";
+      } else this.message = lists.length ? "Can't choose a to-do list" : "No writable to-do source";
     } else if (key === "r") {
       if (this.readOnly) this.message = "Read-only: refresh not sent";
       else if (!this.busy) {
@@ -359,27 +339,16 @@ export class App {
     } else if (item && ["t", "i", "l", "p", "h", "x"].includes(key)) {
       const id = itemId(item),
         source = this.snapshot?.sources.find((s) => s.id === item.source);
-      if (this.completed.has(id) && key !== "x") {
+      if (isDone(item) && key !== "x") {
         this.message = "Reopen this to-do before triage";
         this.changed();
         return;
       }
       if (key === "x") {
-        const complete = this.completed.has(id),
-          action = complete ? "todo.reopen" : "todo.done";
+        const action = isDone(item) ? "todo.reopen" : "todo.done";
         if (!source?.writable.includes(action))
           this.message = "This source does not support to-do edits";
-        else if (!complete && this.completed.size >= 256)
-          this.message = "Session completed-item limit reached; reopen an item first";
-        else
-          await this.act({ do: action, key: id }, () => {
-            if (complete) this.completed.delete(id);
-            else
-              this.completed.set(id, {
-                item,
-                index: this.snapshot?.items.findIndex((it) => itemId(it) === id) ?? 0,
-              });
-          });
+        else await this.act({ do: action, key: id });
       } else if (key === "p") await this.act({ do: "pin", key: id, pinned: !item.overlay.pinned });
       else if (key === "h")
         await this.act({

@@ -30,7 +30,7 @@ import {
 import { fillIn } from "@industrial-os/design-system/motions/fill-in";
 import { wipe } from "@industrial-os/design-system/motions/wipe";
 import { cornerSnap } from "@industrial-os/design-system/motions/corner-snap";
-import { itemId } from "./snapshot.ts";
+import { isDone, itemId } from "./snapshot.ts";
 import type { Item, Source } from "./snapshot.ts";
 import { ageText, DECODE_SCRAMBLE, priority } from "./app.ts";
 import { displayText, fitTail, measure } from "./text.ts";
@@ -162,10 +162,7 @@ export function render(app: App, width: number, height: number, time: number): F
       if (y + unitH > end) return;
       const count = s.counts.bySource[source.id] ?? null;
       const oldest = s.items
-        .filter(
-          (it) =>
-            it.source === source.id && !it.overlay.handledAt && !app.completed.has(itemId(it)),
-        )
+        .filter((it) => it.source === source.id && !it.overlay.handledAt && !isDone(it))
         .sort((a, b) => b.derived.ageMs - a.derived.ageMs)[0];
       let unit = typeUnit(
         {
@@ -176,7 +173,11 @@ export function render(app: App, width: number, height: number, time: number): F
           waiting: count?.waiting ?? null,
           fresh: count
             ? s.items.filter(
-                (it) => it.source === source.id && !it.overlay.handledAt && app.isFresh(it),
+                (it) =>
+                  it.source === source.id &&
+                  !it.overlay.handledAt &&
+                  !isDone(it) &&
+                  app.isFresh(it),
               ).length
             : null,
           remaining: oldest?.derived.remaining ?? null,
@@ -377,7 +378,7 @@ export function render(app: App, width: number, height: number, time: number): F
       "Enter: open http/https URL",
       "t / i / l: today / inbox / later",
       "p: pin; h: handled / undo",
-      "x: to-do done / reopen (session-only)",
+      "x: to-do done / reopen",
       "a: add to-do; Enter submit; Esc cancel",
       "Tab / 0-5: source; s: type/prio/age",
       "b: ambient; m: motion; r: refresh",
@@ -543,7 +544,7 @@ function drawList(
     const it = row.item,
       key = itemId(it),
       selected = key === app.selected,
-      done = app.completed.has(key),
+      done = isDone(it),
       handled = !!it.overlay.handledAt,
       source = sourceOf(it),
       fresh = app.isFresh(it) && !done && !handled;
@@ -617,13 +618,7 @@ function drawList(
       run(it.kind === "todo" ? it.where : it.who, 6, { fg: D.muted });
       cell(xx++, " ", { fg: bone });
       run(
-        done
-          ? "DONE HERE"
-          : handled
-            ? "HANDLED"
-            : source.state === "stale"
-              ? "STALE DATA"
-              : it.status,
+        done ? "DONE" : handled ? "HANDLED" : source.state === "stale" ? "STALE DATA" : it.status,
         12,
         { fg: D.dim },
       );

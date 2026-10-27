@@ -264,10 +264,35 @@ test("real Unix RPC: raw JSON-RPC, typed CLI, acts, refresh, reload, auth, disab
     expect((await cli(root, "handled", key, "--undo")).code).toBe(0);
     expect((await cli(root, "pin", key, "--off")).code).toBe(0);
     expect((await cli(root, "todo", "done", key, "--agent", "test-session")).code).toBe(0);
+    type Row = {
+      source: string;
+      key: string;
+      title: string;
+      doneAt?: string;
+      derived: { done: boolean; stale: boolean };
+    };
+    const find = (snapshot: { items: Row[] }, id: string) =>
+      snapshot.items.find((i) => `${i.source}:${i.key}` === id);
     const after = JSON.parse((await cli(root, "get")).stdout);
-    expect(after.items).toHaveLength(3);
+    // A done to-do stays until local midnight, flagged and excluded from every count.
+    expect(after.items).toHaveLength(4);
+    expect(find(after, key)?.derived.done).toBe(true);
+    expect(find(after, key)?.doneAt).toBeString();
+    expect(after.counts.bySource.todo.total).toBe(1);
     expect(after.week.total.you).toBe(1);
+    const doneLines = (await cli(root, "get", "--items")).stdout
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    expect(doneLines.find((row) => row.key === key)?.done).toBe(true);
+    expect(doneLines.filter((row) => row.done)).toHaveLength(1);
     expect((await cli(root, "todo", "reopen", key)).code).toBe(0);
+    const reopened = JSON.parse((await cli(root, "get")).stdout);
+    expect(find(reopened, key)?.derived.done).toBe(false);
+    expect(find(reopened, key)?.doneAt).toBeUndefined();
+    expect(reopened.counts.bySource.todo.total).toBe(2);
+    // Reopened the same day while still open: that shipment leaves the week strip.
+    expect(reopened.week.total.you).toBe(0);
     expect((await cli(root, "todo", "add", "Added by test", "--section", "Inbox")).code).toBe(0);
     const todoPath = join(root, "config/sources/todo/checklist.md");
     writeFileSync(
@@ -276,8 +301,32 @@ test("real Unix RPC: raw JSON-RPC, typed CLI, acts, refresh, reload, auth, disab
     );
     await Bun.sleep(300); // directory watch survives the engine's preceding atomic rename
     const watched = JSON.parse((await cli(root, "get")).stdout);
-    expect(watched.items.some((i: { title: string }) => i.title === "Added by test")).toBe(false);
-    expect(watched.week.total.you).toBe(2);
+    const handDone = watched.items.find((i: Row) => i.title === "Added by test") as Row;
+    expect(handDone.derived.done).toBe(true);
+    expect(watched.items.some((i: Row) => i.title === "Already finished")).toBe(false);
+    expect(watched.week.total.you).toBe(1);
+    // todo.add names its checklist; anything but an available checklist is invalid input.
+    expect((await cli(root, "todo", "add", "Sourced add", "--source", "todo")).code).toBe(0);
+    for (const bad of ["nope", "fake", "jq"]) {
+      const result = await cli(root, "todo", "add", "Rejected", "--source", bad);
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain("invalid_input");
+    }
+    expect((await cli(root, "disable", "todo")).code).toBe(0);
+    const disabledAdd = await cli(root, "todo", "add", "Rejected", "--source", "todo");
+    expect(disabledAdd.code).toBe(2);
+    expect(disabledAdd.stderr).toContain("invalid_input");
+    expect((await cli(root, "enable", "todo")).code).toBe(0);
+    const sourced = JSON.parse((await cli(root, "get")).stdout);
+    expect(sourced.items.some((i: Row) => i.title === "Sourced add")).toBe(true);
+    expect(sourced.items.some((i: Row) => i.title === "Rejected")).toBe(false);
+    const misplaced = (await raw(join(root, "runtime/feed.sock"), "act", {
+      do: "todo.done",
+      key,
+      source: "todo",
+      actor: "you",
+    })) as { error: unknown };
+    expect(misplaced.error).toBeDefined();
     expect((await cli(root, "refresh", "fake")).code).toBe(0);
     expect((await cli(root, "disable", "fake")).code).toBe(0);
     const disabled = JSON.parse((await cli(root, "get")).stdout);
@@ -347,6 +396,17 @@ test("real Unix RPC: raw JSON-RPC, typed CLI, acts, refresh, reload, auth, disab
     }
     expect(restarted?.result.sources.find((s) => s.id === "jq")?.state).toBe("stale");
     expect(restarted?.result.items.some((i) => i.source === "jq")).toBe(true);
+    // The done to-do survives a restart, and the first reread does not refake its completion.
+    let reread: { sources: { id: string; state: string }[]; items: Row[] } | undefined;
+    for (let n = 0; n < 100; n++) {
+      reread = JSON.parse((await cli(root, "get")).stdout);
+      if (reread?.sources.find((s) => s.id === "todo")?.state === "ok") break;
+      await Bun.sleep(30);
+    }
+    expect(reread?.sources.find((s) => s.id === "todo")?.state).toBe("ok");
+    const survived = reread?.items.find((i) => i.title === "Added by test");
+    expect(survived?.derived.done).toBe(true);
+    expect(survived?.doneAt).toBe(handDone.doneAt);
     expect((await cli(root, "service", "stop")).code).toBe(0);
     expect(await engine.exited).toBe(0);
   } finally {

@@ -23,6 +23,8 @@ export interface Item {
   where: string;
   status: string;
   ref: string;
+  /** Present only on a to-do done today; the engine drops it at local midnight. */
+  doneAt?: string;
   overlay: { plan: Plan; pinned: boolean; handledAt?: string };
   derived: { ageMs: number; remaining: number; stale: boolean; fresh: boolean; waiting: boolean };
 }
@@ -101,6 +103,7 @@ const states = new Set([
   "loading",
 ]);
 export const itemId = (item: Pick<Item, "source" | "key">): string => `${item.source}:${item.key}`;
+export const isDone = (item: Pick<Item, "doneAt">): boolean => item.doneAt !== undefined;
 export function decodeSnapshot(value: unknown): Snapshot {
   const s = object(value);
   if (s.v !== 1) throw new Error("schema_unknown");
@@ -146,6 +149,7 @@ export function decodeSnapshot(value: unknown): Snapshot {
       where: optionalText(o.where) ?? "",
       status: optionalText(o.status) ?? "",
       ref: optionalText(o.ref) ?? "",
+      doneAt: o.doneAt === undefined ? undefined : iso(o.doneAt),
       overlay: {
         plan: l.plan as Plan,
         pinned: bool(l.pinned),

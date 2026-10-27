@@ -48,6 +48,7 @@ const get = Command.make(
                     plan: item.overlay.plan,
                     pinned: item.overlay.pinned,
                     handled: item.overlay.handledAt !== undefined,
+                    done: item.derived.done,
                     title: item.title,
                   }).replace(
                     /[\u007f-\u009f]/g,
@@ -135,10 +136,21 @@ const add = Command.make(
   {
     text: Argument.String("text"),
     section: Flag.String("section").pipe(Flag.optional),
+    source: Flag.String("source").pipe(Flag.optional),
     agent: agentFlag(),
   },
-  ({ text, section, agent }) =>
-    act({ do: "todo.add", text, section: Option.getOrUndefined(section), ...attribution(agent) }),
+  ({ text, section, source, agent }) =>
+    act({
+      do: "todo.add",
+      text,
+      section: Option.getOrUndefined(section),
+      source: Option.getOrUndefined(source),
+      ...attribution(agent),
+    }),
+).pipe(
+  Command.withDescription(
+    "Add a to-do; --source picks the checklist when several exist. Example: source-collector todo add 'Ship it' --source todo",
+  ),
 );
 const done = Command.make(
   "done",

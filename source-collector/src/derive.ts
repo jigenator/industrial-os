@@ -9,7 +9,21 @@ export function shippedBucket(event: Ledger): "you" | "agents" | undefined {
   return undefined;
 }
 const iso = (n: number) => new Date(n).toISOString();
-export function week(now: number, ledger: ReadonlyArray<Ledger>): Snapshot["week"] {
+/** The most recent local midnight at or before t, in the process time zone like the week strip. */
+export function localMidnight(t: number): number {
+  const day = new Date(t);
+  day.setHours(0, 0, 0, 0);
+  return day.getTime();
+}
+/**
+ * A checklist shipment reopened later the same local day no longer counts while the to-do is not
+ * done again. `done` holds composite keys of items currently done.
+ */
+export function week(
+  now: number,
+  ledger: ReadonlyArray<Ledger>,
+  done: ReadonlySet<string> = new Set(),
+): Snapshot["week"] {
   const from = new Date(now);
   from.setHours(0, 0, 0, 0);
   from.setDate(from.getDate() - 6);
@@ -33,11 +47,22 @@ export function week(now: number, ledger: ReadonlyArray<Ledger>): Snapshot["week
   previousStart.setDate(previousStart.getDate() - 7);
   const previousEnd = new Date(now);
   previousEnd.setDate(previousEnd.getDate() - 7);
+  const reopened = ledger.filter((e) => e.type === "reopened");
+  const undone = (event: Ledger, at: number) =>
+    event.sourceType === "checklist" &&
+    !done.has(`${event.source}:${event.key}`) &&
+    reopened.some(
+      (r) =>
+        r.source === event.source &&
+        r.key === event.key &&
+        Date.parse(r.at) >= at &&
+        localMidnight(Date.parse(r.at)) === localMidnight(at),
+    );
   for (const event of ledger) {
     if (event.type !== "shipped") continue;
     const bucket = shippedBucket(event),
       at = Date.parse(event.at);
-    if (!bucket) continue;
+    if (!bucket || undone(event, at)) continue;
     if (at >= previousStart.getTime() && at <= previousEnd.getTime()) lastWeekSoFar[bucket]++;
     if (at < from.getTime() || at > now) continue;
     total[bucket]++;
@@ -65,21 +90,28 @@ export function derive(input: {
     bySource[source.id] =
       source.state === "ok" || source.state === "stale" ? { total: 0, waiting: 0, fresh: 0 } : null;
   const plan = { today: 0, inbox: 0, later: 0 };
-  const items = input.items.map((item) => {
+  // A done to-do stays visible until the next local midnight after it was done, never counted.
+  const midnight = localMidnight(input.now);
+  const visible = input.items.filter(
+    (item) => item.doneAt === undefined || Date.parse(item.doneAt) >= midnight,
+  );
+  const items = visible.map((item) => {
     const overlay = input.overlays.get(`${item.source}:${item.key}`) ?? {
       plan: "inbox" as const,
       pinned: false,
     };
     const ageMs = Math.max(0, input.now - Date.parse(item.since));
+    const done = item.doneAt !== undefined;
     const derived = {
       ageMs,
       remaining: Math.max(0, Math.min(1, 1 - ageMs / input.staleLimitMs)),
-      stale: ageMs >= input.staleLimitMs,
+      stale: !done && ageMs >= input.staleLimitMs,
       fresh:
         input.lastLookAt !== undefined && Date.parse(item.since) > Date.parse(input.lastLookAt),
       waiting: item.waiting ?? input.waiting.get(item.source) ?? false,
+      done,
     };
-    if (!overlay.handledAt) {
+    if (!overlay.handledAt && !done) {
       const count = bySource[item.source];
       if (count) {
         count.total++;
@@ -101,7 +133,11 @@ export function derive(input: {
     sources: input.sources,
     items,
     counts: { plan, bySource },
-    week: week(input.now, input.ledger),
+    week: week(
+      input.now,
+      input.ledger,
+      new Set(input.items.filter((i) => i.doneAt).map((i) => `${i.source}:${i.key}`)),
+    ),
     alerts: [],
   };
 }
