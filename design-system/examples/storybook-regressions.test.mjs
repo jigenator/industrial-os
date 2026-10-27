@@ -294,3 +294,25 @@ test('a completed PING preview keeps its bars gone, through resize and until rep
   // Replay plays the ping again from the start: by 420 ms all seven bars are lit, before any turns grey.
   assert.ok(textOf(replay, { columns: 80, rows: 40, now: end + 6000 + 420 }).includes(BARS), 'replay shows the bars again');
 });
+
+test('operation-row story fixtures keep marker gap and time aligned', () => {
+  const story=STORIES.find(s=>s.id==='operation-row');
+  assert.ok(story);
+  for(const width of [24,40,64,100]) for(const variant of story.variants) {
+    const rows=text(story.specimen(variant,width).lines);
+    for(const row of rows.filter(row=>row.includes('09:40'))) assert.equal(row.indexOf('09:40'),3);
+  }
+});
+
+test('name-rule story readouts have centered visible groups', () => {
+  const story=STORIES.find(s=>s.id==='tab-rule');
+  assert.ok(story);
+  for(const width of [64,65,100,101]) for(const variant of story.variants) {
+    for(const row of text(story.specimen(variant,width).lines).filter(row=>row.includes('LUNALEE'))) {
+      const match=/^ ([─┴]+) (.*?) ([─┴]+) $/.exec(row);
+      assert.ok(match);
+      const start=match[1].length+2;
+      assert.equal(start,Math.floor((width-match[2].length)/2));
+    }
+  }
+});

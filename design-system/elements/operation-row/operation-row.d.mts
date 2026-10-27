@@ -4,6 +4,7 @@ export interface MeasuredOptions extends Options { measure: Measure }
 export type OperationState = 'running' | 'done' | 'failed' | 'neutral' | 'waiting';
 export interface HeadingInput<T = string> { label?: T; code?: T; focused?: boolean; count?: T }
 export interface RowInput<T = string> { state?: OperationState; time?: T; category?: T; detail?: T; duration?: T; selected?: boolean; hover?: boolean }
+/** Fixed gutter: stripe at 0, marker at 1, gap at 2, time from 3 in every state. */
 export interface RowOptions extends Options { columns?: { time?: number; category?: number; duration?: number }; styles?: Partial<Record<'time' | 'category' | 'detail' | 'duration', Style>>; color?: boolean }
 export interface DetailInput<T = string> { label?: T; value?: T }
 export interface DetailOptions extends Options { labelWidth?: number; style?: Style }
