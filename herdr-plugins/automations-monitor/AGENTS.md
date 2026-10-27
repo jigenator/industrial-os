@@ -10,6 +10,7 @@ Follow the [root](../../AGENTS.md) and [plugin group](../AGENTS.md) guides.
 - The terminal is restored and every `tatsu` process group is gone on every exit path. `bun test/pty-check.ts` proves it; run it after touching `terminal.ts`, `app.ts`, `reader.ts` or the entry.
 - Colours come only from the design system (`src/theme.ts`); no colour value is written in this project. Import the design system only through exported subpaths.
 - Visual components come from the design system: views place its elements and draw only plain text themselves. A part that is missing or draws differently is added or extended in `design-system/` first, then used here; see [the rule](../../docs/conventions.md#design-system-components).
+- A change that should leave the screen alone, such as a refactor or a design-system move, keeps every golden frame: `bun test/golden/golden.ts compare <base-ref> <out-dir>` reports 0 differences ([golden frames](CONTRIBUTING.md#golden-frames)).
 - The stack (Bun, TypeScript 7.0.2, Effect 4.0.6, no bundle) is fixed by the [stack decision](../../docs/decisions/automations-monitor-stack.md). Tests never touch live Herdr or the real `tatsu`.
 
 ## Read for the task
