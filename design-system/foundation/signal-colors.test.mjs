@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GLYPHS, paint, resolveColor, span } from './cells.mjs';
 import { ACID_BLACK } from './palette.mjs';
-import { HERDR_CHROME, PI_CHROME, SIGNAL_COLORS, mixOver } from './signal-colors.mjs';
+import { BOARD_INKS, HERDR_CHROME, PI_CHROME, SIGNAL_COLORS, mixOver } from './signal-colors.mjs';
 
 test('signal colors are frozen lowercase #rrggbb values that paint as literal RGB', () => {
   assert.ok(Object.isFrozen(SIGNAL_COLORS));
@@ -64,4 +64,19 @@ test('every curated glyph is a single code point listed once', () => {
 
 test('mixOver rejects unknown terminal-default RGB rather than manufacturing a color', () => {
   for (const proportion of [0, 0.25, 0.5, 1]) assert.throws(() => mixOver('default', proportion), TypeError);
+});
+
+test('board inks are frozen lowercase white mixes over the field, named for their use', () => {
+  assert.ok(Object.isFrozen(BOARD_INKS));
+  const mixes = { selection: 0.1, faint: 0.14, chip: 0.16, base: 0.2, hatch: 0.24 };
+  assert.deepEqual(Object.keys(BOARD_INKS), Object.keys(mixes));
+  for (const [name, proportion] of Object.entries(mixes)) {
+    assert.match(BOARD_INKS[name], /^#[0-9a-f]{6}$/, name);
+    assert.equal(BOARD_INKS[name], mixOver('primary', proportion), name);
+    assert.ok(!Object.hasOwn(ACID_BLACK, name) && !Object.hasOwn(SIGNAL_COLORS, name), `${name} shadows no other name`);
+  }
+  // The history-bar base is the same grey as a lost segment, in its own role.
+  assert.equal(BOARD_INKS.base, SIGNAL_COLORS.ghost);
+  // Derived, not restated: the values the automations monitor's frames were captured with.
+  assert.deepEqual({ ...BOARD_INKS }, { selection: '#1a1a1a', faint: '#242424', chip: '#292929', base: '#333333', hatch: '#3d3d3d' });
 });

@@ -82,6 +82,13 @@
     "./foundation/dashboard-colors": "./foundation/dashboard-colors.mjs",
     "./foundation/ambient": "./foundation/ambient.mjs",
     "./foundation/decode-glyph": "./foundation/decode-glyph.mjs",
-    "./motions/ambient-load": "./motions/ambient-load.mjs"
+    "./motions/ambient-load": "./motions/ambient-load.mjs",
+    "./foundation/board-tones": "./foundation/board-tones.mjs",
+    "./elements/board-marks": "./elements/board-marks/board-marks.mjs",
+    "./elements/section-head": "./elements/section-head/section-head.mjs",
+    "./elements/time-lane": "./elements/time-lane/time-lane.mjs",
+    "./elements/readout": "./elements/readout/readout.mjs",
+    "./elements/event-row": "./elements/event-row/event-row.mjs",
+    "./elements/scroll-rail": "./elements/scroll-rail/scroll-rail.mjs"
   }
 }

@@ -14,6 +14,9 @@ plugin's guide: [Spaces](spaces/AGENTS.md), [Whiteboard](whiteboard/AGENTS.md),
   Effect stack is its own [decision](../docs/decisions/automations-monitor-stack.md).
 - Colors are design-system values. A plugin that cannot import the package
   mirrors them in one file and checks them against it with a Node test.
+- Visual components come from the design system, extended there first when
+  one is missing or differs; a plugin that cannot import it mirrors the
+  reference in one place. See [the rule](../docs/conventions.md#design-system-components).
 - Tests use temporary state and fake Unix sockets, never live Herdr. Parser
   checks use `HERDR_CONFIG_PATH` on a worktree file or temporary copy.
 - Startup/event hooks must return promptly: detach a daemon with no inherited

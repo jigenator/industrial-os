@@ -71,3 +71,28 @@ test('name-rule centers the exact plate/readout group with symmetric outer gaps 
     }
   }
 });
+
+test('board rules: separate tab and hairline inks, an optional lead cell, and a vertical hairline', async () => {
+  const { verticalRule } = await import('./tab-rule.mjs');
+  const { BOARD_INKS } = await import('../../foundation/signal-colors.mjs');
+  const inks = { tab: 'accent', rule: BOARD_INKS.faint };
+  const header = tabRule({ tabCells: 14, inks }, { width: 20 });
+  assert.equal(paint(header, 'none'), ' ━━━━━━━━━━━━━━─────');
+  assert.deepEqual(header, [span(' ', { bg: 'default' }), span('━'.repeat(14), { fg: 'accent', bg: 'default' }), span('─────', { fg: BOARD_INKS.faint, bg: 'default' })]);
+  assert.deepEqual(tabRule({ tabCells: 3, inks: { tab: 'primary', rule: BOARD_INKS.faint } }, { width: 6, lead: false }),
+    [span('━━━', { fg: 'primary', bg: 'default' }), span('───', { fg: BOARD_INKS.faint, bg: 'default' })]);
+  assert.deepEqual(tabRule({ tabCells: 0, inks }, { width: 4, lead: false }), [span('────', { fg: BOARD_INKS.faint, bg: 'default' })]);
+  // Omitted inks keep each part's original ink; omitted options keep the original bytes.
+  assert.deepEqual(tabRule({ focused: true, inks: { rule: BOARD_INKS.faint } }, { width: 18 })[1], span('━'.repeat(14), { fg: 'accent', bg: 'default' }));
+  for (let width = 1; width <= 160; width++) {
+    assert.deepEqual(tabRule({ focused: true }, { width, lead: true }), tabRule({ focused: true }, { width }));
+    assert.equal(lineWidth(tabRule({ tabCells: 14, inks }, { width, lead: false })), width);
+  }
+  assert.throws(() => tabRule({ inks: { tab: 'acid' } }, { width: 10 }), TypeError);
+  assert.throws(() => tabRule({ inks: 'accent' }, { width: 10 }), TypeError);
+  assert.throws(() => tabRule({}, { width: 10, lead: 1 }), TypeError);
+  const column = verticalRule({ ink: BOARD_INKS.faint }, { height: 3 });
+  assert.deepEqual(column, Array(3).fill([span('│', { fg: BOARD_INKS.faint, bg: 'default' })]));
+  assert.equal(verticalRule({}, { height: 1 })[0][0].style.fg, '#3a3f46');
+  assert.throws(() => verticalRule({}, { height: 0 }), RangeError);
+});

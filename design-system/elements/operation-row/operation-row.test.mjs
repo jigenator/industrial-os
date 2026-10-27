@@ -51,3 +51,19 @@ test('operation-row: selection and hover keep a separate marker, gap and fixed t
     if(width>=20) { assert.equal(line.slice(3,8),'09:40'); assert.ok(line.endsWith('2.3s')); }
   }
 });
+
+test('a right-aligned detail row runs its leader up to the value, in a chosen leader ink', async () => {
+  const { BOARD_INKS } = await import('../../foundation/signal-colors.mjs');
+  const row = operationDetail({ label: 'PIPELINE', value: 'IMPLEMENT' }, { width: 30, align: 'right', leaderInk: BOARD_INKS.faint, style: { fg: 'primary', bold: true } });
+  assert.equal(plain(row), 'PIPELINE ··········· IMPLEMENT');
+  assert.deepEqual(row.filter((s) => s.text.trim()), [
+    span('PIPELINE', { fg: 'decorative', bg: 'default' }), span('···········', { fg: BOARD_INKS.faint, bg: 'default' }),
+    span('IMPLEMENT', { fg: 'primary', bg: 'default', bold: true }),
+  ]);
+  assert.equal(plain(operationDetail({ label: 'PHASE', value: 'A-VALUE-TOO-LONG-FOR-IT' }, { width: 20, align: 'right' })), 'PHASE  A-VALUE-TOO-…');
+  for (let width = 1; width <= 80; width++) assert.equal(lineWidth(operationDetail({ label: 'ADMITTED', value: '10:00:00' }, { width, align: 'right' })), width);
+  // The default left alignment and leader ink are unchanged.
+  for (let width = 1; width <= 80; width++) assert.deepEqual(operationDetail({ label: 'STATUS', value: 'running' }, { width, align: 'left' }), operationDetail({ label: 'STATUS', value: 'running' }, { width }));
+  assert.throws(() => operationDetail({ label: 'A', value: 'B' }, { width: 20, align: 'center' }), RangeError);
+  assert.throws(() => operationDetail({ label: 'A', value: 'B' }, { width: 20, leaderInk: 'acid' }), TypeError);
+});

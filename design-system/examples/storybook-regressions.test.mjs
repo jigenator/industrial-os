@@ -58,9 +58,9 @@ import { nudge } from '../motions/nudge.mjs';
 import { STORIES } from './storybook-stories.mjs';
 import { advance, composeStorybook, initialState, press } from './storybook-layout.mjs';
 
-import { tabRule, leader, neatline, nameRule } from '../elements/tab-rule/tab-rule.mjs';
+import { tabRule, leader, neatline, nameRule, verticalRule } from '../elements/tab-rule/tab-rule.mjs';
 import { actionLabel, keyHints } from '../elements/action-label/action-label.mjs';
-import { popupHeader, popupFooter } from '../elements/popup-header/popup-header.mjs';
+import { popupHeader, popupFooter, popupFrame, popupTitleBar } from '../elements/popup-header/popup-header.mjs';
 import { noticeRow } from '../elements/notice-row/notice-row.mjs';
 import { scopeMeter } from '../elements/scope-meter/scope-meter.mjs';
 import { soundingMeter } from '../elements/sounding-meter/sounding-meter.mjs';
@@ -71,10 +71,19 @@ import { soundingSweep } from '../motions/sounding-sweep.mjs';
 import { feedBezel, imageLabel, imageInset } from '../elements/feed-bezel/feed-bezel.mjs';
 import { inputFrame } from '../elements/input-frame/input-frame.mjs';
 import { feedScan } from '../motions/feed-scan.mjs';
+import { endMark, pointer, runTrail, scheduleMark, spine, stateCell } from '../elements/board-marks/board-marks.mjs';
+import { sectionHead } from '../elements/section-head/section-head.mjs';
+import { laneAxis, laneRun, laneTrack } from '../elements/time-lane/time-lane.mjs';
+import { CellGrid } from '../foundation/cell-grid.mjs';
+import { phaseSteps, readoutBlock, readoutLine, slotStrip, splitBar } from '../elements/readout/readout.mjs';
+import { eventRow } from '../elements/event-row/event-row.mjs';
+import { scrollRail } from '../elements/scroll-rail/scroll-rail.mjs';
 import { cornerSnap } from '../motions/corner-snap.mjs';
 const API = {
   callout, calloutGeometry, subtitle, subtitleGeometry, timestampLeader, documentHeading, listRow, quoteRows, linkLines, codeBand, inlineCode, specTable, cardState, cardHeading, sheetCard, stackCard, stackRow, sheetListRow, deskStrip, deskHeading, questionTitle, questionBody, deskFooter, operationHeading, operationRow, operationDetail, calloutEntrance, phosphorHead,
   feedBezel, imageLabel, imageInset, inputFrame, feedScan, cornerSnap,
+  endMark, pointer, runTrail, scheduleMark, spine, stateCell, sectionHead, laneAxis, laneRun, laneTrack, CellGrid, phaseSteps, readoutBlock, readoutLine, slotStrip, splitBar, eventRow, scrollRail,
+  popupFrame, popupTitleBar, verticalRule,
   tabRule, leader, neatline, nameRule, actionLabel, keyHints, popupHeader, popupFooter, noticeRow, scopeMeter, soundingMeter, scopeTrace, soundingSweep,
   typeUnit, activityStrip, planCounter, activityTrace, alertTicker, ambientField, decode, breathe, arrivalPing, ambientSweep,
   ambientLoad,
@@ -85,15 +94,16 @@ const API = {
   BURN_OUT_PRESETS, edgePulse, restrike, ghost, nudge,
 };
 // Execute only our trusted, generated example source; no user input is evaluated. Assignments become
-// declarations; every other statement is an expression whose value is returned in order.
+// declarations and `for` loops run as written; every other statement is an expression whose value, unless it has
+// none (a grid's `place`), is returned in order.
 function execute(calls, time) {
   const statements = [];
   for (const line of calls.join('\n').replace(/^(\w+) = /gm, 'const $1 = ').split('\n')) {
     if (/^(\s|\])/.test(line)) statements[statements.length - 1] += '\n' + line; // a multi-line `body = [` block
     else statements.push(line);
   }
-  const body = statements.map((st) => (st.startsWith('const ') ? st : `out.push(${st});`)).join('\n');
-  return new Function(...Object.keys(API), 'time', `const out = [];\n${body}\nreturn out;`)(...Object.values(API), time);
+  const body = statements.map((st) => (/^(const|for) /.test(st) ? st : `out.push(${st});`)).join('\n');
+  return new Function(...Object.keys(API), 'time', `const out = [];\n${body}\nreturn out.filter((value) => value !== undefined);`)(...Object.values(API), time);
 }
 const motionStories = STORIES.filter((s) => s.kind === 'motion');
 

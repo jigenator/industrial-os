@@ -1,4 +1,4 @@
-import { GLYPHS, assertCells, fitLine, fitText, lineWidth, span, textSlot } from '../../foundation/cells.mjs';
+import { GLYPHS, assertCells, fitLine, fitText, lineWidth, resolveStyle, span, textSlot } from '../../foundation/cells.mjs';
 import { SIGNAL_COLORS } from '../../foundation/signal-colors.mjs';
 import { SURFACE_PALETTE as P } from '../../foundation/surface-palette.mjs';
 import { labelPlate } from '../label-plate/label-plate.mjs';
@@ -13,13 +13,31 @@ export function leader({ glyph = '┄' } = {}, { maxWidth = 0 } = {}) {
   return [span(glyph.repeat(maxWidth), rule)];
 }
 
-export function tabRule({ tabCells = 14, focused = false } = {}, { width } = {}) {
+export function tabRule({ tabCells = 14, focused = false, inks } = {}, { width, lead = true } = {}) {
   for (const value of arguments) if (value !== undefined && (value === null || typeof value !== 'object' || Array.isArray(value))) throw new TypeError('input and options must be objects');
   assertCells(width, 'tab rule width');
   if (!Number.isInteger(tabCells) || tabCells < 0 || tabCells > 1000) throw new RangeError('tabCells must be 0–1000');
   if (typeof focused !== 'boolean') throw new TypeError('focused must be boolean');
-  const tab = Math.min(tabCells, width - 1);
-  return fitLine([span(' ', clear), span('━'.repeat(tab) + '─'.repeat(width - 1 - tab), { fg: focused ? 'accent' : P.rule, ...clear })], width, clear);
+  if (typeof lead !== 'boolean') throw new TypeError('lead must be boolean');
+  if (inks === undefined && lead) {
+    const tab = Math.min(tabCells, width - 1);
+    return fitLine([span(' ', clear), span('━'.repeat(tab) + '─'.repeat(width - 1 - tab), { fg: focused ? 'accent' : P.rule, ...clear })], width, clear);
+  }
+  // Separate tab and hairline inks, and an optional lead cell, for hosts such as the automations monitor.
+  if (inks !== undefined && (inks === null || typeof inks !== 'object' || Array.isArray(inks))) throw new TypeError('inks must be an object');
+  const { tab: tabInk = focused ? 'accent' : P.rule, rule: ruleInk = focused ? 'accent' : P.rule } = inks ?? {};
+  resolveStyle({ fg: tabInk, bg: ruleInk });
+  const room = width - (lead ? 1 : 0), tab = Math.min(tabCells, room);
+  return fitLine([...(lead ? [span(' ', clear)] : []), ...(tab ? [span('━'.repeat(tab), { fg: tabInk, ...clear })] : []),
+    ...(room - tab ? [span('─'.repeat(room - tab), { fg: ruleInk, ...clear })] : [])], width, clear);
+}
+
+// A vertical hairline `height` cells tall, one line per cell.
+export function verticalRule({ ink = P.rule } = {}, { height } = {}) {
+  for (const value of arguments) if (value !== undefined && (value === null || typeof value !== 'object' || Array.isArray(value))) throw new TypeError('input and options must be objects');
+  assertCells(height, 'vertical rule height');
+  resolveStyle({ fg: ink });
+  return Array.from({ length: height }, () => [span('│', { fg: ink, ...clear })]);
 }
 
 const neatlineSpans = text => [...text].map(ch => span(ch, ch === '┄' ? { fg: SIGNAL_COLORS.ghost, ...clear } : rule));

@@ -166,3 +166,25 @@ test('heavy frame junction glyphs have the same narrow ruler contract', () => {
     assert.equal(lineWidth([span(`┃${glyph.repeat(40)}┃`)]), 42);
   }
 });
+
+test('board glyphs (run marks, slot floor, pointer, arrows and dashes) have the same narrow ruler contract', () => {
+  for (const glyph of '□◩▁▶↑↓–—') {
+    assert.ok(GLYPHS.includes(glyph), glyph);
+    assert.equal(lineWidth([span(`│${glyph.repeat(40)}│`)]), 42);
+    assert.equal(safeText(glyph), '?', 'caller text stays printable ASCII without a measurer');
+  }
+});
+
+test('fitText ellipsis: always marks an overflow, even at one cell; the default keeps the first grapheme', async () => {
+  const { fitText } = await import('./cells.mjs');
+  const measure = (text) => [...text].length;
+  for (const options of [{}, { measure }]) {
+    assert.deepEqual(fitText('ABC', 1, options), [span('A')]);
+    assert.deepEqual(fitText('ABC', 1, { ...options, ellipsis: 'always' }), [span('…')]);
+    assert.deepEqual(fitText('ABC', 1, { ...options, ellipsis: 'always', style: { fg: 'accent' } }), [span('…', { fg: 'accent' })]);
+    assert.deepEqual(fitText('A', 1, { ...options, ellipsis: 'always' }), [span('A')]);
+    assert.deepEqual(fitText('ABC', 0, { ...options, ellipsis: 'always' }), fitText('ABC', 0, options));
+    for (let n = 2; n <= 5; n++) assert.deepEqual(fitText('ABCDEF', n, { ...options, ellipsis: 'always' }), fitText('ABCDEF', n, options));
+  }
+  assert.throws(() => fitText('ABC', 1, { ellipsis: 'never' }), RangeError);
+});

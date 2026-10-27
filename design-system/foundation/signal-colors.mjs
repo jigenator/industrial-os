@@ -89,3 +89,14 @@ export function mixOver(color, proportion) {
   if (mirrored) return mirrored;
   return '#' + [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * proportion).toString(16).padStart(2, '0')).join('');
 }
+
+// The board's white mixes over the field (the automations monitor's time-axis board): the selection band, faint
+// rules and tracks, chip fills, history bars and hatching. Derived, not new values: each is mixOver('primary', p), and
+// base is SIGNAL_COLORS.ghost (the 20% mix) in its own role, as the dashboard's rule ink is.
+export const BOARD_INKS = Object.freeze({
+  selection: mixOver('primary', 0.1),
+  faint: mixOver('primary', 0.14),
+  chip: mixOver('primary', 0.16),
+  base: SIGNAL_COLORS.ghost,
+  hatch: mixOver('primary', 0.24),
+});

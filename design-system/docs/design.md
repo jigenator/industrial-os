@@ -14,6 +14,8 @@ The second set is modeled on the Pi extensions' own UI, so the extensions' look 
 
 Modeled on herdr-sidebar's layout B: the [line meter](../elements/line-meter/README.md) (compact context-used bar) and [column block](../elements/column-block/README.md) (gutter, value, marks and right slot). Their contracts and differences from herdr-sidebar live in those READMEs. Automated checks only; native Herdr checks not run.
 
+Modeled on the automations monitor's board: the [section head](../elements/section-head/README.md), [board marks](../elements/board-marks/README.md) (run outcomes, schedule marks, state cells, pointer and spine), the [time lane](../elements/time-lane/README.md) (axis, track, runs and NOW), [readouts](../elements/readout/README.md) (a tall-numeral block, its one-line form, slot strips, split bars and phase steps), the [event row](../elements/event-row/README.md) and the [scroll rail](../elements/scroll-rail/README.md). The pixel numeral gained the monitor's tall face, the tab rule board inks and a vertical rule, the popup header the board popup's frame, title bar and backdrop, and the operation row a right-aligned detail. The [board tones](../foundation/README.md#board-inks-and-tones) give each state its ink, cell and chip colors; history stays grey and category fills mark only live work. Automated checks only; native Herdr checks of the storybook stories were not run.
+
 Final visual acceptance of every element remains a maintainer decision.
 
 ## IndustrialOS colors

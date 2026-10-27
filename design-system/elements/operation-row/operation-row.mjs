@@ -38,11 +38,21 @@ export function operationRow({ state = 'neutral', time = '', category = '', deta
   const rail=leader({glyph:'·'},{maxWidth:Math.max(0,width-size(prefix,measure)-size(content,measure)-gap.length-size(stamp,measure)-1)}).map(s=>span(s.text,{...s.style,fg:P.floor,bg}));
   return fitLine([...fitLine([...prefix,...content,...gap,...rail],Math.max(Math.min(width,3),width-size(stamp,measure)-1),base,{measure}),span(' ',base),...stamp],width,base,{measure});
 }
-export function operationDetail({ label = '', value = '' } = {}, { width, labelWidth = 14, measure, style = {} } = {}) {
+export function operationDetail({ label = '', value = '' } = {}, { width, labelWidth = 14, measure, style = {}, align = 'left', leaderInk } = {}) {
   for (const value of arguments) if (value !== undefined && (value === null || typeof value !== 'object' || Array.isArray(value))) throw new TypeError('input and options must be objects');
   assertCells(width,'operation detail width'); resolveStyle(style);
   if(!Number.isInteger(labelWidth)||labelWidth<0||labelWidth>1000) throw new RangeError('labelWidth must be 0–1000');
+  if(align!=='left'&&align!=='right') throw new RangeError('align must be left or right');
+  if(leaderInk!==undefined) resolveStyle({fg:leaderInk});
+  const dots=(maxWidth)=>leader({glyph:'·'},{maxWidth}).map(s=>leaderInk===undefined?s:span(s.text,{...s.style,fg:leaderInk}));
+  if(align==='right'){
+    // The label at the left, the value against the right edge, the leader between them a cell clear of each.
+    const title=fitText(label,width,{measure,style:{fg:'decorative',...clear}}), at=size(title,measure);
+    const budget=Math.max(0,width-at-2), shown=fitText(value,budget,{measure,style:{fg:'secondary',...clear,...style}});
+    const gap=Math.max(0,width-at-size(shown,measure));
+    return fitLine([...title,...(gap?[span(' ',clear),...dots(Math.max(0,gap-2)),span(' '.repeat(Math.max(0,gap-1-Math.max(0,gap-2))),clear)]:[]),...shown],width,clear,{measure});
+  }
   const left=Math.min(labelWidth,Math.max(0,width-3));
   const title=fitText(label,Math.max(0,left-1),{measure,style:{fg:'decorative',...clear}});
-  return fitLine([...title,span(left > size(title,measure) ? ' ' : '',clear),...leader({glyph:'·'},{maxWidth:Math.max(0,left-size(title,measure)-1)}),span(' ',clear),...fitText(value,Math.max(0,width-left-1),{measure,style:{fg:'secondary',...clear,...style}})],width,clear,{measure});
+  return fitLine([...title,span(left > size(title,measure) ? ' ' : '',clear),...dots(Math.max(0,left-size(title,measure)-1)),span(' ',clear),...fitText(value,Math.max(0,width-left-1),{measure,style:{fg:'secondary',...clear,...style}})],width,clear,{measure});
 }

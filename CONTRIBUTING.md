@@ -81,7 +81,8 @@ A project is a top-level folder, or a folder under `pi/` for a Pi extension or `
 2. Add every one of its guides to the [root map](AGENTS.md#supporting-documents) and the folder to the [root README layout](README.md#layout).
 3. If it is a Pi extension, follow [moving an extension in](pi/CONTRIBUTING.md#moving-an-extension-in) so its history survives and its install instructions point here.
 4. If it imports the design system, import it only by package name and add the root install to its setup; see [the package decision](docs/decisions/in-repo-design-system-package.md#migrating-an-extension).
-5. Record any consequential choice under `docs/decisions/` and map it.
+5. Draw its visual components with the design system, adding or extending elements there first; see [the rule](docs/conventions.md#design-system-components).
+6. Record any consequential choice under `docs/decisions/` and map it.
 
 Do not create a folder, placeholder guides, or adapters for a project before its first maintained content exists.
 
