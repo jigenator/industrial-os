@@ -92,6 +92,22 @@ test('a popup title bar: a state mark or a filled band, bold title and word, det
   assert.throws(() => popupTitleBar({ title: 'X' }, { width: 20 }), TypeError);
 });
 
+test('a popup title bar places wide graphemes by their measured width', async () => {
+  const { popupTitleBar } = await import('./popup-header.mjs');
+  const wide = (text) => [...text].reduce((n, ch) => n + (/[\u3040-\u9fff]/u.test(ch) ? 2 : 1), 0);
+  const bar = popupTitleBar({ mark: 'accent', title: '日本', word: 'RUN', detail: '詳細', meta: '閉じる' }, { width: 30, measure: wide });
+  assert.equal(paint(bar, 'none'), '█ 日本  RUN  詳細' + ' '.repeat(7) + '閉じる');
+  assert.equal(lineWidth(bar, { measure: wide }), 30);
+  assert.deepEqual(bar.at(-1), span('閉じる', { fg: 'decorative' }));
+  // Cut parts still end two cells before the close action, which keeps every cell.
+  for (let width = 1; width <= 40; width++) {
+    const cut = popupTitleBar({ band: { fill: '#95b8d1', ink: 'field' }, title: '日本語のタイトル', word: '実行', detail: '詳細', meta: '閉じる' }, { width, measure: wide });
+    assert.equal(lineWidth(cut, { measure: wide }), width, `${width}`);
+    if (width >= 6) assert.ok(paint(cut, 'none').endsWith('閉じる'), `${width}`);
+    if (width >= 10) assert.ok(paint(cut, 'none').slice(0, -3).endsWith('  '), `${width}`);
+  }
+});
+
 test('a popup backdrop fades every cell to a quarter over the field and drops bold', async () => {
   const { popupBackdrop, POPUP_BACKDROP } = await import('./popup-header.mjs');
   assert.equal(POPUP_BACKDROP, 0.25);

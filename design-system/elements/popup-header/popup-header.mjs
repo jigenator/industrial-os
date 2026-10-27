@@ -4,6 +4,8 @@ import { SURFACE_PALETTE as P } from '../../foundation/surface-palette.mjs';
 import { labelPlate } from '../label-plate/label-plate.mjs';
 import { actionLabel } from '../action-label/action-label.mjs';
 
+const graphemes = new Intl.Segmenter('und', { granularity: 'grapheme' });
+
 function row(left, title, meta, width, measure, background, margin) {
   const clear = { bg: background };
   const available = Math.max(0, width - margin - lineWidth(left, { measure }));
@@ -62,27 +64,43 @@ export function popupTitleBar(input, { width, measure, ellipsis } = {}) {
   if (wordInk !== undefined) resolveColor(wordInk);
   const tb = band ? { bg: band.fill } : {};
   const ink = (quiet) => (band ? band.ink : quiet);
-  const cells = Array.from({ length: width }, () => [' ', band ? { fg: 'secondary', bg: band.fill } : {}]);
-  if (!band) cells[0] = ['█', { fg: mark }];
-  const put = (x, text, style, max = Infinity) => {
-    const shown = fitText(text, Math.max(0, Math.min(1000, max)), { measure, ellipsis, style });
-    let at = x;
-    for (const s of shown) for (const ch of [...s.text]) { if (at >= 0 && at < width) cells[at] = [ch, s.style]; at += 1; }
-    return x + lineWidth(shown, { measure });
+  const blank = band ? { fg: 'secondary', bg: band.fill } : {};
+  const size = (text) => lineWidth([span(text)], { measure });
+  // The parts are placed left to right by their measured width, gaps in the row's blank style.
+  const line = [band ? span(' ', blank) : span('█', { fg: mark })];
+  const placeAt = (at, spans) => {
+    const end = lineWidth(line, { measure });
+    if (at > end) line.push(span(' '.repeat(at - end), blank));
+    line.push(...spans);
   };
-  const metaWidth = lineWidth(fitText(meta, Infinity, { measure }), { measure });
-  const closeX = width - metaWidth;
-  put(closeX, meta, { fg: ink('decorative'), ...tb });
+  const meta_ = fitText(meta, 1000, { measure, ellipsis, style: { fg: ink('decorative'), ...tb } });
+  const closeX = width - lineWidth(meta_, { measure });
+  const put = (x, text, style, max) => {
+    const shown = fitText(text, Math.max(0, Math.min(1000, max)), { measure, ellipsis, style });
+    const used = lineWidth(shown, { measure });
+    if (used) placeAt(x, shown);
+    return x + used;
+  };
   let tx = put(2, title, { fg: ink('primary'), bold: true, ...tb }, closeX - 4);
   tx = put(tx + 2, word, { fg: ink(wordInk ?? 'primary'), bold: true, ...tb }, closeX - tx - 4);
   put(tx + 2, detail, { fg: ink('decorative'), ...tb }, closeX - tx - 4);
-  const line = [];
-  for (const [ch, style] of cells) {
-    const last = line.at(-1);
-    if (last && JSON.stringify(last.style) === JSON.stringify(style)) last.text += ch;
-    else line.push(span(ch, style));
+  if (closeX >= 1) placeAt(closeX, meta_);
+  else {
+    // A close action wider than the row keeps its right end, over the mark.
+    line.length = 0;
+    const units = meta_.flatMap((s) => (measure ? [...graphemes.segment(s.text)].map((g) => g.segment) : [...s.text]).map((text) => span(text, s.style)));
+    let used = 0;
+    while (units.length && used + size(units.at(-1).text) <= width) { used += size(units.at(-1).text); line.unshift(units.pop()); }
+    if (used < width) line.unshift(span(' '.repeat(width - used), blank));
   }
-  return fitLine(line, width, {}, { measure });
+  // Neighbouring spans of one style become one span.
+  const merged = [];
+  for (const s of fitLine(line, width, blank, { measure })) {
+    const last = merged.at(-1);
+    if (last && JSON.stringify(last.style) === JSON.stringify(s.style)) last.text += s.text;
+    else merged.push(span(s.text, s.style));
+  }
+  return merged;
 }
 
 // Everything behind a popup fades to a quarter over the field and loses its weight. Takes and returns a cell style;
