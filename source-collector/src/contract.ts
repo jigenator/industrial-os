@@ -86,7 +86,14 @@ export const SourceOutput = S.Struct({
   ),
 }).check(S.makeFilter((o) => new Set(o.items.map((i) => i.key)).size === o.items.length));
 export type SourceOutput = typeof SourceOutput.Type;
-export const Item = S.Struct({ ...OutputItem.fields, source: Id, kind: Text, seenAt: Iso });
+// doneAt is engine-owned: only a checklist item that is [x] and has a known completion time carries it.
+export const Item = S.Struct({
+  ...OutputItem.fields,
+  source: Id,
+  kind: Text,
+  seenAt: Iso,
+  doneAt: S.optional(Iso),
+});
 export type Item = typeof Item.Type;
 export const Plan = S.Literals(["today", "inbox", "later"]);
 export const Overlay = S.Struct({ plan: Plan, pinned: S.Boolean, handledAt: S.optional(Iso) });
@@ -138,6 +145,7 @@ export const Snapshot = S.Struct({
         stale: S.Boolean,
         fresh: S.Boolean,
         waiting: S.Boolean,
+        done: S.Boolean,
       }),
     }),
   ),
@@ -173,11 +181,13 @@ export const Act = S.Struct({
   undo: S.optional(S.Boolean),
   text: S.optional(Text),
   section: S.optional(Text),
+  source: S.optional(Id),
   action: S.optional(Id),
   actor: Actor,
   agent: S.optional(S.String.check(S.isPattern(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/))),
 }).check(
   S.makeFilter((a) => {
+    if (a.source !== undefined && a.do !== "todo.add") return false;
     switch (a.do) {
       case "look":
         return true;

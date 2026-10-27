@@ -46,6 +46,11 @@ All fixtures use fake data and temporary storage. The tests cover:
   transforms, output caps, action argv and actual SIGTERM → SIGKILL escalation;
 - scratchpad parsing, local timestamps, line-preserving done/reopen/add and
   concurrent-edit retry/conflict;
+- done to-dos kept until local midnight across a store reopen, uncounted and never
+  stale; reopen, redo after a reopen, `[x]` with no shipment, the upgrade from gone
+  done rows, the restart reread that must not refake a completion, and the
+  same-day reopen week rule, in several time zones by `TZ`;
+- todo.add source selection: named, unknown, command, disabled and none;
 - Migrator up/down, unknown/newer schema refusal, run uniqueness/retention,
   interrupted history, diff/ledger rollback and shipped replay deduplication;
 - ages/fresh/waiting/handled counts, null unknowns, civil week blocks and D5;
@@ -147,6 +152,37 @@ constraint in Argument.withSchema; explicit false defaults and handler-level
 Plan decoding fixed both. Handler decoding also avoids Effect CLI's preexisting
 parse-error auto-help on stdout for invalid plan values. Other parse failures can
 still print help to stdout; that inherited CLI-wide behavior was not changed.
+
+### Done to-dos until end of day and todo.add source
+
+2026-10-28, isolated local macOS run, Bun 1.4.4:
+
+| Check                                                     | Result                                                                                      |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `bun install --frozen-lockfile`                           | Pass; 21 packages, no lockfile change                                                       |
+| `bun run typecheck`                                       | Pass                                                                                        |
+| `bun run lint`                                            | Pass; type-aware, deny warnings                                                             |
+| `bun run format:check`                                    | Pass                                                                                        |
+| `bun test`                                                | Pass; 44 tests, 0 failures, 397 assertions                                                  |
+| `TZ=… bun test test/store-derive.test.ts`                 | Pass in UTC, America/Los_Angeles, Asia/Kolkata, Pacific/Chatham and Europe/London; 11 tests |
+| `bun bin/source-collector.ts check examples/sources/fake` | Pass                                                                                        |
+| `bun bin/source-collector.ts check examples/sources/jq`   | Pass                                                                                        |
+| `bun bin/source-collector.ts check examples/sources/todo` | Pass; two open items, the `[x]` line is not output                                          |
+| Foreground smoke                                          | Pass; see below                                                                             |
+| Live engine, real launchd, Herdr UI                       | Not run; outside this task's allowed validation                                             |
+
+Smoke, copied fixtures with temporary HOME, runtime and config only: `todo done` on
+the demo item left four items, the item `done: true` in `get --items` with doneAt,
+todo total 2 → 1, inbox plan 4 → 3 and week you 1. After RPC stop (exit 0) and a
+fresh `run`, the item was still done with the identical doneAt once the checklist
+reread had completed. `todo reopen` returned it to open, total 2, week you 0 (same-day
+reopen). `todo add --source todo` wrote to the copy; `--source fake` exited 2 with
+invalid_input. The fixture's `Already finished` line never appeared. stdout stayed
+empty; both stops drained.
+
+Temporarily reverting the restart rebuild to `done: false` made the RPC test fail
+on a changed doneAt, so that test guards the fix. The midnight rule is checked by
+injected request times, not by waiting for a real midnight.
 
 ## Simplification review
 

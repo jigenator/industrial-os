@@ -15,6 +15,10 @@ follow the [shared design](../../docs/design.md).
   source state; collection failures in v1 use stale, including initial failure.
 - Counts are null for all states other than ok/stale. Unknown must never be drawn
   as zero. Handled items remain in the snapshot but do not count.
+- A to-do marked done, by any writer, stays in the snapshot until the end of the
+  local day it was done, flagged done and reopenable. It never counts and is never
+  stale. At local midnight it drops off. A line already done when first seen, with
+  no recorded completion, never shows.
 
 ## Shared values
 
@@ -32,6 +36,9 @@ D5 is deliberately provisional: checklist shipments count as you whatever
 their recorded actor. Other shipments count as agents when their item kind is
 pr_merge or the source declared actor agent, and as you when it declared you.
 Shipments with no declared actor and no known kind do not contribute.
+A checklist shipment reopened later the same local day stops counting while the
+to-do stays open; done again, it counts once more. A reopen on a later day leaves
+the earlier shipment counted, and a repeat completion is never a second shipment.
 
 rev tracks stored changes, not a repaint clock. at, ages and future flags are
 computed on every get, even when rev is unchanged. Polling never waits for a

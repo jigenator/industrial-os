@@ -26,6 +26,7 @@ import {
   checklistPath,
   readChecklist,
   checklistOutput,
+  checklistDone,
   editChecklist,
   type ChecklistRead,
 } from "./checklist.ts";
@@ -109,15 +110,16 @@ export const makeEngine = (options: { runtime: string; config: string }) =>
             ? (checklists.get(id) ?? {
                 text: "",
                 stamp: "",
+                // After a restart the stored rows stand in for the last read; done rows stay done.
                 todos: (yield* store.items())
                   .filter((i) => i.source === id)
-                  .map(({ key, title, since, who, where }) => ({
+                  .map(({ key, title, since, who, where, doneAt }) => ({
                     key,
                     title,
                     since,
                     who,
                     where,
-                    done: false,
+                    done: doneAt !== undefined,
                     line: -1,
                   })),
               })
@@ -125,14 +127,14 @@ export const makeEngine = (options: { runtime: string; config: string }) =>
         const operation =
           config.type === "command"
             ? runCommand(config, entry.folder, runId, undefined, (text) => log.append(text)).pipe(
-                Effect.map((r) => r.output),
+                Effect.map((r) => ({ output: r.output, done: [] })),
               )
             : checklistIO(() => {
                 const path = checklistPath(config.path, entry.folder),
                   read = readChecklist(path);
                 const output = checklistOutput(read, previousChecklist);
                 checklists.set(id, read);
-                return output;
+                return { output, done: checklistDone(read) };
               });
         const result = yield* safe(
           operation.pipe(
@@ -152,15 +154,16 @@ export const makeEngine = (options: { runtime: string; config: string }) =>
         if (result._tag === "Success") {
           yield* store.sql.withTransaction(
             Effect.gen(function* () {
-              yield* store.apply(id, config.type, result.success, end);
+              const { output, done } = result.success;
+              yield* store.apply(id, config.type, output, end, undefined, done);
               yield* persist(id, {
-                state: result.success.status === "auth" ? "auth" : "ok",
+                state: output.status === "auth" ? "auth" : "ok",
                 checkedAt: end,
-                ...(result.success.status === "auth"
+                ...(output.status === "auth"
                   ? {
                       error: {
                         code: "auth",
-                        message: result.success.message ?? "Sign in required",
+                        message: output.message ?? "Sign in required",
                       },
                     }
                   : { okAt: end, error: undefined }),
@@ -296,11 +299,22 @@ export const makeEngine = (options: { runtime: string; config: string }) =>
         const candidates = [...entries.values()].filter(
           (e) => e.config?.type === "checklist" && statuses.get(e.id)?.state !== "disabled",
         );
-        const entry = item
-          ? entries.get(item.source)
-          : candidates.length === 1
-            ? candidates[0]
-            : undefined;
+        // todo.add resolves an explicit source first, then the key's source, then the only checklist.
+        const named = input.source === undefined ? undefined : entries.get(input.source);
+        if (
+          input.source !== undefined &&
+          (named?.config?.type !== "checklist" ||
+            named.config.planned ||
+            statuses.get(named.id)?.state === "disabled")
+        )
+          return yield* Effect.fail(fail("invalid_input", "Source is not an available checklist"));
+        const entry = named
+          ? named
+          : item
+            ? entries.get(item.source)
+            : candidates.length === 1
+              ? candidates[0]
+              : undefined;
         if (!entry?.config || statuses.get(entry.id)?.state === "disabled")
           return yield* Effect.fail(fail("not_found", "Select an available source item"));
         yield* scheduler.withSlot(
@@ -367,10 +381,11 @@ export const makeEngine = (options: { runtime: string; config: string }) =>
                 }),
               );
               const output = checklistOutput(read, previous);
+              const done = checklistDone(read);
               // File rename and SQLite cannot be atomic across stores. A later read repairs items after a crash.
               yield* store.sql.withTransaction(
                 Effect.gen(function* () {
-                  yield* store.apply(entry.id, "checklist", output, now, input.actor);
+                  yield* store.apply(entry.id, "checklist", output, now, input.actor, done);
                   yield* store.event({
                     at: now,
                     type: input.do,

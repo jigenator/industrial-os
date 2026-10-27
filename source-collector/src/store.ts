@@ -7,6 +7,7 @@ import {
   decode,
   fail,
   type SourceOutput,
+  type OutputItem,
   type Act,
 } from "./contract.ts";
 
@@ -172,12 +173,17 @@ export class Store {
     return this
       .sql`INSERT OR IGNORE INTO ledger VALUES(${value.id},${value.at},${value.type},${value.actor},${value.source ?? null},${value.key ?? null},${JSON.stringify(value)})`;
   };
+  /**
+   * Stores one observation. For checklists, `done` lists `[x]` lines: each keeps a doneAt from this
+   * observation's shipment, else its stored doneAt, else its ledger shipment. Without one it stays gone.
+   */
   apply = (
     source: string,
     sourceType: string,
     output: SourceOutput,
     at: string,
     actor = "unknown",
+    done: ReadonlyArray<OutputItem> = [],
   ) =>
     this.sql.withTransaction(
       Effect.gen({ self: this }, function* () {
@@ -187,16 +193,39 @@ export class Store {
           gone_at: string | null;
         }>`SELECT key,record,gone_at FROM item WHERE source_id=${source}`;
         const old = new Map(oldRows.map((r) => [r.key, r]));
+        const stored = (key: string) => {
+          const row = old.get(key);
+          return row ? decode(Item, JSON.parse(row.record)) : undefined;
+        };
         const current = output.status === "auth" ? [] : output.items;
-        for (const raw of current) {
+        const shippedNow = new Map((output.shipped ?? []).map((s) => [s.key, s.at]));
+        let ledgerShipped: Map<string, string> | undefined;
+        const rows: { raw: OutputItem; doneAt?: string }[] = current.map((raw) => ({ raw }));
+        for (const raw of output.status === "auth" ? [] : done) {
+          let doneAt = shippedNow.get(raw.key) ?? stored(raw.key)?.doneAt;
+          if (!doneAt) {
+            ledgerShipped ??= new Map(
+              (yield* this.sql<{
+                key: string;
+                at: string;
+              }>`SELECT key,at FROM ledger WHERE type='shipped' AND source_id=${source}`).map(
+                (r) => [r.key, r.at],
+              ),
+            );
+            doneAt = ledgerShipped.get(raw.key);
+          }
+          if (doneAt) rows.push({ raw, doneAt });
+        }
+        for (const { raw, doneAt } of rows) {
           const previous = old.get(raw.key);
-          const was = previous ? decode(Item, JSON.parse(previous.record)) : undefined;
+          const was = stored(raw.key);
           const item: Item = {
             ...raw,
             source,
             kind: raw.kind ?? (sourceType === "checklist" ? "todo" : "item"),
             seenAt: was?.seenAt ?? at,
             since: sourceType === "checklist" ? (was?.since ?? raw.since) : raw.since,
+            ...(doneAt ? { doneAt } : {}),
           };
           const json = JSON.stringify(item);
           yield* this
@@ -205,6 +234,17 @@ export class Store {
             yield* this.event({
               at,
               type: "arrived",
+              source,
+              key: item.key,
+              actor,
+              kind: item.kind,
+              sourceType,
+            });
+          else if (was?.doneAt && !doneAt)
+            // Reopened is not a shipment; week uses it to undo a same-day checklist shipment.
+            yield* this.event({
+              at,
+              type: "reopened",
               source,
               key: item.key,
               actor,
@@ -222,18 +262,15 @@ export class Store {
               sourceType,
             });
         }
+        const kept = new Set(rows.map((r) => r.raw.key));
         for (const row of oldRows)
-          if (!row.gone_at && !current.some((i) => i.key === row.key)) {
+          if (!row.gone_at && !kept.has(row.key)) {
             yield* this
               .sql`UPDATE item SET gone_at=${at} WHERE source_id=${source} AND key=${row.key}`;
             yield* this.event({ at, type: "gone", source, key: row.key, actor, sourceType });
           }
         for (const shipped of output.shipped ?? []) {
-          const item =
-            current.find((i) => i.key === shipped.key) ??
-            (old.get(shipped.key)
-              ? decode(Item, JSON.parse(old.get(shipped.key)!.record))
-              : undefined);
+          const item = rows.find((r) => r.raw.key === shipped.key)?.raw ?? stored(shipped.key);
           yield* this.event({
             at: shipped.at,
             type: "shipped",

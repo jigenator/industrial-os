@@ -72,9 +72,11 @@ Comment-less keys retain their original since value in SQLite across rereads.
 
 ## Failure boundaries
 
-Item diff, arrived/changed/gone/shipped rows and rev are one SQLite transaction.
-Shipped deduplication has a unique partial index on source/key; replaying an
-observation cannot count the same shipment twice. Overlay changes, actor ledger
+Item diff, arrived/changed/gone/reopened/shipped rows and rev are one SQLite
+transaction. Shipped deduplication has a unique partial index on source/key;
+replaying an observation cannot count the same shipment twice. A done checklist
+line keeps its item row with doneAt, so a restart or a repeat completion after a
+reopen needs no second shipment; `derive` alone applies the end-of-day rule. Overlay changes, actor ledger
 and rev are transactional too. `__engine` is a reserved overlay record for rev and
 the shared look cursor; it is not an item overlay.
 

@@ -42,6 +42,16 @@ writer stamps two items in the same second, each later item gets `#` plus the
 first 12 hex digits of that hash, then `#2`, `#3` if still equal.
 The engine watches the file and rereads at least every 30 seconds.
 
+A checklist's `[ ]`→`[x]` transition records a shipment; `[x]`→`[ ]` records a
+`reopened` ledger event, which is not a shipment. A done line stays a stored item
+with `doneAt` when its completion time is known. That time comes from, in order:
+the shipment this observation records (on a repeat completion after a reopen the
+ledger keeps the first shipment, so this is the observed transition time), the
+item's stored `doneAt`, then the ledger's shipped event for that source and key.
+With none, as for a line already `[x]` when first seen, the line stays gone and
+never shows. After a restart the stored rows stand in for the last read, done rows
+as done, so the first reread never fakes a completion.
+
 Todo edits preserve all other lines and newline style. Adds may select an existing
 section; absent section means append. Added comments use the agent session when
 provided, otherwise a generated UUIDv7. Two adds with the same named session in
@@ -64,22 +74,32 @@ them as stale. planned sources never execute.
 
 get returns v, rev, at, optional lastLookAt, staleLimitMs, sources, items, counts,
 week and alerts. Each item retains its source-local key and adds source, kind
-(default item or todo), seenAt, overlay and derived. RPC act keys use the composite
-`<source>:<source-local-key>`; clients construct it from those two fields.
+(default item or todo), seenAt, overlay and derived, plus optional doneAt (ISO).
+RPC act keys use the composite `<source>:<source-local-key>`; clients construct it
+from those two fields.
+
+doneAt is present only on a checklist item that is `[x]`. Such an item is returned
+only while doneAt is on or after the most recent local midnight of the request
+time, in the engine's time zone like the week; then it disappears even if rev has
+not moved. rev advances with the next checklist observation after midnight, and
+checklists are reread at least every 30 seconds.
 
 Overlay defaults to plan inbox and pinned false; handledAt remains optional.
 Derived ageMs is nonnegative elapsed time from since; remaining clamps
 1−age/staleLimit; stale means age≥limit; fresh compares since to lastLookAt (false
-before a first look); waiting is item.waiting ?? source.waiting ?? false.
+before a first look); waiting is item.waiting ?? source.waiting ?? false. done is
+true exactly when doneAt is present, and a done item is never stale.
 
 SourceStatus carries id/label/tag/order, optional color/okAt/checkedAt/nextAt/error,
 state and writable action names. States and shared truthfulness rules live in
 [design](design.md). NextAt is advisory admission timing, not a queued promise.
 Counts include today/inbox/later and per-source total/waiting/fresh/oldestSince;
-per-source counts are null outside ok/stale. Handled items do not contribute.
+per-source counts are null outside ok/stale. Handled and done items do not
+contribute to plan, total, waiting, fresh or oldestSince.
 
 Week has from/to, 21 local civil eight-hour blocks (start/you/agents/future), total
-and lastWeekSoFar. See design for civil-time and D5 semantics. alerts is always [].
+and lastWeekSoFar. See design for civil-time, D5 and same-day reopen semantics.
+alerts is always [].
 rev advances only on stored changes, including run/source observations or overlay
 changes; not on an otherwise unchanged get. Derived values and at always use now.
 
@@ -106,10 +126,13 @@ The last two methods are additive operational controls needed by the CLI.
 Act.do is plan/pin/handled/look/todo.add/todo.done/todo.reopen/action. Actor is
 required (you/agent); agent is an optional session identifier. plan/pin require
 key and plan/pinned; handled requires key, with undo to clear it; look sets the
-shared cursor. todo.add needs text and optional section; with multiple checklists,
-a composite key can select its source. done/reopen need the composite key and can
-address a stored gone item. action needs key and action name. Successful mutations
-append actor ledger rows; shipments record actual actor independently of D5.
+shared cursor. todo.add needs text and accepts optional section and source. Its
+checklist is source when given, else the source of a composite key, else the only
+enabled checklist. A source that is unknown, not a checklist, planned or disabled
+is invalid_input; source on any other operation is a schema error. done/reopen
+need the composite key and can address a stored gone or done item. action needs
+key and action name. Successful mutations append actor ledger rows; shipments
+record actual actor independently of D5.
 
 CollectorError codes are invalid_input, config_error, conflict, not_found,
 contention, engine_not_running, timeout, output_limit, command_failed,
@@ -140,8 +163,8 @@ Mutations acknowledge a revision, not a refreshed observation of external state.
 
 `get` still prints the complete v1 Snapshot. `get --items` prints one compact v1
 JSON object per item, with composite key, source, state (the source's state),
-plan, pinned, handled (boolean) and title. JSON escaping keeps titles and keys on
-one line without terminal control codes. No items prints no lines on success;
+plan, pinned, handled and done (booleans) and title. JSON escaping keeps titles
+and keys on one line without terminal control codes. No items prints no lines on success;
 failures never emit an empty success-shaped result. Use full get for health and
 observation timestamps; stale items remain last-known, not live observations.
 
