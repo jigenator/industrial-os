@@ -15,7 +15,13 @@ test('input-frame has no body fill in any state, pose or size',()=>{
 });
 test('input-frame preserves focused/form labels and rejects bad states and budgets',()=>{
   assert.match(paint(inputFrame({state:'focused'},{width:30})[1],'none'),/INPUT/);
-  assert.equal(inputFrame({state:'form',label:'QUESTION 07'},{width:40})[1].find(s=>s.text.includes('QUESTION')).style.bg,'critical');
+  const form=inputFrame({state:'form',label:'QUESTION 07'},{width:40})[1].find(s=>s.text.includes('QUESTION')).style;
+  assert.equal(form.fg,'critical'); assert.equal(form.bg,'default');
+  for(const width of [12,20,40,100]) {
+    const columns=['idle','hover','focused','form'].map(state=>paint(inputFrame({state},{width})[1],'none').indexOf('INPUT'));
+    assert.deepEqual(columns,columns.map(()=>3),`label column at ${width}`);
+    for(const state of ['idle','hover','focused','form']) assert.ok(inputFrame({state},{width})[1].every(s=>s.style.bg===undefined||s.style.bg==='default'),`no plate ${state} ${width}`);
+  }
   assert.throws(()=>inputFrame({state:'typing'},{width:30}),RangeError);
   assert.throws(()=>inputFrame({spread:1},{width:30}),TypeError);
   assert.throws(()=>inputFrame({}, {width:30,bodyRows:0}),RangeError);

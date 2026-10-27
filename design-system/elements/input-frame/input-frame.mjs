@@ -1,6 +1,5 @@
 import { assertCells, fitLine, fitText, lineWidth, span } from '../../foundation/cells.mjs';
 import { SURFACE_PALETTE as P } from '../../foundation/surface-palette.mjs';
-import { labelPlate } from '../label-plate/label-plate.mjs';
 
 export function inputFrame({state='idle',label='INPUT',scroll='',spread=false}={}, {width,bodyRows=1,measure}={}) {
   for (const value of arguments) if (value !== undefined && (value === null || typeof value !== 'object' || Array.isArray(value))) throw new TypeError('input and options must be objects');
@@ -10,7 +9,8 @@ export function inputFrame({state='idle',label='INPUT',scroll='',spread=false}={
   if(typeof spread!=='boolean') throw new TypeError('input spread must be boolean');
   const clear={bg:'default'},fg=state==='form'?'critical':state==='focused'?P.bone:state==='hover'?'primary':'structural';
   const rows=Array.from({length:bodyRows+4},()=>[]), ink={fg,...clear};
-  const labelLine=state==='focused'||state==='form'?labelPlate(label,{form:'slab',style:{fg:'field',bg:state==='form'?'critical':P.bone},maxWidth:Math.max(0,width-7),measure}):fitText(label,Math.max(0,width-7),{measure,style:{fg:state==='hover'?'primary':'decorative',...clear,bold:true}});
+  // One plain label cell-for-cell in every state, so focus never moves it.
+  const labelLine=fitText(label,Math.max(0,width-7),{measure,style:{fg:state==='form'?'critical':state==='idle'?'decorative':'primary',...clear,bold:true}});
   const scrollLine=fitText(scroll,Math.max(0,width-8-lineWidth(labelLine,{measure})),{measure,style:{fg:'decorative',...clear}});
   // Two outer rows are reserved for diagonal spread; body rows contain no input-owned fill.
   const d=spread?1:0,top=1-d,bottom=bodyRows+2+d;
