@@ -50,8 +50,8 @@ export function nameRule({ plate = 'LUNALEE', label = '', time = '', meter = [],
   const working = fitText(label, Math.max(0, room - traceWidth - (traceWidth ? 2 : 0)), { measure, style: { fg: 'primary', ...clear } });
   const stamp = fitText(time, room, { measure, style: { fg: 'decorative', ...clear } });
   const tail = lineWidth(working, { measure }) || traceWidth
-    ? [span(' ', clear), ...working, ...(traceWidth ? [span('  ', clear), ...trace] : []), span(' ', clear)]
-    : lineWidth(stamp, { measure }) ? [span(' ', clear), ...stamp, span(' ', clear)] : [span(' ', clear)];
+    ? [span(' ', clear), ...working, ...(traceWidth ? [span('  ', clear), ...trace] : [])]
+    : lineWidth(stamp, { measure }) ? [span(' ', clear), ...stamp] : [];
   const body = [...name, ...tail];
   const size = lineWidth(body, { measure });
   const left = Math.max(0, Math.floor((width - size) / 2));

@@ -6,7 +6,7 @@
 
 `neatline({label=''},{width,measure})` centers a supplied reference between ghost-ink dashed registration marks (the junctions retain rule ink). At tiny widths decoration yields.
 
-`nameRule({plate='LUNALEE',label='',time='',meter=[],joins=[]},{width,measure})` centers a solid accent slab and readout on a thin rule. Working label yields before meter/name; time is optional and used only without working content. Tiny widths ultimately clip the name. `joins` are viewport columns receiving `┴` where not covered by the name/readout. `meter` is a caller-rendered structural line, validated as safe spans, not an ANSI string.
+`nameRule({plate='LUNALEE',label='',time='',meter=[],joins=[]},{width,measure})` centers a solid accent slab and readout on a thin rule. The group ends at the last plate, time, label or meter cell and starts at `floor((width − groupWidth)/2)`; one blank separates it from each rail, with any odd spare cell on the right. Working label yields before meter/name; time is optional and used only without working content. Tiny widths ultimately clip the name. `joins` are viewport columns receiving `┴` where not covered by the name/readout. `meter` is a caller-rendered structural line, validated as safe spans, not an ANSI string.
 
 Animate only the structural tab with draw-in's opt-in style mode (`steps:6,lag:0`, tick defaults to 40 ms in style mode). Off is the whole focused rule; plain retains every rule glyph.
 

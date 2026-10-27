@@ -51,3 +51,23 @@ test('neatline dashes are ghost while registration marks retain rule ink', async
     }
   }
 });
+
+test('name-rule centers the exact plate/readout group with symmetric outer gaps and rail-only joins', () => {
+  const meter=[span('⡧⠤⠤⠤⠤⠤')];
+  for(const width of [40,41,64,65,99,100]) for(const joins of [[],[2,width-3]]) {
+    for(const [input,group] of [
+      [{},' LUNALEE '],
+      [{time:'10:29'},' LUNALEE  10:29'],
+      [{label:'thinking',meter},' LUNALEE  thinking  ⡧⠤⠤⠤⠤⠤'],
+      [{label:'thinking 0:21',meter},' LUNALEE  thinking 0:21  ⡧⠤⠤⠤⠤⠤'],
+    ]) {
+      const line=paint(nameRule({...input,joins},{width}),'none');
+      const left=Math.floor((width-group.length)/2),right=left+group.length;
+      assert.equal(line.slice(left,right),group);
+      assert.equal(line[left-1],' ');assert.equal(line[right],' ');
+      assert.equal(line[left-2],joins.includes(left-2)?'┴':'─');assert.equal(line[right+1],joins.includes(right+1)?'┴':'─');
+      assert.ok(width-right-left>=0 && width-right-left<=1);
+      for(const join of joins) assert.equal(line[join],'┴');
+    }
+  }
+});

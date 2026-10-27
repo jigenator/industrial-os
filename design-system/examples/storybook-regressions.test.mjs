@@ -303,3 +303,16 @@ test('operation-row story fixtures keep marker gap and time aligned', () => {
     for(const row of rows.filter(row=>row.includes('09:40'))) assert.equal(row.indexOf('09:40'),3);
   }
 });
+
+test('name-rule story readouts have centered visible groups', () => {
+  const story=STORIES.find(s=>s.id==='tab-rule');
+  assert.ok(story);
+  for(const width of [64,65,100,101]) for(const variant of story.variants) {
+    for(const row of text(story.specimen(variant,width).lines).filter(row=>row.includes('LUNALEE'))) {
+      const match=/^ ([─┴]+) (.*?) ([─┴]+) $/.exec(row);
+      assert.ok(match);
+      const start=match[1].length+2;
+      assert.equal(start,Math.floor((width-match[2].length)/2));
+    }
+  }
+});
