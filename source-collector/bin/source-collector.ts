@@ -5,7 +5,7 @@ import { Command, Argument, Flag, CliError } from "effect/cli";
 import { BunServices } from "@effect/platform-bun";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CollectorError, fail, Act, Id } from "../src/contract.ts";
+import { CollectorError, fail, Act, Id, Plan } from "../src/contract.ts";
 import { paths, loadCatalog, loadSource } from "../src/config.ts";
 import { runCommand } from "../src/command.ts";
 import { checklistIO, checklistPath, checklistOutput, readChecklist } from "../src/checklist.ts";
@@ -30,8 +30,97 @@ const act = (input: Act) =>
     Effect.flatMap(print),
   );
 const run = Command.make("run", {}, () => runEngine(p));
-const get = Command.make("get", {}, () =>
-  request(p.runtime, (api) => api.get({})).pipe(Effect.flatMap(print)),
+const get = Command.make(
+  "get",
+  { items: Flag.Boolean("items").pipe(Flag.withDefault(false)) },
+  ({ items }) =>
+    request(p.runtime, (api) => api.get({})).pipe(
+      Effect.flatMap((snapshot) =>
+        items
+          ? Effect.sync(() => {
+              for (const item of snapshot.items)
+                console.log(
+                  JSON.stringify({
+                    v: 1,
+                    key: `${item.source}:${item.key}`,
+                    source: item.source,
+                    state: snapshot.sources.find((s) => s.id === item.source)?.state,
+                    plan: item.overlay.plan,
+                    pinned: item.overlay.pinned,
+                    handled: item.overlay.handledAt !== undefined,
+                    title: item.title,
+                  }).replace(
+                    /[\u007f-\u009f]/g,
+                    (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`,
+                  ),
+                );
+            })
+          : print(snapshot),
+      ),
+    ),
+).pipe(
+  Command.withDescription(
+    "Read the snapshot; --items emits compact v1 JSON lines. Example: source-collector get --items",
+  ),
+);
+const plan = Command.make(
+  "plan",
+  {
+    key: Argument.String("key"),
+    plan: Argument.String("plan").pipe(Argument.withDescription("today | inbox | later")),
+    agent: agentFlag(),
+  },
+  ({ key, plan, agent }) =>
+    Schema.decodeUnknownEffect(Plan)(plan).pipe(
+      Effect.mapError(() => fail("invalid_input", "Plan must be today, inbox or later")),
+      Effect.flatMap((valid) => act({ do: "plan", key, plan: valid, ...attribution(agent) })),
+    ),
+).pipe(
+  Command.withDescription(
+    "Set an item's plan. Example: source-collector plan fake:demo today --agent session",
+  ),
+);
+const pin = Command.make(
+  "pin",
+  {
+    key: Argument.String("key"),
+    off: Flag.Boolean("off").pipe(Flag.withDefault(false)),
+    agent: agentFlag(),
+  },
+  ({ key, off, agent }) => act({ do: "pin", key, pinned: !off, ...attribution(agent) }),
+).pipe(
+  Command.withDescription(
+    "Pin an item (default on; --off clears). Example: source-collector pin fake:demo",
+  ),
+);
+const handled = Command.make(
+  "handled",
+  {
+    key: Argument.String("key"),
+    undo: Flag.Boolean("undo").pipe(Flag.withDefault(false)),
+    agent: agentFlag(),
+  },
+  ({ key, undo, agent }) => act({ do: "handled", key, undo, ...attribution(agent) }),
+).pipe(
+  Command.withDescription(
+    "Mark handled (default set; --undo clears). Example: source-collector handled fake:demo",
+  ),
+);
+const look = Command.make("look", { agent: agentFlag() }, ({ agent }) =>
+  act({ do: "look", ...attribution(agent) }),
+).pipe(
+  Command.withDescription(
+    "Set the shared last-look cursor. Example: source-collector look --agent session",
+  ),
+);
+const action = Command.make(
+  "action",
+  { key: Argument.String("key"), name: Argument.String("name"), agent: agentFlag() },
+  ({ key, name, agent }) => act({ do: "action", key, action: name, ...attribution(agent) }),
+).pipe(
+  Command.withDescription(
+    "Run a configured source action. Example: source-collector action fake:demo open --agent session",
+  ),
 );
 const status = Command.make("status", {}, () =>
   request(p.runtime, (api) => api.status({})).pipe(Effect.flatMap(print)),
@@ -125,6 +214,11 @@ const cli = Command.make("source-collector").pipe(
     run,
     status,
     get,
+    plan,
+    pin,
+    handled,
+    look,
+    action,
     refresh,
     todo,
     enabled("enable"),

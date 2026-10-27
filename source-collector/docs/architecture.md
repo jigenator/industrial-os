@@ -13,7 +13,7 @@
 | `src/store.ts`                          | All state SQL, inlined Migrator up/down definitions, diffs and ledger        |
 | `src/derive.ts`                         | Pure request-time ages, counts, week and the single D5 attribution function  |
 | `src/instance.ts`                       | Private runtime paths, PID liveness and lifetime SQLite exclusion lock       |
-| `src/logs.ts`                           | Capped per-run stderr and last-50 file retention                             |
+| `src/logs.ts`                           | Capped per-run stderr/last-50 retention and rotated engine lifecycle log     |
 | `src/socket.ts`, `src/socket-limits.ts` | Effect RPC client transport and bounded server admission                     |
 | `src/service.ts`                        | launchd bytes, owned install, one-shot native mutations and drain            |
 | `src/engine.ts`                         | Scoped wiring, reconciliation, health and request handlers                   |
@@ -52,7 +52,14 @@ groups and SIGTERM → SIGKILL after 10 seconds. stdout is limited to 5 MiB per
 stage; stderr is bounded and continues draining. Output validation is success's
 last boundary. Per-run logs contain stderr only, capped at 256 KiB; both logs and
 finished rows retain 50 runs per source. Structured lifecycle logs carry source,
-run and outcome codes. Health exposes active/runs/failures and source states.
+run and outcome codes. After acquiring the instance lock, runEngine adds a JSON
+logger backed by logs.ts alongside the existing foreground logger (stderr in the
+CLI). It appends to runtime `log/collector.log`, capped at the same 256 KiB per
+file as run logs, rotating before overflow and keeping three older files. Private
+0700/0600 paths and regular-file checks also apply to rotated destinations. Logs
+persist across restarts; no stdout/config/source payloads or actor identities are
+added. No launchd plist keys are needed: the engine owns the destination and cap.
+Health exposes active/runs/failures and source states.
 There is no metrics HTTP listener or measured latency claim.
 
 Checklist directory watches filter the target filename, survive atomic replacement,

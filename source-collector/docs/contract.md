@@ -118,6 +118,33 @@ schema-invalid requests are JSON-RPC protocol errors; valid requests receive
 schema-declared errors. Causes/stacks are not public error fields. A lost mutation
 reply can mean it applied: arbitrary actions/adds are not safe to replay blindly.
 
+### CLI overlay commands
+
+All overlay commands are thin clients of `act`, printing its `{rev}` JSON result:
+
+| Command                          | Act fields (in addition to actor/session)      |
+| -------------------------------- | ---------------------------------------------- |
+| `plan <key> today\|inbox\|later` | do plan, key, plan                             |
+| `pin <key> [--off]`              | do pin, key, pinned true (false with --off)    |
+| `handled <key> [--undo]`         | do handled, key, undo false (true with --undo) |
+| `look`                           | do look                                        |
+| `action <key> <name>`            | do action, key, action name                    |
+
+Each accepts `--agent [session]` (also `--agent=session`), like todo commands:
+actor agent plus the optional session; without it, actor you. Key is exactly
+`<source>:<source-local-key>`, not just the item's key field. For example, full
+`get` output with `source: "fake"`, `key: "demo"` means `plan fake:demo today`.
+Quote the entire composite key when it contains spaces. Actions must already be
+configured on the selected source; source `writable` lists available names.
+Mutations acknowledge a revision, not a refreshed observation of external state.
+
+`get` still prints the complete v1 Snapshot. `get --items` prints one compact v1
+JSON object per item, with composite key, source, state (the source's state),
+plan, pinned, handled (boolean) and title. JSON escaping keeps titles and keys on
+one line without terminal control codes. No items prints no lines on success;
+failures never emit an empty success-shaped result. Use full get for health and
+observation timestamps; stale items remain last-known, not live observations.
+
 CLI client commands never synthesize data when the engine is absent. Exit codes:
 0 success, 1 operational, 2 invalid input/config/output, 8 contention. run is
 foreground. check and validate are deliberately offline: check executes one

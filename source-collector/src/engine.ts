@@ -1,5 +1,15 @@
 import packageInfo from "../package.json";
-import { Clock, Deferred, Effect, FileSystem, Schedule, Stream, Scope, Fiber } from "effect";
+import {
+  Clock,
+  Deferred,
+  Effect,
+  FileSystem,
+  Schedule,
+  Stream,
+  Scope,
+  Fiber,
+  Logger,
+} from "effect";
 import { RpcServer, RpcSerialization } from "effect/rpc";
 import { SocketServer } from "effect/socket";
 import { BunSocketServer } from "@effect/platform-bun";
@@ -20,7 +30,7 @@ import {
   type ChecklistRead,
 } from "./checklist.ts";
 import { instance, regularFile } from "./instance.ts";
-import { runLog } from "./logs.ts";
+import { runLog, collectorLog } from "./logs.ts";
 import { boundedServer } from "./socket-limits.ts";
 
 const safe = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
@@ -508,7 +518,16 @@ export const runEngine = (options: { runtime: string; config: string }) =>
         },
         catch: () => fail("io", "Unsafe database path"),
       });
+      const log = yield* Effect.try({
+        try: () => collectorLog(options.runtime),
+        catch: () => fail("io", "Cannot open collector log"),
+      });
       yield* serveEngine(options).pipe(
+        Effect.provide(
+          Logger.layer([Logger.formatJson.pipe(Logger.map((line) => log.append(line)))], {
+            mergeWithExisting: true,
+          }),
+        ),
         Effect.provide(
           SqliteClient.layer({
             filename: join(options.runtime, "state.sqlite"),
