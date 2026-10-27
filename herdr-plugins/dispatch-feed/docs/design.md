@@ -48,10 +48,10 @@ readable, including their words. `DECODE_SCRAMBLE` in App is the one implementat
 switch. Motion-off immediately shows every true value, with no animation timer;
 new data is still immediate. m toggles motion; `--motion-off`/NO_MOTION start off.
 
-The existing pixel-numeral supplies v20's dashboard integer face. Numeral ink
+The existing pixel-numeral's `textGrid` supplies v20's dashboard integer face. Numeral ink
 re-strikes every 70 ms for 420 ms; selection style wipes ltr over 160 ms. Bar/block
 fill-in changes ink only (25–50 ms steps), not readings. Hover/pick corners spread
-one cell for 180 ms, returning home; no hover background fill. Arrival dot rings
+one cell for 180 ms through corner-snap's heavy corners, returning home; no hover background fill. Arrival dot rings
 last 2 s, with an acid edge for 2.4 s then a diamond until 9 s. Ambient grid/dots
 and registration marks use exact independent reach/fade/arm/decode load clocks, then sweep 4 s of each 16 s, only in
 clear space. Current week block breathes over 4 s. Hosts sample active load/change/arrival steps at 25 ms, continuous motion
@@ -59,8 +59,9 @@ at 67 ms; fast decode/re-strike rates are not a photosensitivity certification.
 
 All color values come from the design system. Four distinct approved type inks
 are new: PR violet, Linear indigo, messages teal and email sand. To-do uses existing
-bone. Near-match substitutions: prototype bone→PI_CHROME.bone; muted→checkMid;
-edge→decorative50; quiet rule→ghost; dim bone→DERIVED 74% existing bone. Field,
+bone. Bone and the rule edge are the survey palette's exact v20 bone and rule;
+muted→checkMid; quiet rule→ghost; dim bone→DERIVED 74% bone. Dotted band rules
+are tab-rule's `leader()` in `┄`. Field,
 surface, primary, critical and acid reuse their existing roles. No duplicate
 neutral hue is added. No contrast certification is claimed, particularly for
 muted decoration and the saturated PR/Linear labels on black.
@@ -71,6 +72,7 @@ Terminal focus reporting is requested; first key/click is the fallback. On focus
 freeze currently fresh markers and send look; clear the hold on blur. Without
 host blur events the hold lasts until exit; do not infer focus from idle time.
 Keys mirror every clickable sort/filter/row operation. Help exposes all actions;
-selection, pin, handled and done have text/shape cues. ASCII replacement is an
-explicit multilingual limitation. Input, resize and restoration require native
+selection, pin, handled and done have text/shape cues. Text is measured, not
+folded to ASCII; terminals that disagree with Bun's width for an emoji or
+ambiguous-width character can misalign that row. Input, resize and restoration require native
 PTY/isolated Herdr evidence, not only browser screenshots.

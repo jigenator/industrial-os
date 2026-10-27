@@ -1,9 +1,10 @@
-import { PI_CHROME, SIGNAL_COLORS, mixOver } from './signal-colors.mjs';
-// Semantic dashboard aliases, not new hues or near-duplicate palette values.
+import { SIGNAL_COLORS, mixOver } from './signal-colors.mjs';
+import { SURFACE_PALETTE } from './surface-palette.mjs';
+// Semantic dashboard aliases, not new hues or near-duplicate palette values. Bone and edge are the survey palette's.
 export const DASHBOARD_INKS = Object.freeze({
-  bone: PI_CHROME.bone,
-  dim: mixOver(PI_CHROME.bone, 0.74),
+  bone: SURFACE_PALETTE.bone,
+  dim: mixOver(SURFACE_PALETTE.bone, 0.74),
   muted: SIGNAL_COLORS.checkMid,
   rule: SIGNAL_COLORS.ghost,
-  edge: SIGNAL_COLORS.decorative50,
+  edge: SURFACE_PALETTE.rule,
 });

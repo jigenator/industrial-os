@@ -566,7 +566,7 @@ Frozen defaults: `{top:0,rows:16,rails:[],measure:undefined}`. Explicit `rails` 
 
 **Persistent state-pose transform, not a finite entrance.** Supervisor-approved exception to finite-preview input equality: input is a home input-frame including its two reserved outer gutters. At 0–39 ms only hover corners take acid at home; focused corners remain bone and form corners remain critical; from 40 ms the same corner glyphs hold one cell out diagonally until the host ends hover/focus. `cornerSnapSettling()` returns 40, not an animation duration. `animate:false` (leave/blur/reduced motion) returns home without spread, preserving focused/form labels. The story holds the pose; replay shows the transition again.
 
-Only the four known two-cell corner pairs can move. Destinations must be blank reserved gutters; occupied destinations leave the whole frame at home. Form/critical corner shapes are relocated intact, never dropped or replaced with state words; body and labels remain untouched. Supply `measure` for measured labels. Plain retains the geometry cue. No state, timer, focus inference or editor lives in this motion.
+`corners` (default `'light'`) selects the pairs: `'light'` is input-frame's `┌╴ ╶┐ └╴ ╶┘`, `'heavy'` a heavy frame's `┏━ ━┓ ┗━ ━┛`, such as the dashboard type unit wrapped in the same reserved gutters. Any other value throws `RangeError`. Only the four known two-cell corner pairs can move. Destinations must be blank reserved gutters; occupied destinations leave the whole frame at home. Form/critical corner shapes are relocated intact, never dropped or replaced with state words; body and labels remain untouched. Supply `measure` for measured labels. Plain retains the geometry cue. No state, timer, focus inference or editor lives in this motion.
 
 ## `calloutEntrance(lines, options)` and `calloutEntranceDuration(lines, options)`
 
@@ -584,9 +584,10 @@ Frozen `PHOSPHOR_HEAD_DEFAULTS`: optional `head:{row,col}`, optional `measure`, 
 ### DS-2b review geometry refinements
 
 Callout-entrance accepts optional `timestampRegion`; plot-in hides only that explicitly supplied text region before 120 ms. Supply it for timestamps, **not essential receipt/error words**. ReadoutRegion continues to address only the leader. Use `calloutGeometry()` rather than copied layout arithmetic. Negative integral region coordinates/extents clamp to zero; empty or undersized registration reservations no-op; occupied mark targets are left untouched. Malformed options and unsafe measured text still fail validation. Off-by-one head coordinates in phosphor-head (negative, out-of-frame or inside a wide continuation) safely leave text alone. `subtitleGeometry()` supplies a head from the full line and explicit revealed count, without host reimplementation of centering.
+
 ## Dashboard motions
 
-The dashboard reuses `wipe` for the selection (160 ms, ltr, style only), `fillIn` for bars/blocks and `restrike` for numeral ink. No duplicate motions implement those behaviors.
+The dashboard reuses `wipe` for the selection (160 ms, ltr, style only), `fillIn` for bars/blocks, `restrike` for numeral ink and `cornerSnap` with `corners: 'heavy'` for the type unit's hover/pick snap. No duplicate motions implement those behaviors.
 
 ### `decode(lines, options)` and `decodeDuration(options)`
 

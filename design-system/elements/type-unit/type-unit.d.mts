@@ -3,4 +3,3 @@ export interface TypeUnitInput { label: string; color?: string; state?: keyof ty
 export const SOURCE_STATES: Readonly<Record<'ok'|'stale'|'auth'|'error'|'config_error'|'disabled'|'planned'|'loading'|'unknown', string>>;
 export function stalenessBar(remaining: number | null, options?: {cells?: number}): Line;
 export function typeUnit(input: TypeUnitInput, options: {width: number; height?: number}): Line[];
-export function unitCorners(width: number, height: number, spread?: 0|1): {x:number;y:number;text:string}[];

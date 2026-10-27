@@ -9,7 +9,8 @@ the engine's internal model. Keep new consumed fields validated at that boundary
 Pure rendering takes state, dimensions and time; controller owns state; terminal
 and transport own effects and cleanup. Use existing exported design-system pieces
 before adding local layout code. Never copy literal colors into this plugin.
-Printable ASCII display follows foundation; structural glyphs are curated there.
+Display text goes through `text.ts` and the measured CellGrid, never a local width
+table; structural glyphs are curated in foundation.
 
 Test observable behavior and failures, not private component structure. Fake
 socket tests and PTY scripts must override every inherited service target. Tests

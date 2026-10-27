@@ -117,3 +117,24 @@ Herdr use, physical pointer/font/keyboard or screen-reader certification, actual
 macOS URL launch, GitHub plugin install/build, Linux, or Herdr 0.9.3 run. Mermaid
 rendering was not run (no existing renderer available); diagram source reviewed.
 Ambient load clocks are now the exact pure v20 projection, separately oracle-tested in the design system. Final taste/fidelity acceptance remains the maintainer's decision.
+
+### Measured text and design-system reuse
+
+macOS, Bun 1.4.4, Node 22.23.4, after rebasing onto the measured-slot work.
+
+**Passed — automated:** frozen install (13 installs, no lockfile change), strict
+typecheck, type-aware lint with no warnings, format check; `bun test`: **25
+passed, 812 assertions**, including em dashes, curly quotes and accents shown as
+themselves, a CJK title and an emoji/ZWJ title clipped on whole graphemes, ESC,
+bidi and lone-surrogate titles shown as `?` without stopping the frame, aligned
+STATUS columns in measured cells, the draft's measured tail with grapheme
+Backspace, and wide-grapheme diff repaints. `python3 test/pty_smoke.py`: **PTY
+SMOKE OK**. Design system 567/567.
+
+**Visual:** the 118×54 fixture frame keeps identical text. Colors move to v20's
+exact bone (#e6e2d3) and rule (#3a3f46), including the band rules' trailing dashes;
+the dim bone follows. Small deterministic render measurement (118×54, 120 frames):
+median 7.15 ms, p95 8.36 ms on the development machine; not a throughput claim.
+
+**Not run:** isolated Herdr, physical terminals' emoji and ambiguous-width
+rendering, which may differ from Bun's `stringWidth`.

@@ -1,8 +1,7 @@
 import { DASHBOARD_INKS as D } from '../../foundation/dashboard-colors.mjs';
 import { CellGrid } from '../../foundation/cell-grid.mjs';
 import { typeColor } from '../../foundation/type-colors.mjs';
-import { PI_CHROME } from '../../foundation/signal-colors.mjs';
-import { integerNumeral } from '../pixel-numeral/pixel-numeral.mjs';
+import { numeralLines, textGrid } from '../pixel-numeral/pixel-numeral.mjs';
 
 export const SOURCE_STATES = Object.freeze({ ok: '', stale: 'STALE DATA', auth: 'SIGN IN REQUIRED', error: 'FETCH FAILED', config_error: 'CONFIG ERROR', disabled: 'DISABLED', planned: 'WIP / NOT CONNECTED', loading: 'LOADING', unknown: 'UNKNOWN STATE' });
 export function stalenessBar(remaining, { cells = 8 } = {}) {
@@ -17,17 +16,17 @@ export function typeUnit({ label, color, state = 'unknown', total = null, waitin
   for (const n of [total, waiting, fresh]) if (n !== null && (!Number.isSafeInteger(n) || n < 0)) throw new RangeError('counts must be nonnegative integers or null');
   for (const flag of [active, hover, arriving]) if (typeof flag !== 'boolean') throw new TypeError('unit poses must be boolean');
   if (!Number.isInteger(height) || height < 3 || height > 1000) throw new RangeError('unit height must be 3–1000');
-  const g = new CellGrid(width, height), ink = active || arriving ? PI_CHROME.bone : hover ? D.muted : D.edge;
+  const g = new CellGrid(width, height), ink = active || arriving ? D.bone : hover ? D.muted : D.edge;
   if (width < 12) { g.text(0, 0, label); const value = SOURCE_STATES[state] || (total === null ? '?' : String(total)); g.text(0, 1, value.length > width && !SOURCE_STATES[state] ? '#'.repeat(width) : value); return g.lines(); }
   g.put(0, 0, '┏', { fg: ink }); g.put(1, 0, '━', { fg: ink }); g.put(width - 2, 0, '━', { fg: ink }); g.put(width - 1, 0, '┓', { fg: ink });
   g.put(0, height - 1, '┗', { fg: ink }); g.put(1, height - 1, '━', { fg: ink }); g.put(width - 2, height - 1, '━', { fg: ink }); g.put(width - 1, height - 1, '┛', { fg: ink });
   for (let y = 1; y < height - 1; y++) { g.put(0, y, '┃', { fg: ink }); g.put(width - 1, y, '┃', { fg: ink }); }
-  g.text(2, 0, ` ${label} `, { fg: active ? 'field' : typeColor(color), ...(active ? { bg: PI_CHROME.bone } : {}), bold: true }, width - 7);
+  g.text(2, 0, ` ${label} `, { fg: active ? 'field' : typeColor(color), ...(active ? { bg: D.bone } : {}), bold: true }, width - 7);
   g.text(width - 4, 0, key, { fg: D.muted }, 1);
   const known = state === 'ok' || state === 'stale';
   if (height < 6) { const value = !known ? SOURCE_STATES[state] : `${state === 'stale' ? 'STALE DATA / ' : ''}${total === null ? '?' : total}`; g.text(3, 1, known && value.length > width-6 ? '#'.repeat(width-6) : value, {fg:D.dim}, width-6); return g.lines(); }
   if (!known) { g.text(3, 2, SOURCE_STATES[state], { fg: D.dim }, width - 6); return g.lines(); }
-  const num = integerNumeral(total, { ink: total ? D.dim : D.edge, face: 'dashboard' }), nx = width - 3 - (num[0]?.reduce((a, s) => a + s.text.length, 0) ?? 1);
+  const grid = textGrid(total === null ? '?' : String(total), { ink: total ? D.dim : D.edge, face: 'dashboard' }), num = numeralLines(grid, { width: grid.w }), nx = width - 3 - (num[0]?.reduce((a, s) => a + s.text.length, 0) ?? 1);
   if (nx > 12) g.place(nx, 2, num);
   else { const value=total === null ? '?' : String(total); g.text(3,3,value.length>width-6?'#'.repeat(width-6):value,{fg:D.dim},width-6); }
   const budget=nx>12?nx-4:width-6, natural=(waiting?String(waiting).length+8:0)+(fresh?String(fresh).length+4+(waiting?3:0):0);
@@ -44,10 +43,4 @@ export function typeUnit({ label, color, state = 'unknown', total = null, waitin
   }
   if (state === 'stale') g.text(3, 1, SOURCE_STATES.stale, { fg: D.dim }, width - 6);
   return g.lines();
-}
-
-// Corner projection includes the brief outward hover/pick pose; host clips at its boundary.
-export function unitCorners(width, height, spread = 0) {
-  if (!Number.isInteger(width) || width < 4 || width > 1000 || !Number.isInteger(height) || height < 3 || height > 1000 || ![0,1].includes(spread)) throw new RangeError('invalid unit corner geometry');
-  return [{x:-spread,y:-spread,text:'┏━'},{x:width-2+spread,y:-spread,text:'━┓'},{x:-spread,y:height-1+spread,text:'┗━'},{x:width-2+spread,y:height-1+spread,text:'━┛'}];
 }

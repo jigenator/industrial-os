@@ -26,8 +26,10 @@ records Bun without Effect; commands are in [contributing](../CONTRIBUTING.md).
   are stored only after acknowledged done; reopen removes the record after ack.
   Source removal clears these records. Mark, arrival and activity memory is
   bounded/pruned; snapshot limits are 256 sources and 20,000 items.
-- `render.ts`: pure geometry, component composition, hit regions, plain and cell
-  diff serialization. Receives time; never reads a clock or mutates App. Background
+- `text.ts`: the terminal measure (`Bun.stringWidth`), display sanitising that
+  turns controls and bidi characters into `?`, and grapheme-safe draft tail/Backspace.
+- `render.ts`: pure geometry, component composition through a measured design-system
+  CellGrid, hit regions, plain and grapheme-aware cell diff serialization. Receives time; never reads a clock or mutates App. Background
   decoration is separated from semantic content before sweep/load-in/ping.
 - `input.ts`: bounded incremental CSI/SGR parser; fragmented and coalesced input,
   keyboard, mouse hover/left press, focus and bounded literal bracketed paste. Unsupported/modifier/release/wheel
@@ -48,8 +50,10 @@ order; an action's revision acknowledgement refetches rather than constructing
 its own server state. Losing the reply never retries the action. The engine may
 continue an already-sent action after pane shutdown; cancellation is not rollback.
 
-URL opening validates http/https and uses argv with no shell. UI text is untrusted
-and ASCII-sanitized; protocol keys and URLs retain source bytes. No analytics,
+URL opening validates http/https and uses argv with no shell. UI text is untrusted:
+it is sanitised in `text.ts`, then measured and clipped by the design system's
+measured text slots, so one bad title cannot stop a frame. Protocol keys and URLs
+retain source bytes. No analytics,
 network browser service, cache files, account configuration or persistent client
 state are introduced. There is no automatic deployment or install migration.
 

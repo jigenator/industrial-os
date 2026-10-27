@@ -34,3 +34,20 @@ test('only hover corners latch acid; focused bone and form critical ink persist'
     assert.ok(spread.every(s => s.style.fg===settled));
   }
 });
+
+test('heavy corners: a type-unit frame with reserved gutters snaps its four heavy pairs; light stays the default', async () => {
+  const { typeUnit } = await import('../elements/type-unit/type-unit.mjs');
+  const { fitLine, span } = await import('../foundation/cells.mjs');
+  const unit = typeUnit({ label: 'UNIT', state: 'planned' }, { width: 37 });
+  const home = [fitLine([], 40), ...unit.map(line => fitLine([span(' '), ...line], 40)), fitLine([], 40)], before = structuredClone(home);
+  assert.deepEqual(text(cornerSnap(home, { time: 40 })), text(home));
+  const spread = text(cornerSnap(home, { time: 40, corners: 'heavy' }));
+  assert.equal(spread[0], '┏━' + ' '.repeat(35) + '━┓ ');
+  assert.equal(spread.at(-1), '┗━' + ' '.repeat(35) + '━┛ ');
+  assert.equal(spread[1].slice(0, 6), '    UN');
+  assert.deepEqual(spread.slice(2, -2), text(home).slice(2, -2));
+  assert.deepEqual(text(cornerSnap(home, { time: 0, corners: 'heavy' })), text(home));
+  assert.deepEqual(text(cornerSnap(home, { animate: false, corners: 'heavy' })), text(home));
+  assert.deepEqual(home, before);
+  for (const corners of ['', 'Heavy', '__proto__', 1]) assert.throws(() => cornerSnap(home, { time: 40, corners }), RangeError);
+});

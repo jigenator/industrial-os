@@ -71,8 +71,11 @@ keeps last-good data dimmed, explicitly says offline, and retries every five
 seconds. A source's auth, error, configuration, disabled, loading, planned and
 stale states have separate text cues.
 
-External display text is ASCII-sanitized; multilingual titles are not measured
-or supported. No screen-reader or contrast certification is claimed. Small panes
+External display text shows as itself, measured in terminal cells: accents,
+curly quotes, dashes, CJK and emoji keep their columns aligned and clip on whole
+characters. Control and bidi characters show as `?`. Width follows Bun's
+`stringWidth`; a terminal that draws an emoji or ambiguous-width character
+differently may misalign that row. No screen-reader or contrast certification is claimed. Small panes
 keep the list; below 24 columns or 8 rows they show a resize/quit diagnostic.
 This application reads private titles from a local socket: screenshots/logs of
 real data must stay outside the public repository. It writes no data files and

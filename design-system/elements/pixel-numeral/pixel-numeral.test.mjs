@@ -110,13 +110,17 @@ test('E2 renderers import only foundation and contain no clock, timer, I/O or un
   }
 });
 
-test('compact integers reuse FONT without decimal, unknown never zero', async () => {
-  const { integerNumeral } = await import('./pixel-numeral.mjs');
-  for (const value of [null, 0, 1, 42, Number.MAX_SAFE_INTEGER]) {
-    const lines = integerNumeral(value);
-    assert.equal(lines.length, 3);
-    assert.equal(lineWidth(lines[0]), (value === null ? 1 : String(value).length) * 4 - 1);
+test('dashboard face: rounded digits through textGrid, default face unchanged', async () => {
+  const { DASHBOARD_FONT } = await import('./pixel-numeral.mjs');
+  assert.ok(Object.isFrozen(DASHBOARD_FONT) && Object.values(DASHBOARD_FONT).every(Object.isFrozen));
+  assert.deepEqual(textGrid('42'), textGrid('42', { face: 'instrument' }));
+  assert.deepEqual(text(numeralLines(textGrid('2357', { face: 'dashboard' }), { width: 15 })), ['▀▀▄ ▀▀▄ █▀▀ ▀▀█', '▄▀   ▀▄ ▀▀▄  █ ', '▀▀▀ ▀▀  ▀▀   ▀ ']);
+  for (const value of ['0', '1', '42', String(Number.MAX_SAFE_INTEGER), '?']) {
+    const grid = textGrid(value, { face: 'dashboard', ink: 'decorative' });
+    assert.equal(grid.w, value.length * 4 - 1);
+    assert.equal(lineWidth(numeralLines(grid, { width: grid.w })[0]), grid.w);
   }
-  assert.notDeepEqual(integerNumeral(null), integerNumeral(0));
-  for (const value of [-1, NaN, Infinity, 0.5]) assert.throws(() => integerNumeral(value));
+  assert.notDeepEqual(textGrid('?', { face: 'dashboard' }), textGrid('0', { face: 'dashboard' }));
+  assert.notDeepEqual(textGrid('2', { face: 'dashboard' }), textGrid('2'));
+  for (const face of ['', 'Dashboard', '__proto__', null]) assert.throws(() => textGrid('1', { face }), RangeError);
 });

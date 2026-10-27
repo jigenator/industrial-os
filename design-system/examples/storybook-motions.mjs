@@ -52,6 +52,7 @@ import { scopeTrace, scopeTraceDuration, SCOPE_TRACE_DEFAULTS } from '../motions
 import { soundingSweep, SOUNDING_SWEEP_DEFAULTS } from '../motions/sounding-sweep.mjs';
 import { feedBezel } from '../elements/feed-bezel/feed-bezel.mjs';
 import { inputFrame } from '../elements/input-frame/input-frame.mjs';
+import { typeUnit } from '../elements/type-unit/type-unit.mjs';
 import { feedScan, feedScanDuration, FEED_SCAN_DEFAULTS } from '../motions/feed-scan.mjs';
 import { cornerSnap, CORNER_SNAP_DEFAULTS } from '../motions/corner-snap.mjs';
 import { call, code, literal, spread } from './storybook-usage.mjs';
@@ -713,6 +714,11 @@ const CORNER_SNAP = motionStory({id:'corner-snap',fn:'cornerSnap',title:'CORNER 
   rules:['Persistent state pose, not a finite entrance; 40-ms settling helper.', 'Off and leave return home without spread. Focused/form label stays.'],
   variants:['hover','focused','form'].map(state=>({name:state.toUpperCase(),note:'Holds the state pose; replay to see home again.',options:{},plainVisible:true,body:width=>{const input={state},opts={width};return body(inputFrame(input,opts),call('inputFrame',input,opts));}})),
 });
+CORNER_SNAP.variants.push({name:'HEAVY UNIT',note:'Heavy type-unit corners in input-frame gutters; the dashboard host ends the pose at 180 ms.',options:{corners:'heavy'},plainVisible:true,body:width=>{
+  const input={label:'EXAMPLE UNIT',state:'planned'},opts={width:Math.max(1,width-3)};
+  const lines=[fitLine([],width),...typeUnit(input,opts).map(line=>fitLine([span(' '),...line],width)),fitLine([],width)];
+  return body(lines,`[fitLine([], ${width}), ...${call('typeUnit',input,opts)}.map((line) => fitLine([span(' '), ...line], ${width})), fitLine([], ${width})]`);
+}});
 BEACON.variants.push({name:'WAYPOINT',note:'Eight 80-ms downward phases, 640-ms loop.',options:{programme:'down',step:80,period:640},plainVisible:true,body:()=>one([span('▼',{fg:'accent',bg:'default'})],`[${call('span','▼',{fg:'accent',bg:'default'})}]`)});
 LATCH.variants.push({name:'WHITE LOCK',note:'N-new cue; white lock for 50 ms, inverted to 150 ms.',options:{lockInk:'primary'},body:()=>one(labelPlate('3 NEW',{form:'slab',tone:'accent'}),call('labelPlate','3 NEW',{form:'slab',tone:'accent'}))});
 CYCLE.variants.push({name:'BRAILLE',note:'Ten-step 80-ms spinner; amber cue opts in explicitly.',options:{glyphs:[...'⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'],step:80,stateCells:true},plainVisible:true,body:()=>one([span('⠋',{fg:'warning'})],`[${call('span','⠋',{fg:'warning'})}]`)});

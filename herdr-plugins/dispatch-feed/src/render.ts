@@ -3,11 +3,17 @@ import { labelPlate } from "@industrial-os/design-system/elements/label-plate";
 import { flash } from "@industrial-os/design-system/motions/flash";
 import { DASHBOARD_INKS as D } from "@industrial-os/design-system/foundation/dashboard-colors";
 import { CellGrid } from "@industrial-os/design-system/foundation/cell-grid";
-import { safeText, fit, span, resolveColor } from "@industrial-os/design-system/foundation/cells";
+import {
+  safeText,
+  fit,
+  fitLine,
+  span,
+  resolveColor,
+} from "@industrial-os/design-system/foundation/cells";
 import type { Line, Style } from "@industrial-os/design-system/foundation/cells";
-import { PI_CHROME } from "@industrial-os/design-system/foundation/signal-colors";
 import { typeColor } from "@industrial-os/design-system/foundation/type-colors";
-import { typeUnit, unitCorners } from "@industrial-os/design-system/elements/type-unit";
+import { typeUnit } from "@industrial-os/design-system/elements/type-unit";
+import { leader } from "@industrial-os/design-system/elements/tab-rule";
 import { activityStrip } from "@industrial-os/design-system/elements/activity-strip";
 import { activityTrace } from "@industrial-os/design-system/elements/activity-trace";
 import { planCounter } from "@industrial-os/design-system/elements/plan-counter";
@@ -23,9 +29,11 @@ import {
 } from "@industrial-os/design-system/motions/ambient-load";
 import { fillIn } from "@industrial-os/design-system/motions/fill-in";
 import { wipe } from "@industrial-os/design-system/motions/wipe";
+import { cornerSnap } from "@industrial-os/design-system/motions/corner-snap";
 import { itemId } from "./snapshot.ts";
 import type { Item, Source } from "./snapshot.ts";
 import { ageText, DECODE_SCRAMBLE, priority } from "./app.ts";
+import { displayText, fitTail, measure } from "./text.ts";
 import type { App, Hit, Sort } from "./app.ts";
 
 export interface Region {
@@ -39,7 +47,32 @@ export interface Frame {
   lines: Line[];
   hits: Region[];
 }
-const bone = PI_CHROME.bone;
+const bone = D.bone;
+const SNAP_MS = 180;
+const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+// The terminal-default channel is the field here: the pane paints its own background.
+const solid = (lines: Line[]): Line[] =>
+  lines.map((line) =>
+    line.map((s) =>
+      span(s.text, s.style.bg === "default" ? { ...s.style, bg: undefined } : s.style),
+    ),
+  );
+// Untrusted text in at most `max` cells, real characters at their measured width. Returns the cells written.
+// If measuring still refuses it, its ASCII form is shown: one bad title never stops the frame.
+function write(
+  grid: CellGrid,
+  x: number,
+  y: number,
+  value: string,
+  style: Style,
+  max: number,
+): number {
+  try {
+    return grid.text(x, y, displayText(value), style, Math.max(0, max));
+  } catch {
+    return grid.text(x, y, safeText(value), style, Math.max(0, max));
+  }
+}
 const pad = (value: string, n: number): string => {
   const text = fit(safeText(value), Math.max(0, n));
   return text.padEnd(Math.max(0, n));
@@ -51,10 +84,11 @@ export function hitAt(frame: Frame, x: number, y: number): Hit | null {
   );
 }
 export function render(app: App, width: number, height: number, time: number): Frame {
-  const grid = new CellGrid(width, height),
+  const grid = new CellGrid(width, height, { measure }),
     hits: Region[] = [];
-  const text = (x: number, y: number, value: string, style: Style = {}, max = width - x): void =>
-    grid.text(x, y, value, style, Math.max(0, max));
+  const text = (x: number, y: number, value: string, style: Style = {}, max = width - x): void => {
+    write(grid, x, y, value, style, max);
+  };
   const structural = (x: number, y: number, value: string, style: Style = {}): void => {
     Array.from(value).forEach((ch, i) => grid.put(x + i, y, ch, style));
   };
@@ -204,19 +238,32 @@ export function render(app: App, width: number, height: number, time: number): F
             cols: String(count.total).length * 4 - 1,
           },
         });
-      grid.place(1, y, unit);
-      const snap =
-        m &&
-        ((app.filter === source.id && time - app.selectionAt < 180) ||
-          (app.hover?.filter === source.id && time - app.hoverAt < 180));
-      if (snap) {
-        for (const corner of unitCorners(37, unitH, 0))
-          for (let k = 0; k < 2; k++) grid.put(1 + corner.x + k, y + corner.y, " ");
-        for (const corner of unitCorners(37, unitH, 1))
-          Array.from(corner.text).forEach((ch, k) =>
-            grid.put(1 + corner.x + k, y + corner.y, ch, { fg: bone }),
-          );
-      }
+      // Hover or pick snaps the heavy corners one cell out for a moment: corner-snap over input-frame's gutters.
+      const since =
+        app.filter === source.id && time - app.selectionAt < SNAP_MS
+          ? time - app.selectionAt
+          : app.hover?.filter === source.id && time - app.hoverAt < SNAP_MS
+            ? time - app.hoverAt
+            : null;
+      if (m && gap && since !== null) {
+        const framed = cornerSnap(
+          [
+            fitLine([], 40),
+            ...unit.map((line) => fitLine([span(" "), ...line], 40)),
+            fitLine([], 40),
+          ],
+          { time: since, corners: "heavy" },
+        );
+        grid.place(0, y, solid(framed.slice(1, -1)));
+        // The gutter rows hold only the moved corners; neighbours keep every other cell.
+        for (const [row, at] of [
+          [framed[0], y - 1],
+          [framed.at(-1)!, y + unitH],
+        ] as const)
+          row.forEach((cell, x) => {
+            if (cell.text !== " ") grid.put(x, at, cell.text, { fg: cell.style.fg });
+          });
+      } else grid.place(1, y, unit);
       target(1, y, 37, unitH, { filter: app.filter === source.id ? "" : source.id });
     });
     const samples = Array.from({ length: 38 }, (_, i) =>
@@ -274,9 +321,13 @@ export function render(app: App, width: number, height: number, time: number): F
   } else drawList(app, grid, hits, lx, listTop, lw, listH, time);
   const footer = " ENGINE TRIAGE ";
   structural(lx, end, "─".repeat(Math.max(0, lw - footer.length)) + footer, { fg: D.edge });
+  // The draft keeps its real characters; when long, its end stays in view, where typing happens.
+  const draftLabel = displayText(
+    `ADD TO ${s?.sources.find((src) => src.id === app.inputSource)?.label ?? "TO-DO"}: `,
+  );
   const status =
     app.input !== null
-      ? `ADD TO ${s?.sources.find((src) => src.id === app.inputSource)?.label ?? "TO-DO"}: ${app.input}_`
+      ? `${draftLabel}${fitTail(displayText(app.input), Math.max(0, lw - measure(draftLabel) - 1))}_`
       : app.connection === "offline"
         ? app.message
         : app.busy
@@ -341,7 +392,15 @@ export function render(app: App, width: number, height: number, time: number): F
   }
   let base = grid.lines();
   // Decoration-only layer: semantic cells are composed later and cannot be swept or veiled.
-  let ambient = ambientField(base, {
+  // The field only needs occupancy; measured graphemes stay out of its one-cell grid.
+  const occupancy = base.map((line) =>
+    line.map((cell) =>
+      span(cell.text === " " ? " " : "#", {
+        bg: cell.style.bg === "default" ? undefined : cell.style.bg,
+      }),
+    ),
+  );
+  let ambient = ambientField(occupancy, {
     enabled: app.ambient,
     regions: hits.map(({ x, y, width, height }) => ({ x, y, width, height })),
   });
@@ -406,8 +465,10 @@ function drawList(
     s = app.snapshot!;
   const put = (xx: number, yy: number, ch: string, style: Style = {}): void =>
     grid.put(xx, yy, ch, style);
-  const text = (xx: number, yy: number, t: string, style: Style = {}, max = w): void =>
-    grid.text(xx, yy, t, style, Math.max(0, max));
+  const text = (xx: number, yy: number, t: string, style: Style = {}, max = w): number =>
+    write(grid, xx, yy, t, style, max);
+  const dotted = (xx: number, yy: number, n: number): void =>
+    grid.place(xx, yy, solid([leader({ glyph: "┄" }, { maxWidth: Math.max(0, n) })]));
   const sourceOf = (item: Item): Source => s.sources.find((source) => source.id === item.source)!;
   const rows: (
     | { kind: "rule"; label: string; color: Style["fg"]; count: number }
@@ -468,16 +529,14 @@ function drawList(
       continue;
     }
     if (row.kind === "rule") {
-      const label = row.label,
-        chars = Array.from(label);
-      let xx = x;
-      for (const ch of "┄┄ ") put(xx++, yy, ch, { fg: D.edge });
-      for (const ch of chars.slice(0, Math.max(0, w - 10)))
-        put(xx++, yy, ch, { fg: row.color, bold: true });
-      put(xx++, yy, " ");
-      const tail = ` ${row.count} ┄┄`;
-      while (xx < x + w - tail.length) put(xx++, yy, "┄", { fg: D.edge });
-      for (const ch of tail) put(xx++, yy, ch, { fg: D.muted });
+      // Dotted band rule: ┄┄ LABEL ┄┄┄┄ count ┄┄, with the tab rule's leader for every dotted run.
+      const count = ` ${row.count} `;
+      dotted(x, yy, 2);
+      let xx = x + 3;
+      xx += text(xx, yy, row.label, { fg: row.color, bold: true }, w - 10);
+      dotted(xx + 1, yy, x + w - count.length - 2 - (xx + 1));
+      text(x + w - count.length - 2, yy, count, { fg: D.muted });
+      dotted(x + w - 2, yy, 2);
       yy++;
       continue;
     }
@@ -494,6 +553,7 @@ function drawList(
         bg,
         bold: selected || fresh,
       };
+    let rowBg: Style["bg"][] = [];
     if (selected) {
       let line = [span(" ".repeat(w), { bg: "surface" })];
       line = wipe([line], {
@@ -505,14 +565,20 @@ function drawList(
         fromStyle: { bg: "field" },
       })[0];
       grid.place(x, yy, [line]);
+      rowBg = line.flatMap((s) => Array.from(s.text, () => s.style.bg));
     }
     const cell = (xx: number, ch: string, st: Style): void =>
       put(xx, yy, ch, { ...st, bg: grid.rows[yy]?.[xx]?.style.bg ?? bg });
     let xx = x;
+    // One column of measured text: real characters, padded to exactly n cells on the row's (wiping) background.
     const run = (value: string, n: number, st: Style): void => {
-      for (const ch of pad(value, n)) {
-        cell(xx++, ch, st);
+      const used = text(xx, yy, value, { ...st, bg }, n);
+      for (let i = used; i < n; i++) cell(xx + i, " ", st);
+      for (let i = 0; i < n; i++) {
+        const c = grid.rows[yy]?.[xx + i];
+        if (c) c.style = { ...c.style, bg: rowBg[xx + i - x] ?? bg };
       }
+      xx += n;
     };
     run(
       compact
@@ -574,43 +640,79 @@ function drawList(
 export function plain(frame: Frame): string {
   return frame.lines.map((line) => line.map((s) => s.text).join("")).join("\n");
 }
+// A measured grapheme fills its cell and its continuation cells; empty continuation spans carry no text.
+interface Cell {
+  text: string;
+  style: Style;
+  width: number;
+  sgr: string;
+}
+function cellsOf(line: Line): Cell[] {
+  const out: Cell[] = [];
+  for (const s of line)
+    for (const segment of s.text.length === 1
+      ? [s.text]
+      : Array.from(graphemes.segment(s.text), (g) => g.segment)) {
+      const width = measure(segment);
+      if (!width) continue;
+      out.push({ text: segment, style: s.style, width, sgr: sgrOf(s.style) });
+      for (let i = 1; i < width; i++) out.push({ text: "", style: s.style, width: 0, sgr: "" });
+    }
+  return out;
+}
+const sgrs = new Map<string, string>();
+const sgrOf = (style: Style): string => {
+  const key = `${style.fg}|${style.bg}|${!!style.bold}`;
+  let sgr = sgrs.get(key);
+  if (sgr === undefined) {
+    const rgb = (hex: string): string =>
+      [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(";");
+    const fg = resolveColor(style.fg ?? "secondary"),
+      bg = resolveColor(style.bg ?? "field");
+    sgr = `\x1b[0;${style.bold ? "1;" : ""}38;2;${rgb(fg)};48;2;${rgb(bg)}m`;
+    // Bounded: styles are palette roles and literal inks, but motion mixes can mint many.
+    if (sgrs.size > 4096) sgrs.clear();
+    sgrs.set(key, sgr);
+  }
+  return sgr;
+};
+// Each frame is measured once: the next diff reuses it as its previous frame.
+const measured = new WeakMap<Frame, Cell[][]>();
+const cellRows = (frame: Frame): Cell[][] => {
+  let rows = measured.get(frame);
+  if (!rows) measured.set(frame, (rows = frame.lines.map(cellsOf)));
+  return rows;
+};
 export function diffFrame(frame: Frame, previous: Frame | null): string {
   let output = "",
     last = "";
   for (let y = 0; y < frame.lines.length; y++) {
-    const cells = frame.lines[y].flatMap((s) =>
-      Array.from(s.text).map((text) => ({ text, style: s.style })),
-    );
-    const before = previous?.lines[y]?.flatMap((s) =>
-      Array.from(s.text).map((text) => ({ text, style: s.style })),
-    );
-    let positioned = false;
+    const cells = cellRows(frame)[y],
+      before = previous ? cellRows(previous)[y] : undefined;
+    // The terminal cursor column after the last write on this row, or -1 when unknown.
+    let cursor = -1;
     for (let x = 0; x < cells.length; x++) {
-      const cell = cells[x],
-        style = cell.style,
-        fg = resolveColor(style.fg ?? "secondary"),
-        bg = resolveColor(style.bg ?? "field");
-      const prev = before?.[x];
-      if (
-        prev &&
-        prev.text === cell.text &&
-        resolveColor(prev.style.fg ?? "secondary") === fg &&
-        resolveColor(prev.style.bg ?? "field") === bg &&
-        !!prev.style.bold === !!style.bold
-      ) {
-        positioned = false;
-        continue;
-      }
-      if (!positioned) output += `\x1b[${y + 1};${x + 1}H`;
-      positioned = true;
-      const rgb = (hex: string): string =>
-        [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(";");
-      const sgr = `\x1b[0;${style.bold ? "1;" : ""}38;2;${rgb(fg)};48;2;${rgb(bg)}m`;
+      const cell = cells[x];
+      if (!cell.width) continue;
+      const sgr = cell.sgr;
+      // A wide cell is unchanged only when its continuation cells were continuations of the same grapheme before.
+      const same =
+        before &&
+        Array.from({ length: cell.width }, (_, i) => before[x + i]).every(
+          (prev, i) =>
+            prev &&
+            prev.text === (i ? "" : cell.text) &&
+            prev.width === (i ? 0 : cell.width) &&
+            (i ? true : prev.sgr === sgr),
+        );
+      if (same) continue;
+      if (cursor !== x) output += `\x1b[${y + 1};${x + 1}H`;
       if (sgr !== last) {
         output += sgr;
         last = sgr;
       }
       output += cell.text;
+      cursor = x + cell.width;
     }
   }
   return output ? output + "\x1b[0m" : "";

@@ -1,10 +1,12 @@
 import { decodeSnapshot, itemId, object } from "./snapshot.ts";
 import type { Item, Snapshot } from "./snapshot.ts";
 import type { Rpc } from "./transport.ts";
+import { dropLast, UNSAFE } from "./text.ts";
 import { RpcError } from "./transport.ts";
 
-const CONTROL = /[\p{Cc}\p{Cf}]/u;
-const CONTROL_ALL = /[\p{Cc}\p{Cf}]/gu;
+// Controls and bidi overrides never enter a draft; joiners, accents and emoji sequences do.
+const CONTROL = new RegExp(UNSAFE.source, "u");
+const CONTROL_ALL = UNSAFE;
 
 export type Sort = "type" | "prio" | "age";
 export type Hit = { key?: string; filter?: string; sort?: Sort; select?: string };
@@ -275,8 +277,7 @@ export class App {
             },
           );
         }
-      } else if (!this.busy && key === "Backspace")
-        this.input = Array.from(this.input).slice(0, -1).join("");
+      } else if (!this.busy && key === "Backspace") this.input = dropLast(this.input);
       else if (
         !this.busy &&
         Array.from(key).length === 1 &&
@@ -398,7 +399,7 @@ export class App {
   }
   paste(text: string): void {
     if (this.input === null || this.busy) return;
-    // The draft keeps the real text for the scratchpad; only its display is folded to ASCII.
+    // The draft keeps the real text for the scratchpad; the pane shows it measured, never folded.
     this.input = (this.input + text.replace(/[\r\n\t]+/g, " ").replace(CONTROL_ALL, "")).slice(
       0,
       4096,

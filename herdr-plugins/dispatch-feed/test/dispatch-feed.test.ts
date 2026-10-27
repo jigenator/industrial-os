@@ -11,7 +11,8 @@ import { Input } from "../src/input.ts";
 import { fixture } from "./fixture.ts";
 import { typeColor } from "@industrial-os/design-system/foundation/type-colors";
 import { stalenessBar } from "@industrial-os/design-system/elements/type-unit";
-import { paint } from "@industrial-os/design-system/foundation/cells";
+import { GLYPHS, paint } from "@industrial-os/design-system/foundation/cells";
+import { displayText, dropLast, fitTail, measure } from "../src/text.ts";
 
 class Fake implements Rpc {
   snapshot = fixture();
@@ -259,7 +260,7 @@ describe("render and terminal input", () => {
       const frame = render(app, w, h, 2000);
       expect(frame.lines).toHaveLength(h);
       for (const line of frame.lines)
-        expect(line.reduce((n, s) => n + Array.from(s.text).length, 0)).toBe(w);
+        expect(Bun.stringWidth(line.map((s) => s.text).join(""))).toBe(w);
       expect(plain(frame)).not.toContain("\x1b");
     }
   });
@@ -473,4 +474,115 @@ test("to-do rows show their section, not the writing session; typed and pasted t
   expect(rpc.calls.find((c) => c.params.do === "todo.add")?.params.text).toBe(
     "Eli \u2014 caf\u00e9\u2019s\u00e9",
   );
+});
+
+describe("measured display text", () => {
+  // Status words mark where each row's STATUS column starts, so alignment is checked in measured cells.
+  const titled = async (titles: string[]): Promise<{ app: App; screen: string[] }> => {
+    const { app, rpc } = await setup();
+    titles.forEach((title, i) => Object.assign(rpc.snapshot.items[i], { title, status: `ST${i}` }));
+    await app.poll();
+    app.motion = false;
+    const frame = render(app, 118, 54, 0);
+    for (const line of frame.lines) expect(measure(line.map((s) => s.text).join(""))).toBe(118);
+    return { app, screen: plain(frame).split("\n") };
+  };
+  const statusColumn = (screen: string[], i: number): number => {
+    const line = screen.find((l) => l.includes(` ST${i} `))!;
+    return measure(line.slice(0, line.indexOf(` ST${i} `)));
+  };
+  test("the terminal measure keeps every structural glyph and space one cell", () => {
+    for (const glyph of " " + GLYPHS) expect(measure(glyph)).toBe(1);
+    expect(measure("日本")).toBe(4);
+    expect(measure("\u{1F469}\u200d\u{1F4BB}")).toBe(2);
+  });
+  test("em dashes, curly quotes and accents show as themselves and keep the columns aligned", async () => {
+    const { screen } = await titled([
+      "Ship it \u2014 today",
+      "\u201cQuoted\u201d and \u2018single\u2019",
+      "Caf\u00e9 na\u00efve r\u00e9sum\u00e9",
+    ]);
+    const text = screen.join("\n");
+    expect(text).toContain("Ship it \u2014 today");
+    expect(text).toContain("\u201cQuoted\u201d and \u2018single\u2019");
+    expect(text).toContain("Caf\u00e9 na\u00efve r\u00e9sum\u00e9");
+    expect(new Set([0, 1, 2].map((i) => statusColumn(screen, i))).size).toBe(1);
+  });
+  test("a CJK title and an emoji/ZWJ title clip to their column on whole graphemes", async () => {
+    const cjk =
+      "\u65e5\u672c\u8a9e\u306e\u30bf\u30a4\u30c8\u30eb\u304c\u3068\u3066\u3082\u9577\u3044\u306e\u3067\u5207\u308c\u307e\u3059";
+    const coder = "\u{1F469}\u200d\u{1F4BB}",
+      family = "\u{1F468}\u200d\u{1F469}\u200d\u{1F467}\u200d\u{1F466}";
+    const emoji = `${coder} pairing ${family}${family}${family}${family}${family}${family}${family}${family}`;
+    const { screen } = await titled([cjk, emoji, "Plain ascii title"]);
+    const cjkRow = screen.find((l) => l.includes(" ST0 "))!,
+      emojiRow = screen.find((l) => l.includes(" ST1 "))!;
+    expect(cjkRow).toContain("\u65e5\u672c\u8a9e\u306e");
+    expect(cjkRow).toContain("\u2026");
+    expect(emojiRow).toContain(`${coder} pairing ${family}`);
+    expect(emojiRow).toContain("\u2026");
+    // No family is torn apart: every ZWJ in the row sits inside a whole family or coder grapheme.
+    expect(emojiRow.replaceAll(family, "").replaceAll(coder, "")).not.toContain("\u200d");
+    expect(new Set([0, 1, 2].map((i) => statusColumn(screen, i))).size).toBe(1);
+  });
+  test("ESC, bidi and other unsafe characters become one visible mark; bad text never stops the frame", async () => {
+    const { screen } = await titled([
+      "evil\x1b[2J\u202ereversed\u2066x\u2069",
+      "\u0301\u200d\ud800 lone pieces\u00ad",
+      "line\nbreak\ttab\u2028sep",
+      "\u{1F3FB}modifier first",
+    ]);
+    const text = screen.join("\n");
+    for (const bad of [
+      "\x1b",
+      "\u202e",
+      "\u2066",
+      "\u2069",
+      "\u200d",
+      "\u0301",
+      "\n",
+      "\t",
+      "\u2028",
+      "\u00ad",
+    ])
+      expect(text.replaceAll("\n", "")).not.toContain(bad === "\n" ? "\u0000" : bad);
+    expect(text).toContain("evil?[2J?reversed?x?");
+    expect(text).toContain("line?break?tab?sep");
+    expect(text).toContain("?modifier first");
+    expect(new Set([0, 1, 2, 3].map((i) => statusColumn(screen, i))).size).toBe(1);
+    expect(displayText("\ud800ok")).toBe("\ufffdok");
+  });
+  test("the draft keeps its end in view and Backspace removes whole graphemes", async () => {
+    const { app } = await setup();
+    await app.key("a");
+    app.paste(`${"\u65e5\u672c".repeat(60)} end \u{1F469}\u200d\u{1F4BB}`);
+    const screen = plain(render(app, 118, 54, 0));
+    expect(screen).toContain("end \u{1F469}\u200d\u{1F4BB}_");
+    expect(screen).toContain("\u2026\u65e5");
+    await app.key("Backspace");
+    expect(app.input!.endsWith("end ")).toBe(true);
+    expect(fitTail("abcdef", 4)).toBe("\u2026def");
+    expect(dropLast("a\u{1F468}\u200d\u{1F469}\u200d\u{1F467}")).toBe("a");
+  });
+  test("diff output repaints a cell whose wide grapheme appears or goes, and nothing else", () => {
+    const frame = (text: string) => ({
+      lines: [
+        [
+          { text, style: {} },
+          { text: "", style: {} },
+          { text: "z", style: {} },
+        ],
+      ],
+      hits: [],
+    });
+    const wide = frame("\u65e5");
+    expect(diffFrame(wide, wide)).toBe("");
+    const narrow = { lines: [["a", "b", "z"].map((text) => ({ text, style: {} }))], hits: [] };
+    const toNarrow = diffFrame(narrow, wide);
+    expect(toNarrow).toContain("ab");
+    expect(toNarrow).not.toContain("z");
+    const toWide = diffFrame(wide, narrow);
+    expect(toWide).toContain("\u65e5");
+    expect(toWide).not.toContain("z");
+  });
 });
