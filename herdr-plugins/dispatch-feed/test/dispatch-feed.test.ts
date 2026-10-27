@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createServer } from "node:net";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { decodeSnapshot, itemId } from "../src/snapshot.ts";
+import { decodeSnapshot, isDone, itemId } from "../src/snapshot.ts";
 import { FeedClient, RpcError } from "../src/transport.ts";
 import type { Method, Rpc } from "../src/transport.ts";
 import { App } from "../src/app.ts";
@@ -64,6 +64,17 @@ describe("defensive decoder", () => {
     const dup = fixture();
     dup.items.push(dup.items[0]);
     expect(() => decodeSnapshot(dup)).toThrow();
+  });
+  test("doneAt decodes when present, is absent otherwise, and must be an ISO time", () => {
+    const raw = fixture();
+    raw.items[6].doneAt = "2026-10-23T13:00:00Z";
+    const decoded = decodeSnapshot(raw);
+    expect(decoded.items[6].doneAt).toBe("2026-10-23T13:00:00Z");
+    expect(decoded.items[7].doneAt).toBeUndefined();
+    expect(decoded.items.filter(isDone).map(itemId)).toEqual(["scratch:item-6"]);
+    expect(decodeSnapshot(fixture()).items.some(isDone)).toBe(false);
+    raw.items[6].doneAt = "today";
+    expect(() => decodeSnapshot(raw)).toThrow();
   });
   test("all per-source states distinct; unknown counts not fabricated", async () => {
     const { app, rpc } = await setup();
@@ -127,23 +138,51 @@ describe("keys and state transitions", () => {
     ]);
     expect(rpc.calls.filter((c) => c.method === "get")).toHaveLength(7);
   });
-  test("done/reopen retained in place for this session only, capability gating", async () => {
+  test("done to-dos come from the snapshot: dimmed, selectable, x reopens; capability gating", async () => {
     const { app, rpc } = await setup();
     app.selected = "reviews:item-0";
     await app.key("x");
     expect(app.message).toContain("does not support");
     app.selected = "scratch:item-6";
     await app.key("x");
-    rpc.snapshot.items = rpc.snapshot.items.filter((it) => itemId(it) !== "scratch:item-6");
+    // The engine keeps the done item until local midnight; the pane holds no copy of its own.
+    const done = rpc.snapshot.items.find((it) => itemId(it) === "scratch:item-6")!;
+    done.doneAt = fixture().at;
     await app.poll();
-    expect(app.completed.has("scratch:item-6")).toBe(true);
-    expect(app.items().some((it) => itemId(it) === "scratch:item-6")).toBe(true);
+    expect(app.selected).toBe("scratch:item-6");
+    app.motion = false;
+    const frame = render(app, 118, 54, 2000);
+    const view = plain(frame);
+    expect(view).toMatch(/× TODO \[done\] Organize fixture.* DONE {2,}/);
+    const line = frame.lines.find((l) =>
+      l
+        .map((s) => s.text)
+        .join("")
+        .includes("[done] Organize"),
+    )!;
+    // Spans are cells here; take those covering the title by their text offsets.
+    let offset = 0;
+    const at = line
+      .map((s) => s.text)
+      .join("")
+      .indexOf("[done] Organize fixture");
+    const title = line.filter((s) => {
+      const start = offset;
+      offset += s.text.length;
+      return start >= at && start < at + "[done] Organize fixture".length;
+    });
+    expect(title.map((s) => s.text).join("")).toBe("[done] Organize fixture");
+    expect(title.every((s) => s.style.fg === "decorative")).toBe(true);
     await app.key("x");
-    expect(rpc.calls.filter((c) => c.method === "act").map((c) => c.params.do)).toEqual([
-      "todo.done",
-      "todo.reopen",
+    expect(
+      rpc.calls.filter((c) => c.method === "act").map((c) => [c.params.do, c.params.key]),
+    ).toEqual([
+      ["todo.done", "scratch:item-6"],
+      ["todo.reopen", "scratch:item-6"],
     ]);
-    expect(app.completed.size).toBe(0);
+    delete done.doneAt;
+    await app.poll();
+    expect(plain(render(app, 118, 54, 2000))).not.toContain("[done]");
   });
   test("add input, cancel, conflict preserves text and acknowledged submit clears", async () => {
     const { app, rpc } = await setup();
@@ -162,6 +201,7 @@ describe("keys and state transitions", () => {
     expect(rpc.calls.find((c) => c.params.do === "todo.add")?.params).toEqual({
       do: "todo.add",
       text: "new task",
+      source: "scratch",
       actor: "you",
     });
     await app.key("a");
@@ -371,24 +411,36 @@ async function rejectsCode(promise: Promise<unknown>, code: string): Promise<voi
   }
 }
 
-test("todo.add selects existing item only for multiple lists; empty target is unsupported", async () => {
+test("todo.add names its list: the selected item's, else the only one, else none", async () => {
   const { app, rpc } = await setup();
-  rpc.snapshot.sources[0].writable = ["todo.add"];
+  const add = async (): Promise<Record<string, unknown> | undefined> => {
+    rpc.calls = [];
+    await app.key("a");
+    if (app.input === null) return undefined;
+    await app.key("n");
+    await app.key("Enter");
+    return rpc.calls.find((c) => c.params.do === "todo.add")?.params;
+  };
+  // One writable checklist: chosen even when a pull request is selected.
+  app.selected = "reviews:item-0";
+  expect(await add()).toEqual({ do: "todo.add", text: "n", source: "scratch", actor: "you" });
+  // Two lists, one empty: the selected item's list is named explicitly, never a key.
+  const issues = rpc.snapshot.sources.find((s) => s.id === "issues")!;
+  issues.state = "ok";
+  issues.writable = ["todo.add", "todo.done", "todo.reopen"];
   await app.poll();
-  app.filter = "scratch";
-  await app.key("a");
-  await app.key("n");
-  await app.key("Enter");
-  expect(rpc.calls.find((c) => c.params.do === "todo.add")?.params.key).toBe("scratch:item-6");
-  rpc.calls = [];
-  rpc.snapshot.items = rpc.snapshot.items.filter((it) => it.source !== "scratch");
-  await app.poll();
-  await app.key("a");
-  await app.key("n");
-  await app.key("Enter");
+  app.selected = "scratch:item-7";
+  expect(await add()).toEqual({ do: "todo.add", text: "n", source: "scratch", actor: "you" });
+  // Two lists and the selection is in neither: calm refusal, nothing sent.
+  app.selected = "reviews:item-0";
+  expect(await add()).toBeUndefined();
   expect(app.message).toBe("Can't choose a to-do list");
-  expect(app.input).toBe("n");
   expect(rpc.calls.filter((c) => c.method === "act")).toHaveLength(0);
+  // No writable checklist at all.
+  for (const s of rpc.snapshot.sources) s.writable = [];
+  await app.poll();
+  expect(await add()).toBeUndefined();
+  expect(app.message).toBe("No writable to-do source");
 });
 
 test("draft source removal cannot redirect an add, and done rows must reopen before triage", async () => {
@@ -403,8 +455,9 @@ test("draft source removal cannot redirect an add, and done rows must reopen bef
   expect(app.input).toBe("n");
   expect(rpc.calls.filter((c) => c.method === "act")).toHaveLength(0);
   const next = await setup();
+  next.rpc.snapshot.items.find((it) => itemId(it) === "scratch:item-6")!.doneAt = fixture().at;
+  await next.app.poll();
   next.app.selected = "scratch:item-6";
-  await next.app.key("x");
   const count = next.rpc.calls.length;
   await next.app.key("p");
   expect(next.app.message).toBe("Reopen this to-do before triage");

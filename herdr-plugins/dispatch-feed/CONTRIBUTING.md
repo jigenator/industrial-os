@@ -21,9 +21,9 @@ The frozen install writes only this project's dependency directory; the lockfile
 must not change. Typecheck is strict; lint is type-aware with no warnings. Tests
 use fake records and a temporary Unix socket, never inherited service targets.
 They cover decoder unknowns, all health states, inverse staleness, week mapping,
-keys/actor/composite ids, add/cancel/conflict, session done/reopen, focus/new hold,
-read-only enforcement, offline retention/recovery, bounded timeout/cancel, input
-fragmentation and motion-off. The PTY check runs the actual entrypoint against a
+keys/actor/composite ids, add/cancel/conflict, add-list choice, snapshot
+done/reopen, focus/new hold, read-only enforcement, offline retention/recovery,
+bounded timeout/cancel, input fragmentation and motion-off. The PTY check runs the actual entrypoint against a
 fake socket, tests add, hover/click, short/tiny resize, idle, q/Ctrl-C and exact
 terminal restoration. It resolves the actual Bun executable before replacing
 HOME so runtime-manager shims cannot prompt for unrelated trust.
@@ -138,3 +138,22 @@ median 7.15 ms, p95 8.36 ms on the development machine; not a throughput claim.
 
 **Not run:** isolated Herdr, physical terminals' emoji and ambiguous-width
 rendering, which may differ from Bun's `stringWidth`.
+
+### Done to-dos from the snapshot and named add target
+
+macOS, Bun 1.4.4, Node 22.23.4, with the engine change that adds `doneAt` and
+`todo.add` source.
+
+**Passed — automated:** frozen install (13 installs, no lockfile change), strict
+typecheck, type-aware lint with no warnings, format check; `bun test`: **26
+passed, 822 assertions**. They cover `doneAt` decoded, absent and rejected when
+not ISO; a snapshot done item rendered `× TODO [done] …` with DONE status and
+dimmed title cells, still selected, `x` sending `todo.reopen` with its composite
+key, and other triage refused until reopened; the add target as the only list,
+the selected item's list among two, a calm refusal when the selection is in
+neither, and no list at all, each with `source` sent and no key.
+`python3 test/pty_smoke.py`: **PTY SMOKE OK**. Design system 567/567 and its
+plain showcase/storybook width snapshots exited 0.
+
+**Not run:** isolated Herdr and any live engine. End-of-day removal is the engine's
+rule and is tested there by injected times; the pane only renders what it is given.

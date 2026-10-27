@@ -56,12 +56,13 @@ change data. A lost mutation reply says outcome unknown; it is **not replayed**.
 
 No persistence in the pane. The engine owns triage, source health and history.
 Bracketed paste into the draft is literal text: line breaks/tabs become spaces,
-and submission still requires Enter after the paste. Completed to-dos are dimmed, marked `[done]` and retained in their queue position
-**session-only** (up to 256), so `x` can reopen them; reopen before other triage actions. Snapshot has no completed
-to-dos for reopen across restarts. Adding to an empty target with multiple
-checklists is unavailable until todo.add has a source selector; a single list
-needs no key, while multiple lists use an existing item key. A removed source clears its retained items.
-Handled items remain selectable with `[handled]` so `h` can undo.
+and submission still requires Enter after the paste. A to-do done today, from
+any writer, stays in its place dimmed and marked `[done]` until local midnight,
+when the engine drops it; it survives pane and engine restarts. `x` reopens it;
+reopen before other triage actions. `a` adds to the selected item's checklist, or
+to the only checklist; with several and the selection in none of them, it says it
+can't choose. The chosen list is always named to the engine. Handled items remain
+selectable with `[handled]` so `h` can undo.
 
 Focus reporting is requested. If the host supplies no focus events, the first
 key or click is the look fallback. Fresh items at that moment stay marked new
