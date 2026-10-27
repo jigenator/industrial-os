@@ -680,6 +680,7 @@ const DESK_TRAY = contentStory('desk-tray','DESK TRAY','One stripe/content/body 
 const OPERATION_ROW = contentStory('operation-row','OPERATION ROW','Fixed data columns, right duration and explicit selected/state shapes.',[
   ...[false,true].map(focused=>({name:focused?'FOCUSED':'HEADING',fn:'operationHeading',input:{focused,code:'O-01',count:'1-3 OF 4'}})),
   ...['running','done','failed','neutral','waiting'].map(state=>({name:state.toUpperCase(),fn:'operationRow',input:{state,time:'09:40',category:'TOOL',detail:'fetch_fixture - synthetic result',duration:state==='running'?'running 1:00':'2.3s',selected:state==='running'},options:{color:false}})),
+  {name:'SELECTED',fn:'operationRow',input:{state:'done',time:'09:40',category:'TASK',detail:'Fixture summary',duration:'2.3s',selected:true}},
   {name:'HOVER',fn:'operationRow',input:{state:'done',time:'09:40',category:'TASK',detail:'Fixture summary',duration:'2.3s',hover:true}},
   {name:'DETAIL',fn:'operationDetail',input:{label:'STATUS',value:'running - synthetic fixture'}},
 ]);

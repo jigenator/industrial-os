@@ -294,3 +294,12 @@ test('a completed PING preview keeps its bars gone, through resize and until rep
   // Replay plays the ping again from the start: by 420 ms all seven bars are lit, before any turns grey.
   assert.ok(textOf(replay, { columns: 80, rows: 40, now: end + 6000 + 420 }).includes(BARS), 'replay shows the bars again');
 });
+
+test('operation-row story fixtures keep marker gap and time aligned', () => {
+  const story=STORIES.find(s=>s.id==='operation-row');
+  assert.ok(story);
+  for(const width of [24,40,64,100]) for(const variant of story.variants) {
+    const rows=text(story.specimen(variant,width).lines);
+    for(const row of rows.filter(row=>row.includes('09:40'))) assert.equal(row.indexOf('09:40'),3);
+  }
+});
