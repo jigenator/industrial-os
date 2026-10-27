@@ -77,7 +77,7 @@ export function laneTrack({ now, since = null, after = 'dashed' } = {}, { width,
 // One run, from column `from` to `to`, as pieces to lay over its track in order. Finished: a grey bar ending in its
 // miss mark. Live: hatched until `verified` (all of it while `verifying`), then solid `fill`, its label in `ink` on the
 // fill (or in secondary to the left when the bar is too short), and with `head` one more cell at NOW, acid while `lit`.
-// Returns null when it ends before the lane; `span` is the live run's drawn extent, for the host's hit regions.
+// Returns null when it lies wholly outside the lane; `span` is the live run's drawn extent, for the host's hit regions.
 export function laneRun(run, { width, measure } = {}) {
   const { from, to, verified = null, verifying = false, live = false, outcome = 'succeeded', label = '', fill = 'decorative', ink = 'field', head = false, lit = true } = object(run, 'lane run');
   assertCells(width, 'lane width');
@@ -90,7 +90,8 @@ export function laneRun(run, { width, measure } = {}) {
   const shown = live && head;
   let x0 = from;
   const x1 = Math.min(width - 1 - (shown ? 1 : 0), Math.max(x0, to - (shown ? 1 : 0)));
-  if (x1 < 0) return null;
+  // Wholly outside the lane: it ends before the first column or starts after the last.
+  if (x1 < 0 || x0 > width - 1) return null;
   x0 = Math.max(0, x0);
   if (!live) {
     const mark = endMark(outcome);

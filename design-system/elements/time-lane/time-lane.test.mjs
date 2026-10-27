@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GLYPHS, lineWidth, paint } from '../../foundation/cells.mjs';
+import { GLYPHS, lineWidth, paint, span } from '../../foundation/cells.mjs';
 import { BOARD_INKS } from '../../foundation/signal-colors.mjs';
 import { crossNow, laneAxis, laneRun, laneScale, laneTrack } from './time-lane.mjs';
 
@@ -91,6 +91,33 @@ test('NOW crosses track, gaps and blank cells on the field, never a bar, mark or
   assert.equal(crossNow({ text: '▒', style: {} }), null);
   assert.deepEqual(crossNow({ text: ' ', style: { bg: BOARD_INKS.selection } }, { quiet: true }), { text: '│', style: { fg: BOARD_INKS.faint } });
   assert.equal(crossNow({ text: '─', style: {} }, { quiet: true }), null);
+});
+
+test('a run wholly outside the lane draws nothing; one that crosses an edge is cut to the lane', () => {
+  const width = 12;
+  const kinds = [
+    { live: false, outcome: 'succeeded' }, { live: false, outcome: 'failed' },
+    { live: true, label: '42', fill: 'accent', ink: 'field' }, { live: true, label: '42', fill: 'accent', ink: 'field', head: true },
+    { live: true, verifying: true, label: '42', fill: 'accent', ink: 'field', head: true },
+  ];
+  for (const kind of kinds) {
+    // Starts past the right edge, as a start recorded ahead of the local clock can.
+    for (const [from, to] of [[width, width], [width + 3, width + 9], [width, 100000]]) {
+      assert.equal(laneRun({ from, to, ...kind }, { width }), null, `${JSON.stringify(kind)} ${from}..${to}`);
+    }
+    // Wholly before the lane.
+    for (const [from, to] of [[-9, -1], [-100000, -2]]) assert.equal(laneRun({ from, to, ...kind }, { width }), null, `${JSON.stringify(kind)} ${from}..${to}`);
+    // Crossing either edge, or both: cut to the lane, every piece inside it.
+    for (const [from, to] of [[-5, 4], [6, width + 6], [-5, width + 6], [width - 1, width + 4]]) {
+      const run = laneRun({ from, to, ...kind }, { width });
+      assert.ok(run, `${JSON.stringify(kind)} ${from}..${to}`);
+      for (const p of run.pieces) assert.ok(p.at >= 0 && p.at + lineWidth(p.line) <= width, `${JSON.stringify(kind)} ${from}..${to}: ${p.at}`);
+    }
+  }
+  // Starting on the last column, a headed run is its head there.
+  const last = laneRun({ from: width - 1, to: width - 1, live: true, fill: 'accent', ink: 'field', head: true }, { width });
+  assert.deepEqual(last.span, [width - 1, width - 1]);
+  assert.deepEqual(last.pieces.at(-1), { at: width - 1, line: [span(' ', { bg: 'accent' })] });
 });
 
 test('every lane piece uses curated glyphs and stays inside the lane', () => {
