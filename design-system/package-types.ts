@@ -225,3 +225,6 @@ stateCell('hot');
 eventRow({ time: '09:41', tone: 'ok', verb: 'OK' }, { width: 35, form: 'table' });
 // @ts-expect-error unknown pixel face
 boardGrid('1', { face: 'huge' });
+
+// Settled withdrawn questions keep host-owned read treatment.
+sheetCard({ heading: { state: 'withdrawn' }, kind: 'question', read: true }, { width: 40 });

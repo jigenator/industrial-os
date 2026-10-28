@@ -8,6 +8,7 @@ const clear = { bg: 'default' };
 export const SHEET_STATES = Object.freeze(Object.fromEntries(Object.entries({
   unread: { code: 'unread', shape: '◆', tone: P.wheat }, read: { code: 'read', shape: '', tone: 'decorative' },
   waiting: { code: 'waiting on you', shape: '●', tone: 'critical' }, answered: { code: 'answered', shape: '', tone: 'accent' },
+  withdrawn: { code: 'withdrawn', shape: '↷', tone: 'decorative' },
   declined: { code: 'declined', shape: '', tone: 'decorative' }, 'delivery-waiting': { code: 'delivery waiting', shape: '●', tone: 'warning' },
 }).map(([key,value]) => [key,Object.freeze(value)])));
 const size = (l, measure) => lineWidth(l, { measure });
@@ -24,7 +25,7 @@ export function cardState({ state = 'unread', answer = '' } = {}, { maxWidth = I
 export function cardHeading({ number = '', time = '', state = 'unread', answer = '' } = {}, { width, measure } = {}) {
   for (const value of arguments) if (value !== undefined && (value === null || typeof value !== 'object' || Array.isArray(value))) throw new TypeError('input and options must be objects');
   assertCells(width, 'card heading width');
-  const ink = ['read', 'answered', 'declined'].includes(state) ? 'decorative' : tone(state), right = cardState({ state, answer }, { maxWidth: Math.max(0, width - 2), measure });
+  const ink = ['read', 'answered', 'declined', 'withdrawn'].includes(state) ? 'decorative' : tone(state), right = cardState({ state, answer }, { maxWidth: Math.max(0, width - 2), measure });
   const left = [span('▤ SHEET ', { fg: ink, bold: true, ...clear }), ...fitText(number, Infinity, { measure, style: { fg: ink, bold: true, ...clear } }), span('  ', clear), ...fitText(time, Infinity, { measure, style: { fg: 'decorative', ...clear } })];
   const room = Math.max(0, width - 2 - size(right, measure) - 1);
   return fitLine([span(' ', clear), ...fitLine(left, room, clear, { measure }), span(' ', clear), ...right, span(' ', clear)], width, clear, { measure });

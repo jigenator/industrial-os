@@ -485,3 +485,19 @@ test('content variant tabs are reachable by mouse in the tab row at 120 columns'
     }
   }
 });
+
+test('withdrawn word and sheet specimens preserve the trailing cue without color', () => {
+  for (const id of ['state-chip', 'sheet-card']) {
+    const entry = STORIES[story(id)];
+    const variant = entry.variants.find(v => v.name === 'WITHDRAWN');
+    assert.ok(variant);
+    const specimen = entry.specimen(variant, 80);
+    assert.match(specimen.lines.map(line => paint(line, 'none')).join('\n'), /withdrawn ↷/);
+    if (id === 'sheet-card') {
+      assert.equal(variant.input.kind, 'question');
+      assert.equal(variant.input.read, true);
+      assert.equal(specimen.lines.length, 3);
+      assert.ok(specimen.lines.every(row => row.every(s => s.style.bg === 'default')));
+    }
+  }
+});

@@ -188,3 +188,9 @@ test('fitText ellipsis: always marks an overflow, even at one cell; the default 
   }
   assert.throws(() => fitText('ABC', 1, { ellipsis: 'never' }), RangeError);
 });
+
+test('withdrawn sheet arrow has the same narrow ruler contract', () => {
+  assert.ok(GLYPHS.includes('↷'));
+  assert.equal(lineWidth([span(`│${'↷'.repeat(40)}│`)]), 42);
+  assert.equal(safeText('↷'), '?', 'caller text stays printable ASCII without a measurer');
+});

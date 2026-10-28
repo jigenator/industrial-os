@@ -238,3 +238,14 @@ Node v22.23.4, macOS. `lamp` adds opt-in `appearance: 'square'` with explicit ho
 - **Real PTY, injected keys only:** browsed all three square variants at 120×30, toggled motion off, resized to 48×24, and quit with `q` (exit 0). Full terminal settings matched before/after. This is text/lifecycle evidence, not Herdr or physical-display certification.
 - Local Markdown links/anchors, guidance inventory, exact CLAUDE imports and whitespace/public-content reviews passed.
 - **Not run:** strict declarations/public specimens (the documented consumer compiler is not installed in this worktree); native Herdr, physical glyph/contrast review, and Lunalee integration/pinned install. No standalone design-system lint/formatter command exists.
+
+## Withdrawn sheet state verification
+
+Node v22.23.4, macOS. `SHEET_STATES` and `SheetState` add settled `withdrawn ↷` in decorative ink. The question specimen explicitly supplies `read:true`; read/withdrawal lifecycle stays host-owned. The existing word-chip marker path is reused, with `↷` added to the curated one-cell glyph set. No palette value, dependency, export entry or existing state changes.
+
+- Test-first focused checks failed before implementation (5 passed, 3 failed); focused sheet/cell checks then passed **25/25**. Full `node --test`: **626/626 passed**, including executable story usage, widths 1–160, measured slots, transparent read question styling and both withdrawn stories' plain cues.
+- An external corpus against base `0e8ff92` passed **86,400** byte comparisons of structured spans, plain output and truecolor ANSI: all six existing states, widths 1–160, ASCII/measured rich text, every public sheet renderer, selected/hover/read flags and both card kinds. No differences. Simplification retained the shared preset/word-chip path with no new abstraction.
+- Required plain CLI snapshots: showcase 120/100/80/48/40/23; storybook 120/80/48/24/12 at 24 rows, all exited 0 and were reviewed. Withdrawn word/question specimens were also reviewed at 120/80/48/24/12/1 cells; tiny widths retain the existing clipping contract, not a guarantee that the complete cue fits.
+- **Real PTY, injected keys only:** navigated to the withdrawn question at 120×30, toggled motion off, resized to 48×24, and quit with `q` (exit 0). Exact terminal settings matched before/after. This is text/lifecycle evidence, not Herdr or physical-display certification.
+- Local Markdown links/anchors, guidance inventory, exact CLAUDE imports, whitespace and public-content reviews passed.
+- **Not run:** strict declarations/public specimens (no documented consumer compiler installed in this worktree); native Herdr, physical glyph/contrast review, consumer suites or Lunalee integration/pinned install. No standalone DS lint/formatter exists. Mermaid rendering was not run; no diagram changed.
