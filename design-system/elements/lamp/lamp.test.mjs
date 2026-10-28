@@ -55,17 +55,30 @@ test('lamp field/solid appearances preserve known and unknown footer cells', () 
   assert.throws(() => lamp('working', { lit: 1 }), TypeError);
 });
 
-test('round appearance has explicit transparent style, static filled/unknown rings and default parity', () => {
-  const style = { fg: 'critical', bold: true };
-  for (const state of ['working', 'idle', 'unknown']) {
-    const round = lamp(state, { appearance: 'round', style });
-    assert.deepEqual(round, [{ text: state === 'unknown' ? '○' : '●', style: { bg: 'default', ...style } }]);
-    assert.deepEqual(lamp(state, { appearance: 'round', style, lit: false }), round);
-    assert.equal(lineWidth(round), 1);
-    assert.equal(style.bg, undefined);
-    assert.deepEqual(lamp(state), lamp(state, { appearance: 'glyph', lit: true }));
-  }
-  assert.throws(() => lamp('idle', { appearance: 'round' }), TypeError);
-  assert.throws(() => lamp('idle', { appearance: 'round', style: { fg: 'bad' } }), TypeError);
-  assert.throws(() => lamp('idle', { style }), RangeError);
-});
+for (const [appearance, filled, hollow] of [['round', '●', '○'], ['square', '■', '□']]) {
+  test(`${appearance} appearance has explicit transparent style, static filled/hollow glyphs and default parity`, () => {
+    const style = Object.freeze({ fg: 'critical', bold: true });
+    for (const state of Object.keys(LAMP_STATES)) {
+      const line = lamp(state, { appearance, style });
+      assert.deepEqual(line, [{ text: state === 'unknown' ? hollow : filled, style: { bg: 'default', ...style } }]);
+      assert.deepEqual(lamp(state, { appearance, style, lit: false }), line);
+      assert.equal(line.length, 1);
+      assert.equal(lineWidth(line), 1);
+      assert.ok(GLYPHS.includes(text(line)));
+      assert.equal(stripVTControlCharacters(paint(line, 'truecolor')), text(line));
+      assert.match(paint(line, 'truecolor'), /;49m/);
+      assert.equal(style.bg, undefined);
+      assert.deepEqual(lamp(state), lamp(state, { appearance: 'glyph', lit: true }));
+      const opaque = { ...style, bg: 'surface' };
+      assert.deepEqual(lamp(state, { appearance, style: opaque })[0].style, opaque);
+    }
+    for (const style of [undefined, null, 'accent', { fg: 'bad' }, { bg: 'bad' }, { italic: 1 }, { underline: 'yes' }]) {
+      assert.throws(() => lamp('idle', { appearance, style }), TypeError);
+    }
+    for (const appearance of ['glyph', 'field', 'solid']) {
+      assert.throws(() => lamp('idle', { appearance, style }), {
+        name: 'RangeError', message: 'style is only supported by round or square lamps',
+      });
+    }
+  });
+}

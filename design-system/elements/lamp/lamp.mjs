@@ -19,14 +19,15 @@ export const LAMP_DIM_STYLE = Object.freeze({ fg: 'surface', bg: 'surface' });
 // One span of exactly one cell.
 export function lamp(state, { appearance = 'glyph', lit = true, style } = {}) {
   if (typeof state !== 'string' || !Object.hasOwn(LAMP_STATES, state)) throw new RangeError(`unknown lamp state: ${state}`);
-  if (!['glyph', 'field', 'solid', 'round'].includes(appearance)) throw new RangeError('unknown lamp appearance');
+  if (!['glyph', 'field', 'solid', 'round', 'square'].includes(appearance)) throw new RangeError('unknown lamp appearance');
   if (typeof lit !== 'boolean') throw new TypeError('lit must be boolean');
-  if (appearance === 'round') {
-    if (!style || typeof style !== 'object') throw new TypeError('round lamps require an explicit style');
+  if (appearance === 'round' || appearance === 'square') {
+    if (!style || typeof style !== 'object') throw new TypeError(`${appearance} lamps require an explicit style`);
     resolveStyle(style);
-    return [span(state === 'unknown' ? '○' : '●', { bg: 'default', ...style })];
+    const char = appearance === 'round' ? (state === 'unknown' ? '○' : '●') : (state === 'unknown' ? '□' : '■');
+    return [span(char, { bg: 'default', ...style })];
   }
-  if (style !== undefined) throw new RangeError('style is only supported by round lamps');
+  if (style !== undefined) throw new RangeError('style is only supported by round or square lamps');
   if (state !== 'unknown' && appearance !== 'glyph') {
     const bg = state === 'working' && lit ? 'accent' : 'surface';
     return [span(appearance === 'field' ? ' ' : '█', { fg: appearance === 'field' ? 'primary' : bg, bg })];

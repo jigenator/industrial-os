@@ -64,7 +64,7 @@ Open decisions: visual refinements to every element and motion. Shared open deci
 
 ## Survey surface and reuse extensions
 
-The [foundation surface](../foundation/README.md#surface) supplies the current charcoal gradient, stable hashed minor/major dots and per-cell fill blending. It owns color values and compositing, not Lunalee's alpha configuration or ANSI/copy/image adapter. Plain/NO_COLOR has no floor or generated colors. The SURFACE story uses synthetic cells for clear, locked translucent, solid and NO_COLOR views. Round lamps require explicit style and adjacent state words; word chips put optional markers after supplied words. Existing defaults remain unchanged. Measured text is opt-in; no native Unicode or surface acceptance is inferred from unit checks.
+The [foundation surface](../foundation/README.md#surface) supplies the current charcoal gradient, stable hashed minor/major dots and per-cell fill blending. It owns color values and compositing, not Lunalee's alpha configuration or ANSI/copy/image adapter. Plain/NO_COLOR has no floor or generated colors. The SURFACE story uses synthetic cells for clear, locked translucent, solid and NO_COLOR views. Round and square lamps require explicit style and adjacent state words; word chips put optional markers after supplied words. Existing defaults remain unchanged. Measured text is opt-in; no native Unicode or surface acceptance is inferred from unit checks.
 
 ## Survey chrome
 

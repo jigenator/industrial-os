@@ -117,7 +117,7 @@ test('the new element states read without color: words, shapes, and digits carry
     'count-plate': ['CMP×??', 'CMP×00', 'CMP×04', 'CMP×99+', ' 03 AU ', '  ? AU ', ' 120 AU ', '###'],
     'mode-plate': ['⌑ PNYTL // LTE', '⌑ PNYTL // UNK', '• PNYTL // LTE', '◆ LINK // ON'],
     'state-chip': ['▲ UP×1', '▲ FIX ◆ EDIT', '✕ MISS', '✕ UNAV', '· CHK', '· OFF'],
-    lamp: ['PLAIN: a full block', 'PLAIN: a space', 'PLAIN: a hatch'],
+    lamp: ['PLAIN: a full block', 'PLAIN: a space', 'PLAIN: a hatch', '■ SQUARE WORK', '■ SQUARE IDLE', '□ SQUARE UNKNOWN', 'SQUARE: STATIC; HOST SUPPLIES MEANING'],
     'pixel-numeral': ['▀▀▀ ▀▀▀', 'FALLBACK', '64.0'],
     'segment-meter': ['GPT ■■■■■■■■', 'pending', 'timeout', '16m', 'none', '????????', '41m', '4h03m'],
     'thread-rail': ['█  ROOT  █·█·█·······  03 AU', '00 AU', '╱  ROOT', '? AU', '120 AU'],

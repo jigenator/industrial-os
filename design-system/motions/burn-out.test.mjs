@@ -4,6 +4,7 @@ import { fitLine, lineWidth, paint, span } from '../foundation/cells.mjs';
 import { gauge } from '../elements/gauge/gauge.mjs';
 import { statusRow } from '../elements/status-row/status-row.mjs';
 import { labelPlate } from '../elements/label-plate/label-plate.mjs';
+import { lamp } from '../elements/lamp/lamp.mjs';
 import { burnOut, BURN_OUT_DEFAULTS, burnOutDuration, BURN_OUT_PRESETS } from './burn-out.mjs';
 
 const base = {};
@@ -118,6 +119,34 @@ test('burn-out: active decorative fixtures retain widths 1–160 and immutable o
       assert.equal(JSON.stringify(options), saved);
     }
     assert.equal(JSON.stringify(lines), before);
+  }
+});
+
+test('burn-out: square lamps burn natively without changing glyphs, backgrounds or adjacent lamps', () => {
+  for (const state of ['working', 'idle']) {
+    const style = { fg: 'decorative', bold: true };
+    const lines = [[
+      ...lamp(state, { appearance: 'square', style }),
+      ...lamp('unknown', { appearance: 'square', style }),
+      ...lamp(state, { appearance: 'round', style }),
+      ...lamp(state, { appearance: 'solid' }),
+    ]];
+    const before = structuredClone(lines);
+    for (const [time, fg] of [[0, 'primary'], [100, BURN_OUT_DEFAULTS.lit], [250, BURN_OUT_DEFAULTS.mid], [400, BURN_OUT_DEFAULTS.used]]) {
+      const out = motion(lines, { time });
+      assert.deepEqual(out[0][0], span('■', { bg: 'default', ...style, fg }));
+      assert.deepEqual(cells(out[0]).slice(1), cells(lines[0]).slice(1));
+      assert.deepEqual(plain(out), plain(lines));
+      assert.equal(lineWidth(out[0]), 4);
+    }
+    assert.deepEqual(motion(lines, { time: burnOutDuration() }), lines);
+    assert.deepEqual(motion(lines, { animate: false }), lines);
+    assert.deepEqual(motion(lines, { time: 0, region: { left: 1 } }).map(cells), lines.map(cells));
+    assert.deepEqual(lines, before);
+  }
+  for (const fg of ['warning', 'critical']) {
+    const lines = [lamp('idle', { appearance: 'square', style: { fg } })];
+    assert.deepEqual(motion(lines, { time: 0 }), lines);
   }
 });
 

@@ -227,3 +227,14 @@ Review fixes (2026-10-28):
 - **Readout errors.** `readoutBlock` throws `RangeError` for an empty value or one outside the tall face; this is now in its README and test.
 - **Storybook.** The examples guide names the six board stories. The TIME LANE story leaves out a label that would cover a bar, which happens in 30 of the 528 lane specimens at widths 1–132. Its other cells match a host that keeps a bar's colors under a label in every specimen, so the story shows no wrong colour.
 - `node --test`: **621/621 passed**.
+
+## Square lamp verification
+
+Node v22.23.4, macOS. `lamp` adds opt-in `appearance: 'square'` with explicit host style, `■` for working/idle and `□` for unknown. Existing defaults and the burn-out implementation are unchanged.
+
+- Focused `node --test elements/lamp/lamp.test.mjs motions/burn-out.test.mjs`: **17/17 passed**. Full `node --test`: **623/623 passed**, including public-package resolution, executable story usage and square story state cues. Checks cover one-cell shapes, static `lit`, transparent/explicit backgrounds, style errors and square burn-out phases, region, completion, motion-off and protected state roles.
+- A 45-case corpus of existing default/glyph/field/solid/round output (all states, both lit values and explicit round styles) matched base `8cd0fc6` exactly. Simplification review retained one shared styled-appearance branch and no new abstraction or dependency.
+- Required plain CLI snapshots (showcase 120/100/80/48/40/23; storybook 120/80/48/24/12 at 24 rows) exited 0 and were reviewed. All lamp specimens were also checked at 120/80/48/24/12/1 cells; square shapes survive the one-cell fallback.
+- **Real PTY, injected keys only:** browsed all three square variants at 120×30, toggled motion off, resized to 48×24, and quit with `q` (exit 0). Full terminal settings matched before/after. This is text/lifecycle evidence, not Herdr or physical-display certification.
+- Local Markdown links/anchors, guidance inventory, exact CLAUDE imports and whitespace/public-content reviews passed.
+- **Not run:** strict declarations/public specimens (the documented consumer compiler is not installed in this worktree); native Herdr, physical glyph/contrast review, and Lunalee integration/pinned install. No standalone design-system lint/formatter command exists.

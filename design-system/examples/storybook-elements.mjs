@@ -272,19 +272,21 @@ const LAMP = element('lamp', {
   summary: "The Thread Rail's root lamp: one cell saying whether the root session is working, idle, or has not reported. Its working blink is a host motion.",
   rules: [
     'Always exactly one cell; state is working, idle, or unknown, anything else throws RangeError.',
-    'Working and idle differ by luminance in color and by shape in plain text; unknown is a static hatch.',
-    'It has no word: place it next to the bright ROOT plate, as the thread rail does.',
+    'Default working/idle differ by luminance in color and shape in plain text; unknown is a static hatch.',
+    'Round/square require an explicit style; filled for working/idle, hollow for unknown, static even when unlit.',
+    'Place the default next to ROOT; round/square need adjacent words supplied by the host.',
   ],
   variants: [
     { name: 'WORKING', note: 'A bright acid cell: a full block in acid on acid.', state: 'working' },
     { name: 'IDLE', note: 'A dark surface cell: a space.', state: 'idle' },
     { name: 'UNKNOWN', note: 'Not reported: a decorative hatch, never drawn as idle or working.', state: 'unknown' },
     ...[['RX', 'idle', 'decorative'], ['TX', 'working', 'accent'], ['NO LINK', 'unknown', 'critical'], ['WAITING', 'idle', 'critical']].map(([name, state, fg]) => ({ name, state, note: 'Round, explicitly styled and static; the adjacent word carries its meaning.', options: { appearance: 'round', style: { fg, bold: true } } })),
+    ...[['SQUARE WORK', 'working', 'accent'], ['SQUARE IDLE', 'idle', 'decorative'], ['SQUARE UNKNOWN', 'unknown', 'warning']].map(([name, state, fg]) => ({ name, state, note: 'Square, explicitly styled and static; filled known states and a hollow unknown.', options: { appearance: 'square', style: { fg, bold: true } } })),
   ],
   specimen(variant, width) {
     if (variant.options) {
       const tail = ' ' + variant.name;
-      return { lines: [fitLine([...lamp(variant.state, variant.options), span(tail)], width)], calls: [call('fitLine', code(`[...${call('lamp', variant.state, variant.options)}, ${call('span', tail)}]`), width)], facts: ['ROUND: STATIC; HOST SUPPLIES MEANING'] };
+      return { lines: [fitLine([...lamp(variant.state, variant.options), span(tail)], width)], calls: [call('fitLine', code(`[...${call('lamp', variant.state, variant.options)}, ${call('span', tail)}]`), width)], facts: [`${variant.options.appearance.toUpperCase()}: STATIC; HOST SUPPLIES MEANING`] };
     }
     return { lines: [fitLine(lamp(variant.state), width)], calls: [call('lamp', variant.state)], facts: [`PLAIN: ${LAMP_PLAIN[variant.state]}`] };
   },

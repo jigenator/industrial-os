@@ -14,12 +14,14 @@ const slot = textSlot([span('fixture', { italic: true, underline: true })], 7, {
 const plate = labelPlate(slot, { form: 'slab', measure, maxWidth: 12 });
 const word = stateChip({ state: 'answered' }, { form: 'word', preset: { answered: { code: slot, shape: '', tone: 'accent' } }, measure });
 const light = lamp('working', { appearance: 'round', style: { fg: SURFACE_PALETTE.accent } });
+const watch = lamp('working', { appearance: 'square', style: { fg: SURFACE_PALETTE.accent } });
 fit('fixture', 3, { measure });
 cells('fixture', { measure });
 lineWidth(plate, { measure });
 fitLine(word, 12, {}, { measure });
 fitText(slot, 6, { measure });
 paint(light, 'truecolor');
+paint(watch, 'truecolor');
 resolveStyle({ italic: true }).italic satisfies boolean | undefined;
 const surface = composeSurface([[{ text: ' ', style: { bg: SURFACE_PALETTE.wheat } }]], {
   width: 1, height: 1, fills: { [SURFACE_PALETTE.wheat]: { alpha: .61 } },
@@ -45,6 +47,12 @@ textSlot([], '7', { measure });
 stateChip({ state: 'answered', commitsBehind: 1 }, { form: 'word' });
 // @ts-expect-error round lamps require explicit style
 lamp('working', { appearance: 'round' });
+// @ts-expect-error square lamps require explicit style
+lamp('working', { appearance: 'square' });
+// @ts-expect-error square styles use validated style attributes
+lamp('working', { appearance: 'square', style: { bold: 'yes' } });
+// @ts-expect-error solid lamps do not accept explicit style
+lamp('working', { appearance: 'solid', style: { fg: 'accent' } });
 
 // Plain strings remain usable without a measurer; every slot-bearing path requires one.
 labelPlate('fixture');
