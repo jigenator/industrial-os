@@ -33,7 +33,7 @@ To blink it, apply the [blink motion](../../motions/README.md#blinklines-options
 
 ## Width and glyphs
 
-Always one cell. Uses `█` and `╱` from the curated glyph set and the `accent`, `primary`, `surface` and `decorative` roles.
+Always one cell. Default appearances use `█` and `╱` from the curated glyph set and the `accent`, `primary`, `surface` and `decorative` roles. Explicitly styled appearances use `●`/`○` or `■`/`□`, also curated one-cell glyphs.
 
 ## Host appearances
 
@@ -45,9 +45,22 @@ Always one cell. Uses `█` and `╱` from the curated glyph set and the `accent
 - Working takes accent only while `lit`; idle is always surface. Unknown always retains its hatch/style.
 
 Invalid appearances throw `RangeError`; nonboolean `lit` throws `TypeError`. Defaults are unchanged. status-bar now consumes the field/solid appearances; the default plain-text shape differences below apply only to `glyph`.
-### Round appearance
+### Round and square appearances
 
-`lamp(state, { appearance: 'round', style: { fg: 'accent' } })` draws `●` for working/idle and `○` for unknown. A validated explicit style is required (`TypeError` if missing); omitted background is transparent `'default'`. Round lamps are static even with `lit:false`; unknown is never idle. Place meaningful words beside them: RX, TX, NO LINK, or waiting. In particular, a waiting notch never blinks. A style on an old appearance throws `RangeError`; old appearances/defaults are unchanged. The storybook uses synthetic RX/TX/NO LINK/waiting fixtures.
+```js
+lamp('working', { appearance: 'round', style: { fg: 'accent' } });  // ●
+lamp('working', { appearance: 'square', style: { fg: 'accent' } }); // ■
+lamp('unknown', { appearance: 'square', style: { fg: 'warning' } }); // □
+```
+
+| Appearance | Working / idle | Unknown |
+| --- | --- | --- |
+| `round` | `●` | `○` |
+| `square` | `■` | `□` |
+
+Both require an explicit style validated with `resolveStyle` (`TypeError` if missing or invalid); omitted background is transparent `'default'`, and an explicit background is preserved. Both are static even with `lit: false`; unknown is never idle. The host owns state colors and motion. Place meaningful words beside them, since working and idle share a shape: RX, TX, NO LINK, waiting, or a watch's state. In particular, a waiting notch never blinks. A style on `glyph`, `field`, or `solid` throws `RangeError`; old appearances/defaults are unchanged. The storybook uses synthetic round RX/TX/NO LINK/WAITING and square WORK/IDLE/UNKNOWN fixtures.
+
+A square lamp's known-state `■` works directly with [burn-out](../../motions/README.md#burnoutlines-options-and-burnoutdurationoptions): it changes only foreground ink and preserves the glyph, background and style attributes. Hollow unknown `□` is not targeted. Supply the already-settled style; completion and motion-off restore that input. Warning/critical role cells remain exempt.
 
 ## Differences from status-bar
 
@@ -56,4 +69,4 @@ Invalid appearances throw `RangeError`; nonboolean `lit` throws `TypeError`. Def
 
 ## Checks
 
-[lamp.test.mjs](lamp.test.mjs): one cell per state, distinct plain-text shapes, exact truecolor output, the blink cadence and dim style, unknown distinct from the others, and invalid states.
+[lamp.test.mjs](lamp.test.mjs): one cell per state/appearance, default plain-text shapes and exact truecolor output, the blink cadence and dim style, filled/hollow round and square glyphs, explicit style validation, transparent/explicit backgrounds, static `lit` behavior, unchanged defaults and invalid inputs. [burn-out.test.mjs](../../motions/burn-out.test.mjs) checks square lamps across burn phases, completion, motion-off, region and state-cue protection without mutating input.
