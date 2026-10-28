@@ -14,7 +14,7 @@ function geometry(lines, width, measure) {
 }
 import { cardState, cardHeading, sheetCard, stackRow, stackCard, sheetListRow, SHEET_STATES } from './sheet-card.mjs';
 test('sheet-card: shared state words, heading, read band and fixed card row counts', () => {
-  const words={unread:'unread ◆',read:'read',waiting:'waiting on you ●',answered:'answered',declined:'declined','delivery-waiting':'delivery waiting ●'};
+  const words={unread:'unread ◆',read:'read',waiting:'waiting on you ●',answered:'answered',declined:'declined','delivery-waiting':'delivery waiting ●',withdrawn:'withdrawn ↷'};
   for(const [state,word] of Object.entries(words)) assert.equal(plain(cardState({state})),word);
   assert.equal(plain(cardState({state:'answered',answer:'fixture'})),'answered · fixture');
   const input=freeze({heading:{number:'05',time:'09:41',state:'unread'},title:'Fixture',gist:['first','second'],footer:'no answer needed'});
@@ -49,7 +49,7 @@ test('sheet-card: invalid states, flags, dimensions and unsafe slots are rejecte
 
 test('sheet-card: ^P fixed columns, no tint, floor leaders and wheat selected read fill', () => {
   const columns={state:60,updated:82};
-  for(const state of ['unread','waiting','read','answered','declined','delivery-waiting']) {
+  for(const state of ['unread','waiting','read','answered','declined','delivery-waiting','withdrawn']) {
     const row=sheetListRow({label:'05',title:'Fixture',state,updated:'Mon'},{width:100,columns});
     const text=plain(row);assert.equal(text.slice(60,60+plain(cardState({state})).length),plain(cardState({state})));assert.equal(text.slice(82,85),'Mon');
     assert.ok(text.slice(20,60).includes('·'));assert.ok(row.every(s=>s.style.bg==='default'));
@@ -77,4 +77,21 @@ test('sheetCard read hover brightens the title and action without a band', () =>
   assert.equal(find(hover[1], 'Fixture').style.fg, 'primary');
   assert.notEqual(find(hover[1], 'open').style.fg, find(rest[1], 'open').style.fg);
   assert.deepEqual(hover.slice(1).map(row => row.map(part => part.style.bg)), rest.slice(1).map(row => row.map(part => part.style.bg)));
+});
+
+test('sheet-card: withdrawn is settled with a trailing cue and explicit read question treatment', () => {
+  assert.deepEqual(SHEET_STATES.withdrawn, { code: 'withdrawn', shape: '↷', tone: 'decorative' });
+  assert.ok(Object.isFrozen(SHEET_STATES.withdrawn));
+  const state = cardState({ state: 'withdrawn', answer: 'ignored' });
+  assert.equal(plain(state), 'withdrawn ↷');
+  assert.ok(state.every(s => s.style.fg === 'decorative' && !s.style.bold));
+  const input = { heading: { number: '05', time: '09:41', state: 'withdrawn' }, kind: 'question', title: 'Fixture', gist: ['Closed question'], read: true };
+  const rows = sheetCard(input, { width: 70 });
+  assert.equal(rows.length, 3);
+  assert.ok(rows.every(row => row.every(s => s.style.bg === 'default')));
+  assert.ok(rows[0].filter(s => s.text.includes('SHEET') || s.text.includes('05')).every(s => s.style.fg === 'decorative'));
+  assert.equal(rows[1].find(s => s.text.includes('Fixture')).style.fg, 'secondary');
+  assert.equal(rows[1].find(s => s.text.includes('█')).style.fg, '#333333');
+  assert.match(plain(rows[1]), /\[open ▸\]/);
+  for (const render of [stackRow, sheetListRow]) assert.ok(plain(render({ state: 'withdrawn', title: 'Fixture' }, { width: 70 })).includes('withdrawn ↷'));
 });

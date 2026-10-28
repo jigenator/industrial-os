@@ -3,7 +3,7 @@ export interface Options { width: number; measure?: Measure }
 export interface ListOptions extends Options { columns?: { state?: number; updated?: number } }
 export interface MeasuredListOptions extends ListOptions { measure: Measure }
 export interface MeasuredOptions extends Options { measure: Measure }
-export type SheetState = 'unread' | 'read' | 'waiting' | 'answered' | 'declined' | 'delivery-waiting';
+export type SheetState = 'unread' | 'read' | 'waiting' | 'answered' | 'declined' | 'delivery-waiting' | 'withdrawn';
 export const SHEET_STATES: Readonly<Record<SheetState, Readonly<{ code: string; shape: string; tone: Color }>>>;
 export interface StateInput<T = string> { state?: SheetState; answer?: T }
 export interface HeadingInput<T = string> extends StateInput<T> { number?: T; time?: T }

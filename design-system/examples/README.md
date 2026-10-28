@@ -87,7 +87,7 @@ Swatches are full blocks with matching foreground and background. Hex values, na
 
 ### Surface
 
-SURFACE uses the public cell compositor for clear gradient/floor, exact locked translucent fill configuration, solid plates/locks and NO_COLOR. Alpha values are synthetic host policy fixtures, not DS defaults; no private transcript or image is included. It is static. Lamp adds round RX/TX/NO LINK/WAITING and square WORK/IDLE/UNKNOWN variants; state-chip adds unread/read/waiting/answered/declined/delivery word forms. Measured slots are documented in [foundation](../foundation/README.md#measured-text-slots); old motion previews still target narrow structural cells only.
+SURFACE uses the public cell compositor for clear gradient/floor, exact locked translucent fill configuration, solid plates/locks and NO_COLOR. Alpha values are synthetic host policy fixtures, not DS defaults; no private transcript or image is included. It is static. Lamp adds round RX/TX/NO LINK/WAITING and square WORK/IDLE/UNKNOWN variants; state-chip adds unread/read/waiting/answered/declined/delivery/withdrawn word forms. Measured slots are documented in [foundation](../foundation/README.md#measured-text-slots); old motion previews still target narrow structural cells only.
 
 ## Reusing the system
 
