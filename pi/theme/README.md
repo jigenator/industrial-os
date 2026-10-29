@@ -6,11 +6,7 @@ Status: in use with Pi 1.3.0. It is a theme file, not an extension: it changes n
 
 ## Install
 
-The repository root's `package.json` lists the theme in `pi.themes`, so the same git entry that installs the extensions also provides it; see [installing the Pi extensions](../README.md#install). An `extensions` filter on that entry does not hide the theme, and `"themes": []` would. Then choose **industrial-os** under **Theme** in `/settings`, or set it in Pi's `settings.json`:
-
-```json
-{ "theme": "industrial-os" }
-```
+The repository root's `package.json` lists the theme in `pi.themes`, so the same git entry that installs the extensions also provides it; see [installing the Pi extensions](../README.md#install). An `extensions` filter on that entry does not hide the theme, and `"themes": []` would. Then choose **industrial-os** under **Theme** in `/settings`, or set `theme` as in the [recommended settings](../README.md#recommended-settings).
 
 Run `/reload` or restart Pi after `pi update --extensions` pulls a new version: Pi hot-reloads only themes in its own `themes/` folder. To try it for one run from a checkout without installing it:
 

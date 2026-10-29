@@ -21,7 +21,7 @@ Bring the extension's history with it:
 
 1. In a temporary clone of its repository, rewrite every path under `pi/<name>/`.
 2. Merge that branch into a monorepo branch with `git merge --allow-unrelated-histories`, and merge the pull request with a merge commit, not a squash, or the history is lost.
-3. Add its entry point to `pi.extensions` in the root `package.json`, change its README's install instructions to the filtered git entry in [installing](README.md#install), and change its `package.json` `repository` to this repository with a `directory` field.
+3. Add its entry point to `pi.extensions` in the root `package.json` and to the package entry in [settings.json](settings.json) (`node --test pi/settings.test.mjs` checks they match), change its README's install instructions to the filtered git entry in [installing](README.md#install), and change its `package.json` `repository` to this repository with a `directory` field.
 4. Give it the [project document set](../docs/architecture.md#contracts-between-the-root-and-a-project), converting its existing guides rather than keeping parallel copies.
 5. Add it to the [root README layout](../README.md#layout), [this folder's README](README.md), and every one of its guides to the [root map](../AGENTS.md#supporting-documents).
 6. Point the installed copy at the new path, confirm Pi loads it, then archive the old repository with a pointer in its README.
