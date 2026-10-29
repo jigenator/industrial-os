@@ -17,11 +17,7 @@ Use one filtered settings entry for industrial-os, as described in [Pi installat
 
 Merge this path into an existing industrial-os entry rather than adding a second source. For development use `pi install <industrial-os checkout>/pi/droid-header` after the root `npm install` in [setup](../../CONTRIBUTING.md#setup), which links the design system the header takes its colors and numerals from.
 
-Then set Pi's `quietStartup` to `"header"` in `settings.json`:
-
-```json
-{ "quietStartup": "header" }
-```
+Then set Pi's `quietStartup` to `"header"`, as the [recommended settings](../README.md#recommended-settings) do:
 
 | `quietStartup` | What Pi 1.4.0 shows at startup with this extension |
 | --- | --- |

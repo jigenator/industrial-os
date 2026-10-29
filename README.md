@@ -42,7 +42,8 @@ industrial-os/
 │   ├── session-recap/        UI-only away and detailed session recaps
 │   ├── image-preview/        previews of image paths in the editor
 │   ├── droid-header/         the droid details startup header and resource manifest
-│   └── theme/                the industrial-os Pi theme, a theme file
+│   ├── theme/                the industrial-os Pi theme, a theme file
+│   └── settings.json         recommended Pi settings, merged by hand
 ├── herdr/                    Herdr agents and Spaces configuration, merged by hand
 ├── herdr-plugins/            Herdr plugins, each its own project
 │   ├── spaces/              workspace tokens, quiet history and ordering daemon

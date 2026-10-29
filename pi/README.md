@@ -31,6 +31,24 @@ Omit `extensions` to load every extension, or list a subset. The root `pi.themes
 
 For development, install an extension from a local checkout instead, `pi install <industrial-os checkout>/pi/<name>`; Pi loads it from that path without copying it and installs nothing. The rendering extensions, claude-interrupt, status-bar and droid-header, import the design-system package; run `npm install` once at the checkout root first so the package is linked. Pane naming also needs that root setup for pi-typesafe; see [setup](../CONTRIBUTING.md#setup). Pi identifies a local package by its path and a git package by its URL, so configuring one extension from both sources loads it twice; use one.
 
+## Recommended settings
+
+[settings.json](settings.json) is the canonical set of Pi settings for Industrial OS, as one fragment to merge into Pi's own `settings.json` (`~/.pi/agent/settings.json` for every project). A setup script should apply this file rather than copy values from the READMEs. It holds:
+
+- `packages`: the single industrial-os git entry, selecting every extension in the root manifest.
+- `theme`: the [Pi theme](theme/README.md).
+- `quietStartup`: what [droid-header](droid-header/README.md#install) needs to replace Pi's startup listing.
+- `steeringMode` and `followUpMode`: `all`, so the next turn takes every queued steering or follow-up message, not one per turn (Pi's default is `one-at-a-time`).
+
+Pi has no settings includes, so merge by hand:
+
+1. Back up your `settings.json`.
+2. Set the top-level keys from the fragment.
+3. In `packages`, replace any existing `git:github.com/jigenator/industrial-os` entry with the fragment's entry. Do not add a second entry, and do not remove other packages. To load fewer extensions, delete paths from its `extensions` list.
+4. Run `/reload` or restart Pi.
+
+Check the fragment from the repository root with `node --test pi/settings.test.mjs`. The check compares the package entry with the root manifest, the theme with the theme file, and the values with those Pi 1.4.0 documents. When an extension is added, add its entry point here as well as to the root `package.json`.
+
 ## Guides
 
 - [Pi agent guide](AGENTS.md): the rules every extension shares.
