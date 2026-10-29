@@ -228,3 +228,25 @@ boardGrid('1', { face: 'huge' });
 
 // Settled withdrawn questions keep host-owned read treatment.
 sheetCard({ heading: { state: 'withdrawn' }, kind: 'question', read: true }, { width: 40 });
+
+// Caller-owned card vocabulary; neutral frame never replaces the state's own tone.
+import type { SheetPreset } from './elements/sheet-card/sheet-card.mjs';
+const panePreset = { working: { code: 'WRK', shape: '◐', tone: 'accent', frameTone: SURFACE_PALETTE.bone, hoverTone: 'primary', headingTone: SURFACE_PALETTE.bone, bold: true } } as const satisfies SheetPreset;
+cardState({ state: 'working' }, { preset: panePreset });
+cardHeading({ mark: '▣', kind: '', state: 'working' }, { width: 40, preset: panePreset });
+cardHeading({ mark: '▣', kind: slot, state: 'working' }, { ...contentOptions, preset: panePreset });
+sheetCard({ heading: { mark: '▣', kind: 'PANE', state: 'working' }, readouts: [span('2 AU', { fg: 'accent' })], button: null, footer: null }, { width: 40, preset: panePreset });
+const measuredPanePreset = { working: { ...panePreset.working, code: slot, shape: '' } };
+cardState({ state: 'working' }, { measure, preset: measuredPanePreset });
+cardHeading({ state: 'working' }, { ...contentOptions, preset: measuredPanePreset });
+sheetCard({ heading: { state: 'working' } }, { ...contentOptions, preset: measuredPanePreset });
+// @ts-expect-error heading kind slots require a measurer
+cardHeading({ kind: slot }, { width: 40 });
+// @ts-expect-error a measured preset code also requires a measurer
+cardState({ state: 'working' }, { preset: measuredPanePreset });
+// @ts-expect-error a nested measured preset code requires a measurer
+sheetCard({ heading: { state: 'working' } }, { width: 40, preset: measuredPanePreset });
+// @ts-expect-error readouts are spans, not text strings
+sheetCard({ readouts: ['2 AU'] }, { width: 40 });
+// @ts-expect-error preset bold is a boolean
+cardState({}, { preset: { unread: { code: 'unread', shape: '', tone: 'accent', bold: 'yes' } } });
