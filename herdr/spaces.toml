@@ -1,4 +1,5 @@
 # Industrial OS Spaces rows. Merge by table; requires industrial-os.spaces.
+# Herdr's global state-icon colors, kept for its other panels.
 [theme.custom]
 yellow   = "#c0fe04" # accent: working
 red      = "#f24723" # critical: blocked
@@ -9,8 +10,8 @@ overlay0 = "#717171" # decorative: unknown, separators, header
 [ui.sidebar.spaces]
 rows = [
   [
-    "state_icon",
-    { token = "$sp_panes", fg = "#cfcfcf", rules = [{ starts_with = "00", fg = "#717171" }] }, # secondary; decorative zero
+    # The plugin's space state icon replaces Herdr's state_icon: decorative idle/unknown, accent working, critical blocked, primary done.
+    { token = "$sp_panes", fg = "#717171", rules = [{ starts_with = "◐", fg = "#c0fe04" }, { starts_with = "×", fg = "#f24723" }, { starts_with = "✓", fg = "#ffffff" }] },
     { token = "$sp_name_active", fg = "#ffffff", bold = true }, # primary
     { token = "$sp_name", fg = "#cfcfcf", bold = true }, # secondary
     { token = "$sp_name_stale", fg = "#717171" }, # decorative

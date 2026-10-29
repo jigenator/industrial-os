@@ -14,7 +14,7 @@ Hand-merged Herdr configuration in TOML, checked with Node's test runner. Scope 
 
 **Tokens come from the contract.** An agents row references only keys in [the token contract](../../pi/herdr-sidebar/docs/token-contract.md), and every key has exactly one entry. Check: `test/sidebar.test.mjs`.
 
-Spaces rows follow [the Spaces contract](../../herdr-plugins/spaces/docs/token-contract.md), checked by `test/spaces.test.mjs`; built-in state_icon/git_status remain host-owned.
+Spaces rows follow [the Spaces contract](../../herdr-plugins/spaces/docs/token-contract.md), checked by `test/spaces.test.mjs`; built-in git_status remains host-owned, and the plugin's `sp_panes` replaces state_icon.
 
 **Each theme key is set by exactly one fragment.** Herdr 0.9.3 has 19 `[theme.custom]` keys; `sidebar.toml`, `spaces.toml` and `theme.toml` split them with no overlap, all merged into one table. A key moves between fragments only with the test's ownership updated. Check: `test/theme.test.mjs`.
 

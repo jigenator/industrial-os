@@ -102,11 +102,13 @@ Every state is readable without color: the state code and shape in row 1 (`× QN
 ```
 
 The same 36-column lock applies; space rows are sized for the 31 cells Herdr
-gives them when a scrollbar shows. Row 1 uses Herdr's
-state icon, pane-count gutter and name. Focused name is primary white/bold,
+gives them when a scrollbar shows. Row 1 uses the plugin's state icon and
+pane-count gutter as one token, then the name. The whole `◐ 05PN` takes the
+state's color: accent working (including Pi SUB and RUN), critical blocked,
+primary done, decorative idle and unknown. Focused name is primary white/bold,
 current names secondary/bold, quiet names and ages decorative grey. Row 2 uses
 agent-count gutter, bold accent AU and built-in git_status (no branch name).
-Zero counts become decorative, zero AU also loses bold. Unknown AU remains
+Zero agent counts become decorative, zero AU also loses bold. Unknown AU remains
 `??AU`, never zero. Quiet names fit 15 cells with U+2800 padding; ages align
 right in four cells. No motion or new keyboard/mouse behavior.
 
@@ -119,12 +121,14 @@ units keep user order; otherwise unchanged quiet membership/order does not undo
 a manual drag. Number keys follow position.
 If the reporter stops, TTL counts/ages expire; names have no TTL and freeze.
 Checked in an isolated Herdr 0.9.3 server rendered by xterm.js: rows, colors,
-quiet collapse and age alignment with and without the scrollbar, and ordering.
+quiet collapse and age alignment with and without the scrollbar, and ordering,
+before the state icon moved into `sp_panes`; that change was not re-rendered.
 Not checked: the user's own terminal, other fonts or ambiguous-width settings.
 
 ### Spaces theme scope
 
-`state_icon` has no per-state style; `[theme.custom]` maps yellow to accent
+The Spaces rows no longer use `state_icon`, but Herdr's state icons elsewhere
+have no per-state style; `[theme.custom]` maps yellow to accent
 working, red to critical blocked, teal to primary done, green to decorative
 idle and overlay0 to decorative unknown/separators/header. These are **global**
 theme keys, not Spaces-only colors. Source grep against Herdr 0.9.3

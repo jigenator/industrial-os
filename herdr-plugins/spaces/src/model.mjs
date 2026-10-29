@@ -42,13 +42,22 @@ export function au(panes) {
 }
 // Herdr 0.9.3 gives a top-level space row (sidebar width - divider - scrollbar) - indent 1 - 2 cells:
 // 31 at the locked width of 36 with a scrollbar (src/ui/sidebar.rs expanded_sidebar_sections,
-// src/client/shell/sidebar.rs render_workspace_rows). The icon, ` `, NNPN and ` · ` take 9, leaving 22.
+// src/client/shell/sidebar.rs render_workspace_rows). sp_panes (icon, ` `, NNPN) and ` · ` take 9, leaving 22.
 export const NAME_CELLS = 22;
 export const STALE_NAME_CELLS = 15;
 export const QUIET_CELLS = NAME_CELLS - STALE_NAME_CELLS - 3;
+// Herdr's status follows only Pi's root agent; the Pi sidebar's row-1 code also reports subagents and background tasks.
+const PI_RUNNING = /^◐ (SUB|RUN)\u2800?$/u;
+export function paneStatus(pane) {
+  return pane.agent === 'pi' && ['idle', 'done', 'unknown'].includes(pane.agent_status) && PI_RUNNING.test(pane.tokens?.g1 ?? '') ? 'working' : pane.agent_status;
+}
+// Herdr's own workspace aggregate (workspace/aggregate.rs) and Symbols icons (client/shell.rs status_icon).
+const PRIORITY = ['unknown', 'idle', 'working', 'done', 'blocked'];
+const ICONS = { unknown: '·', idle: '○', working: '◐', done: '✓', blocked: '×' };
+export const spaceStatus = (panes) => panes.map(paneStatus).reduce((a, s) => (PRIORITY.indexOf(s) > PRIORITY.indexOf(a) ? s : a), 'unknown');
 export function tokens(workspace, panes, last, now) {
   const quiet = !workspace.focused && now - last >= QUIET_MS;
-  const result = { sp_panes: count(workspace.pane_count, 'PN') };
+  const result = { sp_panes: `${ICONS[spaceStatus(panes)]} ${count(workspace.pane_count, 'PN')}` };
   if (quiet) {
     result.sp_name_stale = fitLabel(workspace.label, STALE_NAME_CELLS, true);
     result.sp_quiet = (Math.min(99, Math.floor((now - last) / DAY_MS)) + 'd').padStart(QUIET_CELLS, PAD);
@@ -68,7 +77,7 @@ export function activityWorkspace(event) {
 const runsUnits = (p) => p.agent === 'pi' && p.tokens?.g2_au0 === undefined && /^\d{2}AU$/.test(p.tokens?.g2_au ?? '') && Number(p.tokens.g2_au.slice(0, 2)) >= 1;
 export function advanceHistory(history, workspaces, panes, activity, now) {
   const next = Object.assign(Object.create(null), structuredClone(history));
-  const busy = new Set(panes.filter((p) => ['working', 'blocked'].includes(p.agent_status) || runsUnits(p)).map((p) => p.workspace_id));
+  const busy = new Set(panes.filter((p) => ['working', 'blocked'].includes(paneStatus(p)) || runsUnits(p)).map((p) => p.workspace_id));
   for (const w of workspaces) {
     const prev = next[w.workspace_id];
     const last = !prev || w.focused || busy.has(w.workspace_id) || activity.has(w.workspace_id) ? now : Math.min(now, prev.last);

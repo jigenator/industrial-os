@@ -1,7 +1,8 @@
 # Spaces token contract
 
 Canonical contract for `industrial-os.spaces` and
-[herdr/spaces.toml](../../../herdr/spaces.toml), targeting Herdr 0.9.3.
+[herdr/spaces.toml](../../../herdr/spaces.toml), targeting Herdr 0.9.3. The
+[space state](#space-state) source references were read at Herdr v0.9.5.
 
 Full key list: `sp_panes sp_agents sp_au sp_name_active sp_name sp_name_stale sp_quiet` (7 keys).
 
@@ -9,7 +10,7 @@ Full key list: `sp_panes sp_agents sp_au sp_name_active sp_name sp_name_stale sp
 
 | Key | Value | Lifetime |
 | --- | --- | --- |
-| `sp_panes` | `NNPN`, from authoritative `pane_count`, capped `99PN`; always present | 120 s TTL |
+| `sp_panes` | `<icon> NNPN`: the [space state](#space-state) icon, a space, then authoritative `pane_count` capped `99PN`; always present | 120 s TTL |
 | `sp_agents` | `NNAG`, count of panes with any non-null `agent`, capped `99AG`; absent for quiet spaces | 120 s TTL |
 | `sp_au` | Sum of Pi panes' `g2_au`/`g2_au0` as `NNAU`, capped `99AU`; no Pi → `00AU`; missing/unknown/malformed/conflicting Pi values → `??AU`; absent for quiet spaces | 120 s TTL |
 | `sp_name_active` | Focused space's sanitized name, cut to 22 cells | No TTL |
@@ -17,10 +18,24 @@ Full key list: `sp_panes sp_agents sp_au sp_name_active sp_name sp_name_stale sp
 | `sp_name_stale` | Quiet space's sanitized name, fitted to exactly 15 cells | No TTL |
 | `sp_quiet` | Floor days since activity, capped `99d`, left-padded to 4 cells | 120 s TTL |
 
+## Space state
+
+`sp_panes` carries the state icon instead of Herdr's built-in `state_icon`,
+because Herdr derives status only from Pi's root agent. Each pane keeps
+Herdr's `pane.list` `agent_status`, except that a Pi pane whose
+[herdr-sidebar](../../../pi/herdr-sidebar/docs/token-contract.md#row-1) `g1`
+is `◐ SUB` or `◐ RUN` (optionally followed by U+2800) counts as `working` while
+Herdr reports it idle, done or unknown. The space takes the highest pane state
+in Herdr's own aggregate order (`workspace/aggregate.rs`): blocked, done,
+working, idle, unknown; no panes is unknown. Icons are Herdr's Symbols set
+(`client/shell.rs` `status_icon`): `×` blocked, `✓` done, `◐` working, `○`
+idle, `·` unknown. Herdr's own workspace status is not changed. If the reporter
+stops, the icon expires with the count.
+
 Herdr workspace keys share a namespace across reporters; the `sp_` prefix is
 owned by this plugin. Exactly one name variant applies. Both AU variants present with the same value
 count once; conflicting values are unknown. Other agents do not contribute AU.
-The Pi reporter is a protocol consumer only, not a source import or behavior
+The plugin reads the Pi reporter's `g1` and AU tokens as a protocol consumer only, not a source import or behavior
 change to [herdr-sidebar](../../../pi/herdr-sidebar/docs/token-contract.md).
 
 Quiet spaces send only `$sp_panes`, `$sp_name_stale` and `$sp_quiet`, so their second row
@@ -34,7 +49,7 @@ suppresses git details for indented worktree children. No branch name is drawn.
 less the divider, the scrollbar when shown, the 1-cell indent and 2 more cells:
 31 cells at width 36 with a scrollbar, 32 without (`src/ui/sidebar.rs`
 `expanded_sidebar_sections`, `src/client/shell/sidebar.rs`
-`render_workspace_rows`). Values are sized for 31. The state icon, ` `, `NNPN`
+`render_workspace_rows`). Values are sized for 31. `sp_panes` (icon, ` `, `NNPN`)
 and ` · ` take 9, leaving 22 cells for row-1 text. Active/non-quiet names cut
 to 21 cells + `…` when needed. Quiet text uses 15 + ` · ` + 4 cells: names pad with U+2800
 on the right or cut to 14 + `…`; age pads with U+2800 on the left. A wide
@@ -64,10 +79,10 @@ one U+2800 (15 for quiet), never an empty value that Herdr would clear.
 
 Quiet = not focused and time since activity ≥ 48 hours. Activity is workspace
 created; pane created/closed/agent detected; workspace, pane or tab focused;
-being focused at a recompute; or any pane working/blocked in `pane.list` at a
-recompute; or any Pi pane reporting `g2_au` of `01AU` or more (and no
-`g2_au0`) at a recompute, because Herdr tracks only Pi's root agent, which can be
-idle while its subagents run. Unknown or zero AU is not activity. Lifecycle
+being focused at a recompute; or any pane working/blocked by its [space state](#space-state) at a
+recompute, which includes Pi's SUB and RUN; or any Pi pane reporting `g2_au` of
+`01AU` or more (and no `g2_au0`) at a recompute, because Herdr tracks only Pi's
+root agent, which can be idle while its subagents or background tasks run. Unknown or zero AU is not activity. Lifecycle
 wire names are snake_case and normalized to dotted internal names at the
 transport boundary. The pane-scoped `pane.agent_status_changed`
 subscription requires `pane_id` and is not subscribed; agent changes invalidate
