@@ -36,7 +36,8 @@ function harness(t: TestContext, mode: ExtensionContext["mode"] = "tui") {
 	let terminalHandler: ((data: string) => { consume?: boolean } | undefined) | undefined;
 	let terminalUnsubscribed = false;
 	let editorText = "";
-	let coreHasPending = false;
+	// Pi's real queue: text after input handlers, in submission order.
+	const coreQueue: { text: string; deliverAs: "steer" | "followUp" }[] = [];
 	let aborts = 0;
 	const notifications: string[] = [];
 	let widget: (Component & { dispose?(): void }) | undefined;
@@ -52,6 +53,16 @@ function harness(t: TestContext, mode: ExtensionContext["mode"] = "tui") {
 		const component = entryRenderer(entry, { expanded: false }, theme);
 		assert.ok(component);
 		markers.push({ entry, component });
+	};
+
+	// Pi's restoreQueuedMessagesToEditor(), shared by TUI ctx.abort() and the
+	// app.message.dequeue key: steering, then follow-ups, then the current draft.
+	const restoreQueue = (): void => {
+		if (coreQueue.length === 0) return;
+		const cleared = coreQueue.splice(0);
+		const queued = ["steer", "followUp"].flatMap((as) => cleared.filter((item) => item.deliverAs === as))
+			.map((item) => item.text).join("\n\n");
+		editorText = [queued, editorText].filter((text) => text.trim()).join("\n\n");
 	};
 
 	const emitSync = (name: string, event: any, ctx: ExtensionContext): unknown => {
@@ -86,7 +97,7 @@ function harness(t: TestContext, mode: ExtensionContext["mode"] = "tui") {
 				} satisfies InputEvent,
 				ctx,
 			) as { action?: string } | undefined;
-			if (options?.deliverAs && result?.action !== "handled") coreHasPending = true;
+			if (options?.deliverAs && result?.action !== "handled") coreQueue.push({ text, deliverAs: options.deliverAs });
 		},
 
 	} as unknown as ExtensionAPI;
@@ -121,13 +132,10 @@ function harness(t: TestContext, mode: ExtensionContext["mode"] = "tui") {
 				}
 			},
 		},
-		hasPendingMessages: () => coreHasPending,
+		hasPendingMessages: () => coreQueue.length > 0,
 		abort: () => {
 			aborts += 1;
-			// This models Pi 0.99.1 prepending cleared queue text only when a
-			// queue exists. The extension then restores its saved draft.
-			if (coreHasPending) editorText = `native restored queue\n\n${editorText}`;
-			coreHasPending = false;
+			restoreQueue();
 		},
 
 	} as unknown as ExtensionContext;
@@ -156,10 +164,12 @@ function harness(t: TestContext, mode: ExtensionContext["mode"] = "tui") {
 		get renderRequests() { return renderRequests; },
 		get widgetShows() { return widgetShows; },
 		emit(name: string, event: any) {
-			emitSync(name, event, ctx);
+			if (name === "session_start") coreQueue.length = 0; // A new session has its own queue.
+			return emitSync(name, event, ctx);
 		},
-		input(text: string, deliverAs: "steer" | "followUp", withImage = false) {
-			return emitSync(
+		/** `queuedAs` models Pi queueing text after expansion, as prompt templates do. */
+		input(text: string, deliverAs: "steer" | "followUp", withImage = false, queuedAs = text) {
+			const result = emitSync(
 				"input",
 				{
 					type: "input",
@@ -169,8 +179,12 @@ function harness(t: TestContext, mode: ExtensionContext["mode"] = "tui") {
 					streamingBehavior: deliverAs,
 				} satisfies InputEvent,
 				ctx,
-			);
+			) as { action?: string } | undefined;
+			if (result?.action !== "handled") coreQueue.push({ text: queuedAs, deliverAs });
+			return result;
 		},
+		/** Alt+Up: Pi restores its queue to the editor without aborting or any extension event. */
+		dequeue: restoreQueue,
 		escape(data = "\x1b") {
 			return terminalHandler?.(data);
 		},
@@ -179,9 +193,6 @@ function harness(t: TestContext, mode: ExtensionContext["mode"] = "tui") {
 		},
 		get draft() {
 			return editorText;
-		},
-		setCorePending(value: boolean) {
-			coreHasPending = value;
 		},
 		get aborts() {
 			return aborts;
@@ -203,7 +214,6 @@ const userMessageStart = {
 test("Escape interrupts one queued text and continues only after settlement", (t) => {
 	const h = harness(t);
 	h.input("new direction", "steer");
-	h.setCorePending(true);
 	h.setDraft("unsent draft");
 
 	assert.deepEqual(h.escape(), { consume: true });
@@ -226,7 +236,6 @@ test("several messages retain Pi's steering-before-follow-up order without dupli
 	h.input("steer one", "steer");
 	h.input("follow two", "followUp");
 	h.input("steer two", "steer");
-	h.setCorePending(true);
 
 	h.escape();
 	h.emit("agent_settled", { type: "agent_settled" });
@@ -244,7 +253,6 @@ test("several messages retain Pi's steering-before-follow-up order without dupli
 test("Escape without a core queue remains native and an unsent draft is not a queue", (t) => {
 	const h = harness(t);
 	h.setDraft("draft only");
-	h.setCorePending(false);
 
 	assert.equal(h.escape(), undefined);
 	assert.equal(h.aborts, 0);
@@ -254,7 +262,6 @@ test("Escape without a core queue remains native and an unsent draft is not a qu
 test("repeated Escape while abort is settling is consumed without aborting twice", (t) => {
 	const h = harness(t);
 	h.input("queued", "steer");
-	h.setCorePending(true);
 
 	assert.deepEqual(h.escape(), { consume: true });
 	assert.deepEqual(h.escape(), { consume: true });
@@ -270,7 +277,6 @@ test("Escape can interrupt a replay and resumes the undelivered remainder once",
 	h.input("first", "steer");
 	h.input("second", "steer");
 	h.input("third", "followUp");
-	h.setCorePending(true);
 
 	h.escape();
 	h.emit("agent_settled", { type: "agent_settled" });
@@ -292,7 +298,6 @@ test("Escape during continuation preflight restores captured text and exits star
 	const h = harness(t);
 	h.input("retry me", "steer");
 	h.input("and me", "followUp");
-	h.setCorePending(true);
 	h.setDraft("unsent");
 
 	h.escape();
@@ -309,16 +314,48 @@ test("already delivered messages are removed from the observed queue", (t) => {
 	const h = harness(t);
 	h.input("queued", "steer");
 	h.emit("message_start", userMessageStart);
-	h.setCorePending(true); // Deliberately inconsistent to exercise the observer guard.
-
+	// Deliberately inconsistent: the harness leaves the entry in Pi's queue,
+	// so Pi reports a queue this observer no longer holds.
 	assert.equal(h.escape(), undefined);
 	assert.equal(h.aborts, 0);
+});
+
+test("a directive cancelled with Pi's dequeue key is not replayed; the kept one still continues", (t) => {
+	const h = harness(t);
+	h.input("cancelled", "steer");
+	h.dequeue(); // Alt+Up restores it to the editor; the user deletes it.
+	assert.equal(h.draft, "cancelled");
+	h.setDraft("");
+	h.input("kept", "followUp");
+	h.setDraft("draft");
+
+	assert.deepEqual(h.escape(), { consume: true });
+	assert.equal(h.draft, "draft");
+	h.emit("agent_settled", { type: "agent_settled" });
+	h.emit("agent_start", { type: "agent_start" });
+	assert.deepEqual(h.sent.map((entry) => entry.text), ["kept"]);
+	assert.equal(h.markers.length, 1);
+});
+
+test("Escape leaves Pi's restored queue in the editor when it differs from the observed text", (t) => {
+	const h = harness(t);
+	// Pi queues prompt-template expansions, not the submitted text.
+	h.input("/fix", "steer", false, "Fix the failing test.");
+	h.setDraft("draft");
+
+	assert.deepEqual(h.escape(), { consume: true });
+	assert.equal(h.aborts, 1);
+	assert.equal(h.draft, "Fix the failing test.\n\ndraft");
+	h.emit("agent_settled", { type: "agent_settled" });
+	h.emit("agent_start", { type: "agent_start" });
+	assert.deepEqual(h.sent, []);
+	assert.equal(h.markers.length, 0);
+	assert.equal(h.escape(), undefined, "the next press is native again");
 });
 
 test("queued image attachments fall back to Pi's native Escape", (t) => {
 	const h = harness(t);
 	h.input("look at this", "steer", true);
-	h.setCorePending(true);
 
 	assert.equal(h.escape(), undefined);
 	assert.equal(h.aborts, 0);
@@ -328,12 +365,10 @@ test("queued image attachments fall back to Pi's native Escape", (t) => {
 test("text submitted during abort settlement is cleared once and replayed once", (t) => {
 	const h = harness(t);
 	h.input("first", "steer");
-	h.setCorePending(true);
 	h.setDraft("keep me");
 	h.escape();
 
 	h.input("raced follow-up", "followUp");
-	h.setCorePending(true);
 	h.emit("agent_settled", { type: "agent_settled" });
 	h.emit("agent_start", { type: "agent_start" });
 
@@ -342,10 +377,141 @@ test("text submitted during abort settlement is cleared once and replayed once",
 	assert.deepEqual(h.sent.map((entry) => entry.text), ["first", "raced follow-up"]);
 });
 
+test("text submitted after Escape and dequeued before settlement is not replayed", (t) => {
+	const h = harness(t);
+	h.input("first", "steer");
+	h.setDraft("keep me");
+	h.escape();
+
+	h.input("raced, then cancelled", "followUp");
+	h.dequeue(); // Alt+Up while the old run settles; the user deletes it.
+	assert.equal(h.draft, "raced, then cancelled\n\nkeep me");
+	h.setDraft("keep me");
+	h.emit("agent_settled", { type: "agent_settled" });
+	h.emit("agent_start", { type: "agent_start" });
+
+	assert.equal(h.aborts, 1, "nothing left in Pi's queue to clear");
+	assert.equal(h.draft, "keep me");
+	assert.deepEqual(h.sent.map((entry) => entry.text), ["first"]);
+});
+
+test("raced text resubmitted after a dequeue replays only the resubmitted text", (t) => {
+	const h = harness(t);
+	h.input("first", "steer");
+	h.escape();
+
+	h.input("draft one", "followUp");
+	h.dequeue();
+	h.setDraft("");
+	h.input("draft two", "followUp");
+	h.emit("agent_settled", { type: "agent_settled" });
+	h.emit("agent_start", { type: "agent_start" });
+
+	assert.equal(h.draft, "");
+	assert.deepEqual(h.sent.map((entry) => entry.text), ["first", "draft two"]);
+});
+
+test("raced queue that differs from the observed text stays in the editor, unreplayed", (t) => {
+	const h = harness(t);
+	h.input("first", "steer");
+	h.setDraft("keep me");
+	h.escape();
+
+	h.input("/fix", "followUp", false, "Fix the failing test.");
+	h.emit("agent_settled", { type: "agent_settled" });
+	h.emit("agent_start", { type: "agent_start" });
+
+	assert.equal(h.aborts, 2);
+	assert.equal(h.draft, "Fix the failing test.\n\nkeep me");
+	assert.deepEqual(h.sent.map((entry) => entry.text), ["first"]);
+});
+
+test("a recovered head that still starts is aborted at before_agent_start and reported", (t) => {
+	const h = harness(t);
+	h.input("cancel me", "steer");
+	h.escape();
+	h.emit("agent_settled", { type: "agent_settled" });
+	assert.deepEqual(h.escape(), { consume: true }); // Recovery during slow preflight.
+	assert.equal(h.draft, "cancel me");
+	assert.equal(h.aborts, 2);
+
+	h.emit("before_agent_start", { type: "before_agent_start", prompt: "cancel me" });
+	assert.equal(h.aborts, 3);
+	assert.equal(h.notifications.length, 0, "no warning unless it actually starts");
+	h.emit("agent_start", { type: "agent_start" });
+	assert.equal(h.aborts, 4, "abort again once the agent is running");
+	assert.equal(h.notifications.length, 1);
+	assert.equal(h.markers.length, 0);
+
+	// Later runs, including the same text resubmitted, are untouched.
+	h.emit("before_agent_start", { type: "before_agent_start", prompt: "cancel me" });
+	h.emit("agent_start", { type: "agent_start" });
+	assert.equal(h.aborts, 4);
+});
+
+test("an aborted head that never reaches agent_start cannot abort a later run", (t) => {
+	const h = harness(t);
+	h.input("cancel me", "steer");
+	h.escape();
+	h.emit("agent_settled", { type: "agent_settled" });
+	h.escape();
+	h.emit("before_agent_start", { type: "before_agent_start", prompt: "cancel me" });
+	assert.equal(h.aborts, 3); // Its preparation then fails: no agent_start.
+
+	h.emit("before_agent_start", { type: "before_agent_start", prompt: "something else" });
+	h.emit("agent_start", { type: "agent_start" });
+	assert.equal(h.aborts, 3);
+});
+
+test("a recovery Escape after the head's own start hook still aborts it when it starts", (t) => {
+	const h = harness(t);
+	h.input("cancel me", "steer");
+	h.escape();
+	h.emit("agent_settled", { type: "agent_settled" });
+	h.emit("before_agent_start", { type: "before_agent_start", prompt: "cancel me" });
+	h.escape(); // A later start hook is still running.
+	assert.equal(h.aborts, 2);
+
+	h.emit("agent_start", { type: "agent_start" });
+	assert.equal(h.aborts, 3);
+	assert.equal(h.notifications.length, 1);
+	assert.equal(h.markers.length, 0);
+});
+
+test("after a failed recovered preflight, an equivalent template or extension message is untouched", (t) => {
+	const h = harness(t);
+	h.input("cancel me", "steer");
+	h.escape();
+	h.emit("agent_settled", { type: "agent_settled" });
+	h.escape(); // Its preflight then fails: no before_agent_start.
+
+	// Another extension sends the same text; it is not the head.
+	assert.equal(h.emit("input", { type: "input", text: "cancel me", source: "extension" }), undefined);
+	// The user's own template that expands to the same text.
+	h.emit("input", { type: "input", text: "/again", source: "interactive" });
+	h.emit("before_agent_start", { type: "before_agent_start", prompt: "cancel me" });
+	h.emit("agent_start", { type: "agent_start" });
+	assert.equal(h.aborts, 2);
+	assert.equal(h.notifications.length, 0);
+});
+
+test("resubmitting a recovered head yourself keeps that run", (t) => {
+	const h = harness(t);
+	h.input("retry me", "steer");
+	h.escape();
+	h.emit("agent_settled", { type: "agent_settled" });
+	h.escape();
+
+	h.input("retry me", "steer"); // The user's own Enter on the restored text.
+	h.emit("before_agent_start", { type: "before_agent_start", prompt: "retry me" });
+	h.emit("agent_start", { type: "agent_start" });
+	assert.equal(h.aborts, 2);
+	assert.equal(h.notifications.length, 0);
+});
+
 test("a late image is rejected without discarding the captured text batch", (t) => {
 	const h = harness(t);
 	h.input("first", "steer");
-	h.setCorePending(true);
 	h.setDraft("keep me");
 	h.escape();
 
@@ -361,7 +527,6 @@ test("a late image is rejected without discarding the captured text batch", (t) 
 test("session shutdown removes the terminal listener and clears state", (t) => {
 	const h = harness(t);
 	h.input("queued", "steer");
-	h.setCorePending(true);
 
 	h.emit("session_shutdown", { type: "session_shutdown" });
 	assert.equal(h.terminalUnsubscribed, true);
@@ -371,7 +536,6 @@ test("session shutdown removes the terminal listener and clears state", (t) => {
 
 function startContinuation(h: ReturnType<typeof harness>) {
 	h.input("new direction", "steer");
-	h.setCorePending(true);
 	h.escape();
 	h.emit("agent_settled", { type: "agent_settled" });
 	h.emit("agent_start", { type: "agent_start" });
@@ -732,12 +896,10 @@ test("marker waits for confirmed continuation and stays out of ordinary, native 
 	h.emit("agent_start", { type: "agent_start" });
 	h.escape();
 	h.input("image", "steer", true);
-	h.setCorePending(true);
 	h.escape();
 	assert.equal(h.markers.length, 0);
 	h.emit("session_start", { type: "session_start" });
 	h.input("retry me", "steer");
-	h.setCorePending(true);
 	h.escape();
 	h.emit("agent_settled", { type: "agent_settled" });
 	t.mock.timers.runAll(); // Preflight never reaches agent_start.
@@ -809,7 +971,6 @@ const escapeRelease = "\x1b[27;1:3u";
 test("Escape release and repeat during preflight cannot trigger failed-start recovery", (t) => {
 	const h = harness(t);
 	h.input("retry me", "steer");
-	h.setCorePending(true);
 	h.setDraft("draft");
 	h.escape(escapePress);
 	h.escape(escapeRepeat); // Aborting: same held key, not another action.
@@ -827,7 +988,6 @@ test("Escape release and repeat leave all 75 animation frames live until exactly
 	mockClock(t);
 	const h = harness(t);
 	h.input("continue", "steer");
-	h.setCorePending(true);
 	h.escape(escapePress);
 	h.emit("agent_settled", { type: "agent_settled" });
 	h.emit("agent_start", { type: "agent_start" });
@@ -851,7 +1011,6 @@ test("extension-owned repeats cannot abort preflight or a live no-queue continua
 	mockClock(t);
 	const h = harness(t);
 	h.input("continue", "steer");
-	h.setCorePending(true);
 	h.escape(escapePress);
 	h.emit("agent_settled", { type: "agent_settled" });
 	assert.deepEqual(h.escape(escapeRepeat), { consume: true });
@@ -870,7 +1029,6 @@ test("genuine Kitty Escape presses still recover failed preflight and re-interru
 	const h = harness(t);
 	h.input("first", "steer");
 	h.input("second", "followUp");
-	h.setCorePending(true);
 	h.escape(escapePress);
 	h.emit("agent_settled", { type: "agent_settled" });
 	h.escape(escapeRelease);
@@ -881,7 +1039,6 @@ test("genuine Kitty Escape presses still recover failed preflight and re-interru
 	h.setDraft("");
 	h.input("first", "steer");
 	h.input("second", "followUp");
-	h.setCorePending(true);
 	h.escape(escapePress);
 	h.emit("agent_settled", { type: "agent_settled" });
 	h.emit("agent_start", { type: "agent_start" });

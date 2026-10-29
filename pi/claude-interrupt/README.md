@@ -4,7 +4,7 @@ A minimal [Pi](https://github.com/earendil-works/pi) extension for Claude-style 
 
 While Pi is working, submit text normally (steering) or with `Alt+Enter` (follow-up), then press `Esc`. The active response aborts and Pi continues on the queued text, steering before follow-ups. Your unsent draft stays in the editor. A one-row **DIRECTIVE UPDATED** marker confirms the continuation and remains in transcript history.
 
-No submitted queue means native Escape behavior. If continuation preflight fails, press Escape again to restore the captured text to the editor. Check the transcript before resubmitting: a slow preflight can still start after recovery.
+No submitted queue means native Escape behavior. If continuation preflight fails, press Escape again to restore the captured text to the editor. A slow preflight can still start after recovery; the extension then aborts it and warns you, but its text stays in the transcript. Overlapping prompts from other extensions can defeat this; see the engineering limits.
 
 ## Install
 
@@ -26,7 +26,7 @@ The package has an explicit `pi.extensions` manifest. Pi supplies its extension 
 
 ## Limitations
 
-This is best-effort and text-only. Queued attachments, compaction-time queues and combinations with other input-transforming extensions are unsupported. Completely unobserved queues stay native; mixed observed/unobserved queues cannot be detected reliably. See [engineering limits and recovery](docs/architecture.md#evolution-and-known-limits).
+This is best-effort and text-only. Queued attachments, compaction-time queues and combinations with other input-transforming extensions are unsupported. Completely unobserved queues stay native. Escape replays only text still in Pi's queue: after an Alt+Up dequeue, or for queued prompt templates and skill commands that Pi expands, Escape behaves natively and returns the queue to the editor. See [engineering limits and recovery](docs/architecture.md#evolution-and-known-limits).
 
 It listens for physical Escape, not a remapped `app.interrupt` binding. There is no reduced-motion setting. See [keyboard and motion behavior](docs/design.md#accessibility-and-platform-behavior) and the [marker specification](docs/design.md#directive-updated-marker).
 
