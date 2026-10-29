@@ -689,9 +689,12 @@ const DOCUMENT_BLOCK = contentStory('document-block','DOCUMENT BLOCK','Markdown 
   {name:'INLINE CODE',fn:'inlineCode',input:'fixture.call()'},
   {name:'TABLE',fn:'specTable',input:{headings:['ITEM','COUNT','STATE'],rows:[['alpha','12','ready'],['beta','4','waiting']],align:['left','right','left']}},
 ]);
+const CARD_PRESET = { working: { code: 'WRK', shape: '◐', tone: 'accent', frameTone: SURFACE_PALETTE.bone, hoverTone: 'primary', headingTone: SURFACE_PALETTE.bone, bold: true } };
 const SHEET_CARD = contentStory('sheet-card','SHEET CARD','Shared card words, banded sheets, tree STACK and sheet-list rows.',[
   ...['unread','read','waiting','answered','declined','delivery-waiting','withdrawn'].map(state=>({name:state.toUpperCase(),fn:'sheetCard',input:{heading:{number:'05',time:'09:41',state,answer:state==='answered'?'fixture option':''},kind:['waiting','answered','declined','delivery-waiting','withdrawn'].includes(state)?'question':'info',read:['read','answered','declined','withdrawn'].includes(state),title:'Synthetic briefing',gist:['Fixture summary line one.','Fixture summary line two.'],footer:'24 rows - no answer needed'}})),
   {name:'HOVER',fn:'sheetCard',input:{heading:{number:'05',state:'unread'},hover:true,title:'Synthetic briefing',gist:['Hovered fixture.']}},
+  ...[false,true].map(hover=>({name:hover?'NEUTRAL HOVER':'NEUTRAL FRAME',fn:'sheetCard',measured:true,options:{preset:CARD_PRESET},input:{heading:{mark:'▣',kind:'PANE',number:'03',time:'live',state:'working'},title:'Synthetic pane',gist:['2 active units','Fixture detail'],footer:null,button:'jump',hover,readouts:[span('2 AU',{fg:'accent',bg:'default',bold:true}),...actionLabel({label:'^]',kind:'keycap'},{style:{fg:SURFACE_PALETTE.bone,bg:'surface',bold:true}})]}})),
+  {name:'NO ACTION',fn:'sheetCard',measured:true,options:{preset:CARD_PRESET},input:{heading:{mark:'▣',kind:'',number:'03',state:'working'},title:'Synthetic pane',gist:['Fixture activity','Fixture detail'],footer:null,button:null,readouts:[span('jumping…',{fg:'secondary'})]}},
   {name:'STACK',fn:'stackCard',input:{heading:'2 handed over 09:41 - 1 waiting on you',rows:[{label:'SHEET 05',title:'Synthetic briefing',state:'unread'},{label:'QUESTION 07',title:'Choose a fixture',state:'waiting',selected:true}]}},
   ...[false,true].map(selected=>({name:selected?'LIST SELECTED':'LIST READ',fn:'sheetListRow',options:{columns:{state:48,updated:70}},input:{label:'05',title:'Synthetic briefing',state:selected?'waiting':'read',updated:'Mon',selected}})),
 ]);

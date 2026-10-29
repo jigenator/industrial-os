@@ -1,4 +1,4 @@
-import { assertCells, fitLine, fitText, lineWidth, span } from '../../foundation/cells.mjs';
+import { GLYPHS, assertCells, fitLine, fitText, lineWidth, resolveColor, resolveStyle, span, textSlot } from '../../foundation/cells.mjs';
 import { SURFACE_PALETTE as P } from '../../foundation/surface-palette.mjs';
 import { SIGNAL_COLORS } from '../../foundation/signal-colors.mjs';
 import { leader } from '../tab-rule/tab-rule.mjs';
@@ -12,42 +12,70 @@ export const SHEET_STATES = Object.freeze(Object.fromEntries(Object.entries({
   declined: { code: 'declined', shape: '', tone: 'decorative' }, 'delivery-waiting': { code: 'delivery waiting', shape: '●', tone: 'warning' },
 }).map(([key,value]) => [key,Object.freeze(value)])));
 const size = (l, measure) => lineWidth(l, { measure });
-function tone(state) { if (!Object.hasOwn(SHEET_STATES, state)) throw new RangeError('unknown sheet state'); return SHEET_STATES[state].tone; }
+// Optional frame/heading overrides never change the state word's own tone.
+function entry(state, preset) {
+  if (!preset || typeof preset !== 'object' || Array.isArray(preset) || !Object.hasOwn(preset, state)) throw new RangeError('unknown sheet state');
+  const look = preset[state];
+  if (!look || typeof look !== 'object' || Array.isArray(look)) throw new TypeError('sheet preset entry must be an object');
+  for (const key of ['tone', 'frameTone', 'hoverTone', 'headingTone']) if (key === 'tone' || look[key] !== undefined) resolveColor(look[key]);
+  if (Object.hasOwn(look, 'bold') && typeof look.bold !== 'boolean') throw new TypeError('sheet preset bold must be boolean');
+  return look;
+}
+function tone(state) { return entry(state, SHEET_STATES).tone; }
 function flags(...values) { if (values.some(v => typeof v !== 'boolean')) throw new TypeError('card flags must be boolean'); }
-export function cardState({ state = 'unread', answer = '' } = {}, { maxWidth = Infinity, measure } = {}) {
+export function cardState({ state = 'unread', answer = '' } = {}, { maxWidth = Infinity, measure, preset = SHEET_STATES } = {}) {
   for (const value of arguments) if (value !== undefined && (value === null || typeof value !== 'object' || Array.isArray(value))) throw new TypeError('input and options must be objects');
-  tone(state);
-  const word = stateChip({ state }, { form: 'word', preset: SHEET_STATES, maxWidth, measure }).map(s => span(s.text, { ...s.style, bold: state === 'unread' }));
-  const detail = fitText(answer, Infinity, { measure, style: { fg: tone(state), ...clear } });
+  const look = entry(state, preset), bold = look.bold ?? (state === 'unread');
+  const word = stateChip({ state }, { form: 'word', preset, maxWidth, measure }).map(s => span(s.text, { ...s.style, bold }));
+  const detail = fitText(answer, Infinity, { measure, style: { fg: look.tone, ...clear } });
   const result = [...word, ...(state === 'answered' && size(detail, measure) ? [span(' · ', { fg: 'accent', ...clear }), ...detail] : [])];
   return maxWidth === Infinity ? result : fitLine(result, Math.min(maxWidth, size(result, measure)), clear, { measure });
 }
-export function cardHeading({ number = '', time = '', state = 'unread', answer = '' } = {}, { width, measure } = {}) {
+export function cardHeading({ mark = '▤', kind = 'SHEET', number = '', time = '', state = 'unread', answer = '' } = {}, { width, measure, preset = SHEET_STATES } = {}) {
   for (const value of arguments) if (value !== undefined && (value === null || typeof value !== 'object' || Array.isArray(value))) throw new TypeError('input and options must be objects');
   assertCells(width, 'card heading width');
-  const ink = ['read', 'answered', 'declined', 'withdrawn'].includes(state) ? 'decorative' : tone(state), right = cardState({ state, answer }, { maxWidth: Math.max(0, width - 2), measure });
-  const left = [span('▤ SHEET ', { fg: ink, bold: true, ...clear }), ...fitText(number, Infinity, { measure, style: { fg: ink, bold: true, ...clear } }), span('  ', clear), ...fitText(time, Infinity, { measure, style: { fg: 'decorative', ...clear } })];
+  if (typeof mark !== 'string' || [...mark].length !== 1 || !GLYPHS.includes(mark)) throw new TypeError('card mark must be one curated glyph');
+  const look = entry(state, preset), ink = look.headingTone ?? (['read', 'answered', 'declined', 'withdrawn'].includes(state) ? 'decorative' : look.tone);
+  const right = cardState({ state, answer }, { maxWidth: Math.max(0, width - 2), measure, preset });
+  const headingStyle = { fg: ink, bold: true, ...clear }, word = fitText(kind, Infinity, { measure, style: headingStyle });
+  // Keep the historical single prefix span for strings; rich slots retain their own styles.
+  const prefix = typeof kind === 'string' ? [span(`${mark} ${word[0].text}${kind === '' ? '' : ' '}`, headingStyle)]
+    : [span(`${mark} `, headingStyle), ...word, ...(size(word, measure) ? [span(' ', headingStyle)] : [])];
+  const left = [...prefix, ...fitText(number, Infinity, { measure, style: { fg: ink, bold: true, ...clear } }), span('  ', clear), ...fitText(time, Infinity, { measure, style: { fg: 'decorative', ...clear } })];
   const room = Math.max(0, width - 2 - size(right, measure) - 1);
   return fitLine([span(' ', clear), ...fitLine(left, room, clear, { measure }), span(' ', clear), ...right, span(' ', clear)], width, clear, { measure });
 }
-export function sheetCard({ heading = {}, kind = 'info', title = '', gist = [], footer = '', read = false, hover = false, button = 'open' } = {}, { width, measure } = {}) {
+export function sheetCard({ heading = {}, kind = 'info', title = '', gist = [], footer = '', read = false, hover = false, button = 'open', readouts = [] } = {}, { width, measure, preset = SHEET_STATES } = {}) {
   for (const value of arguments) if (value !== undefined && (value === null || typeof value !== 'object' || Array.isArray(value))) throw new TypeError('input and options must be objects');
   assertCells(width, 'sheet card width'); flags(read, hover);
   if (!heading || typeof heading !== 'object' || Array.isArray(heading)) throw new TypeError('heading must be an object');
   if (!['info','question'].includes(kind)) throw new RangeError('card kind must be info or question');
   if (!Array.isArray(gist) || gist.length > 2) throw new TypeError('gist must contain at most two prewrapped rows');
+  if (!Array.isArray(readouts) || readouts.some(s => !s || typeof s.text !== 'string')) throw new TypeError('readouts must be spans');
+  // Raw spans follow the curated-cell contract without a host measurer; measured lines also
+  // validate controls, style and cross-span grapheme boundaries before any clipping can hide them.
+  for (const s of readouts) {
+    if (s.style !== undefined && (!s.style || typeof s.style !== 'object' || Array.isArray(s.style))) throw new TypeError('readout style must be an object');
+    if (s.style?.bold !== undefined && typeof s.style.bold !== 'boolean') throw new TypeError('readout bold must be boolean');
+    if (measure === undefined) {
+      resolveStyle(s.style);
+      if ([...s.text].some(ch => !(/^[\x20-\x7e]$/.test(ch) || GLYPHS.includes(ch)))) throw new TypeError('unmeasured readouts must contain ASCII or curated glyphs');
+    }
+  }
+  if (measure !== undefined) textSlot(readouts, size(readouts, measure), { measure });
   const state = heading.state ?? (read ? 'read' : 'unread');
-  const normalInk = tone(state);
+  const look = entry(state, preset), normalInk = look.frameTone ?? look.tone;
   const hoverInk = { unread: P.wheatHi, waiting: P.criticalHover, answered: P.answered, declined: P.declined };
-  const ink = hover ? hoverInk[state] ?? normalInk : normalInk, bg = read ? 'default' : hover ? P.tintHi : P.tint;
+  const ink = hover ? look.hoverTone ?? (Object.hasOwn(hoverInk, state) ? hoverInk[state] : normalInk) : normalInk, bg = read ? 'default' : hover ? P.tintHi : P.tint;
   const style = { bg }, room = Math.max(0, width - 4);
-  const band = (value, strong = false, action, footer = false) => {
-    const textRoom = Math.max(0, room - (action ? size(action, measure) + 1 : 0));
+  const extra = readouts.map(s => span(s.text, { ...s.style, bg: s.style?.bg === undefined || s.style.bg === 'default' ? bg : s.style.bg }));
+  const band = (value, strong = false, action, footer = false, tail = []) => {
+    const textRoom = Math.max(0, room - (action ? size(action, measure) + 1 : 0) - (tail.length ? size(tail, measure) + 1 : 0));
     const content = fitText(value, textRoom, { measure, style: { fg: footer ? 'decorative' : strong ? (read && !hover ? 'secondary' : 'primary') : read ? 'decorative' : 'secondary', bold: strong && !read, bg } }).map(s => span(s.text, { ...s.style, bg }));
-    return fitLine([span(' ', clear), span('█ ', { fg: read ? SIGNAL_COLORS.ghost : ink, bg }), ...fitLine(content, textRoom, style, { measure }), ...(action ? [span(' ', style), ...action] : []), span(' ', clear)], width, clear, { measure });
+    return fitLine([span(' ', clear), span('█ ', { fg: read ? SIGNAL_COLORS.ghost : ink, bg }), ...fitLine(content, textRoom, style, { measure }), ...(tail.length ? [span(' ', style), ...tail] : []), ...(action ? [span(' ', style), ...action] : []), span(' ', clear)], width, clear, { measure });
   };
-  const action = actionLabel({ label: button, state: read ? 'read' : hover ? 'hover' : 'ready' }, { maxWidth: room, measure, style: read ? { bg: 'default', ...(hover ? { fg: P.wheatHi } : {}) } : { bg: ink, fg: 'field' } });
-  return [cardHeading({ ...heading, state }, { width, measure }), band(title, true, action), band(gist[0] ?? ''), ...(kind === 'info' ? [band(gist[1] ?? ''), band(footer, false, undefined, true)] : [])];
+  const action = button === null ? undefined : actionLabel({ label: button, state: read ? 'read' : hover ? 'hover' : 'ready' }, { maxWidth: room, measure, style: read ? { bg: 'default', ...(hover ? { fg: P.wheatHi } : {}) } : { bg: ink, fg: 'field' } });
+  return [cardHeading({ ...heading, state }, { width, measure, preset }), band(title, true, action, false, extra), band(gist[0] ?? ''), ...(kind === 'info' ? [band(gist[1] ?? ''), ...(footer === null ? [] : [band(footer, false, undefined, true)])] : [])];
 }
 function itemRow({ label = '', title = '', state = 'unread', answer = '', selected = false, hover = false, last = false, updated }, { width, measure }, tree) {
   assertCells(width, 'sheet row width'); flags(selected, hover, last);

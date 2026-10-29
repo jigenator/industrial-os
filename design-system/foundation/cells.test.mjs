@@ -194,3 +194,12 @@ test('withdrawn sheet arrow has the same narrow ruler contract', () => {
   assert.equal(lineWidth([span(`│${'↷'.repeat(40)}│`)]), 42);
   assert.equal(safeText('↷'), '?', 'caller text stays printable ASCII without a measurer');
 });
+
+test('pane state glyphs keep the curated one-cell ruler contract (not a terminal-width probe)', () => {
+  for (const glyph of ['◐', '✓']) {
+    assert.ok(GLYPHS.includes(glyph), glyph);
+    assert.equal(lineWidth([span(`│${glyph.repeat(40)}│`)]), 42);
+    assert.equal(safeText(glyph), '?', 'caller text still needs a measurer');
+    assert.equal(paint([span(glyph)], 'none'), glyph);
+  }
+});

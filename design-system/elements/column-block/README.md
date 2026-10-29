@@ -80,7 +80,7 @@ Invalid row/part/span/style shapes, unsafe span text, nonboolean head, or unsafe
 
 ## Differences from herdr-sidebar
 
-Modeled on [layout B](../../../herdr/docs/design.md#layout-b) and its [token geometry](../../../pi/herdr-sidebar/docs/token-contract.md#geometry), not its reporting/runtime. The default column sizes match, but this kit also supports narrow stacking and wider field padding. It emits ordinary spaces: U+2800 exists only because Herdr trims transport values. Strings follow the DS printable-ASCII contract rather than Herdr's grapheme-aware control removal/Unicode measurement; rendered spans can use curated structural glyphs. The sidebar's `◐` and `✓` are **not** in `GLYPHS`; this element does not extend foundation. Fixtures use available `○ IDL`, `× QNS` or `· UNK` spans instead. String glyphs are ASCII-sanitized like any other caller string.
+Modeled on [layout B](../../../herdr/docs/design.md#layout-b) and its [token geometry](../../../pi/herdr-sidebar/docs/token-contract.md#geometry), not its reporting/runtime. The default column sizes match, but this kit also supports narrow stacking and wider field padding. It emits ordinary spaces: U+2800 exists only because Herdr trims transport values. Strings follow the DS printable-ASCII contract rather than Herdr's grapheme-aware control removal/Unicode measurement; rendered spans can use curated structural glyphs. The sidebar's `◐` and `✓` are now curated in foundation and can be supplied in rendered spans; `◐`'s one-cell prerequisite is verified in Herdr only (see the [foundation glyph contract](../../foundation/README.md#text-and-glyph-contract)). Fixtures also use `○ IDL`, `× QNS` or `· UNK` spans. String glyphs are still ASCII-sanitized like any other caller string.
 
 ## Checks
 

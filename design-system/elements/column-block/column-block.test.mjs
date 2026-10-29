@@ -104,7 +104,11 @@ test('column block sanitizes strings, rejects unsafe spans/styles and never muta
   assert.ok(plain([row])[0].includes('h?[31m??'));
   assert.ok(plain([row])[0].includes(' · ?'));
   assert.deepEqual(row, before);
-  for (const text of ['\x1b[31m', '界', '\n', '✓', '◐']) assert.throws(() => plain([{ value: [span(text)] }]), TypeError);
+  for (const text of ['\x1b[31m', '界', '\n', '★']) assert.throws(() => plain([{ value: [span(text)] }]), TypeError);
+  for (const glyph of ['◐', '✓']) {
+    assert.ok(plain([{ value: [span(glyph)] }])[0].includes(glyph));
+    assert.doesNotThrow(() => plain([{ value: 'v', right: 'r' }], 34, { separator: glyph }));
+  }
   for (const style of [null, 'warning', { fg: '__proto__' }, { bg: '#fff' }, { bold: 'yes' }]) assert.throws(() => plain([{ value: [{ text: 'x', style }] }]), TypeError);
   const parts = Object.freeze([Object.freeze(span('abcdef', Object.freeze({ fg: 'warning' })))]);
   assert.doesNotThrow(() => plain([{ value: parts }], 11));
@@ -115,5 +119,5 @@ test('column block rejects invalid row and geometry input without coercion', () 
   for (const options of [null, 34, '34', []]) assert.throws(() => columnBlock([], options), TypeError);
   for (const width of [0, -1, 1.5, 1001, Infinity, '34']) assert.throws(() => plain([], width), RangeError);
   for (const options of [{ gutterEnd: -1 }, { indent: 8 }, { headIndent: 8 }, { indent: '3' }, { textCells: 0 }, { rightCells: 1001 }, { textCells: 9 }, { separator: '' }]) assert.throws(() => plain([], 34, options), RangeError);
-  for (const separator of [42, '\x1b', '界', '✓']) assert.throws(() => plain([], 34, { separator }), TypeError);
+  for (const separator of [42, '\x1b', '界', '★']) assert.throws(() => plain([], 34, { separator }), TypeError);
 });

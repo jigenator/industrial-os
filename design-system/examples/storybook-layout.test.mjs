@@ -501,3 +501,21 @@ test('withdrawn word and sheet specimens preserve the trailing cue without color
     }
   }
 });
+
+test('sheet-card custom specimens keep neutral framing, colored state and explicit readout keycap', () => {
+  const entry = STORIES[story('sheet-card')];
+  for (const name of ['NEUTRAL FRAME', 'NEUTRAL HOVER', 'NO ACTION']) {
+    const variant = entry.variants.find(v => v.name === name);
+    assert.ok(variant, name);
+    const { lines } = entry.specimen(variant, 80);
+    assert.equal(lines.length, 4);
+    assert.match(plain({ lines }).join('\n'), /WRK ◐/);
+    const stripe = lines[1].find(s => s.text.includes('█'));
+    assert.equal(stripe.style.fg, name === 'NEUTRAL HOVER' ? 'primary' : variant.options.preset.working.frameTone);
+    assert.equal(lines[0].find(s => s.text.includes('WRK')).style.fg, 'accent');
+    if (name === 'NO ACTION') {
+      assert.ok(!paint(lines[1], 'none').includes('▸'));
+      assert.match(paint(lines[1], 'none'), /jumping…/);
+    } else assert.equal(lines[1].find(s => s.text.includes('^]')).style.bg, 'surface');
+  }
+});
