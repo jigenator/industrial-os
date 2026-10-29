@@ -58,13 +58,13 @@ test("later reports send only what changed, clear keys that stopped applying, an
 	assert.deepEqual(map(herdr.tokens), sorted({ g1: "◐ WRK⠀", g2_au0: "??AU", bar: "━━━━━━━━─── 67%", cmpx: "CMP×??", proj: "tatsu-cli" }));
 });
 
-const PLAIN = { g1: "◐ WRK⠀", proj: "tatsu-cli", gt: "⠀2h33m", g2_au: "02AU", bar: "━━━━━━━━─── 67%", cmpx: "CMP×18", g3: "ACT⠀", br: "main", prn: "⠀⠀⠀#42", g4: "MDL⠀", mthink: "opus-5.5/hi", g5: "ASK⠀", ask_l1: "a", ask_l2: "b", ask_l3: "c" };
+const PLAIN = { g1: "◐ WRK⠀", proj: "tatsu-cli", gt: "⠀2h33m", g2_au: "02AU", g2_bg: "01BG", bar: "━━━━━━━━─── 67%", cmpx: "CMP×18", g3: "ACT⠀", br: "main", prn: "⠀⠀⠀#42", g4: "MDL⠀", mthink: "opus-5.5/hi", g5: "ASK⠀", ask_l1: "a", ask_l2: "b", ask_l3: "c" };
 const FLAGGED = { ...PLAIN, proj: "tatsu-cli⠀⠀", flag: "●" };
 
-test("the flag sets and clears as a minimal diff, and the maximal flagged map fits beside another reporter's 16 keys", async (t) => {
+test("the flag sets and clears as a minimal diff, and the maximal flagged map fits beside another reporter's 15 keys", async (t) => {
 	const { herdr, sender } = await setup(t);
-	assert.equal(Object.keys(FLAGGED).length, 16);
-	for (let n = 0; n < 16; n++) herdr.tokens.set(`other${n}`, "x");
+	assert.equal(Object.keys(FLAGGED).length, 17);
+	for (let n = 0; n < 15; n++) herdr.tokens.set(`other${n}`, "x");
 	sender.update(PLAIN);
 	await until(() => sender.state.synced, "first report");
 	let before = herdr.reports().length;
@@ -120,7 +120,7 @@ test("each TTL renewal calls onRenew, so unannounced inputs are re-read on the s
 	const { herdr, sender } = await setup(t, { ttlMs: 600, renewMs: 80, onRenew: () => { renewals++; } });
 	sender.update(FIRST);
 	await until(() => renewals >= 2, "two renewals");
-	// A full report is four requests (53 keys, 16 per request): the first, then one per renewal.
+	// A full report is four requests (55 keys, 16 per request): the first, then one per renewal.
 	await until(() => herdr.reports().length >= 4 * (renewals + 1), "a full report per renewal");
 	await sender.shutdown(); const count = renewals;
 	await new Promise((done) => setTimeout(done, 200));

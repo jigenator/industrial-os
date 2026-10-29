@@ -12,7 +12,7 @@ Hand-merged Herdr configuration in TOML, checked with Node's test runner. Scope 
 
 **Colors are design-system values with their role in a comment.** TOML cannot import, so a color is restated as its lowercase `#rrggbb` value, and the check proves it is an exported palette, signal or Herdr chrome color. A color the design system does not export is added there first. Check: `test/sidebar.test.mjs`, `test/spaces.test.mjs`, `test/theme.test.mjs`.
 
-**Tokens come from the contract.** An agents row references only keys in [the token contract](../../pi/herdr-sidebar/docs/token-contract.md), and every key has exactly one entry. Check: `test/sidebar.test.mjs`.
+**Tokens come from the contract.** An agents row references only keys in [the token contract](../../pi/herdr-sidebar/docs/token-contract.md), and every rendered key has exactly one entry; the contract’s BG data tokens stay unrendered. Check: `test/sidebar.test.mjs`.
 
 Spaces rows follow [the Spaces contract](../../herdr-plugins/spaces/docs/token-contract.md), checked by `test/spaces.test.mjs`; built-in git_status remains host-owned, and the plugin's `sp_panes` replaces state_icon.
 

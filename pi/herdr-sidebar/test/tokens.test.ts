@@ -35,7 +35,7 @@ test("the key list matches the canonical contract document", async () => {
 	assert.ok(line, "docs/token-contract.md states the full key list");
 	assert.deepEqual([...TOKEN_KEYS], line[1].split(" "));
 	assert.equal(TOKEN_KEYS.length, Number(line[2]));
-	assert.equal(TOKEN_KEYS.length, 53);
+	assert.equal(TOKEN_KEYS.length, 55);
 });
 
 test("the spike's verified rows: state, fitted project and goal time; bar and CMP", () => {
@@ -158,7 +158,7 @@ test("row 1 flag: ● after the project, which gives up ` · ●` so the goal ti
 	const idle = buildTokens({ snapshot: snap({ goal: { status: "paused", usedSeconds: 30, activeSince: null } }), herdr: "idle", flagged: true, now: NOW, home: HOME });
 	assert.equal(idle.proj_idle, `tatsu-cli${B.repeat(2)}`); assert.equal(idle.gt_off, `${B.repeat(3)}30s`); assert.equal(idle.flag, "●");
 	// Unknown project and no snapshot: the flag follows the state code.
-	assert.deepEqual(buildTokens({ snapshot: null, herdr: null, flagged: true, now: NOW, home: HOME }), { g1: `· UNK${B}`, flag: "●", g2_au0: "??AU", bar_unk: "─────────── --%", cmpx: "CMP×??" });
+	assert.deepEqual(buildTokens({ snapshot: null, herdr: null, flagged: true, now: NOW, home: HOME }), { g1: `· UNK${B}`, flag: "●", g2_au0: "??AU", g2_bg0: "??BG", bar_unk: "─────────── --%", cmpx: "CMP×??" });
 	const noProject = at({ active: null, goal }, { flagged: true });
 	assert.equal(noProject.proj, undefined); assert.equal(noProject.flag, "●"); assert.equal(noProject.gt, `${B}2h33m`);
 	const labelOnly = buildTokens({ snapshot: null, herdr: "idle", workspaceLabel: "A SPACE whose name is long", flagged: true, now: NOW, home: HOME });
@@ -246,7 +246,7 @@ test("row 2 CMP: two digits, capped at 99, unknown ??", () => {
 test("no snapshot: the state row and row 2's unknowns only, never zeros", () => {
 	for (const herdr of ["working", null]) {
 		const t = buildTokens({ snapshot: null, herdr, now: NOW, home: HOME });
-		assert.deepEqual(t, { g1: herdr ? `◐ WRK${B}` : `· UNK${B}`, g2_au0: "??AU", bar_unk: "─────────── --%", cmpx: "CMP×??" });
+		assert.deepEqual(t, { g1: herdr ? `◐ WRK${B}` : `· UNK${B}`, g2_au0: "??AU", g2_bg0: "??BG", bar_unk: "─────────── --%", cmpx: "CMP×??" });
 	}
 });
 
@@ -581,13 +581,13 @@ test("all eight decay families select one variant with identical text/width; oth
 			}
 			const other = { ...fresh }; for (const key of DECAY_FAMILIES) delete other[key];
 			assert.deepEqual(unchanged, other);
-			assert.ok(Object.keys(tokens).length <= 15);
+			assert.ok(Object.keys(tokens).length <= 16);
 		}
 	}
 	assert.deepEqual([...covered].sort(), [...DECAY_FAMILIES].sort());
 });
 
-test("the maximal applicable snapshot stores 15 tokens, 16 with the flag, not the 53-key contract", () => {
+test("the maximal applicable snapshot stores 16 tokens, 17 with the flag, not the 55-key contract", () => {
 	const snapshot = snap({
 		pr: { kind: "open", number: 42 }, goal: { status: "paused", usedSeconds: 12 },
 		question: { text: "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen", more: 1 },
@@ -595,7 +595,7 @@ test("the maximal applicable snapshot stores 15 tokens, 16 with the flag, not th
 	for (const elapsed of [0, 3_600_000, 14_400_000, 86_400_000]) {
 		for (const flagged of [false, true]) {
 			const tokens = buildTokens({ snapshot, herdr: "idle", visible: false, lastAccessAt: NOW, flagged, now: NOW + elapsed, home: HOME });
-			assert.equal(Object.keys(tokens).length, flagged ? 16 : 15);
+			assert.equal(Object.keys(tokens).length, flagged ? 17 : 16);
 		}
 	}
 });
@@ -628,4 +628,19 @@ test("RUN precedence, active token choices, access refresh and unseen-work-finis
 	const t = buildTokens({ ...base, backgroundRunning: 0, finishedAt: next(), now: NOW + 61_000 });
 	assert.equal(t.g1, `✓ DNE${B}`); assert.equal(t.g5, `RDY${B}`);
 	assert.equal(t.ev_rdy_text, `finished${B.repeat(7)}`); assert.equal(t.ph_age, `${B.repeat(4)}1m`);
+});
+
+test("background count always reports exactly one BG token, independently of state and snapshot", () => {
+	for (const [backgroundRunning, key, value] of [
+		[0, "g2_bg0", "00BG"], [1, "g2_bg", "01BG"], [12, "g2_bg", "12BG"],
+		[120, "g2_bg", "99BG"], [null, "g2_bg0", "??BG"], [undefined, "g2_bg0", "??BG"],
+	] as const) {
+		for (const herdr of ["working", "blocked", "idle", "done", "unknown", null] as const) {
+			for (const snapshot of [null, snap(), snap({ units: 2 }), snap({ question: { text: "q", more: 0 } })]) {
+				const t = buildTokens({ snapshot, herdr, backgroundRunning, now: NOW, home: HOME });
+				assert.equal(t[key], value);
+				assert.equal(t[key === "g2_bg" ? "g2_bg0" : "g2_bg"], undefined);
+			}
+		}
+	}
 });

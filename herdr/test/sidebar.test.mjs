@@ -46,8 +46,12 @@ test('every color is an exported design-system palette or signal color', () => {
   assert.equal(code.replace(/"[^"]*"/g, '').includes('#'), false);
 });
 
-test('every token is in the contract key list, and every key in the list has a row', () => {
-  const keys = keyList();
+const dataOnlyKeys = ['g2_bg', 'g2_bg0'];
+const renderedKeys = () => keyList().filter((key) => !dataOnlyKeys.includes(key));
+
+test('every rendered contract key has one row; BG data tokens remain unrendered', () => {
+  const keys = renderedKeys();
+  for (const key of dataOnlyKeys) assert.ok(keyList().includes(key), `${key} is a contract data token`);
   const rows = piRows();
   const referenced = [...rows.matchAll(/token\s*=\s*"\$([A-Za-z0-9_-]+)"/g)].map((match) => match[1]);
   for (const name of referenced) assert.ok(keys.includes(name), `$${name} is in the token contract`);
@@ -128,7 +132,7 @@ const configuredRows = () => [...piRows().matchAll(/^  \[([^\n]*\]|[\s\S]*?^  \]
 test('Pi layout and every configured row fit Herdr 0.9.3 limits (16 rows, 16 entries)', () => {
   const rows = configuredRows();
   assert.equal(rows.length, 8);
-  assert.equal(rows.flat().length, keyList().length, 'row scan includes every entry');
+  assert.equal(rows.flat().length, renderedKeys().length, 'row scan includes every entry');
   assert.ok(rows.length <= 16);
   for (const row of rows) assert.ok(row.length <= 16, row.join(' '));
 });
