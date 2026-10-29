@@ -36,8 +36,8 @@ Then run Pi with the herdr-sidebar extension, and the signals-collector extensio
 [Spaces plugin](../herdr-plugins/spaces/README.md), in the same 36-column sidebar.
 
 1. Install/link the plugin with Node 22 on Herdr's PATH before merging this
-   fragment. It intentionally does not use the built-in `workspace` token:
-   without the plugin, workspace names are absent. It was exercised in an
+   fragment. It intentionally does not use the built-in `workspace` or `state_icon`
+   tokens: without the plugin, workspace names and state icons are absent. It was exercised in an
    isolated throwaway Herdr only; no live installation was run.
 2. Merge its five color keys into your **existing** `[theme.custom]` table;
    TOML rejects a second `[theme.custom]`. Preserve the agents fragment's

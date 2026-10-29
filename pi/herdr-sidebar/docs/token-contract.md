@@ -33,7 +33,7 @@ Herdr trims ASCII whitespace but keeps U+2800, so every padding cell is U+2800. 
 
 The [Spaces plugin](../../../herdr-plugins/spaces/docs/token-contract.md) consumes
 `g2_au`/`g2_au0` from Pi pane tokens through Herdr’s socket API to aggregate
-workspace AU. This is a read-only consumer; it changes neither this reporter
+workspace AU, and `g1`'s SUB and RUN codes for the space state icon. This is a read-only consumer; it changes neither this reporter
 nor the collector contract.
 
 ## Row 3

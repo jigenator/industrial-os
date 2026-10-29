@@ -15,14 +15,18 @@ styles belong to [herdr/spaces.toml](../../../herdr/spaces.toml).
 
 Acid / Black, 36 columns, 31-cell space rows (the scrollbar case). Focused name is bold
 primary white; other current names bold secondary; quiet names/ages decorative
-grey. Zero counts use decorative grey, nonzero AU uses bold accent, `??AU`
-remains explicitly unknown, not disguised as zero. State icons come from
-Herdr and its theme keys, not a guessed plugin activity state. No branch name.
+grey. Zero agent and AU counts use decorative grey, nonzero AU uses bold accent, `??AU`
+remains explicitly unknown, not disguised as zero. The state icon leads
+`sp_panes` and colors the whole `◐ 05PN` like the agents sidebar's `◐ WRK`:
+accent working, critical blocked, primary done, decorative idle and unknown.
+It is Herdr's status except that a Pi pane running subagents or background
+tasks (`◐ SUB`, `◐ RUN`) is working, so such a space is never shown idle
+([contract](token-contract.md#space-state)). No branch name.
 
 A quiet space sends only panes, stale name and age, collapsing to one row
 **unless it is ahead or behind**: Herdr's built-in git_status retains a second
 git-only row. Indented worktree children do not display git details. Quiet is
-not a new Herdr status and does not fabricate a state icon.
+not a new Herdr status and does not change the state icon.
 
 Sorting preserves current units' relative order and moves quiet units below
 them, oldest last, never the focused unit. Worktree families stay together;

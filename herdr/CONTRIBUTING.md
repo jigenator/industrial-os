@@ -190,3 +190,11 @@ A Herdr version change rechecks the 19-key list against that version's `src/conf
 - `node --test`: **20/20 passed**, 0 failed/skipped/cancelled. The updated contract-state check requires RUN to use the same accent rule as SUB; the 53 keys and native row limits remain unchanged.
 - `HERDR_CONFIG_PATH=<temporary copy of sidebar.toml> herdr config check`: **config: ok, exit 0**. Only the temporary file was read; no live Herdr or configuration was contacted or changed.
 - Live merge/reload and interactive rendering: **not run**. Reporter verification and review fixes are in the [sidebar record](../pi/herdr-sidebar/CONTRIBUTING.md#background-task-run-state).
+
+### Spaces state icon
+
+2026-10-29, macOS, Node 22.23.4, installed Herdr 0.9.5; every `HERDR_*` variable unset for the parser:
+
+- `node --test`: **20/20 passed**. The Spaces checks now require no `state_icon`, and a leading `$sp_panes` in decorative grey with `◐` accent, `×` critical and `✓` primary rules; the five global state-icon theme keys keep their roles.
+- `node check-config.mjs`: Spaces, sidebar, theme and both merges **config: ok, exit 0**; invalid row (now replacing `$sp_panes`) and invalid theme controls **rejected, exit 1**, expected.
+- Rendering in an isolated Herdr is in the [Spaces record](../herdr-plugins/spaces/CONTRIBUTING.md#space-state-icon). Live merge/reload: **not run**. Update the plugin and this fragment together: an old fragment draws Herdr's icon before the new `◐ 05PN`, and a new fragment with an old plugin draws no icon.

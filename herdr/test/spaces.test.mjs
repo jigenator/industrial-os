@@ -19,19 +19,19 @@ test('every Spaces contract key has exactly one row entry and no foreign custom 
   assert.ok(keys.every((key) => key.startsWith('sp_')), 'workspace custom keys must avoid the shared reporter namespace');
   const referenced = [...code.matchAll(/token\s*=\s*"\$([a-z_]+)"/g)].map((m) => m[1]);
   assert.deepEqual(referenced.toSorted(), keys.toSorted()); assert.equal(new Set(referenced).size, referenced.length);
-  assert.match(code, /"state_icon"/); assert.match(code, /token\s*=\s*"git_status"/);
+  assert.doesNotMatch(code, /"state_icon"/); assert.match(code, /token\s*=\s*"git_status"/);
   assert.doesNotMatch(code, /token\s*=\s*"(?:workspace|branch)"/);
 });
-test('Spaces state icon theme tokens map to the approved roles with no per-state style fiction', () => {
+test('Herdr state-icon theme keys keep their roles; the plugin state icon leads row 1 and is colored by state', () => {
   const roles = { yellow: 'accent', red: 'critical', teal: 'primary', green: 'decorative', overlay0: 'decorative' };
   for (const [key, role] of Object.entries(roles)) assert.match(code, new RegExp(`^${key}\\s*=\\s*"${ACID_BLACK[role]}"`, 'm'));
   const theme = code.split('[ui.sidebar.spaces]')[0];
   assert.equal([...theme.matchAll(/^\w+\s*=/gm)].length, 5);
-  assert.match(code, /rows\s*=\s*\[\s*\[\s*"state_icon",/);
-  assert.doesNotMatch(code, /token\s*=\s*"state_icon"/);
+  const rules = [['◐', 'accent'], ['×', 'critical'], ['✓', 'primary']].map(([icon, role]) => `\\{ starts_with = "${icon}", fg = "${ACID_BLACK[role]}" \\}`).join(', ');
+  assert.match(code, new RegExp(`rows\\s*=\\s*\\[\\s*\\[\\s*\\{ token = "\\$sp_panes", fg = "${ACID_BLACK.decorative}", rules = \\[${rules}\\] \\},`));
 });
-test('zero panes and agents use decorative grey, zero AU removes bold; unknown AU is not disguised as zero', () => {
-  for (const key of ['sp_panes', 'sp_agents']) assert.match(code, new RegExp(`token = "\\$${key}", fg = "${ACID_BLACK.secondary}", rules = \\[\\{ starts_with = "00", fg = "${ACID_BLACK.decorative}" \\}\\]`));
+test('zero agents use decorative grey, zero AU removes bold; unknown AU is not disguised as zero', () => {
+  for (const key of ['sp_agents']) assert.match(code, new RegExp(`token = "\\$${key}", fg = "${ACID_BLACK.secondary}", rules = \\[\\{ starts_with = "00", fg = "${ACID_BLACK.decorative}" \\}\\]`));
   assert.match(code, new RegExp(`token = "\\$sp_au", fg = "${ACID_BLACK.accent}", bold = true, rules = \\[\\{ starts_with = "00", fg = "${ACID_BLACK.decorative}", bold = false \\}\\]`));
   assert.doesNotMatch(code, /starts_with\s*=\s*"\?\?"/);
 });

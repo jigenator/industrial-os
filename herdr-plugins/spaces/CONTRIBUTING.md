@@ -263,3 +263,32 @@ CLAUDE entrypoints (10 exact), `git diff --check` and publication review passed.
 **Not run:** the user's live Herdr session, other terminals or fonts, Linux,
 real Pi panes (agent state was simulated with `report-agent`), and a worktree
 group in a live server.
+
+### Space state icon
+
+2026-10-29, macOS, Node 22.23.4; host source read at Herdr v0.9.5
+(`workspace/aggregate.rs`, `client/shell.rs` `status_icon`,
+`ui/sidebar/tokens.rs` `separator`). `sp_panes` now leads with the space state
+icon; a Pi pane whose `g1` is `◐ SUB`/`◐ RUN` counts as working for the icon
+and for activity.
+
+**Passed**
+
+- `cd herdr-plugins/spaces && node --test`: **45/45 passed**, zero failures,
+  skipped or cancelled. New: `space state follows Herdr, counting Pi panes that
+  run subagents or background tasks as working`; the activity test now also
+  covers RUN. Mutation check: disabling the SUB/RUN upgrade failed both (exit 1);
+  restoring it passed.
+- [Throwaway server check](#throwaway-server-check) against installed Herdr
+  0.9.5: four spaces, plugin linked; Pi panes simulated with `report-agent`
+  (non-reserved test source, state idle) and `report-metadata` `g1`. Herdr
+  reported the RUN space `idle`; the plugin reported `◐ 01PN`; the IDL space
+  `○ 01PN`; agent-less spaces `· 01PN`; blocked `× 01PN`; clearing RUN returned
+  `○ 01PN`. A client in a 140×40 pseudo-terminal, replayed by a small local VT
+  parser: `◐ 01PN · bgrun` entirely accent `#c0fe04`, `×` row critical, idle and
+  unknown decorative, names in the same column as before. Live config and plugin
+  registry checksums matched before and after.
+
+**Not run:** done (`✓`) in the throwaway server (needs an unseen idle pane;
+covered by the unit test only), worktree child rows, the scrollbar case, the
+user's live Herdr session and terminal, and real Pi panes.

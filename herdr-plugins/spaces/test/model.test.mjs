@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { au, tokens, fitLabel, width, PAD, QUIET_MS, DAY_MS, advanceHistory, activityWorkspace, sortPlan, units, validateLists } from '../src/model.mjs';
+import { au, paneStatus, spaceStatus, tokens, fitLabel, width, PAD, QUIET_MS, DAY_MS, advanceHistory, activityWorkspace, sortPlan, units, validateLists } from '../src/model.mjs';
 const workspace = (id, overrides = {}) => ({ workspace_id: id, label: id, focused: false, pane_count: 0, agent_status: 'idle', ...overrides });
 
 test('AU sums only Pi, caps, and distinguishes missing, conflicting and unknown from zero', () => {
@@ -15,14 +15,31 @@ test('AU sums only Pi, caps, and distinguishes missing, conflicting and unknown 
 });
 test('tokens always panes; quiet clears second row/name variants; focused cannot be quiet', () => {
   const w = workspace('w1', { pane_count: 200, label: 'industrial-os' });
-  assert.deepEqual(tokens(w, [], 0, QUIET_MS), { sp_panes: '99PN', sp_name_stale: 'industrial-os' + PAD.repeat(2), sp_quiet: PAD.repeat(2) + '2d' });
-  assert.deepEqual(tokens({ ...w, focused: true }, [{ agent: 'pi' }, { agent: 'claude' }, {}], 0, QUIET_MS), { sp_panes: '99PN', sp_name_active: 'industrial-os', sp_agents: '02AG', sp_au: '??AU' });
+  assert.deepEqual(tokens(w, [], 0, QUIET_MS), { sp_panes: '· 99PN', sp_name_stale: 'industrial-os' + PAD.repeat(2), sp_quiet: PAD.repeat(2) + '2d' });
+  assert.deepEqual(tokens({ ...w, focused: true }, [{ agent: 'pi' }, { agent: 'claude' }, {}], 0, QUIET_MS), { sp_panes: '· 99PN', sp_name_active: 'industrial-os', sp_agents: '02AG', sp_au: '??AU' });
   assert.equal(tokens(w, [], 0, 1000 * DAY_MS).sp_quiet, PAD + '99d');
   assert.equal(tokens(w, [], 0, QUIET_MS - 1).sp_name, 'industrial-os');
 });
+test('space state follows Herdr, counting Pi panes that run subagents or background tasks as working', () => {
+  const pane = (agent_status, g1, agent = 'pi') => ({ agent, agent_status, tokens: g1 === undefined ? undefined : { g1 } });
+  for (const status of ['idle', 'done', 'unknown']) for (const g1 of ['◐ SUB\u2800', '◐ RUN\u2800']) assert.equal(paneStatus(pane(status, g1)), 'working');
+  assert.equal(paneStatus(pane('blocked', '◐ RUN\u2800')), 'blocked');
+  for (const p of [pane('idle', '○ IDL\u2800'), pane('idle', '◐ WRK\u2800'), pane('idle', 'x◐ RUN'), pane('idle'), pane('idle', '◐ RUN\u2800', 'claude')]) assert.equal(paneStatus(p), 'idle');
+  assert.equal(spaceStatus([]), 'unknown');
+  // Herdr's priority: blocked, then done (idle unseen), working, idle, unknown.
+  assert.equal(spaceStatus([pane('unknown'), pane('idle')]), 'idle');
+  assert.equal(spaceStatus([pane('idle'), pane('idle', '◐ RUN\u2800')]), 'working');
+  assert.equal(spaceStatus([pane('done'), pane('idle', '◐ RUN\u2800')]), 'done');
+  assert.equal(spaceStatus([pane('done', '◐ SUB\u2800')]), 'working');
+  assert.equal(spaceStatus([pane('blocked'), pane('done')]), 'blocked');
+  const w = workspace('w1', { pane_count: 2 });
+  const icon = (panes) => tokens(w, panes, 0, 0).sp_panes;
+  assert.deepEqual([icon([]), icon([pane('idle')]), icon([pane('idle', '◐ RUN\u2800')]), icon([pane('done')]), icon([pane('blocked')])], ['· 02PN', '○ 02PN', '◐ 02PN', '✓ 02PN', '× 02PN']);
+});
 test('row 1 fits the 31 cells Herdr 0.9.3 gives a space row at width 36 with a scrollbar', () => {
-  // state_icon + ' ' + NNPN + ' · ', then the name tokens; quiet rows add ' · ' + age.
-  const lead = 1 + 1 + 4 + 3;
+  // sp_panes (icon + ' ' + NNPN) + ' · ', then the name tokens; quiet rows add ' · ' + age.
+  const lead = width(tokens(workspace('w1'), [], 0, 0).sp_panes) + 3;
+  assert.equal(lead, 9);
   for (const label of ['a', 'platform-tools', 'harness-engine-experimental', '界'.repeat(30)]) {
     const w = workspace('w1', { label });
     const quiet = tokens(w, [], 0, 12 * DAY_MS);
@@ -56,17 +73,17 @@ test('activity excludes pane.updated/moved, includes closed and focus; persists 
   assert.equal(previous.a.last, 1);
   assert.equal(advanceHistory(h, ws, [], new Set(), now + 1000).a.last, now);
 });
-test('a Pi pane running units is activity even when Herdr reports its root agent idle', () => {
+test('a Pi pane running units or background tasks is activity even when Herdr reports its root agent idle', () => {
   const now = 10 * DAY_MS;
-  const ids = ['sub', 'zero', 'unknown', 'conflict', 'other'];
+  const ids = ['sub', 'run', 'zero', 'unknown', 'conflict', 'other'];
   const ws = ids.map((id) => workspace(id));
   const previous = Object.fromEntries(ids.map((id) => [id, { last: 1, seen: 1 }]));
   const pane = (workspace_id, agent, tokens) => ({ workspace_id, agent, agent_status: 'idle', tokens });
   const h = advanceHistory(previous, ws, [
-    pane('sub', 'pi', { g2_au: '02AU' }), pane('zero', 'pi', { g2_au0: '00AU' }), pane('unknown', 'pi', { g2_au0: '??AU' }),
+    pane('sub', 'pi', { g2_au: '02AU' }), pane('run', 'pi', { g1: '◐ RUN\u2800', g2_au0: '00AU' }), pane('zero', 'pi', { g2_au0: '00AU' }), pane('unknown', 'pi', { g2_au0: '??AU' }),
     pane('conflict', 'pi', { g2_au: '02AU', g2_au0: '00AU' }), pane('other', 'claude', { g2_au: '02AU' }),
   ], new Set(), now);
-  assert.equal(h.sub.last, now);
+  assert.equal(h.sub.last, now); assert.equal(h.run.last, now);
   for (const id of ['zero', 'unknown', 'conflict', 'other']) assert.equal(h[id].last, 1);
 });
 test('worktree grouping exactly matches Herdr, parent first; all members must be quiet', () => {

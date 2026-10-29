@@ -15,7 +15,7 @@ const merged = sidebar.replace('[theme.custom]', '[theme.custom]\n' + keys) + '\
 const themeKeys = theme.split(/^\[theme\.custom\]$/m)[1].trim();
 const all = merged.replace(/^\[theme\.custom\]$/m, '[theme.custom]\n' + themeKeys);
 assert.equal(all.match(/^\[theme\.custom\]$/gm).length, 1, 'one [theme.custom] header');
-const copies = { spaces, sidebar, theme, merged, all, invalid: spaces.replace('"state_icon",', '{ token = "not_a_builtin" },'),
+const copies = { spaces, sidebar, theme, merged, all, invalid: spaces.replace('{ token = "$sp_panes"', '{ token = "not_a_builtin"'),
   // A misspelled theme key must be reported, so the theme copy's ok means Herdr knows all 11 keys.
   invalidTheme: theme.replace(/^peach /m, 'peachy ') };
 const dir = await mkdtemp(join(tmpdir(), 'spaces-config-'));
