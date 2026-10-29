@@ -35,14 +35,15 @@ The readable label, persistent history, native abort notice and explicit attachm
 | --- | --- |
 | No submitted queue, including an unsent draft alone | Native Escape behavior; no continuation marker |
 | Abort settling | No marker yet; another press is consumed without another abort |
-| Continuation preflight | No marker until `agent_start`; a fresh Escape restores captured text to the editor |
+| Continuation preflight | No marker until `agent_start`; a fresh Escape restores captured text to the editor. If the restored head still starts, it is aborted at once and a warning says it remains in the transcript |
 | Confirmed continuation | The marker plays in history while normal streaming and input continue |
 | Settled, stopped early, or saved-session marker | The completed record plate remains in history |
+| Queue changed after observation (Alt+Up dequeue, prompt-template expansion) | A later submission resynchronizes after a dequeue. If Pi's queue still differs at Escape, native behavior: the run aborts, Pi's queue returns to the editor, no marker |
 | Observed queued attachment | Native Escape behavior instead of lossy replay |
 | Attachment submitted during abort settlement | Warning that it was not queued; its text returns to the editor; the earlier text batch continues |
 | Non-TUI session | No terminal Escape listener or live marker widget |
 
-Slow preflight can still start after recovery; check the transcript before resubmitting restored text. The engineering limits are in [architecture](architecture.md#evolution-and-known-limits).
+A slow preflight can still start after recovery; it is then aborted, with a warning, but its text stays in the transcript. The engineering limits are in [architecture](architecture.md#evolution-and-known-limits).
 
 ## Verification and open questions
 

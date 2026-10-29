@@ -31,6 +31,10 @@ type PendingQueues = {
 type InterruptState = {
 	phase: "aborting" | "starting";
 	queues: PendingQueues;
+	/** Text submitted after Escape; it stays in Pi's queue until agent_settled. */
+	raced: PendingText[];
+	/** How far the sent continuation head has got through Pi's prompt path. */
+	head?: "sent" | "input" | "preparing";
 };
 
 function emptyQueues(): PendingQueues {
@@ -54,6 +58,11 @@ function queuesFrom(items: PendingText[]): PendingQueues {
 function prependEditorText(ctx: ExtensionContext, texts: string[]): void {
 	const current = ctx.ui.getEditorText();
 	ctx.ui.setEditorText([...texts, current].filter((text) => text.trim()).join("\n\n"));
+}
+
+/** The editor text Pi's TUI abort leaves when it restores `queue` ahead of `draft`. */
+function restoredEditorText(queue: PendingText[], draft: string): string {
+	return [queue.map((item) => item.text).join("\n\n"), draft].filter((text) => text.trim()).join("\n\n");
 }
 
 const { barFrame: FRAME, window: WINDOW } = MARKER_TIMELINE;
@@ -101,6 +110,10 @@ export function createClaudeInterrupt(pi: ExtensionAPI): void {
 	let interrupt: InterruptState | undefined;
 	let expectedReplay: PendingText[] = [];
 	let skipNextUserStart = false;
+	/** A sent continuation head restored to the editor by a recovery Escape. */
+	let abandoned: { text: string; inputSeen: boolean } | undefined;
+	/** Abort the next agent_start: it is the abandoned head's run. */
+	let stopAbandonedRun = false;
 	let unsubscribeTerminal: (() => void) | undefined;
 	let ownsEscape = false;
 	const markerType = "claude-interrupt-steering";
@@ -153,6 +166,8 @@ export function createClaudeInterrupt(pi: ExtensionAPI): void {
 		interrupt = undefined;
 		expectedReplay = [];
 		skipNextUserStart = false;
+		abandoned = undefined;
+		stopAbandonedRun = false;
 	};
 
 	const consumeExpectedReplay = (event: InputEvent): boolean => {
@@ -166,7 +181,19 @@ export function createClaudeInterrupt(pi: ExtensionAPI): void {
 	};
 
 	pi.on("input", (event, ctx) => {
-		if (consumeExpectedReplay(event)) return;
+		if (abandoned) {
+			// Before its input, the head is the extension-origin input with its exact
+			// text: drop it. Any other input from the user, or any input once the head
+			// is past this point, may start a run of its own, so stop tracking it.
+			const own = !abandoned.inputSeen && event.source === "extension"
+				&& event.text === abandoned.text && (event.images?.length ?? 0) === 0;
+			if (own || abandoned.inputSeen || event.source !== "extension") abandoned = undefined;
+			if (own) return { action: "handled" };
+		}
+		if (consumeExpectedReplay(event)) {
+			if (interrupt?.phase === "starting" && interrupt.head === "sent") interrupt.head = "input";
+			return;
+		}
 		if (!event.streamingBehavior) return;
 
 		const item: PendingText = {
@@ -185,12 +212,17 @@ export function createClaudeInterrupt(pi: ExtensionAPI): void {
 				return { action: "handled" };
 			}
 
-			// A text submit can race the old run settling after Escape. Include it in
-			// the replay batch; Pi's old queue is cleared once more at settlement.
-			push(interrupt.queues, item);
+			// A text submit can race the old run settling after Escape. It stays in
+			// Pi's queue, where Alt+Up can still dequeue it, until agent_settled checks
+			// it again. An empty core queue means earlier raced text was dequeued.
+			if (!ctx.hasPendingMessages()) interrupt.raced = [];
+			interrupt.raced.push(item);
 			return;
 		}
 
+		// Pi's dequeue key (Alt+Up) empties its queue without an extension event.
+		// An empty core queue at a new submission means the observer is stale.
+		if (!ctx.hasPendingMessages()) pending = emptyQueues();
 		push(pending, item);
 	});
 
@@ -236,6 +268,10 @@ export function createClaudeInterrupt(pi: ExtensionAPI): void {
 				// and restores every captured message visibly. Escape therefore never
 				// remains disabled indefinitely even when no agent_start event arrives.
 				const replay = ordered(interrupt.queues);
+				// The head was already sent, and Pi ignores an abort until its run is
+				// active, so it may still start. Track it by how far it has got.
+				if (interrupt.head === "preparing") stopAbandonedRun = true;
+				else if (interrupt.head) abandoned = { text: replay[0].text, inputSeen: interrupt.head === "input" };
 				interrupt = undefined;
 				expectedReplay = [];
 				pending = emptyQueues();
@@ -259,16 +295,20 @@ export function createClaudeInterrupt(pi: ExtensionAPI): void {
 			interrupt = {
 				phase: "aborting",
 				queues: pending,
+				raced: [],
 			};
 			expectedReplay = [];
 			pending = emptyQueues();
 			skipNextUserStart = false;
 
 			// In TUI mode ctx.abort() clears Pi's queues and prepends their text to
-			// the editor. Restore the exact pre-abort draft immediately; our captured
-			// submitted messages are replayed only after agent_settled.
+			// the editor. That text is Pi's real queue: if it is not exactly what we
+			// observed (a dequeued or expanded entry), keep Pi's native restoration
+			// rather than replay text that was not queued. Otherwise restore the exact
+			// pre-abort draft; captured messages are replayed only after agent_settled.
 			ctx.abort();
-			ctx.ui.setEditorText(draft);
+			if (ctx.ui.getEditorText() !== restoredEditorText(queue, draft)) interrupt = undefined;
+			else ctx.ui.setEditorText(draft);
 			return { consume: true };
 		});
 	});
@@ -281,26 +321,53 @@ export function createClaudeInterrupt(pi: ExtensionAPI): void {
 		}
 
 		const state = interrupt;
+		// Clear text submitted during the abort/settle window from Pi's queue. Replay
+		// it only if Pi's queue is exactly that text; otherwise it was dequeued or
+		// changed, and Pi's restoration stays in the editor.
+		let raced = ordered(queuesFrom(state.raced));
+		if (ctx.hasPendingMessages()) {
+			const draft = ctx.ui.getEditorText();
+			ctx.abort();
+			if (ctx.ui.getEditorText() === restoredEditorText(raced, draft)) ctx.ui.setEditorText(draft);
+			else raced = [];
+		} else raced = [];
+		state.queues = queuesFrom([...ordered(state.queues), ...raced]);
 		const replay = ordered(state.queues);
 		if (replay.length === 0) {
 			interrupt = undefined;
 			return;
 		}
 
-		// Clear text submitted during the short abort/settle window. It has already
-		// been captured above, but may still be sitting in Pi's old queue.
-		if (ctx.hasPendingMessages()) {
-			const draft = ctx.ui.getEditorText();
-			ctx.abort();
-			ctx.ui.setEditorText(draft);
-		}
-
 		state.phase = "starting";
+		state.head = "sent";
 		expectedReplay = [...replay];
 		pi.sendUserMessage(replay[0].text, { expandPromptTemplates: true });
 	});
 
+	// Pi offers no way to withdraw a prompt past its input handlers, and an abort
+	// before its run is active is lost. Abort the recovered head once it is.
+	pi.on("before_agent_start", (event, ctx) => {
+		stopAbandonedRun = false; // A new run: an earlier abandoned run never reached agent_start.
+		if (interrupt?.phase === "starting" && interrupt.head === "input" && event.prompt === ordered(interrupt.queues)[0]?.text) {
+			interrupt.head = "preparing";
+			return;
+		}
+		// A head past its input handlers prepares as the next run, if at all.
+		const head = abandoned?.inputSeen ? abandoned.text : undefined;
+		if (head !== undefined) abandoned = undefined;
+		if (head === undefined || event.prompt !== head) return;
+		stopAbandonedRun = true;
+		ctx.abort(); // Pi 1.4.0 then stops it before the first provider request.
+	});
+
 	pi.on("agent_start", (_event, ctx) => {
+		if (stopAbandonedRun) {
+			// Hosts that ignore an abort during preparation still stop the running agent.
+			stopAbandonedRun = false;
+			ctx.abort();
+			ctx.ui.notify("A directive restored to the editor still started; it was aborted and remains in the transcript.", "warning");
+			return;
+		}
 		if (interrupt?.phase !== "starting") return;
 
 		clearAnimation();

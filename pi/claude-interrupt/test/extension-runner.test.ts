@@ -64,6 +64,16 @@ async function createRunnerHarness(t: TestContext, savedSession?: SessionManager
 	let editorText = "";
 	let active = true;
 	let allowStart = true;
+	// Pi 1.4.0: an abort counts only once a run is being prepared (before_agent_start
+	// onward); it then stops the run before its first provider request.
+	let preparing = false;
+	let abortRequested = false;
+	let preflight: Promise<void> | undefined;
+	let preparation: Promise<void> | undefined;
+	// Pi 0.99.1 resets the abort flag after before_agent_start, losing that abort.
+	let preparationAbortLost = false;
+	const abortedStarts: string[] = [];
+	const notifications: string[] = [];
 	let aborts = 0;
 	const coreQueue: Queued[] = [];
 	const started: string[] = [];
@@ -92,6 +102,16 @@ async function createRunnerHarness(t: TestContext, savedSession?: SessionManager
 		{} as ModelRegistry,
 	);
 
+	// Pi's restoreQueuedMessagesToEditor(), shared by ctx.abort() and the
+	// app.message.dequeue key. Dequeue emits no extension event.
+	const restoreQueue = (): void => {
+		if (coreQueue.length === 0) return;
+		const cleared = coreQueue.splice(0);
+		const queued = ["steer", "followUp"].flatMap((as) => cleared.filter((item) => item.deliverAs === as))
+			.map((item) => item.text).join("\n\n");
+		editorText = [queued, editorText].filter((text) => text.trim()).join("\n\n");
+	};
+
 	const schedule = (work: () => Promise<void>): void => {
 		const job = work().finally(() => jobs.delete(job));
 		jobs.add(job);
@@ -118,15 +138,39 @@ async function createRunnerHarness(t: TestContext, savedSession?: SessionManager
 					return;
 				}
 
+				// Auth checks and other preflight before the run is active.
+				if (preflight) {
+					trace.push(`preflight:${text}`);
+					await preflight;
+				}
 				if (!allowStart) {
 					trace.push(`preflight-failed:${text}`);
 					return;
 				}
 
 				active = true;
+				preparing = true;
+				abortRequested = false;
+				await runner.emitBeforeAgentStart(text, undefined, { cwd: root });
+				// Later extensions' start hooks still running.
+				if (preparation) {
+					trace.push(`preparing:${text}`);
+					await preparation;
+				}
+				preparing = false;
+				if (preparationAbortLost) abortRequested = false;
+				const abortsBeforeStart = aborts;
 				trace.push(`started:${text}`);
-				started.push(text);
 				await runner.emit({ type: "agent_start" });
+				if (abortRequested || aborts > abortsBeforeStart) {
+					// The prompt is still recorded, but no response is requested.
+					trace.push(`aborted-start:${text}`);
+					abortedStarts.push(text);
+					session.appendMessage({ role: "user", content: text, timestamp: Date.now() });
+					active = false;
+					return;
+				}
+				started.push(text);
 				await runner.emit({
 					type: "message_start",
 					message: { role: "user", content: [{ type: "text", text }], timestamp: Date.now() },
@@ -169,10 +213,8 @@ async function createRunnerHarness(t: TestContext, savedSession?: SessionManager
 		abort: () => {
 			trace.push(`abort:${coreQueue.map((item) => item.text).join(",")}`);
 			aborts += 1;
-			if (coreQueue.length > 0) {
-				editorText = `${coreQueue.map((item) => item.text).join("\n\n")}\n\n${editorText}`;
-			}
-			coreQueue.length = 0;
+			if (preparing) abortRequested = true;
+			restoreQueue();
 			active = false;
 		},
 		hasPendingMessages: () => coreQueue.length > 0,
@@ -191,7 +233,7 @@ async function createRunnerHarness(t: TestContext, savedSession?: SessionManager
 		setEditorText: (text: string) => {
 			editorText = text;
 		},
-		notify: () => undefined,
+		notify: (message: string) => { notifications.push(message); },
 		setWidget: (_key: string, factory: ((tui: TUI, theme: Theme) => typeof widget) | undefined) => {
 			if (widget) {
 				widgetDisposals++;
@@ -256,6 +298,28 @@ async function createRunnerHarness(t: TestContext, savedSession?: SessionManager
 		setEditorText(text: string) {
 			editorText = text;
 		},
+		/** Alt+Up: Pi restores the queue to the editor without aborting. */
+		dequeue: restoreQueue,
+		abortedStarts,
+		notifications,
+		/** Holds every later start between its input handlers and the run. */
+		holdPreflight(): () => void {
+			let release!: () => void;
+			preflight = new Promise((resolve) => { release = resolve; });
+			return () => { preflight = undefined; release(); };
+		},
+		/** Holds every later start after this extension's before_agent_start. */
+		holdPreparation(): () => void {
+			let release!: () => void;
+			preparation = new Promise((resolve) => { release = resolve; });
+			return () => { preparation = undefined; release(); };
+		},
+		setPreparationAbortLost(value: boolean) { preparationAbortLost = value; },
+		/** agent_settled without waiting for the replay it schedules. */
+		async settleOnly(): Promise<void> {
+			await runner.emit({ type: "agent_settled" });
+		},
+		flush,
 		setAllowStart(value: boolean) {
 			allowStart = value;
 		},
@@ -316,6 +380,107 @@ test("real ExtensionRunner asynchronously re-interrupts a replayed queue without
 	await h.deliverQueued();
 	assert.deepEqual(h.delivered, ["first", "second", "third"]);
 	assert.equal(h.aborts, 2);
+});
+
+test("a directive cancelled with Pi's dequeue key is never replayed by a later Escape", async (t) => {
+	const h = await createRunnerHarness(t);
+	await h.queue("cancelled", "steer");
+	// Alt+Up restores the queue to the editor; the user deletes it.
+	h.dequeue();
+	assert.equal(h.editorText, "cancelled");
+	h.setEditorText("");
+	await h.queue("kept", "steer");
+	h.setEditorText("draft");
+
+	h.escape();
+	await h.settle();
+	assert.ok(!h.trace.some((line) => line.startsWith("send:cancelled")), h.trace.join(" | "));
+	assert.deepEqual(h.started, ["kept"]);
+	assert.equal(h.editorText, "draft");
+	assert.deepEqual(h.coreQueue, []);
+	assert.deepEqual(h.renderMarkers(), [row(0)]);
+});
+
+test("text submitted after Escape and dequeued before settlement is never replayed", async (t) => {
+	const h = await createRunnerHarness(t);
+	await h.queue("first", "steer");
+	h.setEditorText("draft");
+	h.escape();
+	await h.queue("raced, then cancelled", "followUp");
+	h.dequeue();
+	h.setEditorText("draft");
+
+	await h.settle();
+	assert.ok(!h.trace.some((line) => line.includes("raced")), h.trace.join(" | "));
+	assert.deepEqual(h.started, ["first"]);
+	assert.equal(h.editorText, "draft");
+});
+
+test("a recovery Escape before the replayed head reaches input handlers drops it", async (t) => {
+	const h = await createRunnerHarness(t);
+	await h.queue("cancel me", "steer");
+	h.escape();
+	await h.settleOnly(); // The head is sent; its input dispatch is still pending.
+	assert.deepEqual(h.escape(), { consume: true });
+	assert.equal(h.editorText, "cancel me");
+	await h.flush();
+
+	assert.deepEqual(h.started, []);
+	assert.deepEqual(h.abortedStarts, []);
+	assert.deepEqual(h.session.getBranch().filter((entry) => entry.type === "message"), []);
+});
+
+for (const host of ["Pi 1.4.0", "Pi 0.99.1"]) test(`${host}: a recovery Escape after input handlers stops the head before any response`, async (t) => {
+	const h = await createRunnerHarness(t);
+	h.setPreparationAbortLost(host === "Pi 0.99.1");
+	await h.queue("cancel me", "steer");
+	h.escape();
+	const release = h.holdPreflight();
+	await h.settleOnly();
+	// Input handled; preflight (for example auth) still running.
+	while (!h.trace.includes("preflight:cancel me")) await delay();
+	assert.deepEqual(h.escape(), { consume: true }); // Lost: no run is active yet.
+	release();
+	await h.flush();
+
+	assert.deepEqual(h.started, []);
+	assert.deepEqual(h.abortedStarts, ["cancel me"], h.trace.join(" | "));
+	assert.equal(h.notifications.length, 1);
+	assert.deepEqual(h.renderMarkers(), []);
+});
+
+for (const host of ["Pi 1.4.0", "Pi 0.99.1"]) {
+	test(`${host}: a recovery Escape after the head's start hook stops it at agent_start and warns`, async (t) => {
+		const h = await createRunnerHarness(t);
+		h.setPreparationAbortLost(host === "Pi 0.99.1");
+		await h.queue("cancel me", "steer");
+		h.escape();
+		const release = h.holdPreparation();
+		await h.settleOnly();
+		while (!h.trace.includes("preparing:cancel me")) await delay();
+		assert.deepEqual(h.escape(), { consume: true });
+		release();
+		await h.flush();
+
+		assert.deepEqual(h.started, []);
+		assert.deepEqual(h.abortedStarts, ["cancel me"], h.trace.join(" | "));
+		assert.equal(h.notifications.length, 1);
+		assert.deepEqual(h.renderMarkers(), []);
+	});
+}
+
+test("a pending recovered head is dropped without dropping another extension's same-text message", async (t) => {
+	const h = await createRunnerHarness(t);
+	await h.queue("cancel me", "steer");
+	h.escape();
+	await h.settleOnly();
+	h.escape();
+	const image = { type: "image" as const, data: "AA==", mimeType: "image/png" };
+	const other = await h.runner.emitInput("cancel me", [image], "extension", undefined);
+	assert.equal(other.action, "continue");
+	await h.flush();
+	assert.deepEqual(h.started, []);
+	assert.deepEqual(h.abortedStarts, []);
 });
 
 test("real ExtensionRunner leaves Escape available after asynchronous start failure", async (t) => {

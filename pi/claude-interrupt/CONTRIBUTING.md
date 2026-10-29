@@ -39,7 +39,7 @@ Then follow the [repository-wide checks](../../CONTRIBUTING.md#repository-wide-c
 
 ## Test coverage
 
-Tests use Node's built-in test runner. They cover one and several queued messages, steering/follow-up order, no-queue behavior, repeated Escape, re-interrupting a replay, failed-start recovery, draft preservation, delivery cleanup, abort/settle races, attachment fallback/rejection, and session cleanup. Deterministic animation tests cover all 75 forty-millisecond frames and the exact 3000 ms window, the plate flashes and right-to-left wipe, each bar's launch, grey turn and removal with one change per frame, the cell colors and attributes in every phase (decoded from a real Pi `Theme` in truecolor and 256-color modes, dark and light), fixed bar positions and clipping at widths 0–160, alignment with the native abort notice, late-timer catch-up and clock jumps, press/repeat/release timing, persistent history, saved markers, invisible redraw widgets, and timer cleanup. The integration test loads the real extension through Pi's loader, routes key events through the real `TuiMainScreen` input router with an isolated terminal transport, and dispatches lifecycle/input events through Pi's real asynchronous `ExtensionRunner`, using a real `SessionManager` to verify history persistence and model-context exclusion. Its terminal and local session bridge perform no provider call and do not constitute interactive/provider end-to-end verification.
+Tests use Node's built-in test runner. The harness models Pi's real queue and its abort/dequeue editor restoration. They cover one and several queued messages, steering/follow-up order, no-queue behavior, dequeued (Alt+Up) and expanded queue entries, including text dequeued or changed between Escape and settlement, recovered heads dropped before input or aborted at `before_agent_start`, repeated Escape, re-interrupting a replay, failed-start recovery, draft preservation, delivery cleanup, abort/settle races, attachment fallback/rejection, and session cleanup. Deterministic animation tests cover all 75 forty-millisecond frames and the exact 3000 ms window, the plate flashes and right-to-left wipe, each bar's launch, grey turn and removal with one change per frame, the cell colors and attributes in every phase (decoded from a real Pi `Theme` in truecolor and 256-color modes, dark and light), fixed bar positions and clipping at widths 0–160, alignment with the native abort notice, late-timer catch-up and clock jumps, press/repeat/release timing, persistent history, saved markers, invisible redraw widgets, and timer cleanup. The integration test models Pi 1.4.0's preflight: a hold between input and the run, `before_agent_start`, and aborts that count only once a run is being prepared. It loads the real extension through Pi's loader, routes key events through the real `TuiMainScreen` input router with an isolated terminal transport, and dispatches lifecycle/input events through Pi's real asynchronous `ExtensionRunner`, using a real `SessionManager` to verify history persistence and model-context exclusion. Its terminal and local session bridge perform no provider call and do not constitute interactive/provider end-to-end verification.
 
 The unit/harness checks live in [test/extension.test.ts](test/extension.test.ts); the real-loader checks live in [test/extension-runner.test.ts](test/extension-runner.test.ts).
 
@@ -85,3 +85,24 @@ On **2026-10-07**, using **Node v22.23.0**, locked **Pi 0.99.1** development dep
 - Simulated git installation: copied tracked working-state files plus new untracked source/declarations to a disposable directory outside the repository (without git/node_modules), ran root `npm install --omit=dev --legacy-peer-deps`, then loaded its `pi/claude-interrupt/src/index.ts` with installed Pi RPC: **install exit 0, load exit 0**, no extension load error. The disposable directory was removed.
 - `git diff --check` and staged diff check: passed; no staged files.
 - Real `pi install git:`, interactive Pi/Herdr, provider continuation, and Mermaid rendering: **not run**. No branch publication or native visual verification is implied by the simulated install or golden strings.
+
+### Dequeued-directive fix
+
+On **2026-10-29**, using **Node v22.23.4**, locked **Pi 0.99.1** development dependencies and installed **Pi 1.4.0**:
+
+- Reproduced first: the new real-runner test failed before the fix with trace `abort:kept | send:cancelled … started:cancelled | marker | send:kept`, so a directive removed with Alt+Up was sent as the continuation under DIRECTIVE UPDATED. Pi 0.99.1 and 1.4.0 both clear the queue on dequeue without an extension event.
+- Duplicate loading: Pi's `DefaultPackageManager` resolved the global settings (from the repository, home and agent-workspace) to exactly one `claude-interrupt` path.
+- `npm run check`: type check passed; **37 of 37 tests passed** (34 existing on the real-queue harness, 3 new regressions).
+- Checkout RPC load: **exit 0**.
+- Interactive Pi/Herdr check and provider continuation: **not run**.
+
+### Post-Escape cancellation windows
+
+On **2026-10-29**, same toolchain:
+
+- Text dequeued between Escape and settlement, and a head restored by recovery Escape during slow preflight, were each reproduced first: the new tests failed against the previous fix (4 unit, 3 real-runner) and pass now. Removing any one of the eight new guards fails at least one test.
+- An independent review (engineering-reviewer, Sol high) found two problems. First, text-only abandoned-head matching could abort or drop unrelated work after a failed preflight. Second, a recovery after the head's own `before_agent_start` was not stopped, and on Pi 0.99.1 it ran in full. Both were fixed with per-replay stage tracking and an `agent_start` abort. Their new regressions failed against the reviewed version, and the runner tests model both 1.4.0 and 0.99.1 abort handling.
+- `npm run check`: type check passed; **52 of 52 tests passed**.
+- Checkout RPC load: **exit 0**.
+- Pi 1.4.0's abort-before-first-request behavior was read from its source, not exercised. Interactive Pi/Herdr check and provider continuation: **not run**.
+- Independent re-review (engineering-reviewer, Sol high; read-only, executed no commands): **changes requested**. It confirmed that both earlier findings are resolved for prompts that arrive one after another. Two findings about overlapping prompts remain: a same-text message from another extension at settlement, and concurrent preparation on Pi 0.99.1. On 2026-10-29 the operator chose to record them as [known limits](docs/architecture.md#evolution-and-known-limits) without code changes.
