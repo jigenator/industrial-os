@@ -100,7 +100,7 @@ flowchart LR
     WB ==>|split or tab pane| Herdr
     WB -.->|check imports colors| DS
     AM -->|imports exported cells, palette, colors, lamp, numerals| DS
-    AM ==>|split or tab pane| Herdr
+    AM ==>|split or tab pane; startup hook restores it| Herdr
     AM ==>|two read-only JSON CLI commands| Tatsu
     SP ==>|workspace tokens, quiet block moves| Herdr
     Herdr -.->|Pi AU pane tokens| SP

@@ -2,9 +2,9 @@
 
 A Herdr 0.9.3+ plugin: a read-only terminal dashboard of this machine's Tatsu automation pipelines and schedules, in Acid / Black. It shows which pipelines are running which issues now, three hours of finished runs on one time axis, what needs attention, and when schedules last ran and run next. It opens in a split beside the pane you are in, or in its own tab.
 
-It only reads: it runs `tatsu automations pipelines --json` and `tatsu automations schedules --json`, nothing else, and never changes Tatsu, Herdr or a file.
+It only reads: it runs `tatsu automations pipelines --json` and `tatsu automations schedules --json`, nothing else, and never changes Tatsu, Herdr or a file. After Herdr restarts, its startup hook starts the monitor again in the panes where it was open.
 
-Status: built and checked against an invented fake `tatsu`, rendered at five sizes, run in an isolated Herdr 0.9.5 and read against this machine's real CLI; not yet installed in a live Herdr session. See the [verification records](CONTRIBUTING.md#verification-records).
+Status: built and checked against an invented fake `tatsu`, rendered at five sizes, run in an isolated Herdr 0.9.5 and read against this machine's real CLI, and linked in the maintainer's live Herdr. See the [verification records](CONTRIBUTING.md#verification-records).
 
 ## Requirements
 
@@ -37,6 +37,8 @@ herdr plugin link .
 herdr plugin action invoke industrial-os.automations-monitor.open
 herdr plugin action invoke industrial-os.automations-monitor.open-tab
 ```
+
+After a Herdr or terminal restart, Herdr brings the pane back as a shell; the plugin's startup hook then starts the monitor in it again, once the shell is ready, within about 20 seconds. It recognises the pane by its `Automations` label and the plugin folder, so a renamed pane comes back as a plain shell, and it never types into a pane where something else is running. `herdr plugin log list --plugin industrial-os.automations-monitor` shows what it did.
 
 To bind keys, add `[[keys.command]]` entries with `type = "plugin_action"` and these commands to Herdr's `config.toml`, after checking your own bindings. Outside Herdr, run `bun bin/automations-monitor.ts` in a terminal.
 

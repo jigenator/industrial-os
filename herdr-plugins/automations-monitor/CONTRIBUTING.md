@@ -19,13 +19,15 @@ Run from this directory. Everything below uses the fake `tatsu` in `fixtures/fak
 | Command | What it does |
 | --- | --- |
 | `./node_modules/.bin/tsc --noEmit -p .` (`bun run typecheck`) | Strict type check of `src`, `bin`, `test`, `fixtures` and `types` with TypeScript 7.0.2 |
-| `bun test` | Reader, poller, model, frames, keys and source tests |
+| `bun test` | Reader, poller, model, frames, keys, restore-hook and source tests |
 | `bun test/pty-check.ts` (`bun run pty-check`) | The live pane in a real pseudo-terminal: raw mode, `stty -g` restored, alternate screen left and cursor shown, and no fake process left, for `q`, SIGTERM, an uncaught error, a defect in the loop, and `q` and SIGTERM during a read that ignores SIGTERM |
 | `sh -n bin/automations-monitor.sh`; `sh bin/automations-monitor.sh bad` | Launcher syntax; usage on stderr and exit 2 |
 | `AUTOMATIONS_MONITOR_TATSU=$PWD/fixtures/fake-tatsu.ts FAKE_TATSU_SCENARIO=floor bun bin/automations-monitor.ts --frame 160x51 --plain` | One frame to stdout; add `--screen schedules`, `--log`, `--modal`, `--no-motion` or `--time MS`, and drop `--plain` for colour |
 | `AUTOMATIONS_MONITOR_TATSU=$PWD/fixtures/fake-tatsu.ts bun bin/automations-monitor.ts` | The live pane against the fake, in your terminal |
 
 Fake scenarios (`FAKE_TATSU_SCENARIO`): `floor` (default), `empty`, `stopped`, `unreachable`, `no-schedules`, `schedules-error`, `error`, `garbage`, `exit`, `unsupported`, `invalid`, `no-lists`, `big`, `stubborn`, `leaves-child`, `orphan-exit` and `hang`. `FAKE_TATSU_LOG` records each call's argv, times and process IDs as JSON lines; `FAKE_TATSU_DELAY_MS` delays the answer.
+
+The restore hook's tests use `fixtures/fake-herdr.ts`: `FAKE_HERDR_STATE` names a JSON file of panes and a list of process-info replies per pane, and `FAKE_HERDR_LOG` records each call's argv.
 
 Reading the real CLI (`bun bin/automations-monitor.ts --frame 160x51` without the override) is read-only, but its output is private: look at it locally and never commit it, its paths, IDs or machine names.
 
@@ -35,7 +37,7 @@ Reading the real CLI (`bun bin/automations-monitor.ts --frame 160x51` without th
 | --- | --- | --- |
 | 1 | `bun install --frozen-lockfile` | The lockfile matches the manifest |
 | 2 | `tsc --noEmit` | Types, strict |
-| 3 | `bun test` | Decoding and every failure kind against the fake (exact argv; timeout and interrupt killing a process group whose leader and descendant ignore SIGTERM; a descendant left by a leader that exits; too large; error envelope; unsupported; garbage; a missing binary); polling with no overlap and the interval after each read; states, groups and the failed-last-run rule; frame size and glyphs at 200×50, 160×51, 120×40, 80×24, 60×16 and smaller; no path on screen; each failure's wording; motion-off stillness; keys, the modal, clicks and scrolling; no colour literal and only exported design-system imports |
+| 3 | `bun test` | Decoding and every failure kind against the fake (exact argv; timeout and interrupt killing a process group whose leader and descendant ignore SIGTERM; a descendant left by a leader that exits; too large; error envelope; unsupported; garbage; a missing binary); polling with no overlap and the interval after each read; states, groups and the failed-last-run rule; frame size and glyphs at 200×50, 160×51, 120×40, 80×24, 60×16 and smaller; no path on screen; each failure's wording; motion-off stillness; keys, the modal, clicks and scrolling; the restore hook against the fake `herdr` (which panes match, the typed line, waiting for an idle shell, never typing into a busy pane, a running monitor or a held error); no colour literal and only exported design-system imports |
 | 4 | `sh -n` and a bad argument on the launcher | Launcher syntax and usage |
 | 5 | `bun test/pty-check.ts` | Terminal lifecycle and process teardown in a real PTY |
 | 6 | `bun test/golden/golden.ts compare <base-ref> <out-dir>` | Every golden frame byte-identical to the base's; required for a change meant to leave the screen alone. See [Golden frames](#golden-frames) |
@@ -65,9 +67,22 @@ Use a throwaway Herdr that shares nothing with a live session, as in the [Spaces
 4. Through the client, send `m`, `r` and `2`; read the pane for `MOTION OFF`, a fresh read time and the schedules screen.
 5. `herdr pane resize --pane <pane> --direction left|right --amount <fraction>` and read the pane at each width.
 6. `open-tab`, `herdr tab focus` it, and `q` through the client closes only that tab; focus the first tab and `q` closes the split.
-7. `herdr server stop`, check no process remains under the temporary directory, delete it, and compare the live checksums.
+7. Restore: give the temporary home a `.zshrc` that sleeps 2 s, keep a monitor split and a monitor tab open, and split a decoy shell into this directory with another label. `herdr server stop`, then start the server again. Within about 15 s both monitor panes show the monitor again, the decoy and other shells stay shells, and `herdr plugin log list` shows the startup hook with `started in 2 of 2 monitor panes`. Running `HERDR_BIN_PATH=<herdr> sh bin/automations-monitor.sh restore` again (what a live handoff does) prints `started in 0 of 2`, and `q` in a restored pane closes it. Put Bun's own directory (`~/.bun/bin`) on `PATH`, not a version-manager shim, which reads the real home.
+8. `herdr server stop`, check no process remains under the temporary directory, delete it, and compare the live checksums.
 
 ## Verification records
+
+### 2026-10-29 · restore after a Herdr restart · Bun 1.4.4, TypeScript 7.0.2, Effect 4.0.6, macOS, Herdr 0.9.5
+
+A monitor pane came back after a Herdr or Ghostty restart as a shell labelled `Automations` in this directory: Herdr restores a pane's folder and label, not a plugin pane's command. The new `[[startup]]` hook starts the monitor again in such panes ([restore](docs/architecture.md#restore-after-a-restart)).
+
+**Automated — passed.** `bun install --frozen-lockfile` unchanged; `tsc --noEmit -p .` clean; `bun test`: 67 pass, 0 fail (eight restore tests, and the source test now allows `src/restore.ts` to run `herdr` and only the reader to run `tatsu`); `sh -n` and the usage exit pass.
+
+**Isolated Herdr 0.9.5 — passed** (step 7, under `env -i` with a temporary home, XDG directories and socket, and a 2 s `.zshrc`). Before the restart: a monitor split, a monitor tab, a decoy shell in this directory labelled `Decoy`, and the first shell. After `herdr server stop` no process remained; after the restart both monitor panes drew the monitor, the decoy and the first shell stayed shells, and the plugin log showed the startup hook succeeded with `started in 2 of 2 monitor panes`. Running the hook again with the monitors up printed `started in 0 of 2`; `q` in the restored tab closed that pane. A second probe linked a copy without the hook, added it to the manifest and restarted: the hook ran without a relink. The live Herdr `config.toml`, `plugins.json` and `session.json` checksums were unchanged.
+
+**Failed, then fixed during development:** the first idle check compared only the foreground process group with the shell, and running the hook again typed into both running monitors: the monitor shares its launcher's group, and the launcher is the pane's first process when Herdr opens the pane. The check now also requires exactly one foreground process that runs neither the launcher nor the monitor, with a regression for both. In the isolated server the first hook run failed because `bun` on `PATH` was a version-manager shim reading the real home.
+
+**Not run:** a live handoff (`herdr update --handoff`); the fake covers its process shape, and the isolated rerun reproduces the hook's call. The operator's own restart, Linux, and Herdr 0.9.3 and 0.9.4 (`pane process-info` was used on 0.9.5 only). The golden frames and PTY check, since no view, terminal or reader code changed.
 
 ### 2026-10-28 · drawn with design-system parts · Bun 1.4.4, TypeScript 7.0.2, Effect 4.0.6, macOS, Herdr 0.9.5
 

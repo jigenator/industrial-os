@@ -3,6 +3,7 @@
 #   pane:     run the monitor in this pane, or explain what is missing.
 #   open:     open the monitor in a split to the right of the focused pane.
 #   open-tab: open the monitor in a new tab.
+#   restore:  the startup hook; after a server restart, start the monitor in the panes Herdr restored as shells.
 # The open modes are actions, so each can be bound to a key. Any error stays on screen until Enter.
 set -u
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -21,6 +22,12 @@ then reopen the pane.'
   status=$?
   [ "$status" -eq 0 ] || hold "The automations monitor stopped (exit $status)."
   ;;
+restore)
+  # A hook has no screen: report to Herdr's plugin log and exit.
+  command -v bun >/dev/null 2>&1 || { echo 'automations-monitor restore: Bun is not on PATH' >&2; exit 1; }
+  [ -d "$root/node_modules/effect" ] || { echo 'automations-monitor restore: not installed (bun install --frozen-lockfile)' >&2; exit 1; }
+  exec bun "$root/bin/restore.ts"
+  ;;
 open | open-tab)
   if [ "$1" = open ]; then placement="--placement split --direction right"; else placement="--placement tab"; fi
   # $placement is split into words on purpose.
@@ -28,7 +35,7 @@ open | open-tab)
   exec "${HERDR_BIN_PATH:-herdr}" plugin pane open --plugin "${HERDR_PLUGIN_ID:-industrial-os.automations-monitor}" --entrypoint monitor $placement --focus
   ;;
 *)
-  echo "usage: automations-monitor.sh pane|open|open-tab" >&2
+  echo "usage: automations-monitor.sh pane|open|open-tab|restore" >&2
   exit 2
   ;;
 esac

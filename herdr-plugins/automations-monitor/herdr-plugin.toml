@@ -8,6 +8,10 @@ platforms = ["linux", "macos"]
 [[build]]
 command = ["bun", "install", "--frozen-lockfile"]
 
+# Herdr restores a plugin pane after a server restart as a plain shell; this starts the monitor in it again.
+[[startup]]
+command = ["sh", "bin/automations-monitor.sh", "restore"]
+
 [[panes]]
 id = "monitor"
 title = "Automations"

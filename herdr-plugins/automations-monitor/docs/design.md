@@ -95,7 +95,7 @@ Only live heads, verifying segments in the modal and firing schedules blink, at 
 | `R` | Read now (ignored while a read is in flight) |
 | `Q`, `Ctrl-C`, `Ctrl-D` | Quit |
 
-The footer lists the keys; on narrow panes the labels shorten, then all but `QUIT` drop, and the keys stay. Nothing in the monitor changes Tatsu, Herdr or any file.
+The footer lists the keys; on narrow panes the labels shorten, then all but `QUIT` drop, and the keys stay. Nothing in the monitor changes Tatsu, Herdr or any file. After a Herdr restart the pane comes back running the monitor, not as a shell ([restore](architecture.md#restore-after-a-restart)).
 
 ## Truthfulness
 
