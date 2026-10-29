@@ -58,10 +58,11 @@ describe('source', () => {
     expect(pkg.devDependencies).toEqual({ '@types/bun': '1.4.4', typescript: '7.0.2' });
   });
 
-  test('the only commands run are the two fixed tatsu argvs', () => {
+  test('only the reader runs tatsu and only the restore hook runs herdr', () => {
     const spawns = code.filter((f) => f.includes(`${ROOT}/src/`) || f.includes(`${ROOT}/bin/`))
       .filter((f) => /ChildProcess\.make|Bun\.spawn|child_process|execFile/.test(readFileSync(f, 'utf8')))
-      .map((f) => relative(ROOT, f));
-    expect(spawns).toEqual(['src/reader.ts']);
+      .map((f) => relative(ROOT, f)).sort();
+    expect(spawns).toEqual(['src/reader.ts', 'src/restore.ts']);
+    expect(readFileSync(join(ROOT, 'src/restore.ts'), 'utf8')).not.toMatch(/tatsu/i);
   });
 });

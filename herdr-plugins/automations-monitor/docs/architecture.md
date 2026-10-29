@@ -6,13 +6,14 @@ Status: current. Evidence: the source and tests in this directory, the manifest 
 
 | Module | Owns | Depends on |
 | --- | --- | --- |
-| `herdr-plugin.toml` | The `bun install --frozen-lockfile` build, the `monitor` pane (a split by default) and the `open` and `open-tab` actions | Herdr 0.9.3+ plugin manifest |
-| `bin/automations-monitor.sh` | `pane`: check for Bun and installed dependencies, run the monitor, and keep any error on screen until Enter. `open`, `open-tab`: ask Herdr to open the pane in a split or a tab | POSIX `sh`, `HERDR_BIN_PATH` |
+| `herdr-plugin.toml` | The `bun install --frozen-lockfile` build, the `restore` startup hook, the `monitor` pane (a split by default) and the `open` and `open-tab` actions | Herdr 0.9.3+ plugin manifest |
+| `bin/automations-monitor.sh` | `pane`: check for Bun and installed dependencies, run the monitor, and keep any error on screen until Enter. `open`, `open-tab`: ask Herdr to open the pane in a split or a tab. `restore`: the startup hook's entry | POSIX `sh`, `HERDR_BIN_PATH` |
 | `bin/automations-monitor.ts` | Arguments, the layers, `BunRuntime.runMain`, the exit status and the redacted error report; `--frame` mode | `app`, `reader`, `terminal`, `@effect/platform-bun` |
 | `src/app.ts` | The live loop: merges terminal events, poll events and frame ticks, folds them through `ui`, and writes the rows that changed | `terminal`, `poller`, `ui`, `view/frame` |
 | `src/terminal.ts` | The scoped `Terminal` service: raw mode, alternate screen, SGR mouse, input parsing, resize, signal and error handlers, restoration | Node `process` streams in Bun |
 | `src/poller.ts` | Polling as a `Stream`: one read cycle at a time, the interval after each cycle, refresh requests | `reader` |
 | `src/reader.ts` | The `TatsuReader` service: the two fixed argvs, bounds, process-group teardown, classification of every reply | `contract`, `redact`, `effect/process` |
+| `bin/restore.ts`, `src/restore.ts` | The startup hook: find the panes Herdr restored from the monitor and start it in each ([below](#restore-after-a-restart)) | `effect/process`, the Herdr CLI |
 | `src/contract.ts` | Effect Schemas for the fields shown, and the error envelope | `effect` |
 | `src/redact.ts` | Redaction of the one free-text value, an error message | — |
 | `src/model.ts` | Pure derivation: pipeline and schedule states, groups, lanes, cadence, events, alerts, ages | `contract` |
@@ -20,7 +21,7 @@ Status: current. Evidence: the source and tests in this directory, the manifest 
 | `src/theme.ts` | Exact colours for the canvas: the roles, the board inks, the board tones' inks and cells, the category colours, and the lamp cadence, all from the design system | `@industrial-os/design-system` |
 | `src/canvas.ts` | A cell grid with text, design-system lines laid in by `blit`, and hit regions, emitted as design-system lines | `@industrial-os/design-system` |
 | `src/view/*.ts` | Pure placement of design-system parts and plain text: `frame` (header, machine row, footer, failures), `layout`, `list` (scrolling), `pipelines`, `schedules`, `modal`, `parts` (the shared calls into the design system) | `canvas`, `model`, `theme`, `ui` types, `@industrial-os/design-system` elements |
-| `fixtures/` | Invented replies and the fake `tatsu` with its scenarios | — |
+| `fixtures/` | Invented replies, the fake `tatsu` with its scenarios, and the fake `herdr` for the restore hook | — |
 | `test/golden/` | The golden-frame harness: every fast fake scenario's `--frame` output under a frozen clock, captured at a git ref and compared with this checkout ([how](../CONTRIBUTING.md#golden-frames)) | `bin/automations-monitor.ts`, `fixtures/`, Git |
 
 Runtime dependencies are `effect` and `@effect/platform-bun`, both exactly 4.0.6; development dependencies are `typescript` 7.0.2 and `@types/bun` 1.4.4. All are locked in `bun.lock`. `@industrial-os/design-system` is not in the manifest: Bun resolves it from the repository root's `node_modules`, which the root `npm install` links, and it is imported only through exported subpaths. Every consumed subpath ships colocated `.d.mts` declarations in the design system; no local ambient shim or `allowJs` is needed.
@@ -63,11 +64,19 @@ The executable is `$AUTOMATIONS_MONITOR_TATSU` when set and non-empty, else `tat
 
 Enumerated display words (reasons, problems, drift) decode as bounded identifiers, so a new value within schema 2 is shown rather than failing the read. Times decode from ISO 8601 UTC to epoch milliseconds.
 
+### Restore after a restart
+
+Herdr restores a pane after a server restart as a new shell in its saved folder with its saved label; it does not rerun a plugin pane's command ([Herdr session state](https://herdr.dev/docs/session-state/)). The manifest's `[[startup]]` hook, which Herdr runs once after it restores the session, puts the monitor back. `bin/restore.ts` lists the panes and takes those labelled with the pane title (`Automations`, `PANE_TITLE`, checked against the manifest by a test) whose folder is this plugin's directory, through symlinks. For each it reads `herdr pane process-info` every 250 ms; once two looks in a row show nothing in the foreground but the pane's own shell, it types `exec sh '<plugin>/bin/automations-monitor.sh' pane` there with `herdr pane run`, so the pane runs the launcher exactly as when Herdr opens it, and `Q` closes it. A pane that is still busy after 20 s is left alone. Each Herdr call is bounded to 5 s and 1 MiB. The hook prints only counts to Herdr's plugin log and exits 1 only if the panes cannot be listed.
+
+Herdr also runs startup hooks after a live handoff, when the monitor is still running. A running monitor shares its launcher's process group, and the launcher is the pane's first process when Herdr opened the pane, so the process group alone cannot tell it from an idle shell; the hook also requires exactly one foreground process that does not run the launcher or the monitor. A renamed pane, or one whose folder has changed, is not restored.
+
+The alternative, reporting a resume command as an agent does ([Herdr agent support](https://herdr.dev/docs/add-herdr-support/)), would make Herdr treat the monitor as a coding agent, with agent states in the sidebar, so it was not used.
+
 **Data gaps.** The CLI has no per-pipeline dispatch time (NEXT POLL replaces NEXT DISPATCH), no slot identity for runs (lanes are packed by time), no schedule fire history (the strip shows last, active and next only), and its published schedules schema pins only `service` in `runner` (state and observation are read when present).
 
 ## Invariants
 
-- Observe only: no command other than the two reads, no file writes, no Herdr calls from the TypeScript program.
+- Observe only: the monitor runs no command other than the two reads, writes no files and makes no Herdr calls. Only the startup hook calls Herdr, and it types into a restored pane only while that pane's own shell is alone in the foreground.
 - One `tatsu` process at a time, and none outlives its read or the pane.
 - The terminal is restored on every exit path: `q`, `Ctrl-C`, `SIGTERM`, `SIGHUP`, an interrupt, and an uncaught error.
 - Rendering is pure: state, size, wall clock and motion time in; exactly `rows` lines of exactly `cols` cells out, each glyph single-cell by the design system's text contract.

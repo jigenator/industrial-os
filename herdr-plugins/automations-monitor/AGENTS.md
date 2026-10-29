@@ -4,14 +4,14 @@ Follow the [root](../../AGENTS.md) and [plugin group](../AGENTS.md) guides.
 
 ## Critical rules
 
-- Observe only. The program runs exactly `tatsu automations pipelines --json` and `tatsu automations schedules --json`, one at a time, bounded, with stderr discarded, and never writes files or calls Herdr. A new command or write needs a new decision.
+- Observe only. The monitor runs exactly `tatsu automations pipelines --json` and `tatsu automations schedules --json`, one at a time, bounded, with stderr discarded, and never writes files or calls Herdr. The startup hook alone calls Herdr: it lists panes, reads their processes and starts the monitor in a restored pane whose shell is idle, never in a busy one ([restore](docs/architecture.md#restore-after-a-restart)). A new command or write needs a new decision.
 - Never invent data on the live path. Unknown is `?` or `--:--`, never zero; stale and failed reads say so; [design](docs/design.md#truthfulness) holds the wording.
 - No local path, ID or raw CLI text on screen: decode only the fields in the [data contract](docs/architecture.md#data-contract), and redact error messages.
 - The terminal is restored and every `tatsu` process group is gone on every exit path. `bun test/pty-check.ts` proves it; run it after touching `terminal.ts`, `app.ts`, `reader.ts` or the entry.
 - Colours come only from the design system (`src/theme.ts`); no colour value is written in this project. Import the design system only through exported subpaths.
 - Visual components come from the design system: views place its elements and draw only plain text themselves. A part that is missing or draws differently is added or extended in `design-system/` first, then used here; see [the rule](../../docs/conventions.md#design-system-components).
 - A change that should leave the screen alone, such as a refactor or a design-system move, keeps every golden frame: `bun test/golden/golden.ts compare <base-ref> <out-dir>` reports 0 differences ([golden frames](CONTRIBUTING.md#golden-frames)).
-- The stack (Bun, TypeScript 7.0.2, Effect 4.0.6, no bundle) is fixed by the [stack decision](../../docs/decisions/automations-monitor-stack.md). Tests never touch live Herdr or the real `tatsu`.
+- The stack (Bun, TypeScript 7.0.2, Effect 4.0.6, no bundle) is fixed by the [stack decision](../../docs/decisions/automations-monitor-stack.md). Tests never touch live Herdr or the real `tatsu`; the restore hook's tests use the fake `herdr`.
 
 ## Read for the task
 
@@ -25,4 +25,4 @@ Follow the [root](../../AGENTS.md) and [plugin group](../AGENTS.md) guides.
 
 ## Placement
 
-`src/reader.ts` owns all process I/O and `src/contract.ts` the schemas; `src/poller.ts` owns timing of reads; `src/terminal.ts` owns the terminal; `src/app.ts` owns the loop. `src/model.ts` derives states, `src/ui.ts` owns state transitions, and `src/view/` places design-system parts and text on the canvas. `bin/automations-monitor.sh` is the Herdr seam and `bin/automations-monitor.ts` the entry. Tests and the PTY check are in `test/`; invented data and the fake `tatsu` in `fixtures/`.
+`src/reader.ts` owns all process I/O and `src/contract.ts` the schemas; `src/poller.ts` owns timing of reads; `src/terminal.ts` owns the terminal; `src/app.ts` owns the loop. `src/model.ts` derives states, `src/ui.ts` owns state transitions, and `src/view/` places design-system parts and text on the canvas. `bin/automations-monitor.sh` is the Herdr seam and `bin/automations-monitor.ts` the entry; `src/restore.ts` and `bin/restore.ts` are the startup hook. Tests and the PTY check are in `test/`; invented data, the fake `tatsu` and the fake `herdr` in `fixtures/`.

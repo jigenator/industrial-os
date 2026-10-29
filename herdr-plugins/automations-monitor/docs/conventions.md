@@ -13,7 +13,7 @@ The [root conventions](../../../docs/conventions.md) and [plugin group rules](..
 - Everything is drawn through `Canvas`: design-system lines through `blit`, plain text through `text`. Text keeps printable ASCII, the fixed base design-system set (`BASE_GLYPHS` in `canvas.ts`) and the few glyphs listed once in `EXTRA_GLYPHS`, all in the design system's `GLYPHS`; upstream glyph additions never widen external-text admission. External text is cleaned with `cleanText` before it reaches a design-system part, which gets a one-cell-per-code-point `measure` and `ellipsis: 'always'`, the monitor's cut. Each row is finished with the design system's `fitLine`.
 - A view never draws a component of its own. A missing or different part is added or extended in the design system first ([rule](../../../docs/conventions.md#design-system-components)).
 - Error messages are redacted before they are stored. Never log or print stdout, stderr, paths or data from the CLI.
-- Tests use the fake `tatsu` and temporary directories, never the real CLI, the terminal of the test runner, or Herdr.
+- Tests use the fake `tatsu`, the fake `herdr` and temporary directories, never the real CLI, the terminal of the test runner, or Herdr.
 
 ## Known gaps
 
