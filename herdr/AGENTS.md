@@ -6,7 +6,7 @@ Purpose: the Herdr configuration that renders Industrial OS in Herdr, the agents
 
 - Every color is a design-system value; the design system owns them. Change the design system first, then the fragment. Check: `test/sidebar.test.mjs` and `test/theme.test.mjs` import `@industrial-os/design-system/foundation/palette` and `signal-colors` by package name.
 - Spaces keys/widths/meanings are owned by [the Spaces contract](../herdr-plugins/spaces/docs/token-contract.md); `test/spaces.test.mjs` reads its key list and checks theme roles.
-- Token names, widths and meanings are owned by [the token contract](../pi/herdr-sidebar/docs/token-contract.md) in pi/herdr-sidebar. Change the contract first, then the fragment. Check: `test/sidebar.test.mjs` reads the contract's key list and requires every key to have exactly one row entry.
+- Token names, widths and meanings are owned by [the token contract](../pi/herdr-sidebar/docs/token-contract.md) in pi/herdr-sidebar. Change the contract first, then the fragment. Check: `test/sidebar.test.mjs` reads the contract's key list and requires every rendered key to have exactly one row entry (BG data tokens remain unrendered).
 - Never modify a live Herdr configuration or server to check this project. `herdr config check` with `HERDR_CONFIG_PATH` on a file in this checkout or a temporary copy only reads it. Commands are in [CONTRIBUTING.md](CONTRIBUTING.md).
 - Herdr has no config includes; the fragment is merged by hand and must stay a valid config on its own.
 

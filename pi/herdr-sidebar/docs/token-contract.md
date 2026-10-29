@@ -27,9 +27,14 @@ Herdr trims ASCII whitespace but keeps U+2800, so every padding cell is U+2800. 
 
 ## Row 2 (always all three present)
 
+All three rendered values remain present, plus the BG data token below.
+
 - `g2_au` (units ≥ 1) or `g2_au0` (units 0 or unknown): two-digit `NNAU`, capped at `99AU`; unknown is `??AU`.
+- `g2_bg` (background running count ≥ 1) or `g2_bg0` (0 or unknown): two-digit `NNBG`, capped at `99BG`; unknown is `??BG`. Exactly one is always reported in every state, independently of the collector snapshot, like AU. The count uses the validated pi-background-tasks input described in [architecture](architecture.md#inputs); unknown is never zero.
 - `bar` / `bar_warn` / `bar_crit` / `bar_idle` / `bar_unk`: 11-cell bar of context used, `━` lit and `─` unlit, lit = ceil(used × 11 / 100), then one space, then the used percent as two digits and `%`. used = max(0, min(99, floor(usedPercent))), so `99%` means 99% or more. Warning from 70% used and critical from 90% used. At the compaction budget the collector holds `usedPercent` at 100, giving a fully lit critical bar. IDL and UNK use `bar_idle` instead of a zone token, with identical text/shape in decorative grey (#717171), not bold. WRK, SUB, RUN, QNS, BLK and DNE keep the zone tokens. Unknown context: `bar_unk` = 11 × `─` + space + `--%`.
 - `cmpx`: `CMP×NN`, two digits, capped at `CMP×99`; unknown `CMP×??`.
+
+`g2_bg`/`g2_bg0` are data tokens for read-only consumers (such as a pane card), not rendered in `herdr/sidebar.toml`. The existing sidebar rows and their geometry stay unchanged.
 
 The [Spaces plugin](../../../herdr-plugins/spaces/docs/token-contract.md) consumes
 `g2_au`/`g2_au0` from Pi pane tokens through Herdr’s socket API to aggregate
@@ -84,15 +89,15 @@ Thresholds have one executable source, `DECAY_THRESHOLDS_MS` in
 
 ## Reporting
 
-Every report sets the applicable keys and clears the rest of this list across bounded requests (clears first), so stale keys never linger. Herdr limits: 32 tokens per pane, 16 per request, 80 characters per value. The 53-key contract is not 53 stored tokens: at most 16 are simultaneously applicable (15 plus `flag`), and null clears remove stored keys. A full report is still four requests. Other reporters share the pane's 32-token budget.
+Every report sets the applicable keys and clears the rest of this list across bounded requests (clears first), so stale keys never linger. Herdr limits: 32 tokens per pane, 16 per request, 80 characters per value. The 55-key contract is not 55 stored tokens: at most 17 are simultaneously applicable (16 plus `flag`), and null clears remove stored keys. A full report is still four requests. Other reporters share the pane's 32-token budget, leaving 15 slots at this reporter's maximum.
 
-Full key list: `g1 proj proj_idle flag gt gt_off g2_au g2_au0 bar bar_warn bar_crit bar_idle bar_unk cmpx g3 br br_dirty dir prn prn_off g4 mthink g5 pane ask_l1 ask_l2 ask_l3 ev_rdy_text ph_age g3_d1 br_d1 br_dirty_d1 dir_d1 prn_d1 prn_off_d1 g4_d1 mthink_d1 g3_d2 br_d2 br_dirty_d2 dir_d2 prn_d2 prn_off_d2 g4_d2 mthink_d2 g3_d3 br_d3 br_dirty_d3 dir_d3 prn_d3 prn_off_d3 g4_d3 mthink_d3` (53 keys).
+Full key list: `g1 proj proj_idle flag gt gt_off g2_au g2_au0 g2_bg g2_bg0 bar bar_warn bar_crit bar_idle bar_unk cmpx g3 br br_dirty dir prn prn_off g4 mthink g5 pane ask_l1 ask_l2 ask_l3 ev_rdy_text ph_age g3_d1 br_d1 br_dirty_d1 dir_d1 prn_d1 prn_off_d1 g4_d1 mthink_d1 g3_d2 br_d2 br_dirty_d2 dir_d2 prn_d2 prn_off_d2 g4_d2 mthink_d2 g3_d3 br_d3 br_dirty_d3 dir_d3 prn_d3 prn_off_d3 g4_d3 mthink_d3` (55 keys).
 
 ## How the builder resolves what the contract leaves open
 
 These follow from the rules above and are pinned by `test/tokens.test.ts`; they are this extension's reading, not additions to the contract.
 
-- **No snapshot.** Without a collector, or before its first snapshot, the report is row 1's `g1` (and SPACE title when Herdr supplies it, and `flag` when set) and row 2's unknowns: `??AU`, `bar_unk` and `CMP×??`, plus PNE when the pane label is known (no age). Rows 3 and 4 report nothing rather than a guess. ASK and RDY remain inapplicable before the first snapshot, even when Herdr reports done.
+- **No snapshot.** Without a collector, or before its first snapshot, the report is row 1's `g1` (and SPACE title when Herdr supplies it, and `flag` when set) and row 2's unknowns: `??AU`, `bar_unk` and `CMP×??`, plus the independently known BG count (or `??BG` when unknown), plus PNE when the pane label is known (no age). Rows 3 and 4 report nothing rather than a guess. ASK and RDY remain inapplicable before the first snapshot, even when Herdr reports done.
 - **Gutters follow their row.** `g3` and `g4` are reported only when their row has a value, so no label stands alone.
 - **Sanitizing.** Control characters (C0, DEL and C1) and bidi controls (U+061C, U+200E/F, U+202A–U+202E, U+2066–U+2069) are removed and surrounding whitespace trimmed before a value is measured, so Herdr's own trim cannot shift alignment. In the question text, whitespace, including line breaks, separates words.
 - **Cutting.** A cut keeps whole grapheme clusters. When a wide character does not fit before the `…`, the fitted 15-cell value pads with U+2800 before the `…`, so the `…` stays in the last cell. A cut segment also keeps at most 60 code points, so no value reaches Herdr's 80-character cap.

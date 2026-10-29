@@ -12,7 +12,7 @@ import { startFakeHerdr, until, type FakeHerdr } from "./fake-herdr.ts";
 
 const packageRoot = resolve(".");
 const B = "⠀";
-const UNKNOWN_ROWS = { g2_au0: "??AU", bar_unk: "─────────── --%", cmpx: "CMP×??" };
+const UNKNOWN_ROWS = { g2_au0: "??AU", g2_bg0: "??BG", bar_unk: "─────────── --%", cmpx: "CMP×??" };
 
 // Replies to requests and announces itself on session start; `collector:set` replaces its snapshot and pushes it,
 // `collector:reload` restarts its sequence and fields and announces itself again, as a reloaded collector would.
@@ -146,7 +146,7 @@ for (const order of ["before", "after"] as const) {
 		const h = await harness(t, { collector: order });
 		await h.start();
 		await until(() => herdr.tokens.get("proj_idle") === "tatsu-cli" && herdr.tokens.get("g1") === `○ IDL${B}`, "first snapshot");
-		assert.deepEqual(tokens(herdr), sorted({ g1: `○ IDL${B}`, proj_idle: "tatsu-cli", g2_au0: "00AU", bar_unk: "─────────── --%", cmpx: "CMP×00", g3: `ACT${B}`, dir: "/work/tatsu-cli" }));
+		assert.deepEqual(tokens(herdr), sorted({ g1: `○ IDL${B}`, proj_idle: "tatsu-cli", g2_au0: "00AU", g2_bg0: "??BG", bar_unk: "─────────── --%", cmpx: "CMP×00", g3: `ACT${B}`, dir: "/work/tatsu-cli" }));
 		h.set({ units: 3, compactions: 4, context: { tokens: 1, window: 1, reserve: null, usedPercent: 67 }, model: { provider: "anthropic", id: "claude-opus-5-5" }, thinking: "high" });
 		await until(() => herdr.tokens.get("mthink") === "opus-5.5/hi", "pushed snapshot");
 		assert.equal(herdr.tokens.get("g2_au"), "03AU");
@@ -690,8 +690,11 @@ test("background status gives RUN, precedence, token choices, unseen completion 
 	assert.equal(requests[0].operation, "status"); assert.deepEqual(requests[0].payload, {});
 	assert.equal(herdr.tokens.get("proj"), "tatsu-cli"); assert.equal(herdr.tokens.has("proj_idle"), false);
 	assert.equal(herdr.tokens.has("bar_idle"), false); assert.equal(herdr.tokens.get("g2_au0"), "00AU", "background tasks do not invent subagent units");
+	assert.equal(herdr.tokens.get("g2_bg"), "01BG");
 	h.set({ units: 2 }); await until(() => herdr.tokens.get("g1") === `◐ SUB${B}`, "SUB beats RUN");
+	assert.equal(herdr.tokens.get("g2_bg"), "01BG", "SUB does not hide the running count");
 	herdr.setStatus("working"); await until(() => herdr.tokens.get("g1") === `◐ WRK${B}`, "WRK beats both");
+	assert.equal(herdr.tokens.get("g2_bg"), "01BG", "WRK does not hide the running count");
 	h.set({ units: 0 }); herdr.setStatus("blocked"); await until(() => herdr.tokens.get("g1") === `× BLK${B}`, "BLK beats RUN");
 	h.set({ question: { text: "q", more: 0 } }); await until(() => herdr.tokens.get("g1") === `× QNS${B}`, "QNS beats RUN");
 	h.set({}); herdr.setStatus("idle"); await until(() => herdr.tokens.get("g1") === `◐ RUN${B}`, "RUN restored");
@@ -701,6 +704,7 @@ test("background status gives RUN, precedence, token choices, unseen completion 
 	statuses = ["completed"]; h.events.emit(BG_TERMINAL, bgTerminal);
 	await until(() => herdr.tokens.get("g1") === `✓ DNE${B}` && herdr.tokens.get("g5") === `RDY${B}`, "unseen background finish");
 	assert.ok(herdr.tokens.get("ev_rdy_text")?.startsWith("finished")); assert.equal(herdr.tokens.get("ph_age"), `${B.repeat(4)}0s`);
+	assert.equal(herdr.tokens.get("g2_bg0"), "00BG"); assert.equal(herdr.tokens.has("g2_bg"), false);
 	// Duplicate terminal frames only re-read; they cannot restart the finish age or decrement a count.
 	h.events.emit(BG_TERMINAL, bgTerminal);
 	herdr.focus("w1", "w1:t1", "w1:p1"); await until(() => herdr.tokens.get("g1") === `○ IDL${B}`, "seen clears");
@@ -711,6 +715,7 @@ test("background status gives RUN, precedence, token choices, unseen completion 
 		if (clear === "rise") {
 			statuses = ["running"]; await endTool(h); await until(() => herdr.tokens.get("g1") === `◐ RUN${B}`, "rise clears");
 			valid = false; await endTool(h); await until(() => herdr.tokens.get("g1") === `○ IDL${B}`, "rise removed the old flag, unknown is not another finish");
+			assert.equal(herdr.tokens.get("g2_bg0"), "??BG");
 			valid = true;
 		} else {
 			herdr.setStatus("working"); await until(() => herdr.tokens.get("g1") === `◐ WRK${B}`, "work clears");

@@ -10,7 +10,7 @@ The maintained content is TOML read by Herdr. The checks use Node.js 22 with its
 
 | Order | Directory | Command | Prerequisites/effects | Coverage |
 | --- | --- | --- | --- | --- |
-| 1 | `herdr/` | `node --test` | Root install; reads `sidebar.toml`, `spaces.toml`, `theme.toml`, `../pi/herdr-sidebar/docs/token-contract.md` and `../herdr-plugins/spaces/docs/token-contract.md`; no writes | Every color is an exported palette or signal color; every token is in the contract's key list and every key has one row entry; width lock, row gap and theme values; decay ladder, mutually exclusive ACT alternatives and native row/entry limits; Spaces and theme checks below |
+| 1 | `herdr/` | `node --test` | Root install; reads `sidebar.toml`, `spaces.toml`, `theme.toml`, `../pi/herdr-sidebar/docs/token-contract.md` and `../herdr-plugins/spaces/docs/token-contract.md`; no writes | Every color is an exported palette or signal color; every token is in the contract's key list and every rendered key has one row entry (excluding BG data tokens); width lock, row gap and theme values; decay ladder, mutually exclusive ACT alternatives and native row/entry limits; Spaces and theme checks below |
 | 2 | `herdr/` | `HERDR_CONFIG_PATH="$PWD/sidebar.toml" herdr config check` | Installed Herdr; reads only that file; contacts no server and writes nothing | Herdr's own parser and validation accept the fragment as a config: prints `config: ok`, exit 0 |
 | 3 | Herdr | Manual: merge into a config as in the [README](README.md#install), reload, and watch Pi panes running herdr-sidebar | Changes the live Herdr configuration | Rendering, colors, alignment with and without the scrollbar, every state |
 

@@ -12,7 +12,7 @@ type StagedKey = `${DecayKey}_d${1 | 2 | 3}`;
 const stageKeys = (stage: 1 | 2 | 3): StagedKey[] => DECAY_FAMILIES.map((key) => `${key}_d${stage}`);
 
 export const TOKEN_KEYS = [
-	"g1", "proj", "proj_idle", "flag", "gt", "gt_off", "g2_au", "g2_au0", "bar", "bar_warn", "bar_crit", "bar_idle", "bar_unk", "cmpx", "g3", "br",
+	"g1", "proj", "proj_idle", "flag", "gt", "gt_off", "g2_au", "g2_au0", "g2_bg", "g2_bg0", "bar", "bar_warn", "bar_crit", "bar_idle", "bar_unk", "cmpx", "g3", "br",
 	"br_dirty", "dir", "prn", "prn_off", "g4", "mthink", "g5", "pane", "ask_l1", "ask_l2", "ask_l3", "ev_rdy_text", "ph_age",
 	...stageKeys(1), ...stageKeys(2), ...stageKeys(3),
 ] as const;
@@ -229,9 +229,11 @@ export function buildTokens(input: SidebarInput): TokenMap {
 		set(state === "idle" || state === "unknown" ? "proj_idle" : "proj", goalTime === undefined ? cut(project, TEXT_CELLS - flagCells) : fitLeft(project, LEFT_CELLS - flagCells));
 	}
 
-	// Row 2: units, used context, compactions. Always all three; unknown is never zero.
+	// Row 2: units, used context, compactions, plus the consumer-only background count. Always present; unknown is never zero.
 	const units = snapshot?.units ?? null;
 	set(units !== null && units >= 1 ? "g2_au" : "g2_au0", units === null ? "??AU" : `${twoDigits(units)}AU`);
+	const background = input.backgroundRunning ?? null;
+	set(background !== null && background >= 1 ? "g2_bg" : "g2_bg0", background === null ? "??BG" : `${twoDigits(background)}BG`);
 	const used = snapshot?.usedPercent ?? null;
 	if (used === null) set("bar_unk", `${"─".repeat(BAR_CELLS)} --%`);
 	else {
