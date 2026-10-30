@@ -46,7 +46,7 @@ const Pipeline = Schema.Struct({
 });
 
 export const PHASES = ['claiming', 'verifying', 'starting', 'running', 'cancelling', 'finalizing', 'terminal'] as const;
-export const OUTCOMES = ['succeeded', 'failed', 'cancelled', 'interrupted', 'dropped'] as const;
+export const OUTCOMES = ['succeeded', 'failed', 'blocked', 'cancelled', 'interrupted', 'dropped'] as const;
 
 const Run = Schema.Struct({
   pipeline: Name,

@@ -5,9 +5,9 @@
 import { fitLine, span, type Line } from '@industrial-os/design-system/foundation/cells';
 import { hex, T, type Color } from './theme.ts';
 
-// Box-drawing ticks, a dashed rule, hollow and half-filled squares, a hollow diamond, a low bar, the
+// Box-drawing ticks, a dashed rule, hollow, half-filled and framed squares, a hollow diamond, a low bar, the
 // selection pointer, arrows and en and em dashes. These retain the approved monitor glyph contract.
-export const EXTRA_GLYPHS = '┬┴┄□◩◇▁▶↑↓–—';
+export const EXTRA_GLYPHS = '┬┴┄□◩▣◇▁▶↑↓–—';
 // Keep upstream GLYPHS additions from widening what external Tatsu text can display.
 const BASE_GLYPHS = '─│┌┐└┘╵╱▐▌█▏▎▍▋▊▉░○●▲✕…━┃┏┓┗┛┼▀▄▒▓▚▞■▪·•◆▴⌑⑂×';
 const ALLOWED = new Set([...BASE_GLYPHS, ...EXTRA_GLYPHS]);

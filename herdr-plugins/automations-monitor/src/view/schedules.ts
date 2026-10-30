@@ -89,7 +89,7 @@ export function scheduleList(c: Canvas, lay: Layout, views: readonly ScheduleVie
     entries.push({ key: v.id, rows: 1, draw: (y, sel) => row(c, C, strip ? col : null, v, y, sel, now, t, motion) });
   }
   const empty = views.length === 0 ? 'NO SCHEDULES · THE RUNNER LISTS NONE' : items.length === 0 ? (filter === 'ATTENTION' ? 'NOTHING NEEDS ATTENTION' : 'NOTHING LIVE RIGHT NOW') : null;
-  return drawList(c, lay, entries, ui, filter, empty, '◆ LAST  ✕ FAILED  ◇ NEXT');
+  return drawList(c, lay, entries, ui, filter, empty, ['◆ LAST  ✕ FAILED  ◇ NEXT']);
 }
 
 function row(c: Canvas, C: Columns, col: ((at: number) => number) | null, v: ScheduleView, y: number, sel: boolean, now: number, t: number, motion: boolean): void {

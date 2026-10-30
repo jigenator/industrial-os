@@ -5,6 +5,7 @@ import { Effect, Fiber, Result } from 'effect';
 import { classify, makeReader, PIPELINES_ARGS, SCHEDULES_ARGS, tatsuCommand, type ReadFailure } from '../src/reader.ts';
 import { PipelinesData, type SchedulesData } from '../src/contract.ts';
 import { alive, FAKE, fakeLog, platform, use } from './support.ts';
+import { envelope, PIPELINES_URL, pipelinesData } from '../fixtures/data.ts';
 
 const read = (which: 'pipelines' | 'schedules', options: Parameters<typeof makeReader>[0] = {}) =>
   Effect.runPromise(Effect.gen(function* () {
@@ -121,6 +122,13 @@ describe('classify', () => {
     expect(classify(PipelinesData, JSON.stringify({ schema_version: 9, data: {} }), 0)).toEqual({ failure: { kind: 'unsupported', version: 9 } });
     expect(classify(PipelinesData, JSON.stringify({ schema_version: 2, data: {} }), 0)).toEqual({ failure: { kind: 'garbage', at: 'data.runner' } });
     expect(classify(PipelinesData, '[1]', 0)).toEqual({ failure: { kind: 'garbage', at: null } });
+  });
+
+  test('a blocked run outcome decodes', () => {
+    const data = pipelinesData(Date.parse('2026-10-31T00:00:00Z'));
+    data.runs[0] = { ...data.runs[0]!, phase: 'terminal', outcome: 'blocked', reason: 'handler-blocked', ended_at: data.runs[0]!.claimed_at };
+    const r = classify(PipelinesData, JSON.stringify(envelope(PIPELINES_URL, data)), 0);
+    expect('ok' in r && r.ok.runs[0]!.outcome).toBe('blocked');
   });
 
   test('an unknown error code shape still reads as an error envelope', () => {

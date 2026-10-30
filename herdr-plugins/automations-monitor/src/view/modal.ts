@@ -12,7 +12,7 @@ import { CATEGORIES, cell, ink, lampOn, T } from '../theme.ts';
 import { chip, head, numeral, pad2 } from './parts.ts';
 import { resultMark } from './pipelines.ts';
 
-const OUTCOME_WORD = { succeeded: 'OK', failed: 'FAILED', cancelled: 'CNCL', interrupted: 'INTR', dropped: 'DROPPED' } as const;
+const OUTCOME_WORD = { succeeded: 'OK', failed: 'FAILED', blocked: 'BLOCKED', cancelled: 'CNCL', interrupted: 'INTR', dropped: 'DROPPED' } as const;
 
 export function runModal(c: Canvas, v: PipelineView, runIndex: number, machine: string | null, reporting: Reporting, events: readonly LogEvent[], now: number, t: number, motion: boolean): void {
   // Everything behind the modal fades toward the field; a screen has few colour pairs, so each is mixed once.

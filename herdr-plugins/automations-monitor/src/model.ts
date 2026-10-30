@@ -219,7 +219,7 @@ export function scheduleViews(data: SchedulesData, reporting: Reporting): Schedu
 
 // ---------- events and alerts ----------
 
-export type Verb = 'CLAIM' | 'DONE' | 'FAIL' | 'STOP' | 'LOST' | 'OK';
+export type Verb = 'CLAIM' | 'DONE' | 'FAIL' | 'STOP' | 'LOST' | 'BLOCK' | 'OK';
 export interface LogEvent {
   readonly at: number;
   readonly verb: Verb;
@@ -229,9 +229,10 @@ export interface LogEvent {
   readonly pipeline?: string;
 }
 
-// How an outcome reads in the log: a cancelled run was stopped; an interrupted or dropped one was lost.
+// How an outcome reads in the log: a cancelled run was stopped; an interrupted or dropped one was lost; a blocked
+// one stopped on a blocker its handler reported.
 const END: Record<Outcome, readonly [Verb, Tone]> = {
-  succeeded: ['DONE', 'ok'], failed: ['FAIL', 'crit'], cancelled: ['STOP', 'warn'], interrupted: ['LOST', 'warn'], dropped: ['LOST', 'warn'],
+  succeeded: ['DONE', 'ok'], failed: ['FAIL', 'crit'], blocked: ['BLOCK', 'warn'], cancelled: ['STOP', 'warn'], interrupted: ['LOST', 'warn'], dropped: ['LOST', 'warn'],
 };
 
 export function runnerEvents(data: PipelinesData): LogEvent[] {
