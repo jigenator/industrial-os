@@ -34,7 +34,7 @@ test("observeSignals handshakes both orders; absence/asynchronous reply means un
 async function composed(t: any, order: string[]) {
 	const directory = await mkdtemp(join(tmpdir(), "pi-signals-consumer-")), bin = join(directory, "bin"); await mkdir(bin);
 	await writeFile(join(bin, "git"), "#!/bin/sh\nprintf 'fatal: not a git repository' >&2\nexit 128\n"); await chmod(join(bin, "git"), 0o755);
-	const oldEnv = { ...process.env }; Object.assign(process.env, { PATH: bin, XDG_CACHE_HOME: join(directory, "cache") });
+	const oldEnv = { ...process.env }; Object.assign(process.env, { HERDR_ENV: "0", PATH: bin, XDG_CACHE_HOME: join(directory, "cache") });
 	const events = host.createEventBus(), manager = host.SessionManager.inMemory(directory);
 	const loader = new host.DefaultResourceLoader({ eventBus: events, cwd: directory, agentDir: join(directory, "agent"), settingsManager: host.SettingsManager.inMemory(), additionalExtensionPaths: order, noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true });
 	await loader.reload(); const loaded = loader.getExtensions(); assert.deepEqual(loaded.errors, []); assert.deepEqual(loaded.warnings, []);
@@ -66,4 +66,15 @@ test("missing collector: no data subprocesses, unknown AU/CMP/Active/Git, live C
 	const spawn = t.mock.method(ChildProcess.prototype, "spawn"); const h = await composed(t, [resolve(".")]);
 	assert.equal(h.snapshot, undefined); assert.equal(h.runner.getToolDefinition("set_active_project"), undefined); assert.equal(spawn.mock.callCount(), 0);
 	const text = h.component().render(180).join("\n").replace(/\x1b\[[0-9;]*m/g, ""); assert.match(text, /CMP×\?\?/); assert.match(text, /\? AU/); assert.match(text, /unknown/); assert.match(text, /Git unavailable \(no collector\)/); assert.doesNotMatch(text, /pending|lookup pending/); assert.match(text, /fixture\/model/); assert.doesNotMatch(text, /CMP×00|00 AU|clean/);
+});
+
+
+test("visible is additive: old, null and malformed values fail open; only false freezes", () => {
+	const events = host.createEventBus(), seen: any[] = [];
+	const observer = observeSignals({ events } as any, () => "live", (s) => seen.push(s));
+	for (const [n, value] of [undefined, null, "false", 0, true, false].entries()) {
+		events.emit("signals-collector:v1:snapshot", { ...dto("live", n + 1), visible: value });
+		assert.equal(seen.at(-1).visible, typeof value === "boolean" ? value : null);
+	}
+	observer.dispose();
 });

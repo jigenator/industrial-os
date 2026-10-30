@@ -131,13 +131,13 @@ async function harness(f: any, manager: any, mode = "tui", extra: { before?: str
 	const notices: [string, string][] = [];
 	const statuses = new Map(extra.emptyStatuses ? [] : [["ponytail", "\x1b[32mPonytail ready\x1b[0m"]]);
 	const statusCalls: any[] = [];
-	let renders = 0;
+	let renders = 0, contextReads = 0;
 	const errors: any[] = []; runner.onError((error: any) => errors.push(error));
 	runner.bindCore({
 		sendMessage() {}, sendUserMessage() {}, appendEntry: (type: string, data: any) => manager.appendCustomEntry(type, data), setSessionName() {}, getSessionName: () => undefined, setLabel() {},
 		getActiveTools: () => [tool.name], getAllTools: () => [tool], getSettings: () => structuredClone(settings), setActiveTools() {}, refreshTools() {}, getCommands: () => [], setModel: async () => true,
 		getThinkingLevel: () => thinking, setThinkingLevel: (value: string) => { thinking = value; },
-	}, { getModel: () => model, getScopedModels: () => [], isIdle: () => idle, isProjectTrusted: () => false, getSignal: () => undefined, abort() {}, hasPendingMessages: () => false, shutdown() {}, getContextUsage: () => usage, compact() {}, getSystemPrompt: () => "" });
+	}, { getModel: () => model, getScopedModels: () => [], isIdle: () => idle, isProjectTrusted: () => false, getSignal: () => undefined, abort() {}, hasPendingMessages: () => false, shutdown() {}, getContextUsage: () => { contextReads++; return usage; }, compact() {}, getSystemPrompt: () => "" });
 	const makeUI = () => ({ theme: { ...theme, fg: (_color: string, text: string) => text },
 		setStatus(key: string, text: string | undefined) {
 			statusCalls.push({ key, text, receiver: this });
@@ -166,6 +166,7 @@ async function harness(f: any, manager: any, mode = "tui", extra: { before?: str
 		return { details: { version: 1, path } };
 	};
 	return { events, requests, subscriptions, statusCalls,
+		publish(patch: any) { snapshot = { ...snapshot, ...patch, seq: snapshot.seq + 1 }; events.emit("signals-collector:v1:snapshot", snapshot); },
 		get ui() { return runner.createContext().ui; },
 		setStatus(key: string, text?: string) { return runner.createContext().ui.setStatus(key, text); },
 		replaceUI() { runner.setUIContext(makeUI(), mode); },
@@ -173,7 +174,7 @@ async function harness(f: any, manager: any, mode = "tui", extra: { before?: str
 		setIdle(value: boolean) { idle = value; },
 		reply(request: any, data: any, envelope = {}) { events.emit(`subagents:rpc:v1:reply:${request.requestId}`, { version: 1, requestId: request.requestId, method: request.method, success: true, data, ...envelope }); },
 		replaceFooter() { const previous = component; previous?.dispose(); component = footerFactory({ requestRender: () => { renders++; } }, theme, { getExtensionStatuses: () => statuses }); return previous; },
-		runner, tool, emitStart, stop, text, select, statuses, errors, motion, notices, get component() { return component; }, get renders() { return renders; }, setUsage(value: any) { usage = value; }, setSettings(value: any) { settings = value; }, changeModel() { model = { ...model, id: "second-model" }; thinking = "off"; usage = { tokens: null, percent: null, contextWindow: 128_000 }; } };
+		runner, tool, emitStart, stop, text, select, statuses, errors, motion, notices, get component() { return component; }, get renders() { return renders; }, get contextReads() { return contextReads; }, setUsage(value: any) { usage = value; }, setSettings(value: any) { settings = value; }, changeModel() { model = { ...model, id: "second-model" }; thinking = "off"; usage = { tokens: null, percent: null, contextWindow: 128_000 }; } };
 }
 
 test("decorative motion: footer-owned unref'd timer, session /footer-motion, live values and disposal without extra I/O", async (t) => {
@@ -555,4 +556,53 @@ test("background tasks: real loader draws the producer's status natively, keeps 
 	await h.motion("off");
 	assert.equal(await wakes(finished), 0, "finished-only status adds no wake");
 	await h.stop(); assert.deepEqual(h.errors, []);
+});
+
+test("hidden footer freezes all repaint sources and cached rendering; resume is once, current and without boot replay", async (t) => {
+	const f = await fixtures(t), manager = host.SessionManager.inMemory(f.launch), h = await harness(f, manager);
+	t.after(() => h.stop());
+	const advance = mockClock(t);
+	await h.emitStart(); await advance(5);
+	h.publish({ usage: { installed: true, providers: [{ provider: "codex", data: { fetchedAt: Date.now(), updatedAt: null, windows: { "5h": { usedPercent: 25, resetsAt: Date.now() + 3600000 } } } }] } });
+	const cached = h.component.render(300);
+	const armed = t.mock.method(globalThis, "setTimeout");
+	h.publish({ visible: false }); const renders = h.renders;
+	const contextReads = h.contextReads;
+	h.changeModel(); h.setIdle(false); h.setStatus("ponytail", ponytailText("full", true));
+	h.events.emit("tatsu-status:changed", { version: 1, phase: "checking", components: [{ component: "tatsu-cli", state: "checking" }, { component: "agent-workspace", state: "checking" }] });
+	for (const type of ["agent_start", "agent_end", "agent_settled", "model_select", "thinking_level_select", "session_compact"]) await h.runner.emit({ type });
+	h.publish({ units: 8 }); await h.motion("off"); await h.motion("on");
+	assert.strictEqual(h.component.render(300), cached, "same width returns the exact cached lines");
+	assert.equal(h.contextReads, contextReads, "cached render does not build a snapshot");
+	const resized = h.component.render(180); assert.strictEqual(h.component.render(180), resized);
+	assert.match(resized.map(shownText).join("\n"), /second-model/, "width change renders once, settled and current");
+	await advance(10 * 60000);
+	assert.equal(h.renders, renders, "no repaint from signals/status/lifecycle/commands or cleared timers");
+	assert.equal(armed.mock.callCount(), 0, "hidden width change and updates arm no timers");
+	assert.equal(h.contextReads, contextReads + 1, "only the resized hidden render samples once");
+	h.publish({ visible: true }); assert.equal(h.renders, renders + 1, "one resume repaint");
+	const first = h.component.render(300); const text = first.map(shownText).join("\n");
+	assert.match(text, /second-model/); assert.match(text, /08 AU/); assert.match(text, /FUL/);
+	assert.ok(armed.mock.callCount() > 0, "visible render rearms decoration/countdown");
+	await h.motion("off"); const settled = h.component.render(300);
+	for (const label of ["01 ACT", "02 CTX", "03 MDL", "04 USG"]) {
+		assert.equal(first.find((line: string) => line.includes(label)), settled.find((line: string) => line.includes(label)), "no boot, PNYTL mode burst or USG fill replay; ordinary lamp/shuttle decoration may resume");
+	}
+	h.publish({ visible: false }); await h.motion("on"); const beforeUnknown = h.renders;
+	h.publish({ visible: null }); assert.equal(h.renders, beforeUnknown + 1, "unknown fails open like visible");
+	assert.deepEqual(h.errors, []);
+});
+
+
+test("hidden without cached lines renders settled once; motion-off resume remains off", async (t) => {
+	const f = await fixtures(t), manager = host.SessionManager.inMemory(f.launch), h = await harness(f, manager);
+	t.after(() => h.stop());
+	h.publish({ visible: false }); await h.emitStart(); await h.motion("off");
+	const advance = mockClock(t), armed = t.mock.method(globalThis, "setTimeout");
+	const reads = h.contextReads, first = h.component.render(300);
+	assert.match(first.map(shownText).join("\n"), /first-model/);
+	assert.strictEqual(h.component.render(300), first); assert.equal(h.contextReads, reads + 1);
+	const renders = h.renders; await advance(100000); assert.equal(h.renders, renders); assert.equal(armed.mock.callCount(), 0);
+	h.changeModel(); h.publish({ visible: null }); assert.equal(h.renders, renders + 1);
+	assert.match(h.text(), /second-model/); assert.equal(armed.mock.callCount(), 0, "motion off plus absent usage stays timer-free on resume");
 });

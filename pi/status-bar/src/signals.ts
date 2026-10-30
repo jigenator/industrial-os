@@ -39,6 +39,7 @@ export type Phase =
 	| { kind: "tool"; tool: string; target: string | null; since: number };
 export type SignalsSnapshot = {
 	version: 1; sessionId: string; seq: number; launch: string; active: string;
+	visible: boolean | null;
 	workspace: WorkspaceInfo | null; pr: PullRequestInfo | null;
 	root: { working: boolean; lastSettledAt: number | null };
 	phase: Phase | null;
@@ -61,7 +62,7 @@ export function observeSignals(pi: ExtensionAPI, sessionId: () => string | undef
 		if (typeof raw.seq === "number" && raw.seq < seq) return false;
 		if (!Number.isSafeInteger(raw.seq) || (raw.seq as number) < 0 || typeof raw.launch !== "string" || typeof raw.active !== "string"
 			|| !record(raw.usage) || !Array.isArray(raw.usage.providers)) { publish(undefined); return false; }
-		seq = raw.seq as number; publish(structuredClone(raw) as SignalsSnapshot); return true;
+		seq = raw.seq as number; publish({ ...structuredClone(raw), visible: typeof raw.visible === "boolean" ? raw.visible : null } as SignalsSnapshot); return true;
 	};
 	const request = () => {
 		if (!live || !sessionId()) return;

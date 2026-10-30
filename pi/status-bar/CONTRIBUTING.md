@@ -130,3 +130,13 @@ Final consumer re-run on the same toolchain: **135/135 passed**; collector follo
 ### Final-review absence correction
 
 2026-10-08, macOS, Node 22.23.0 and installed Pi 1.0.4: host prerequisite passed; `npm test` **135/135 passed**, no skipped/cancelled tests. The real-loader regression now distinguishes absent collector (`no collector`, never pending) from present-but-not-inspected (`Git pending`) in both load orders. Isolated checkout RPC load: **exit 0**, expected disabled-provider warnings only. Root links/anchors, guide inventory, exact CLAUDE entrypoints and whitespace checks passed. Interactive Pi/Herdr: **not run**.
+
+### Off-screen footer freeze
+
+2026-10-31, macOS, Node 22.23.4 and existing Pi 1.4.0:
+
+- npm's global prefix lacked Pi; the existing executable's host was used explicitly through `PI_HOST_ROOT` as recorded in [collector verification](../signals-collector/CONTRIBUTING.md#off-screen-visibility-freeze). The host prerequisite and `npm test` passed: **138/138**, no failed/skipped/cancelled tests. Created only the standard ignored root design-system symlink (`node_modules/@industrial-os/design-system` → `../../design-system`) with supervisor approval; no packages installed.
+- Real-loader tests check all adapter repaint sources while hidden, no decoration/countdown timers rearmed, identical cached lines/no snapshot reads, settled resize/first uncached render, current first-visible host/status/usage values, one resume repaint without boot/PNYTL/USG replay, motion-off resume and unknown fail-open. Snapshot tests retain compatibility with old v1 collectors. Collector suite: **68/68 passed**.
+- Isolated RPC package load with temporary agent/cache roots and `HERDR_ENV=0`: **exit 0**. Root links/anchors, mapped-guide inventory, exact CLAUDE entrypoints, whitespace and import/publication self-review passed; index empty.
+- Simplification reviewed the full diff against merge base `00ea975`, including surrounding observer/timer/render callers and new tests. One guarded request callback covers every repaint source; cached lines are component-local; existing stop/resume motion preserves the Ponytail budget. No renderer, design-system or status-provider behavior changed.
+- Interactive Pi/Herdr, live producers/providers, Windows, optional compile-only declaration specimen and Mermaid rendering: **not run** (no renderer on PATH; diagram unchanged). No live reload, installation, commit or push. Independent final review remains parent-owned.

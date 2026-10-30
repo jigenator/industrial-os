@@ -53,3 +53,14 @@ Final budget check: **45/45 collector and 135/135 consumer tests passed** after 
 - Isolated `printf '' | pi --mode rpc --no-extensions --extension .` with temporary agent/cache roots: **exit 0**. Non-TUI activation remains collection-free. No live configuration changed.
 - Root changed-document links/anchors, supporting-guide inventory, exact CLAUDE entrypoints, whitespace and import/publication review passed. Simplification: one bounded PR file and one global lock, no per-key file registry, watcher, daemon or new dependency; local Git and the existing quota implementation were not changed.
 - Interactive Pi/Herdr, live GitHub/auth/keychain behavior, Windows and consumer suites: **not run**. The documented narrow simultaneous-stale-taker extra-fetch race and explicit-override non-sharing are retained limitations, not fresh-lock stampedes or uncoordinated fallbacks.
+
+### Off-screen visibility freeze
+
+2026-10-31, macOS, Node 22.23.4, existing Pi 1.4.0 and Herdr 0.9.5/protocol 22:
+
+- npm's global prefix did not contain Pi (prerequisite failed there); the existing executable identified an already installed host instead. With `PI_HOST_ROOT` set to that host, the prerequisite and `npm test` passed: **68/68**, no failed/skipped/cancelled tests. No packages installed.
+- Fake-socket tests cover workspace/tab/zoom visibility, moves (later reads use the new pane ID), ignored other-workspace/tab updates, reconnect/failure unknown, disposal, malformed/oversized input and no polling. Real-loader tests cover hidden Git/PR/usage gating, deferred Active inspection, current lifecycle signals, visible/unknown catch-up and resumed intervals. Quota watch/lock tests remain green. Fixtures disable inherited live Herdr environment except when pointing to fake sockets.
+- Isolated RPC package load with temporary agent/cache roots and `HERDR_ENV=0`: **exit 0**. No live Pi reload/configuration or Herdr socket access. Schema inspection was read-only; public source citations are in [architecture](docs/architecture.md#herdr-visibility-flow-and-evidence).
+- Consumer suite: **138/138 passed**. Root changed-document links/anchors, mapped-guide inventory, exact CLAUDE entrypoints, whitespace and import/publication self-review passed; index empty.
+- Simplification reviewed the full diff against merge base `00ea975`, including new files and surrounding callers. Retained a minimal independent visibility socket client, centralized footer repaint suppression, reused existing stop/resume motion and cache locks; removed mixed acknowledgement/request cancellation bookkeeping. No generic transport package, dependency, provider registry or cross-extension import.
+- Interactive Pi/Herdr, live GitHub/CodexBar, Windows and Mermaid rendering: **not run** (no renderer on PATH; diagram unchanged). Independent final review remains a parent-owned gate, not implied by these checks.

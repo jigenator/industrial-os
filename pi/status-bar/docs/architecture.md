@@ -56,13 +56,21 @@ Restore display state and install the TUI footer; subscribe to snapshot and read
 
 ### Decorative motion
 
-The installed TUI footer owns one `MotionState` and at most one unref'd decoration timeout. The adapter supplies monotonic `performance.now()` time and a fresh cryptographic 32-bit seed to `startMotion(snapshot, now, seed, boot)`. Each render builds a fresh snapshot, calls `advanceMotion`, then projects `motionFrame`. `nextMotionDelay` schedules the next decoration step, preserving an already-earlier wake. A wake advances state against the last rendered snapshot before repainting/rearming; the ensuing render observes current host values. The wake performs no telemetry collection. Plans are generated once per event, not per frame; late wakes do not run an unbounded catch-up loop.
+The installed TUI footer owns one `MotionState` and at most one unref'd decoration timeout. The adapter supplies monotonic `performance.now()` time and a fresh cryptographic 32-bit seed to `startMotion(snapshot, now, seed, boot)`. Each non-frozen render builds a fresh snapshot, calls `advanceMotion`, then projects `motionFrame`. `nextMotionDelay` schedules the next decoration step, preserving an already-earlier wake. A wake advances state against the last rendered snapshot before repainting/rearming; the ensuing render observes current host values. The wake performs no telemetry collection. Plans are generated once per event, not per frame; late wakes do not run an unbounded catch-up loop.
 
 `/footer-motion` sets a session-local flag that survives same-session tree restore and resets for a new session or extension reload. Off clears the decoration timeout and renders the settled frame; on restarts with a fresh seed and current snapshot without replaying boot or accumulated off-time changes. Collector Git/PR/activity updates continue independently. Replacement, tree restore and shutdown dispose owned work; stale components cannot stop replacements. Non-TUI modes install no footer or signals/PNYTL/Tatsu observers and do no collection.
 
+### Off-screen freeze
+
+The collector's additive `visible` field is normalized by `signals.ts`: only boolean false freezes; absent/malformed/null fails open. The [collector visibility contract](../../signals-collector/docs/contract.md#pane-visibility-and-deferred-inspection) owns what is on screen and its limits. No Herdr socket or collection I/O belongs here.
+
+On hiding, `stopAnimation` retains the Ponytail guard budget and clears decoration scheduling; the USG repaint timeout is cleared independently of motion. A single guarded render-request callback suppresses every adapter source (signals, Tatsu, Ponytail, lifecycle, commands and timer callbacks). Observers still retain incoming values; `/footer-motion` still records the flag. Pi or another extension may request a host render independently: at unchanged width the footer returns its last lines without sampling or advancing; missing cache/changed width draws once, settled, without timers.
+
+On false → true/null, resume motion with a fresh seed and current snapshot, only if motion is enabled: no boot, fill-in/mode-change or accumulated hidden-time replay. Request one render; that render reads current host/status/signal values and rearms the countdown timeout. Git/PR catch-up remains asynchronous in the collector. Replacements/disposal retain the existing session/component fences. `test/extension.test.ts` checks timer/request suppression, cached identity/no sampling, resize, current first-visible values and resume; `test/signals.test.ts` checks additive fail-open compatibility.
+
 ### ROOT and optional fleet activity
 
-`FooterSnapshot.activity` uses `{ working: !ctx.isIdle(), units: snapshot.units ?? null }`. ROOT stays live at every render, with lifecycle repaints; `agent_end` is not settlement. AU is the collector's validated native active-work total (queued/pending/workflow containers included), not an exact running-agent count. Missing/failing collection is Unknown, never zero. Protocol validation/timing/disposal belong to the [collector](../../signals-collector/docs/architecture.md).
+`FooterSnapshot.activity` uses `{ working: !ctx.isIdle(), units: snapshot.units ?? null }`. ROOT stays live at every non-frozen render, with lifecycle repaints; `agent_end` is not settlement. AU is the collector's validated native active-work total (queued/pending/workflow containers included), not an exact running-agent count. Missing/failing collection is Unknown, never zero. Protocol validation/timing/disposal belong to the [collector](../../signals-collector/docs/architecture.md).
 
 ### Ponytail status integration
 
@@ -123,6 +131,7 @@ CMP comes from the collector's recount of persisted compaction entries on the se
 | Must remain true | Relevant code | Test/check or known gap |
 | --- | --- | --- |
 | Collector absence is unknown, never zero/clean | `src/signals.ts`, snapshot adapter | `test/signals.test.ts` absence/load-order/stale/disposal and real composition |
+| Known-hidden panes arm no decoration/countdown timers or adapter repaint requests; same-width renders reuse lines | `src/extension.ts` | Freeze/resume integration tests, including resize and unknown fail-open |
 | Rendering is I/O-free and width/terminal-safe | `src/footer.ts` | Existing renderer/shard/color tests unchanged |
 | Snapshot transport is the only collector coupling | `src/signals.ts` | Import review and both actual Pi load orders |
 | Decoration repaints only; live values never depend on motion | footer/extension motion functions | Existing pure frame/schedule tests and display-only integration |

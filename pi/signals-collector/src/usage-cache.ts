@@ -42,17 +42,18 @@ export function parseUsageCache(raw: unknown): Cache | null {
 	return { installed: raw.installed, providers: raw.installed ? providers : USAGE_PROVIDERS.map((provider) => ({ provider })), fetchedAt: raw.fetchedAt };
 }
 
-export function collectUsage(publish: (usage: UsageSnapshot) => void): { dispose(): void } {
+export function collectUsage(publish: (usage: UsageSnapshot) => void): { setVisible(visible: boolean): void; dispose(): void } {
 	const directory = join(process.env.XDG_CACHE_HOME || join(homedir(), ".cache"), "industrial-os", "signals-collector");
 	const file = join(directory, "usage.json"), lock = join(directory, "usage.lock");
 	// `contending`: the last refresh found another collector's lock. Only a contender wakes on lock removal, so this
 	// collector's own release, whenever its event arrives, never cuts short the retry after a failed write.
+	let visible = true;
 	let live = true, busy = false, contending = false, lockRemoved = false, cache: Cache | null = null;
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const controller = new AbortController();
 	const fresh = () => cache !== null && Date.now() - cache.fetchedAt < REFRESH_MS;
 	const arm = (delay = cache ? Math.max(0, cache.fetchedAt + REFRESH_MS - Date.now()) : 0) => {
-		if (!live || busy) return;
+		if (!live || !visible || busy) return;
 		if (timer) clearTimeout(timer);
 		timer = setTimeout(() => { timer = undefined; void refresh(); }, delay + Math.floor(Math.random() * 250));
 		timer.unref();
@@ -86,14 +87,14 @@ export function collectUsage(publish: (usage: UsageSnapshot) => void): { dispose
 	reload();
 
 	async function refresh() {
-		if (!live || busy) return;
+		if (!live || !visible || busy) return;
 		busy = true; contending = false; lockRemoved = false;
 		let handle: Awaited<ReturnType<typeof open>> | undefined;
 		let temporary: string | undefined;
 		let retry = REFRESH_MS;
 		try {
 			reload();
-			if (fresh() || !live) return;
+			if (fresh() || !live || !visible) return;
 			try { handle = await open(lock, "wx", 0o600); }
 			catch (error: any) {
 				if (error.code !== "EEXIST") return;
@@ -110,7 +111,8 @@ export function collectUsage(publish: (usage: UsageSnapshot) => void): { dispose
 			}
 			await handle.writeFile(JSON.stringify({ pid: process.pid, time: Date.now() }));
 			reload(); // A preceding winner may have written between the first read and lock acquisition.
-			if (fresh() || !live) return;
+			// Retry at once: showing the pane again during the lock release below cannot start a round while busy.
+			if (fresh() || !live || !visible) { retry = 0; return; }
 			const results = await Promise.all(USAGE_PROVIDERS.map((provider) => fetchUsage(provider, { signal: controller.signal })));
 			if (!live || controller.signal.aborted) return;
 			const fetchedAt = Date.now(), installed = !results.some((r) => r.kind === "not-installed");
@@ -139,5 +141,10 @@ export function collectUsage(publish: (usage: UsageSnapshot) => void): { dispose
 			arm(fresh() ? undefined : lockRemoved ? 0 : retry);
 		}
 	}
-	return { dispose() { live = false; if (timer) clearTimeout(timer); watcher?.close(); controller.abort(); } };
+	return { setVisible(next) {
+		if (!live || visible === next) return;
+		visible = next;
+		if (!visible) { if (timer) clearTimeout(timer); timer = undefined; }
+		else { reload(); if (!fresh()) void refresh(); }
+	}, dispose() { live = false; if (timer) clearTimeout(timer); watcher?.close(); controller.abort(); } };
 }
