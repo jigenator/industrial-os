@@ -9,7 +9,7 @@ const one = (line) => (assert.equal(line.length, 1), line[0]);
 test('the mark vocabulary is frozen, curated and one cell per mark', () => {
   assert.ok(Object.isFrozen(BOARD_GLYPHS) && Object.isFrozen(RUN_MARKS));
   assert.deepEqual({ ...BOARD_GLYPHS }, {
-    succeeded: '■', failed: '✕', interrupted: '◩', cancelled: '□', ended: '▪', last: '◆', next: '◇',
+    succeeded: '■', failed: '✕', interrupted: '◩', blocked: '▣', cancelled: '□', ended: '▪', last: '◆', next: '◇',
     verifying: '▒', cell: '█', pointer: '▶', spine: '▌',
   });
   for (const glyph of Object.values(BOARD_GLYPHS)) assert.ok(GLYPHS.includes(glyph), glyph);
@@ -17,7 +17,7 @@ test('the mark vocabulary is frozen, curated and one cell per mark', () => {
 
 test('run outcomes keep a distinct shape and a role ink; dropped reads as interrupted', () => {
   assert.deepEqual(JSON.parse(JSON.stringify(RUN_MARKS)), {
-    succeeded: { glyph: '■', ink: 'primary' }, failed: { glyph: '✕', ink: 'critical' },
+    succeeded: { glyph: '■', ink: 'primary' }, failed: { glyph: '✕', ink: 'critical' }, blocked: { glyph: '▣', ink: 'warning' },
     cancelled: { glyph: '□', ink: 'decorative' }, interrupted: { glyph: '◩', ink: 'warning' }, dropped: { glyph: '◩', ink: 'warning' },
   });
   assert.deepEqual(one(runMark('failed')), { text: '✕', style: { fg: 'critical' } });

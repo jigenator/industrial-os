@@ -24,7 +24,7 @@ export interface ListResult {
 }
 
 export function drawList(c: Canvas, lay: Layout, entries: readonly Entry[], ui: { selected: string | null; scroll: number; snap: boolean }, filter: Filter,
-  emptyText: string | null, legend: string): ListResult {
+  emptyText: string | null, legends: readonly string[]): ListResult {
   const items = entries.flatMap((e) => (e.key === undefined ? [] : [e.key]));
   const vis = lay.list1 - lay.list0 + 1;
   const placed: Array<{ e: Entry; vy: number }> = [];
@@ -68,6 +68,8 @@ export function drawList(c: Canvas, lay: Layout, entries: readonly Entry[], ui: 
   for (const f of FILTERS) {
     x = c.text(x, lay.posY, ` ${f} `, f === filter ? { fg: T.field, bg: T.primary, bold: true } : { fg: T.decorative }, right - x) + 1;
   }
-  if (x + 2 <= right - [...legend].length) c.rtext(right, lay.posY, legend, { fg: T.decorative });
+  // The first legend, longest first, that fits beside the filter.
+  const legend = legends.find((l) => x + 2 <= right - [...l].length);
+  if (legend !== undefined) c.rtext(right, lay.posY, legend, { fg: T.decorative });
   return { items, scroll, page: Math.max(1, vis - 1), selected };
 }

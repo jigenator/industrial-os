@@ -5,13 +5,14 @@ import { boardTone } from '../../foundation/board-tones.mjs';
 import { BOARD_INKS } from '../../foundation/signal-colors.mjs';
 
 export const BOARD_GLYPHS = Object.freeze({
-  succeeded: '■', failed: '✕', interrupted: '◩', cancelled: '□', ended: '▪', last: '◆', next: '◇',
+  succeeded: '■', failed: '✕', interrupted: '◩', blocked: '▣', cancelled: '□', ended: '▪', last: '◆', next: '◇',
   verifying: '▒', cell: '█', pointer: '▶', spine: '▌',
 });
 const G = BOARD_GLYPHS;
 export const RUN_MARKS = Object.freeze({
   succeeded: Object.freeze({ glyph: G.succeeded, ink: 'primary' }),
   failed: Object.freeze({ glyph: G.failed, ink: 'critical' }),
+  blocked: Object.freeze({ glyph: G.blocked, ink: 'warning' }),
   cancelled: Object.freeze({ glyph: G.cancelled, ink: 'decorative' }),
   interrupted: Object.freeze({ glyph: G.interrupted, ink: 'warning' }),
   dropped: Object.freeze({ glyph: G.interrupted, ink: 'warning' }),

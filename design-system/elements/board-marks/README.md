@@ -27,7 +27,7 @@ stateCell('warn');                                    // █ in warning
 | `pointer({ bold = false })` | the selection pointer `▶` in primary |
 | `spine(ink)` | the plate spine `▌` in a supplied color |
 
-`RUN_MARKS` holds each outcome's glyph and ink: succeeded `■` primary, failed `✕` critical, cancelled `□` decorative, interrupted and dropped `◩` warning. `BOARD_GLYPHS` names every glyph. Marks never carry a background except `endMark`; the host adds one, such as a selection band.
+`RUN_MARKS` holds each outcome's glyph and ink: succeeded `■` primary, failed `✕` critical, blocked `▣` warning, cancelled `□` decorative, interrupted and dropped `◩` warning. `BOARD_GLYPHS` names every glyph. Marks never carry a background except `endMark`; the host adds one, such as a selection band.
 
 ## Errors and checks
 

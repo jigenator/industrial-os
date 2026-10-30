@@ -38,8 +38,8 @@ The runner chip reads `RUNNER RUNNING`, `STARTING`, `DRAINING`, `STOPPED` or `UN
 
 Screen 1 (`1`).
 
-- **Readouts.** `01 ACTIVE RUNS`: live runs over the machine's slots, with one cell per busy slot in its pipeline's colour. `02 FINISHED · 3H`: runs that ended in the last three hours, the failure count, and a bar of succeeded, interrupted or dropped, and failed. `03 NEXT POLL`: the runner's next queue poll from `polling.next_poll_at`, with its interval, a blocked reason, or `RUNNER STOPPED` / `RUNNER NOT REPORTING` (then `--:--`). `04 ALERTS`: the count, the first alert and `+n`. Alerts are definition problems, an unreachable or stopped runner, unread schedules, paused schedules, runner problems, poll blocks and service drift.
-- **Blocks.** One per pipeline: the plate with its number in name order, the name, its scope, the newest eight results newest first (`■` succeeded, `✕` failed, `◩` interrupted or dropped, `□` cancelled), the live-run count as a numeral over `/slots`, the state chip with its reason, and one lane per slot, at most six. A pipeline with no slot count shows `?` and one lane.
+- **Readouts.** `01 ACTIVE RUNS`: live runs over the machine's slots, with one cell per busy slot in its pipeline's colour. `02 FINISHED · 3H`: runs that ended in the last three hours, the failure count, and a bar of succeeded, interrupted, dropped or blocked, and failed. `03 NEXT POLL`: the runner's next queue poll from `polling.next_poll_at`, with its interval, a blocked reason, or `RUNNER STOPPED` / `RUNNER NOT REPORTING` (then `--:--`). `04 ALERTS`: the count, the first alert and `+n`. Alerts are definition problems, an unreachable or stopped runner, unread schedules, paused schedules, runner problems, poll blocks and service drift.
+- **Blocks.** One per pipeline: the plate with its number in name order, the name, its scope, the newest eight results newest first (`■` succeeded, `✕` failed, `◩` interrupted or dropped, `▣` blocked, `□` cancelled), the live-run count as a numeral over `/slots`, the state chip with its reason, and one lane per slot, at most six. A pipeline with no slot count shows `?` and one lane.
 - **Lanes.** The axis runs from −3h to +1h, with hour ticks and quarter-hour marks, and a NOW line in acid through the list. Runs are packed into lanes by time, because the CLI does not say which slot a run used. The future is dotted. Since a stopped runner's last report the lane is dashed; since an unreachable runner was last heard from it is hatched.
 - **Bars.** Finished runs are grey, marked at their end with a red `✕` for a failure or an amber `▪` for anything else that did not succeed. A live run is hatched while claiming or verifying, then solid in its pipeline's colour with the issue number on it, ending in a head at NOW that blinks acid while the run is running. While the runner is not reporting, live runs are last known: grey, with no head.
 - **The log** is off by default here; `L` opens it and the lanes narrow.
@@ -61,7 +61,7 @@ With no live run, the selected-run side says `IDLE · NOTHING CLAIMED` or the pi
 
 ## Event log
 
-Newest first, at most what fits, with local time, a verb and the subject. Verbs: `CLAIM` (a run was claimed), `DONE` (succeeded), `FAIL` (failed), `STOP` (cancelled, or the runner stopped), `LOST` (interrupted or dropped, or the runner's last report), and `OK` (a schedule run succeeded). Events come only from timestamps the CLI reports; nothing is inferred.
+Newest first, at most what fits, with local time, a verb and the subject. Verbs: `CLAIM` (a run was claimed), `DONE` (succeeded), `FAIL` (failed), `STOP` (cancelled, or the runner stopped), `LOST` (interrupted or dropped, or the runner's last report), `BLOCK` (the handler stopped on a blocker), and `OK` (a schedule run succeeded). Events come only from timestamps the CLI reports; nothing is inferred.
 
 ## Color
 

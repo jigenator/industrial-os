@@ -22,7 +22,7 @@ export function pipelineReadouts(c: Canvas, lay: Layout, data: PipelinesData | n
   const slots = data?.machine?.slots ?? null;
   const done = views.flatMap((v) => v.done.filter((r) => (r.endedAt ?? -Infinity) > now - PAST_MS));
   const fails = done.filter((r) => r.outcome === 'failed').length;
-  const amber = done.filter((r) => r.outcome === 'interrupted' || r.outcome === 'dropped').length;
+  const amber = done.filter((r) => r.outcome === 'interrupted' || r.outcome === 'dropped' || r.outcome === 'blocked').length;
   // A stopped or unreachable runner will not poll, whatever its last report scheduled.
   const nextPoll = reporting === 'live' ? data?.polling.next_poll_at ?? null : null;
   const pollIn = nextPoll === null ? null : nextPoll - now;
@@ -110,7 +110,9 @@ export function pipelineList(c: Canvas, lay: Layout, views: readonly PipelineVie
     entries.push({ key: v.name, rows: rowsOf(v) + 1, body: rowsOf(v), draw: (y, sel) => block(c, G, v, y, sel, reporting, recordedAt, now, t, motion) });
   }
   const result = drawList(c, lay, entries, ui, filter, items.length === 0 && views.length > 0 ? (filter === 'ATTENTION' ? 'NOTHING NEEDS ATTENTION' : 'NOTHING LIVE RIGHT NOW') : null,
-    lay.cols - 4 - G.lane0 >= 60 ? '■ OK  ✕ FAIL  ◩ INTERRUPTED  ▒ VERIFYING  GREY = HISTORY  COLOUR = LIVE' : '■ OK  ✕ FAIL  ▒ VERIFYING');
+    lay.cols - 4 - G.lane0 >= 60
+      ? ['■ OK  ✕ FAIL  ◩ INTERRUPTED  ▣ BLOCKED  ▒ VERIFYING  GREY = HISTORY  COLOUR = LIVE', '■ OK  ✕ FAIL  ◩ INTERRUPTED  ▒ VERIFYING  GREY = HISTORY  COLOUR = LIVE']
+      : ['■ OK  ✕ FAIL  ▒ VERIFYING']);
   // NOW through the visible lanes and gaps.
   for (let j = lay.list0; j <= lay.list1; j++) {
     const q = c.at(G.nowX, j);

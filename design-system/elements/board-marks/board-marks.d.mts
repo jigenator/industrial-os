@@ -1,6 +1,6 @@
 import type { Color, Line } from '../../foundation/cells.mjs';
 import type { BoardToneName } from '../../foundation/board-tones.mjs';
-export type RunOutcome = 'succeeded' | 'failed' | 'cancelled' | 'interrupted' | 'dropped';
+export type RunOutcome = 'succeeded' | 'failed' | 'blocked' | 'cancelled' | 'interrupted' | 'dropped';
 export const BOARD_GLYPHS: Readonly<Record<'succeeded' | 'failed' | 'interrupted' | 'cancelled' | 'ended' | 'last' | 'next' | 'verifying' | 'cell' | 'pointer' | 'spine', string>>;
 export const RUN_MARKS: Readonly<Record<RunOutcome, Readonly<{ glyph: string; ink: Color }>>>;
 export function runMark(outcome: RunOutcome, options?: { bold?: boolean }): Line;

@@ -33,7 +33,7 @@ interface RunSpec { pipeline: string; issue: number; claimed: number; verified?:
 function run(now: number, s: RunSpec) {
   const ended = s.ended === undefined || s.ended === null ? null : now + s.ended * MIN;
   const outcome = s.outcome ?? (ended === null ? null : 'succeeded');
-  const reason = outcome === null ? null : { succeeded: 'exit-zero', failed: 'nonzero-exit', cancelled: 'cancel-requested', interrupted: 'runner-interrupted', dropped: 'ownership-lost' }[outcome];
+  const reason = outcome === null ? null : { succeeded: 'exit-zero', failed: 'nonzero-exit', blocked: 'handler-blocked', cancelled: 'cancel-requested', interrupted: 'runner-interrupted', dropped: 'ownership-lost' }[outcome];
   const claimed = now + s.claimed * MIN;
   const verified = s.verified === null ? null : claimed + (s.verified ?? 0.33) * MIN;
   return {

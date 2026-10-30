@@ -745,7 +745,7 @@ const BOARD_MARKS = boardStory('board-marks', 'BOARD MARKS', 'One-cell marks: ru
   'Every mark is a shape as well as a color: plain output keeps its meaning.',
   'A finished bar ends in a cross for a failure and a small square for any other miss; a success has no mark.',
 ], [
-  { name: 'RUNS', note: 'Newest first: succeeded, failed, interrupted, cancelled, dropped.', parts: () => [['runTrail', ['succeeded', 'failed', 'interrupted', 'cancelled', 'dropped']]] },
+  { name: 'RUNS', note: 'Newest first: succeeded, failed, interrupted, blocked, cancelled, dropped.', parts: () => [['runTrail', ['succeeded', 'failed', 'interrupted', 'blocked', 'cancelled', 'dropped']]] },
   { name: 'BAR ENDS', note: 'The end of a failed and of a cancelled bar.', parts: () => [['endMark', 'failed'], ['endMark', 'cancelled']] },
   { name: 'SCHEDULE', note: 'A last result, a last run, the next run and a firing run.', parts: () => [['scheduleMark', 'result', { outcome: 'failed' }], ['scheduleMark', 'last', { outcome: 'succeeded' }], ['scheduleMark', 'next'], ['scheduleMark', 'firing', { lit: true }]] },
   { name: 'STATES', note: 'The state cell of each tone: live, crit, warn, idle, off, ok.', parts: () => ['live', 'crit', 'warn', 'idle', 'off', 'ok'].map((tone) => ['stateCell', tone]) },
