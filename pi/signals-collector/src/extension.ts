@@ -9,10 +9,11 @@ import type { Phase, SignalsSnapshot } from "./snapshot.ts";
 import { collectUsage } from "./usage-cache.ts";
 import { emptyUsage } from "./usage.ts";
 import type { UsageSnapshot } from "./usage.ts";
-import { inspectPullRequest, inspectWorkspace, resolveActivePath } from "./workspace.ts";
+import { inspectSharedPullRequest, PR_TTL_MS, prAuthContext } from "./pr-cache.ts";
+import { inspectWorkspace, resolveActivePath } from "./workspace.ts";
 import type { PullRequestInfo, WorkspaceInfo } from "./workspace.ts";
 
-const LOCAL_REFRESH_MS = 15_000, PR_TTL_MS = 60_000;
+const LOCAL_REFRESH_MS = 15_000;
 type Selection = { version: 1; path: string };
 type SessionState = {
 	ctx: ExtensionContext; id: string; disposed: boolean; launch: string; active: string; selection: number;
@@ -89,24 +90,22 @@ export default function (pi: ExtensionAPI) {
 		}
 		const repository = workspace.github;
 		const branch = workspace.git.active.branch;
-		const key = JSON.stringify([repository.name, repository.url, branch]);
+		const key = JSON.stringify([repository.name, repository.url, branch, prAuthContext()]);
 		if (s.prKey !== key) {
 			s.prAbort?.abort(); s.prAbort = undefined;
 			s.prKey = key;
 			s.pr = { kind: "unavailable", reason: "lookup pending" };
 		}
 		const cached = s.prCache.get(key);
-		if (cached && Date.now() - cached.at < PR_TTL_MS) { s.pr = cached.value; return; }
+		if (cached && cached.at <= Date.now() && Date.now() - cached.at < PR_TTL_MS) { s.pr = cached.value; return; }
 		if (s.prAbort) return;
 		const controller = new AbortController();
 		s.prAbort = controller;
 		try {
-			let value: PullRequestInfo;
-			try { value = await inspectPullRequest(repository, branch, { signal: controller.signal }); }
-			catch (error) { value = { kind: "unavailable", reason: error instanceof Error ? error.message : "lookup failed" }; }
+			const result = await inspectSharedPullRequest(repository, branch, { signal: controller.signal });
 			if (!current(s) || controller.signal.aborted || s.prAbort !== controller || s.prKey !== key) return;
-			s.prCache.set(key, { at: Date.now(), value });
-			s.pr = value;
+			s.prCache.set(key, result);
+			s.pr = result.value;
 			changed(s);
 		} finally {
 			if (s.prAbort === controller) s.prAbort = undefined;

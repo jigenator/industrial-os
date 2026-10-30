@@ -43,3 +43,13 @@ Final budget check: **45/45 collector and 135/135 consumer tests passed** after 
 ### Own lock release
 
 2026-10-08, macOS, Node 22.23.0 and installed Pi 1.0.4: host prerequisite passed; `npm test` **49/49 passed** in three consecutive runs, no skipped/cancelled tests. The new regression makes the cache rename fail and requires no further CodexBar round within 1.5 s of the collector releasing its own lock; before the fix it saw 24 and 27 calls instead of 3. Isolated RPC load with a temporary `PI_CODING_AGENT_DIR` and cache: **exit 0**. status-bar consumer suite: **135/135 passed**. Interactive Pi/Herdr and live providers: **not run**.
+
+### Shared GitHub PR lookup
+
+2026-10-30, macOS, Node 22.23.4 and existing installed Pi 1.4.0:
+
+- Host prerequisite passed using the existing installation discovered through the `pi` executable (this shell's `npm root -g` points at a different Node-managed global prefix); `PI_HOST_ROOT` was set explicitly to that existing host. No install or dependency change.
+- `PI_HOST_ROOT="$PI_HOST_ROOT" npm test`: **62/62 passed**, no failed/skipped/cancelled tests. Includes independent-process simultaneous same-key single gh invocation, original shared timestamp/expiry, different repository/branch/default HOME/config metadata and explicit auth/config bypasses, positive/negative whitelist and eviction bounds, malformed/oversized files, stale abandoned-lock recovery, abort/timeout/contention deadline, failed atomic rename cleanup, and real-loader selection/session cancellation plus bypass session-local TTL. All gh calls were fixture executables, not live GitHub.
+- Isolated `printf '' | pi --mode rpc --no-extensions --extension .` with temporary agent/cache roots: **exit 0**. Non-TUI activation remains collection-free. No live configuration changed.
+- Root changed-document links/anchors, supporting-guide inventory, exact CLAUDE entrypoints, whitespace and import/publication review passed. Simplification: one bounded PR file and one global lock, no per-key file registry, watcher, daemon or new dependency; local Git and the existing quota implementation were not changed.
+- Interactive Pi/Herdr, live GitHub/auth/keychain behavior, Windows and consumer suites: **not run**. The documented narrow simultaneous-stale-taker extra-fetch race and explicit-override non-sharing are retained limitations, not fresh-lock stampedes or uncoordinated fallbacks.

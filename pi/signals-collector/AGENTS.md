@@ -17,7 +17,7 @@ Purpose: own TUI session signals and machine-wide parsed CodexBar quota for inde
 | --- | --- |
 | Any code/test | [Architecture](docs/architecture.md), [conventions](docs/conventions.md), [contributing](CONTRIBUTING.md) |
 | Snapshot/consumer/compatibility | [Contract](docs/contract.md), `src/snapshot.ts`, matching contract/boundary tests |
-| Workspace/PR/Active | `src/workspace.ts`, `src/extension.ts`, [Active decision](docs/decisions/agent-reported-active-workspace.md) |
+| Workspace/PR/Active | `src/workspace.ts`, `src/pr-cache.ts`, `src/extension.ts`, [PR sharing contract](docs/contract.md#3-shared-github-pr-lookup), [Active decision](docs/decisions/agent-reported-active-workspace.md) |
 | Quota/caching | `src/usage.ts`, `src/usage-cache.ts`, contract section 2 |
 | Fleet/context/goal/phase/question | Cohesive `activity`/`context`/`snapshot` module and lifecycle integration |
 | Human-facing/tool/scope | [Mission](docs/mission.md), [design](docs/design.md), [root design](../../docs/design.md) |

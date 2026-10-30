@@ -53,6 +53,7 @@ exec ${quote(git)} "$@"
 // no PR or a truthful unavailable result if the domain rejects that protocol.
 const fakeGh = `#!/bin/sh
 printf '%s %s\\n' "$$" "$*" >> "$PI_FOOTER_FIXTURE/gh.log"
+while [ -e "$PI_FOOTER_FIXTURE/hold-gh" ]; do /bin/sleep 0.02 </dev/null >/dev/null 2>&1; done
 printf '[]'
 `;
 // Deterministic `codexbar`: the n-th call for a provider prints `<provider>.<n>.json` (else `<provider>.json`) from
@@ -202,6 +203,34 @@ test("Git refresh after tools, selection aborts stale work, PR unavailable/TTL, 
 	await rm(join(f.repo, "untracked")); t.mock.timers.tick(15000); await until(() => h.read().workspace.git.active.dirty === false);
 	const count = await f.count(f.ghLog); t.mock.timers.tick(60000); await until(async () => await f.count(f.ghLog) > count);
 	await h.stop(); await until(f.idle); const gitCount = await f.count(f.gitLog); t.mock.timers.tick(120000); await sleep(100); assert.equal(await f.count(f.gitLog), gitCount);
+	assert.deepEqual(h.errors, []);
+});
+
+test("explicit auth overrides keep per-session PR TTL without shared persistence", async (t) => {
+	const f = await fixtures(t), manager = host.SessionManager.inMemory(f.launch), h = await harness(f, manager); t.after(() => h.stop());
+	process.env.GH_TOKEN = "offline-fixture-token"; process.env.GH_CONFIG_DIR = join(f.root, "gh-config");
+	f.runGit(f.repo, ["remote", "add", "origin", "https://github.com/fixture/repo.git"]);
+	await h.start(); await h.select(f.repo); await until(() => h.read().pr?.kind === "none"); const calls = await f.count(f.ghLog);
+	await h.runner.emit(toolEnd()); await until(f.idle);
+	await h.runner.emit({ type: "session_tree", newLeafId: null, oldLeafId: null }); await until(() => h.read().pr?.kind === "none");
+	assert.equal(await f.count(f.ghLog), calls);
+	await assert.rejects(readFile(join(f.root, "cache", "industrial-os", "signals-collector", "pr", "cache.json")));
+	assert.deepEqual(h.errors, []);
+});
+
+test("pending shared PR lookup cannot publish after Active selection or session replacement", async (t) => {
+	const f = await fixtures(t), manager = host.SessionManager.inMemory(f.launch), h = await harness(f, manager); t.after(() => h.stop());
+	f.runGit(f.repo, ["remote", "add", "origin", "https://github.com/fixture/repo.git"]);
+	await h.start();
+	for (const replaceSession of [false, true]) {
+		await writeFile(join(f.root, "hold-gh"), "hold"); const before = await f.count(f.ghLog);
+		await h.select(f.repo); await until(async () => await f.count(f.ghLog) > before);
+		if (replaceSession) { manager.newSession(); await h.start("new"); }
+		else await h.select(f.plain);
+		await until(() => h.read().pr?.kind === "not-applicable");
+		await rm(join(f.root, "hold-gh")); await until(f.idle); await sleep(150);
+		assert.equal(h.read().pr.kind, "not-applicable");
+	}
 	assert.deepEqual(h.errors, []);
 });
 
