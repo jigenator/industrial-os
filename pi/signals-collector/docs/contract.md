@@ -1,6 +1,6 @@
 # Signals collector contract v1
 
-Status: current. Sections 1–2 preserve the frozen 2026-10-08 handoff; section 3 adds shared PR lookup without changing the snapshot union. Herdr token/blocked-event/configuration sections belong to other projects. This collector is also the data source for future in-session panels and dashboards.
+Status: current. Sections 1–2 preserve the frozen 2026-10-08 handoff; section 3 adds shared PR lookup; `visible` is an additive v1 snapshot field. Herdr token/blocked-event/configuration sections belong to other projects. This collector is also the data source for future in-session panels and dashboards.
 
 ## 1. Snapshot contract v1 (owned by `pi/signals-collector`)
 
@@ -27,6 +27,7 @@ interface SignalsSnapshot {
   seq: number;                       // strictly increasing per collector instance
   launch: string;                    // Pi's working directory, fixed for the session
   active: string;                    // Active path from set_active_project; defaults to launch
+  visible: boolean | null;           // Herdr on-screen state; null = unknown (fail open)
   workspace: WorkspaceInfo | null;   // status-bar's existing union, moved unchanged; null = not inspected yet
   pr: PullRequestInfo | null;        // status-bar's existing union, moved unchanged; null = not looked up yet
   root: { working: boolean; lastSettledAt: number | null }; // working = !ctx.isIdle(); time of the last agent_settled
@@ -62,6 +63,16 @@ The `set_active_project` tool moves to the collector with the same name, paramet
 (`{ version: 1, path }`), so existing sessions restore unchanged.
 
 Out of scope for v1 (stay in status-bar): Ponytail, Tatsu and background-tasks status observation.
+
+### Pane visibility and deferred inspection
+
+`visible` is true when this pane's tab is the active tab of Herdr's focused workspace and either the tab is not zoomed or this pane is its `focused_pane_id`. It is false for another workspace/tab or another zoomed pane. Unfocused splits that remain on screen are visible. Missing `HERDR_ENV=1`, `HERDR_PANE_ID` or `HERDR_SOCKET_PATH`, a disconnected socket or a failed read gives null. Consumers treat null (and an absent field from older v1 collectors) exactly like true.
+
+The TUI session owns an event subscription, not a visibility poll. Subscribe before resolving `pane.get`, `workspace.get` and, for an active tab, `pane.layout`; resolve again after reconnect and visibility-changing events. A failed read disconnects, reports unknown and retries through bounded reconnect backoff. Concurrent events invalidate in-flight reads; disposal cancels sockets/timers and fences results. Changes use the normal coalesced snapshot push.
+
+While known hidden, stop the 15s Git interval and defer tool-end/Active-selection inspection and PR lookup; abort pending Git/PR work. Selection still validates and records the path. Usage timer/watch wakes do not start refresh rounds, but cache-file reloads continue; a round already fetching may finish under its existing lock. Root, phase, AU, context, questions, goals, model and all other lifecycle signals continue. On false → true/null, immediately inspect the latest Active path (including PR freshness), refresh stale usage under the same lock rules, and resume the Git interval. Asynchronous inspection results publish when ready, not as fabricated fresh data in the visibility snapshot.
+
+Limits: server focus follows the last client that navigated when several Herdr clients exist. Detached clients and minimized terminal windows still count as visible. The Herdr sidebar's Git token for a hidden pane is stale until shown again. Visible but unfocused split panes intentionally keep animating. This is server layout visibility, not operating-system window visibility.
 
 ## 2. Shared CodexBar cache (owned by `pi/signals-collector`)
 

@@ -148,3 +148,17 @@ test("a failed cache write keeps the five-minute retry: this collector's own loc
 	assert.equal((await f.calls()).length, 3, "no immediate retry after releasing its own lock");
 	assert.deepEqual(await readdir(f.directory), ["usage.json"], "temporary file removed, lock released");
 });
+
+test("hidden usage does not start rounds, still watches cache, and refreshes stale cache immediately on resume", async (t) => {
+	const f = await fixture(t), values: any[] = [];
+	const collector = collectUsage((s) => values.push(s)); t.after(() => collector.dispose());
+	collector.setVisible(false);
+	await sleep(350); assert.equal((await f.calls()).length, 0);
+	await atomic(f.file, sample(Date.now() - 6 * 60000, 55));
+	await until(() => values.at(-1).providers[0].data?.windows.wk.usedPercent === 55);
+	await sleep(350); assert.equal((await f.calls()).length, 0, "watch reload must not start a hidden round");
+	collector.setVisible(true); await until(async () => (await f.calls()).length === 3);
+	await until(async () => (await f.read()).fetchedAt > Date.now() - 60000);
+	collector.setVisible(false); collector.setVisible(true); await sleep(350);
+	assert.equal((await f.calls()).length, 3, "fresh resume does not fetch");
+});
