@@ -139,7 +139,8 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [pi/status-bar/docs/conventions.md](pi/status-bar/docs/conventions.md) | status-bar's TypeScript and Pi-extension rules and adoption gaps | Writing or reviewing status-bar code |
 | [pi/status-bar/docs/mission.md](pi/status-bar/docs/mission.md) | status-bar goals, non-goals, and constraints | Choosing or changing what status-bar does |
 | [pi/status-bar/docs/design.md](pi/status-bar/docs/design.md) | The footer experience, its palette, motion, and UI states | Changing anything a status-bar user sees or a status-bar color |
-| [docs/decisions/session-signals-collection.md](docs/decisions/session-signals-collection.md) | Why collection has one TUI owner and shared quota cache | Changing collector/display ownership or transport |
+| [docs/decisions/session-signals-collection.md](docs/decisions/session-signals-collection.md) | Why collection has one TUI owner; its quota cache part is superseded | Changing collector/display ownership or transport |
+| [docs/decisions/usage-via-source-collector.md](docs/decisions/usage-via-source-collector.md) | Why provider usage is configured source-collector sources read through a Pi setting | Changing usage collection, its configuration or the usage item convention |
 | [pi/signals-collector/README.md](pi/signals-collector/README.md) | Collector install, consumer guide and limits | Using the collector or changing its public surface |
 | [pi/signals-collector/AGENTS.md](pi/signals-collector/AGENTS.md) | Collector rules, routes and placement | Working anywhere in pi/signals-collector |
 | [pi/signals-collector/CLAUDE.md](pi/signals-collector/CLAUDE.md) | Runtime import of the collector guide | Checking agent entry points |
@@ -148,7 +149,7 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [pi/signals-collector/docs/conventions.md](pi/signals-collector/docs/conventions.md) | Collector engineering rules and gaps | Writing or reviewing collector code |
 | [pi/signals-collector/docs/mission.md](pi/signals-collector/docs/mission.md) | Collector goals and non-goals | Choosing collector scope |
 | [pi/signals-collector/docs/design.md](pi/signals-collector/docs/design.md) | Collector raw signals, tool and unknown states | Changing human-facing signals |
-| [pi/signals-collector/docs/contract.md](pi/signals-collector/docs/contract.md) | Canonical v1 snapshot and shared quota cache | Changing a signal, cache or consumer |
+| [pi/signals-collector/docs/contract.md](pi/signals-collector/docs/contract.md) | Canonical v1 snapshot, usage source convention and shared PR cache | Changing a signal, cache or consumer |
 | [pi/signals-collector/docs/decisions/agent-reported-active-workspace.md](pi/signals-collector/docs/decisions/agent-reported-active-workspace.md) | Why Active is explicit, agent-reported and display-only | Changing Active selection, persistence or cwd relationship |
 | [pi/herdr-sidebar/README.md](pi/herdr-sidebar/README.md) | herdr-sidebar purpose, rows, install, and limitations | Using herdr-sidebar |
 | [pi/herdr-sidebar/AGENTS.md](pi/herdr-sidebar/AGENTS.md) | herdr-sidebar rules, routes, and placement | Working anywhere in `pi/herdr-sidebar/` |

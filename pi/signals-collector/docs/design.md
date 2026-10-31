@@ -1,6 +1,6 @@
 # Design
 
-The collector has no terminal layout, colors or motion. Displays own presentation under the [root visual language](../../../docs/design.md). Signal names are plain technical labels; paths and bounded free-text targets/questions stay raw for each consumer to sanitize at its sink. No account identity or raw subprocess diagnostics enter quota state.
+The collector has no terminal layout, colors or motion. Displays own presentation under the [root visual language](../../../docs/design.md). Signal names are plain technical labels; paths and bounded free-text targets/questions stay raw for each consumer to sanitize at its sink. No account identity, raw subprocess diagnostics or source-collector error messages enter usage state.
 
 `set_active_project` is an agent declaration, not execution control. Its result names the full validated path in terminal-safe text and explicitly says cwd/tools/instructions/resources are unchanged. It preserves the existing schema/details and selected-branch restoration. See [the decision](decisions/agent-reported-active-workspace.md).
 

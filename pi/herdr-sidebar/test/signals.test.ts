@@ -27,7 +27,6 @@ for (const order of [[resolve("."), resolve("../signals-collector")], [resolve("
 		execFileSync(git, ["remote", "add", "origin", "https://github.com/fixture/project.git"], { cwd: project });
 		await writeFile(join(project, "modified"), "fixture");
 		await writeFile(join(bin, "gh"), '#!/bin/sh\nprintf \'[{"number":42,"state":"open","head":{"ref":"main","repo":{"full_name":"fixture/project"}},"base":{"repo":{"full_name":"fixture/project"}},"html_url":"https://github.com/fixture/project/pull/42"}]\'\n'); await chmod(join(bin, "gh"), 0o755);
-		await writeFile(join(bin, "codexbar"), `#!/bin/sh\nprintf '[{"provider":"%s","usage":{"primary":{"windowMinutes":300,"usedPercent":25,"resetsAt":null}}}]' "$3"\n`); await chmod(join(bin, "codexbar"), 0o755);
 		herdr.setStatus("working", false); herdr.setWorkspaceLabel("Release SPACE", false); herdr.setPaneLabel("Running tests");
 		const events = host.createEventBus(), manager = host.SessionManager.inMemory(project);
 		manager.appendCustomEntry("root", {}); manager.appendCompaction("summary", manager.getLeafId(), 1000);
@@ -42,12 +41,10 @@ for (const order of [[resolve("."), resolve("../signals-collector")], [resolve("
 		runner.setUIContext({ notify() {}, setStatus() {} }, "tui");
 		const read = () => { let snapshot: any; events.emit("signals-collector:v1:request", { reply: (s: any) => { snapshot = s; } }); return snapshot; };
 		await runner.emit({ type: "session_start", reason: "startup" });
-		await until(() => read()?.usage.installed === true && read()?.pr?.kind === "open", "real quota and PR");
+		await until(() => read()?.pr?.kind === "open", "real PR");
 		await until(() => herdr.tokens.get("prn") === `${B.repeat(3)}#42` && herdr.tokens.get("proj") === "Release SPACE", "real snapshot tokens");
 		const snapshot = read();
 		assert.deepEqual(snapshot.context, { tokens: 64000, window: 128000, reserve: 32000, usedPercent: 64000 / 96000 * 100 });
-		assert.deepEqual(snapshot.usage.providers.map((p: any) => p.provider), ["codex", "claude", "kimi"]);
-		for (const p of snapshot.usage.providers) { assert.deepEqual(p.data.windows["5h"], { usedPercent: 25, resetsAt: null }); assert.equal(typeof p.data.fetchedAt, "number"); }
 		assert.equal(herdr.tokens.get("bar"), "━━━━━━━━─── 66%"); assert.equal(herdr.tokens.get("cmpx"), "CMP×01");
 		assert.equal(herdr.tokens.get("g2_au0"), "??AU"); assert.equal(herdr.tokens.get("br_dirty"), `main*${B.repeat(10)}`);
 		assert.equal(herdr.tokens.get("mthink"), "opus-5.5/hi");

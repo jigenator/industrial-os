@@ -7,8 +7,7 @@ import { collectActivity } from "./activity.ts";
 import { compactionReserve, contextSnapshot } from "./context.ts";
 import { goalSnapshot, pendingQuestion, phaseTarget, READY, REQUEST, SNAPSHOT } from "./snapshot.ts";
 import type { Phase, SignalsSnapshot } from "./snapshot.ts";
-import { collectUsage } from "./usage-cache.ts";
-import { emptyUsage } from "./usage.ts";
+import { collectUsage, pendingUsage, usageSources } from "./usage.ts";
 import type { UsageSnapshot } from "./usage.ts";
 import { inspectSharedPullRequest, PR_TTL_MS, prAuthContext } from "./pr-cache.ts";
 import { inspectWorkspace, resolveActivePath } from "./workspace.ts";
@@ -149,6 +148,7 @@ export default function (pi: ExtensionAPI) {
 		session = undefined;
 		if (ctx.mode !== "tui") return;
 		const launch = ctx.sessionManager.getHeader()?.cwd ?? ctx.sessionManager.getCwd();
+		const sources = usageSources(pi.getSettings());
 		let active = launch;
 		for (const entry of ctx.sessionManager.getBranch()) {
 			if (entry.type !== "message" || entry.message.role !== "toolResult" || entry.message.toolName !== "set_active_project" || entry.message.isError) continue;
@@ -157,7 +157,7 @@ export default function (pi: ExtensionAPI) {
 		}
 		const s: SessionState = { ctx, id, disposed: false, launch, active, selection: 0, pr: null,
 			prCache: previous?.id === id ? previous.prCache : new Map(), refreshPending: false,
-			visible: null, units: null, usage: emptyUsage(), phase: ctx.isIdle() ? null : { kind: "waiting", since: Date.now() },
+			visible: null, units: null, usage: pendingUsage(sources), phase: ctx.isIdle() ? null : { kind: "waiting", since: Date.now() },
 			lastSettledAt: previous?.id === id ? previous.lastSettledAt : null, tools: new Map(), questions: new Map(), snapshot: undefined! };
 		session = s; sample(s);
 		s.offRequest = pi.events.on(REQUEST, (request) => {
@@ -166,7 +166,7 @@ export default function (pi: ExtensionAPI) {
 			request.reply(structuredClone(s.snapshot)); // synchronous: absence is detectable before emit returns
 		});
 		s.activity = collectActivity(pi, id, () => current(s), (units) => { if (current(s) && s.units !== units) { s.units = units; changed(s); } });
-		s.usageCollector = collectUsage((usage) => { if (current(s)) { s.usage = usage; changed(s); } });
+		s.usageCollector = collectUsage(sources, (usage) => { if (current(s)) { s.usage = usage; changed(s); } });
 		s.visibility = watchVisibility((visible) => {
 			if (!current(s) || s.visible === visible) return;
 			const hidden = s.visible === false; s.visible = visible;

@@ -1,196 +1,97 @@
-import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
-import { chmod, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { delimiter, join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { after, test } from 'node:test';
-import { USAGE_PROVIDERS, fetchUsage } from '../src/usage.ts';
-import type { UsageProviderId } from '../src/usage.ts';
+import assert from "node:assert/strict";
+import test from "node:test";
+import { collectUsage, nextUsage, pendingUsage, usageSources } from "../src/usage.ts";
+import type { UsageSnapshot } from "../src/usage.ts";
+import { OK_AT, snapshot, status, usageItem } from "./source-collector-fixture.ts";
 
-// Payloads follow real CodexBar 0.60.3 output (identity already removed). Account
-// fields are re-added here only to prove that nothing outside the whitelist is kept.
-const account = { providerID: 'x', accountEmail: 'person@example.invalid', accountOrganization: 'Secret Org' };
-const claude = [{
-  pace: { primary: { stage: 'farBehind', summary: '55% in reserve', deltaPercent: -55 } },
-  source: 'claude', provider: 'claude',
-  usage: {
-    secondary: { usedPercent: 6, resetsAt: '2026-10-12T19:00:00Z', resetDescription: 'ResetsOct13at3am(Asia/Singapore)', windowMinutes: 10080 },
-    dataConfidence: 'percentOnly', updatedAt: '2026-10-07T03:02:07Z',
-    primary: { usedPercent: 19, resetsAt: '2026-10-07T04:20:00Z', resetDescription: 'Resets12:20pm(Asia/Singapore)', windowMinutes: 300 },
-    tertiary: null,
-    extraRateWindows: [{ title: 'Fable only', id: 'claude-weekly-scoped-fable', window: { windowMinutes: 10080, usedPercent: 0, resetsAt: '2026-10-12T19:00:00Z' } }],
-    identity: account,
-  },
-  credits: { remaining: 12, accountEmail: 'person@example.invalid' },
-}];
-const codex = [{
-  usage: {
-    secondary: { usedPercent: 25, resetsAt: '2026-10-13T05:20:02Z', resetDescription: 'Oct 13 at 1:20\u202fPM', windowMinutes: 10080 },
-    dataConfidence: 'exact', updatedAt: '2026-10-07T03:01:50Z', primary: null, tertiary: null, identity: account,
-  },
-  pace: { secondary: { stage: 'farAhead', etaSeconds: 234325 } }, version: '0.153.0', provider: 'codex', source: 'oauth',
-}];
-const kimi = [{
-  version: '2.1.1', provider: 'kimi', source: 'Kimi Code API key',
-  usage: {
-    secondary: { resetsAt: '2026-10-07T06:13:06Z', resetDescription: 'Rate: 0/100 per 5 hours', usedPercent: 0, windowMinutes: 300 },
-    primary: { resetsAt: '2026-10-13T15:13:06Z', resetDescription: '7/100 requests', usedPercent: 7.000000000000001, windowMinutes: 10080 },
-    tertiary: null, updatedAt: '2026-10-07T03:03:20Z', identity: account,
-  },
-}];
-const failure = [{ error: { message: "Not logged in to Gemini. Run 'gemini' in Terminal to authenticate.", kind: 'provider', code: 1 }, source: 'auto', provider: 'claude' }];
 const at = (iso: string) => Date.parse(iso);
+const ids = ["usage-gpt", "usage-cld"];
+const facts = { updatedAt: "2026-10-31T07:59:00Z", h5: true, h5Used: 19, h5ResetsAt: "2026-10-31T12:20:00Z", wk: true, wkUsed: 6.5, wkResetsAt: "2026-11-05T19:00:00+08:00" };
+const sample = { windows: { "5h": { usedPercent: 19, resetsAt: at("2026-10-31T12:20:00Z") }, wk: { usedPercent: 6.5, resetsAt: at("2026-11-05T19:00:00+08:00") } }, updatedAt: at("2026-10-31T07:59:00Z"), fetchedAt: at(OK_AT) };
+const ok = (reply: unknown, previous: UsageSnapshot = pendingUsage(ids)) => nextUsage(ids, previous, reply);
+const one = (source: { id: string }, items: unknown[] = []) => nextUsage([source.id], pendingUsage([source.id]), snapshot([source], items)).providers[0];
 
-// A disposable fake `codexbar` on PATH; no live CodexBar, provider account or network.
-// Reuse one immutable executable: macOS checks each newly written executable at
-// first launch. Payloads live in non-executable files in each isolated fixture.
-const launcherRoot = await mkdtemp(join(tmpdir(), 'pi-usage-launcher-'));
-const launcher = join(launcherRoot, 'codexbar');
-await writeFile(launcher, `#!${process.execPath}\nconst fs=require('node:fs'), path=require('node:path'); const args=process.argv.slice(2);
-const root=path.dirname(process.argv[1]);
-new Function('fs','args',fs.readFileSync(path.join(root,'body'),'utf8'))(fs,args);
-`);
-await chmod(launcher, 0o755);
-after(() => rm(launcherRoot, { recursive: true, force: true }));
-async function fake(body: string, run: (log: string) => Promise<void>): Promise<void> {
-  const root = await mkdtemp(join(tmpdir(), 'pi-usage-'));
-  const log = join(root, 'calls.jsonl');
-  await symlink(launcher, join(root, 'codexbar'));
-  await writeFile(join(root, 'body'), `fs.appendFileSync(${JSON.stringify(log)},JSON.stringify({args,noColor:process.env.NO_COLOR,pid:process.pid})+'\\n');\n${body}\n`);
-  const path = process.env.PATH;
-  process.env.PATH = `${root}${delimiter}${path ?? ''}`;
-  try { await run(log); }
-  finally { process.env.PATH = path; await rm(root, { recursive: true, force: true }); }
-}
-const print = (data: unknown, exit = 0) => `process.stdout.write(${JSON.stringify(typeof data === 'string' ? data : JSON.stringify(data))}); process.exitCode=${exit};`;
-const calls = async (log: string) => { try { return (await readFile(log, 'utf8')).trim().split('\n').filter(Boolean).map((line) => JSON.parse(line)); } catch { return []; } };
-const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
-const sleep = (ms: number) => new Promise((done) => setTimeout(done, ms));
-
-test('maps the real Claude, Codex and Kimi shapes by window length, not position, with exact read-only argv', async () => {
-  assert.deepEqual([...USAGE_PROVIDERS], ['codex', 'claude', 'kimi']);
-  const expected: Record<UsageProviderId, unknown> = {
-    claude: { kind: 'usage', updatedAt: at('2026-10-07T03:02:07Z'), windows: { '5h': { usedPercent: 19, resetsAt: at('2026-10-07T04:20:00Z') }, wk: { usedPercent: 6, resetsAt: at('2026-10-12T19:00:00Z') } } },
-    // Codex has no primary (5h) window today: it is absent, not unknown.
-    codex: { kind: 'usage', updatedAt: at('2026-10-07T03:01:50Z'), windows: { wk: { usedPercent: 25, resetsAt: at('2026-10-13T05:20:02Z') } } },
-    // Kimi reports the week as primary and 5h as secondary.
-    kimi: { kind: 'usage', updatedAt: at('2026-10-07T03:03:20Z'), windows: { '5h': { usedPercent: 0, resetsAt: at('2026-10-07T06:13:06Z') }, wk: { usedPercent: 7.000000000000001, resetsAt: at('2026-10-13T15:13:06Z') } } },
-  };
-  for (const [provider, payload] of [['claude', claude], ['codex', codex], ['kimi', kimi]] as const) {
-    await fake(print(payload), async (log) => {
-      const result = await fetchUsage(provider);
-      assert.deepEqual(result, expected[provider]);
-      // Only whitelisted numbers survive: no identity, email, credits, pace, source or descriptions.
-      assert.doesNotMatch(JSON.stringify(result), /person@|Secret|identity|credits|pace|source|Resets|requests|Fable|oauth/);
-      assert.deepEqual((await calls(log)).map(({ args, noColor }) => ({ args, noColor })), [{ args: ['usage', '--provider', provider, '--format', 'json', '--json-only'], noColor: '1' }]);
-    });
-  }
+test("industrialOs.usageSources: ordered unique valid source ids; absent, invalid or empty is none", () => {
+	for (const settings of [undefined, null, {}, { industrialOs: [] }, { industrialOs: {} }, { industrialOs: { usageSources: "usage-cld" } },
+		{ industrialOs: { usageSources: [] } }, { industrialOs: { usageSources: ["usage-cld", "Usage"] } }, { industrialOs: { usageSources: ["usage-cld", ""] } },
+		{ industrialOs: { usageSources: ["usage-cld", 5] } }, { industrialOs: { usageSources: ["a b"] } }, { industrialOs: { usageSources: ["x".repeat(65)] } },
+		{ industrialOs: { usageSources: Array.from({ length: 257 }, (_, i) => `s${i}`) } }]) {
+		assert.deepEqual(usageSources(settings), [], JSON.stringify(settings)?.slice(0, 80));
+	}
+	assert.deepEqual(usageSources({ industrialOs: { usageSources: ["usage-gpt", "usage-cld", "usage-gpt", "kimi_2"] } }), ["usage-gpt", "usage-cld", "kimi_2"]);
+	assert.equal(usageSources({ industrialOs: { usageSources: Array.from({ length: 256 }, (_, i) => `s${i}`) } }).length, 256);
+	assert.deepEqual(pendingUsage([]), { installed: null, providers: [] });
 });
 
-test('error payloads, non-zero exits and malformed, empty, oversized or mismatched output are unavailable, never empty usage', async () => {
-  const failed = { kind: 'unavailable', reason: 'failed' };
-  const cases: [string, string][] = [
-    ['error payload, exit 1', print(failure, 1)],
-    ['error payload, exit 0', print(failure)],
-    ['success payload but exit 1', print(claude, 1)],
-    ['malformed JSON', print('[{"provider":"claude",')],
-    ['empty output', print('')],
-    ['non-array', print(claude[0])],
-    ['two entries', print([...claude, ...claude])],
-    ['other provider', print(kimi)],
-    ['missing usage', print([{ provider: 'claude' }])],
-    ['non-object window', print([{ provider: 'claude', usage: { primary: 'full' } }])],
-    ['oversized output', `process.stdout.write('['+' '.repeat(1100000)+']');`],
-    ['killed by a signal', `process.kill(process.pid,'SIGKILL');`],
-  ];
-  for (const [name, body] of cases) {
-    await fake(body, async () => {
-      const result = await fetchUsage('claude');
-      assert.deepEqual(result, failed, name);
-      assert.doesNotMatch(JSON.stringify(result), /Gemini|gemini|logged/, `${name}: raw messages are never returned`);
-    });
-  }
+test("state table: configured order, tag/color, data from a valid usage item and failure from source health", () => {
+	const reply = snapshot([status("usage-cld", { color: "usage.cld" }), status("usage-gpt", { color: "usage.gpt" })], [usageItem("usage-cld", facts), usageItem("usage-gpt", { wk: true, wkUsed: 25 })]);
+	assert.deepEqual(ok(reply), { installed: true, providers: [
+		{ provider: "usage-gpt", tag: "GPT", color: "usage.gpt", data: { windows: { wk: { usedPercent: 25, resetsAt: null } }, updatedAt: null, fetchedAt: at(OK_AT) } },
+		{ provider: "usage-cld", tag: "CLD", color: "usage.cld", data: sample },
+	] });
+	assert.deepEqual(ok(snapshot([status("usage-cld")])).providers[0], { provider: "usage-gpt", failure: "failed" }, "absent id");
+	const item = usageItem("usage-cld", facts);
+	assert.deepEqual(one(status("usage-cld", { state: "stale", error: { code: "timeout", message: "Source timed out" } }), [item]), { provider: "usage-cld", tag: "CLD", data: sample, failure: "timeout" });
+	assert.deepEqual(one(status("usage-cld", { state: "stale", error: { code: "command_failed", message: "exit 1" } }), [item]), { provider: "usage-cld", tag: "CLD", data: sample, failure: "failed" });
+	for (const state of ["stale", "auth", "error", "planned", "config_error", "disabled", "unknown"]) {
+		assert.deepEqual(one(status("usage-cld", { state, okAt: undefined })), { provider: "usage-cld", tag: "CLD", failure: "failed" }, state);
+	}
+	assert.deepEqual(one(status("usage-cld", { state: "loading", okAt: undefined })), { provider: "usage-cld", tag: "CLD" }, "loading is pending");
+	assert.deepEqual(one(status("usage-cld", { state: "loading" }), [item]), { provider: "usage-cld", tag: "CLD", data: sample, failure: "failed" }, "loading with items is not healthy");
+	assert.deepEqual(one(status("usage-cld")), { provider: "usage-cld", tag: "CLD" }, "ok without a usage item is no data");
 });
 
-test('ENOENT is not-installed; timeout and abort are distinct and leave no running child', async () => {
-  const empty = await mkdtemp(join(tmpdir(), 'pi-usage-empty-'));
-  const path = process.env.PATH;
-  process.env.PATH = empty;
-  try { assert.deepEqual(await fetchUsage('kimi'), { kind: 'not-installed' }); }
-  finally { process.env.PATH = path; await rm(empty, { recursive: true, force: true }); }
-
-  await fake(`setTimeout(()=>process.stdout.write(${JSON.stringify(JSON.stringify(kimi))}),5000);`, async (log) => {
-    const started = Date.now();
-    assert.deepEqual(await fetchUsage('kimi', { timeoutMs: 200 }), { kind: 'unavailable', reason: 'timeout' });
-    assert.ok(Date.now() - started < 3000, 'the bound applies');
-    const controller = new AbortController();
-    setTimeout(() => controller.abort(), 200); // after the child has started
-    assert.deepEqual(await fetchUsage('kimi', { signal: controller.signal }), { kind: 'unavailable', reason: 'cancelled' });
-    await sleep(50);
-    const spawned = await calls(log);
-    assert.equal(spawned.length, 2);
-    for (const { pid } of spawned) assert.equal(alive(pid), false, 'timeout and abort terminate the child');
-    const before = spawned.length;
-    assert.deepEqual(await fetchUsage('kimi', { signal: AbortSignal.abort() }), { kind: 'unavailable', reason: 'cancelled' });
-    assert.equal((await calls(log)).length, before, 'an already-aborted signal never spawns');
-  });
+test("usage items are validated defensively; any invalid known fact is no data", () => {
+	const cld = status("usage-cld"), data = (items: unknown[], source = cld) => one(source, items).data;
+	assert.deepEqual(data([usageItem("usage-cld")]), { windows: {}, updatedAt: null, fetchedAt: at(OK_AT) }, "no facts: no windows reported");
+	assert.deepEqual(data([usageItem("usage-cld", { h5: false, wk: false, other: "ignored", wkUsed: 3 })]), { windows: {}, updatedAt: null, fetchedAt: at(OK_AT) });
+	assert.deepEqual(data([usageItem("usage-cld", { h5: true })]), { windows: { "5h": { usedPercent: null, resetsAt: null } }, updatedAt: null, fetchedAt: at(OK_AT) });
+	for (const bad of [{ h5: "yes" }, { h5: 1 }, { h5: true, h5Used: "19" }, { h5: true, h5ResetsAt: "tomorrow" }, { wk: true, wkResetsAt: "2026-10-31" },
+		{ updatedAt: 1730000000000 }, { updatedAt: "2026-10-31T07:59:00Z".padEnd(41, "0") }]) {
+		assert.equal(data([usageItem("usage-cld", bad)]), undefined, JSON.stringify(bad));
+	}
+	assert.equal(data([usageItem("usage-cld", undefined, { facts: [] })]), undefined, "facts must be an object");
+	assert.equal(data([usageItem("usage-cld", facts)], status("usage-cld", { okAt: undefined })), undefined, "no receipt time");
+	assert.equal(data([usageItem("usage-cld", facts)], status("usage-cld", { okAt: "yesterday" })), undefined);
+	assert.equal(data([usageItem("usage-cld", facts, { key: "other" }), usageItem("usage-gpt", facts)]), undefined, "only this source's usage key");
+	assert.deepEqual(one(status("usage-cld", { tag: "T".repeat(201), color: 7 })), { provider: "usage-cld" }, "tag/color are bounded strings");
 });
 
-test('a child that ignores SIGTERM settles at the deadline or abort and is killed after the grace period', async () => {
-  await fake(`process.on('SIGTERM',()=>{}); setInterval(()=>{},1000);`, async (log) => {
-    const started = Date.now();
-    assert.deepEqual(await fetchUsage('kimi', { timeoutMs: 200, killGraceMs: 100 }), { kind: 'unavailable', reason: 'timeout' });
-    assert.ok(Date.now() - started < 1500, 'settles at the deadline, not when the child exits');
-    const controller = new AbortController();
-    setTimeout(() => controller.abort(), 200);
-    assert.deepEqual(await fetchUsage('kimi', { signal: controller.signal, killGraceMs: 100 }), { kind: 'unavailable', reason: 'cancelled' });
-    const spawned = await calls(log);
-    assert.equal(spawned.length, 2);
-    assert.ok(spawned.some(({ pid }) => alive(pid)), 'SIGTERM alone does not stop it');
-    await sleep(300);
-    for (const { pid } of spawned) assert.equal(alive(pid), false, 'escalated to SIGKILL');
-  });
+test("engine unreachable: no earlier success stays unknown; after success data is kept and marked failed", () => {
+	for (const reply of [undefined, null, {}, { ...snapshot([]), v: 2 }, { ...snapshot([]), sources: {} }, { ...snapshot([]), items: null }]) {
+		assert.deepEqual(ok(reply), pendingUsage(ids), JSON.stringify(reply));
+	}
+	const success = ok(snapshot([status("usage-cld", { state: "loading", okAt: undefined }), status("usage-gpt")], [usageItem("usage-gpt", facts)]));
+	const lost = ok(undefined, success);
+	assert.deepEqual(lost, { installed: true, providers: [{ provider: "usage-gpt", tag: "GPT", data: { ...sample }, failure: "failed" }, { provider: "usage-cld", tag: "CLD" }] });
+	assert.deepEqual(ok(undefined, lost), lost);
+	assert.deepEqual(ok(snapshot([status("usage-gpt")], [usageItem("usage-gpt", facts)]), lost).providers[0], { provider: "usage-gpt", tag: "GPT", data: sample }, "recovery clears failure");
 });
 
-test('aborting a call whose spawn failed (ENOENT) never signals the caller process group', async () => {
-  // Node 22.23 signals pid 0 when execFile's own signal aborts a failed spawn. Run in a detached
-  // process group so a regression kills only that probe, not the test runner.
-  const empty = await mkdtemp(join(tmpdir(), 'pi-usage-empty-'));
-  const script = `import { fetchUsage } from ${JSON.stringify(pathToFileURL(resolve('src/usage.ts')).href)};
-const controller = new AbortController(), pending = fetchUsage('claude', { signal: controller.signal });
-controller.abort();
-console.log(JSON.stringify(await pending));
-await new Promise((done) => setTimeout(done, 300));
-console.log('survived');`;
-  try {
-    const child = spawn(process.execPath, ['--experimental-strip-types', '--input-type=module', '-e', script], { env: { ...process.env, PATH: empty }, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
-    let output = '';
-    child.stdout.on('data', (chunk) => { output += chunk; });
-    const [code, signal] = await new Promise<[number | null, string | null]>((done) => child.on('close', (...result) => done(result as [number | null, string | null])));
-    assert.deepEqual([code, signal], [0, null], output);
-    assert.equal(output, '{"kind":"unavailable","reason":"cancelled"}\nsurvived\n');
-  } finally { await rm(empty, { recursive: true, force: true }); }
-});
+test("collector polls at once, every minute while visible, on show, one request at a time; dispose aborts and fences", async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const published: UsageSnapshot[] = [], signals: AbortSignal[] = [];
+	let release: ((value: unknown) => void) | undefined;
+	const request = (signal: AbortSignal) => { signals.push(signal); return new Promise((done) => { release = done; }); };
+	const flush = () => new Promise((done) => setImmediate(done));
+	const answer = async (value: unknown) => { release!(value); await flush(); };
 
-test('non-finite or missing percentages and invalid times are unknown; duplicate lengths keep the first; other lengths are ignored', async () => {
-  // 1e999 is how JSON spells a non-finite number: JSON.parse yields Infinity.
-  const payload = `[{"provider":"codex","usage":{"updatedAt":"yesterday",
-    "primary":{"usedPercent":1e999,"resetsAt":"2026-10-07T04:20:00.000+08:00","windowMinutes":300},
-    "secondary":{"usedPercent":40,"resetsAt":"not a date","windowMinutes":60},
-    "tertiary":{"usedPercent":10,"resetsAt":"2026-10-13T05:20:02Z","windowMinutes":300},
-    "extraRateWindows":[{"window":{"usedPercent":0,"windowMinutes":10080}}]}}]`;
-  await fake(print(payload), async () => {
-    assert.deepEqual(await fetchUsage('codex'), { kind: 'usage', updatedAt: null, windows: { '5h': { usedPercent: null, resetsAt: at('2026-10-06T20:20:00Z') } } });
-  });
-  const variants = [{ usedPercent: '19', resetsAt: 1_700_000_000 }, { usedPercent: null }, {}];
-  for (const window of variants) {
-    await fake(print([{ provider: 'claude', usage: { primary: { ...window, windowMinutes: 10080 } } }]), async () => {
-      assert.deepEqual(await fetchUsage('claude'), { kind: 'usage', updatedAt: null, windows: { wk: { usedPercent: null, resetsAt: null } } }, JSON.stringify(window));
-    });
-  }
-  // A successful payload with no 300/10080 windows is a real "no limits" state.
-  await fake(print([{ provider: 'kimi', usage: { primary: { usedPercent: 3, windowMinutes: 43200 }, secondary: null } }]), async () => {
-    assert.deepEqual(await fetchUsage('kimi'), { kind: 'usage', updatedAt: null, windows: {} });
-  });
+	const none = collectUsage([], () => assert.fail("no publish without sources"), () => assert.fail("no request without sources"));
+	t.mock.timers.tick(5 * 60_000); none.setVisible(false); none.setVisible(true); none.dispose();
+
+	const usage = collectUsage(["usage-cld"], (u) => published.push(u), request);
+	assert.equal(signals.length, 1, "immediately at start");
+	t.mock.timers.tick(60_000); assert.equal(signals.length, 1, "never overlaps an in-flight request");
+	await answer(snapshot([status("usage-cld")], [usageItem("usage-cld", facts)]));
+	assert.equal(published.at(-1)!.installed, true);
+	t.mock.timers.tick(60_000); assert.equal(signals.length, 2, "every minute while visible");
+	await answer(undefined); assert.equal(published.at(-1)!.providers[0].failure, "failed");
+	usage.setVisible(false); t.mock.timers.tick(10 * 60_000); assert.equal(signals.length, 2, "hidden panes do not poll");
+	usage.setVisible(true); assert.equal(signals.length, 3, "showing polls at once");
+	await answer(Promise.reject(new Error("transport"))); await flush();
+	t.mock.timers.tick(60_000); assert.equal(signals.length, 4, "interval resumed");
+	const before = published.length; usage.dispose();
+	assert.equal(signals[3].aborted, true, "dispose aborts the in-flight request");
+	await answer(snapshot([status("usage-cld")])); t.mock.timers.tick(10 * 60_000); usage.setVisible(false); usage.setVisible(true);
+	assert.equal(published.length, before, "no publish after dispose"); assert.equal(signals.length, 4, "no poll after dispose");
 });
