@@ -92,7 +92,9 @@ true exactly when doneAt is present, and a done item is never stale.
 
 SourceStatus carries id/label/tag/order, optional color/okAt/checkedAt/nextAt/error,
 state and writable action names. States and shared truthfulness rules live in
-[design](design.md). NextAt is advisory admission timing, not a queued promise.
+[design](design.md). NextAt is advisory admission timing, not a queued promise. It
+assumes the source's current watched or idle cadence continues: if its watch lapses
+first, the run waits for the idle interval or the next watching get.
 Counts include today/inbox/later and per-source total/waiting/fresh/oldestSince;
 per-source counts are null outside ok/stale. Handled and done items do not
 contribute to plan, total, waiting, fresh or oldestSince.

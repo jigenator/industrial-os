@@ -12,6 +12,8 @@ export type UsageSnapshot = { installed: boolean | null; providers: UsageProvide
 
 // Poll just after the engine's next planned run; while one runs, check again shortly.
 const AFTER_RUN_MS = 5_000, RUNNING_MS = 10_000, MAX_MS = 5 * 60_000, UNREACHABLE_MS = 60_000;
+// A draining engine or a stuck command reports no nextAt indefinitely; stop checking every 10 s after about 2 min.
+const RUNNING_POLLS = 12;
 const ID = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 const WINDOWS = [["h5", "5h"], ["wk", "wk"]] as const;
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -84,17 +86,20 @@ export function nextUsage(sources: readonly string[], previous: UsageSnapshot, r
 /**
  * Delay before the next poll, from the reply just read. A scheduled source has `nextAt`; a running one
  * has none, so it is checked again in RUNNING_MS. Disabled, planned and misconfigured sources never run.
- * Clamped to [RUNNING_MS, MAX_MS]; an unreadable engine retries in UNREACHABLE_MS.
+ * Clamped to [RUNNING_MS, MAX_MS]; an unreadable engine retries in UNREACHABLE_MS, as does a source that has
+ * looked running for `runningPolls` ≥ RUNNING_POLLS consecutive polls. `running` reports that case to the caller.
  */
-export function nextPollDelay(sources: readonly string[], reply: unknown, now: number): number {
-	if (!record(reply) || reply.v !== 1 || !Array.isArray(reply.sources)) return UNREACHABLE_MS;
-	let delay = MAX_MS;
+export function nextPollDelay(sources: readonly string[], reply: unknown, now: number, runningPolls = 0): { delay: number; running: boolean } {
+	if (!record(reply) || reply.v !== 1 || !Array.isArray(reply.sources)) return { delay: UNREACHABLE_MS, running: false };
+	let delay = MAX_MS, running = false;
 	for (const s of reply.sources.filter(record)) {
 		if (!sources.includes(s.id as string) || ["disabled", "planned", "config_error"].includes(s.state as string)) continue;
 		const at = instant(s.nextAt);
-		delay = Math.min(delay, at === null ? RUNNING_MS : at - now + AFTER_RUN_MS);
+		if (at === null) running = true;
+		else delay = Math.min(delay, at - now + AFTER_RUN_MS);
 	}
-	return Math.max(RUNNING_MS, delay);
+	if (running) delay = Math.min(delay, runningPolls >= RUNNING_POLLS ? UNREACHABLE_MS : RUNNING_MS);
+	return { delay: Math.max(RUNNING_MS, delay), running };
 }
 
 /**
@@ -106,7 +111,7 @@ export function collectUsage(
 	request: (signal: AbortSignal) => Promise<unknown> = (signal) => getSources(socketPath(), sources, { signal }),
 ): { setVisible(visible: boolean): void; dispose(): void } {
 	let live = sources.length > 0, visible = true, usage = pendingUsage(sources);
-	let timer: ReturnType<typeof setTimeout> | undefined, controller: AbortController | undefined;
+	let timer: ReturnType<typeof setTimeout> | undefined, controller: AbortController | undefined, runningPolls = 0;
 	async function poll() {
 		if (!live || !visible || controller) return;
 		clearTimeout(timer); timer = undefined;
@@ -116,7 +121,9 @@ export function collectUsage(
 		if (!live || own.signal.aborted) return;
 		usage = nextUsage(sources, usage, reply);
 		publish(usage);
-		if (visible) { timer = setTimeout(() => void poll(), nextPollDelay(sources, reply, Date.now())); timer.unref(); }
+		const next = nextPollDelay(sources, reply, Date.now(), runningPolls);
+		runningPolls = next.running ? runningPolls + 1 : 0;
+		if (visible) { timer = setTimeout(() => void poll(), next.delay); timer.unref(); }
 	}
 	void poll();
 	return {

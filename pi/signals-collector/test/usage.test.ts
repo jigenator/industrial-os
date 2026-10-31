@@ -70,7 +70,7 @@ test("engine unreachable: no earlier success stays unknown; after success data i
 
 test("next poll follows the engine's nextAt: just after the earliest run, shortly while one runs, clamped", () => {
 	const now = at(OK_AT), next = (ms: number) => new Date(now + ms).toISOString();
-	const delay = (sources: unknown[]) => nextPollDelay(ids, snapshot(sources), now);
+	const delay = (sources: unknown[], runningPolls = 0) => nextPollDelay(ids, snapshot(sources), now, runningPolls).delay;
 	assert.equal(delay([status("usage-gpt", { nextAt: next(120_000) }), status("usage-cld", { nextAt: next(240_000) })]), 125_000, "earliest nextAt plus margin");
 	assert.equal(delay([status("usage-gpt", { nextAt: next(120_000) }), status("usage-cld")]), 10_000, "a running source (no nextAt) is checked shortly");
 	assert.equal(delay([status("usage-gpt", { nextAt: next(-60_000) })]), 10_000, "overdue clamps to the minimum");
@@ -78,7 +78,11 @@ test("next poll follows the engine's nextAt: just after the earliest run, shortl
 	assert.equal(delay([status("usage-gpt", { state: "disabled" }), status("usage-cld", { state: "planned" }), status("other")]), 5 * 60_000, "never-running and unconfigured sources are ignored");
 	assert.equal(delay([status("usage-gpt", { state: "config_error", nextAt: "nonsense" })]), 5 * 60_000);
 	assert.equal(delay([]), 5 * 60_000, "no configured source in the reply");
-	for (const reply of [undefined, {}, { ...snapshot([]), v: 2 }]) assert.equal(nextPollDelay(ids, reply, now), 60_000, "unreachable retries in a minute");
+	assert.equal(delay([status("usage-gpt")], 11), 10_000);
+	assert.equal(delay([status("usage-gpt")], 12), 60_000, "a source running for about 2 min (draining engine, stuck command) backs off to a minute");
+	assert.equal(delay([status("usage-gpt", { nextAt: next(20_000) }), status("usage-cld")], 12), 25_000, "a sooner scheduled run still wins");
+	assert.deepEqual(nextPollDelay(ids, snapshot([status("usage-gpt", { nextAt: next(60_000) })]), now, 5), { delay: 65_000, running: false });
+	for (const reply of [undefined, {}, { ...snapshot([]), v: 2 }]) assert.deepEqual(nextPollDelay(ids, reply, now), { delay: 60_000, running: false }, "unreachable retries in a minute");
 });
 
 test("collector polls at once, then on the nextAt schedule while visible, on show, one request at a time; dispose aborts and fences", async (t) => {

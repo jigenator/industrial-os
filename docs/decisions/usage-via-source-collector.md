@@ -4,7 +4,7 @@ Status: current. Date: 2026-10-31; approved. Supersedes the quota part of [sessi
 
 ## Choice
 
-Provider usage is collected by ordinary [source-collector](../../source-collector/README.md) sources, one per provider, in a private config. Each source's transform emits one `usage` item following the [usage item convention](../../pi/signals-collector/docs/contract.md#usage-item-convention). `pi/signals-collector` reads only the source ids listed in the Pi setting `industrialOs.usageSources`, with a scoped `get` over source-collector's socket every minute while its pane is visible, and maps them into the v1 `usage` field in that order. Its [state table](../../pi/signals-collector/docs/contract.md#state-table) is canonical. Displays render whatever usage columns arrive; nothing outside the private config and the documented convention names CodexBar or a provider.
+Provider usage is collected by ordinary [source-collector](../../source-collector/README.md) sources, one per provider, in a private config. Each source's transform emits one `usage` item following the [usage item convention](../../pi/signals-collector/docs/contract.md#usage-item-convention). `pi/signals-collector` reads only the source ids listed in the Pi setting `industrialOs.usageSources`, with a scoped `get` over source-collector's socket, timed from each source's `nextAt` while its pane is visible, and maps them into the v1 `usage` field in that order. Its [state table](../../pi/signals-collector/docs/contract.md#state-table) is canonical. Displays render whatever usage columns arrive; nothing outside the private config and the documented convention names CodexBar or a provider.
 
 ## Why
 

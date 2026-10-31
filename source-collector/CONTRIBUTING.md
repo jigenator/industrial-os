@@ -221,3 +221,5 @@ Effect RPC. No adapter registry, generic service framework, queue, recovery engi
 root dependency or real account config was added. The final contract pass also
 put checklist output through the same SourceOutput decoder as command output
 and replaced its diagnostic raw-size placeholder with the actual file size.
+
+2026-10-31, macOS, Bun 1.4.4 (per-source watching): `bun test` **45/45 passed**, including a scoped-watch test (only selected sources speed up; unknown and duplicate ids are harmless; an unscoped watch still covers every source, including one configured inside its window; re-watching inside it adds no run). dispatch-feed `bun test` **27/27**. Live engine with the new code: **not run**.

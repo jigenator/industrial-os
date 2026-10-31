@@ -73,6 +73,10 @@ test("scoped watch speeds up only the requested sources; unscoped covers all", a
       expect(Date.parse(scheduler.nextAt("a", 132000)!)).toBe(162000);
       yield* scheduler.watch();
       expect(Date.parse(scheduler.nextAt("b", 132000)!)).toBe(142000);
+      yield* scheduler.watch(["b"]);
+      yield* scheduler.watch(["b"]);
+      yield* Effect.yieldNow;
+      expect(runs).toEqual({ a: 3, b: 2 }); // re-watching inside an unscoped window adds no run
       scheduler.configure([config("a"), config("b"), config("c")], 20);
       yield* scheduler.tick;
       yield* Effect.yieldNow;
