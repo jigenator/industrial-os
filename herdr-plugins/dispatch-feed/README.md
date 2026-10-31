@@ -15,6 +15,7 @@ once to link the design system. Then, from this directory:
 bun install --frozen-lockfile
 bun bin/dispatch-feed.ts
 bun bin/dispatch-feed.ts --plain --read-only
+bun bin/dispatch-feed.ts --sources todo,reviews
 ```
 
 `SOURCE_COLLECTOR_HOME` selects the engine directory (default
@@ -23,6 +24,13 @@ bun bin/dispatch-feed.ts --plain --read-only
 disables every mutation, including look and refresh, in the interactive pane.
 `--motion-off` or `NO_MOTION=1` settles all decoration immediately. Press `m`
 to toggle motion and `b` for the ambient field.
+
+`--sources a,b,c` selects which engine sources to include; otherwise
+`DISPATCH_FEED_SOURCES` supplies the list. Entries are comma-separated, trimmed,
+and empty entries dropped. The flag wins even when empty. No list, or an empty
+list, reads all sources as before. Both interactive and `--plain` reads are scoped,
+including plan counts and week activity; unknown ids are omitted by the engine.
+This does not restrict collection or other RPCs: look and refresh remain global.
 
 Installation is an operator action, never part of tests. Build/setup must already
 have run before `herdr plugin link`; link builds nothing. The manifest declares
@@ -41,7 +49,7 @@ The `open` action opens a right split; `open-tab` opens a tab. Plugin id:
 | h                            | Toggle handled (undo when handled)                                         |
 | x                            | To-do done / reopen, only when the source declares that capability         |
 | a                            | Add a one-line to-do; Enter submits, Esc cancels; failed input is retained |
-| Tab / 0–5                    | Cycle / choose source in snapshot order; 0 is all                          |
+| Tab / 0–5                    | Cycle / choose included source in snapshot order; 0 is all included        |
 | s                            | Cycle type / priority / age sort                                           |
 | b / m                        | Ambient / motion toggle                                                    |
 | r                            | Request refresh                                                            |
@@ -60,8 +68,8 @@ and submission still requires Enter after the paste. A to-do done today, from
 any writer, stays in its place dimmed and marked `[done]` until local midnight,
 when the engine drops it; it survives pane and engine restarts. `x` reopens it;
 reopen before other triage actions. `a` adds to the selected item's checklist, or
-to the only checklist; with several and the selection in none of them, it says it
-can't choose. The chosen list is always named to the engine. Handled items remain
+to the only included checklist; with several and the selection in none of them,
+it says it can't choose. The chosen list is always named to the engine. Handled items remain
 selectable with `[handled]` so `h` can undo.
 
 Focus reporting is requested. If the host supplies no focus events, the first

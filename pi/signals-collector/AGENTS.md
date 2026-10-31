@@ -1,14 +1,14 @@
 # Agent guide
 
-Purpose: own TUI session signals and machine-wide parsed CodexBar quota for independent displays. Follow the [root](../../AGENTS.md) and [Pi](../AGENTS.md) guides.
+Purpose: own TUI session signals and usage read from configured source-collector sources for independent displays. Follow the [root](../../AGENTS.md) and [Pi](../AGENTS.md) guides.
 
 ## Critical rules
 
 - The [v1 contract](docs/contract.md) is canonical. Request replies are synchronous; pushes coalesce without resetting the 100ms budget; ready repairs either load order. Validate live session ownership before all callbacks/publications. Check: real-loader `test/extension.test.ts`.
-- Non-TUI collects/publishes nothing. Replacement/shutdown disposes timers, fs.watch, RPC/request listeners and in-flight subprocesses. No stale session work. Check: extension/cache tests.
-- Unknown is not zero/clean/absent. Preserve moved workspace/PR/usage unions, validate public fleet/private goal data and keep only allowed quota fields. Check: source-named tests and [conventions](docs/conventions.md).
+- Non-TUI collects/publishes nothing. Replacement/shutdown disposes timers, fs.watch, RPC/request listeners and in-flight subprocesses. No stale session work. Check: extension/usage/cache tests.
+- Unknown is not zero/clean/absent. Preserve moved workspace/PR/usage unions, validate public fleet/private goal data and keep only allowed usage fields. Check: source-named tests and [conventions](docs/conventions.md).
 - No renderer, motion, Ponytail/Tatsu/background-task observer, Herdr token write or imports from another extension. The [architecture](docs/architecture.md) maps ownership.
-- Shared quota requires exclusive wx lock/atomic 0600 writes; no fallback uncoordinated calls. The accepted stale-taker race is documented in the [contract](docs/contract.md#compatibility-and-limits), not silently “fixed” by a new protocol.
+- Usage reads only the sources listed in `industrialOs.usageSources`, with one bounded scoped source-collector `get` per poll: no other RPC, no retry, no provider commands or provider names in code. The [contract](docs/contract.md#2-usage-via-source-collector-owned-by-pisignals-collector) holds the convention and state table. Check: `test/usage.test.ts`, `test/source-collector.test.ts`.
 - Context reserve settings are owned here. The approved duplicate pure percentage arithmetic/parity vectors in status-bar must change together without imports.
 
 ## Task routes and placement
@@ -19,7 +19,7 @@ Purpose: own TUI session signals and machine-wide parsed CodexBar quota for inde
 | Snapshot/consumer/compatibility | [Contract](docs/contract.md), `src/snapshot.ts`, matching contract/boundary tests |
 | Herdr pane visibility | `src/herdr.ts`, `src/extension.ts` gating, [contract](docs/contract.md) `visible` field |
 | Workspace/PR/Active | `src/workspace.ts`, `src/pr-cache.ts`, `src/extension.ts`, [PR sharing contract](docs/contract.md#3-shared-github-pr-lookup), [Active decision](docs/decisions/agent-reported-active-workspace.md) |
-| Quota/caching | `src/usage.ts`, `src/usage-cache.ts`, contract section 2 |
+| Usage | `src/usage.ts`, `src/source-collector.ts`, contract section 2, [usage decision](../../docs/decisions/usage-via-source-collector.md) |
 | Fleet/context/goal/phase/question | Cohesive `activity`/`context`/`snapshot` module and lifecycle integration |
 | Human-facing/tool/scope | [Mission](docs/mission.md), [design](docs/design.md), [root design](../../docs/design.md) |
 | Packaging/guidance | Pi guide, project contributing, [root ownership decision](../../docs/decisions/session-signals-collection.md) |
@@ -40,4 +40,5 @@ Follow the project's validation sequence then the root checks. Automated, Pi-loa
 | [docs/design.md](docs/design.md) | Raw fields/tool/unknown experience | Changing human-facing signals |
 | [docs/contract.md](docs/contract.md) | Canonical v1 event/cache contract | Changing signals or a consumer |
 | [Active decision](docs/decisions/agent-reported-active-workspace.md) | Agent-declared display-only selection | Changing selection/restoration |
-| [Root collection decision](../../docs/decisions/session-signals-collection.md) | Per-session ownership/shared quota | Changing collection boundaries |
+| [Root collection decision](../../docs/decisions/session-signals-collection.md) | Per-session ownership; its quota part is superseded | Changing collection boundaries |
+| [Usage decision](../../docs/decisions/usage-via-source-collector.md) | Why usage is configured source-collector sources | Changing usage collection or configuration |

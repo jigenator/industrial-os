@@ -38,7 +38,7 @@ Scan the supporting-documents map and read every document whose condition applie
 | An element, motion, storybook story, or terminal host | `design-system/`; placement in [its architecture](design-system/docs/architecture.md#where-the-next-change-belongs), rules in [its conventions](design-system/docs/conventions.md) | Standard library only; imports no other project; elements and motions never own I/O; a new module gets an export entry |
 | claude-interrupt behavior or marker | `pi/claude-interrupt/`; placement in [its architecture](pi/claude-interrupt/docs/architecture.md) | Pi peer packages and the design-system package only; never block streaming, input, or focus |
 | status-bar footer, motion, or status integrations | `pi/status-bar/`; placement in [its architecture](pi/status-bar/docs/architecture.md) | Display-only snapshot consumer; no collection I/O; Pi/design-system exported subpaths only |
-| Session signals, Active selection, or shared quota cache | `pi/signals-collector/`; placement in [its architecture](pi/signals-collector/docs/architecture.md) | TUI-only collector; events only to consumers, no extension imports |
+| Session signals, Active selection, or usage-source reads | `pi/signals-collector/`; placement in [its architecture](pi/signals-collector/docs/architecture.md) | TUI-only collector; events only to consumers, no extension imports |
 | Herdr sidebar token values, reporting, `herdr:blocked` or `/flag` | `pi/herdr-sidebar/`; the [token contract](pi/herdr-sidebar/docs/token-contract.md), placement in [its architecture](pi/herdr-sidebar/docs/architecture.md) | Pi peer packages only; display-only apart from the `/flag` session reminder; reports only in TUI mode inside Herdr |
 | Herdr pane naming | `pi/herdr-pane-naming/`; [architecture](pi/herdr-pane-naming/docs/architecture.md) | Main TUI-only; runs Herdr CLI pane get/rename on its own inherited pane, calls TypeSafe/Jev and a title model; no extension imports |
 | Away or detailed session recaps | `pi/session-recap/`; [architecture](pi/session-recap/docs/architecture.md) | TUI-only; calls a recap model; output UI only, never saved or main-model history |
@@ -139,7 +139,8 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [pi/status-bar/docs/conventions.md](pi/status-bar/docs/conventions.md) | status-bar's TypeScript and Pi-extension rules and adoption gaps | Writing or reviewing status-bar code |
 | [pi/status-bar/docs/mission.md](pi/status-bar/docs/mission.md) | status-bar goals, non-goals, and constraints | Choosing or changing what status-bar does |
 | [pi/status-bar/docs/design.md](pi/status-bar/docs/design.md) | The footer experience, its palette, motion, and UI states | Changing anything a status-bar user sees or a status-bar color |
-| [docs/decisions/session-signals-collection.md](docs/decisions/session-signals-collection.md) | Why collection has one TUI owner and shared quota cache | Changing collector/display ownership or transport |
+| [docs/decisions/session-signals-collection.md](docs/decisions/session-signals-collection.md) | Why collection has one TUI owner; its quota cache part is superseded | Changing collector/display ownership or transport |
+| [docs/decisions/usage-via-source-collector.md](docs/decisions/usage-via-source-collector.md) | Why provider usage is configured source-collector sources read through a Pi setting | Changing usage collection, its configuration or the usage item convention |
 | [pi/signals-collector/README.md](pi/signals-collector/README.md) | Collector install, consumer guide and limits | Using the collector or changing its public surface |
 | [pi/signals-collector/AGENTS.md](pi/signals-collector/AGENTS.md) | Collector rules, routes and placement | Working anywhere in pi/signals-collector |
 | [pi/signals-collector/CLAUDE.md](pi/signals-collector/CLAUDE.md) | Runtime import of the collector guide | Checking agent entry points |
@@ -148,7 +149,7 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [pi/signals-collector/docs/conventions.md](pi/signals-collector/docs/conventions.md) | Collector engineering rules and gaps | Writing or reviewing collector code |
 | [pi/signals-collector/docs/mission.md](pi/signals-collector/docs/mission.md) | Collector goals and non-goals | Choosing collector scope |
 | [pi/signals-collector/docs/design.md](pi/signals-collector/docs/design.md) | Collector raw signals, tool and unknown states | Changing human-facing signals |
-| [pi/signals-collector/docs/contract.md](pi/signals-collector/docs/contract.md) | Canonical v1 snapshot and shared quota cache | Changing a signal, cache or consumer |
+| [pi/signals-collector/docs/contract.md](pi/signals-collector/docs/contract.md) | Canonical v1 snapshot, usage source convention and shared PR cache | Changing a signal, cache or consumer |
 | [pi/signals-collector/docs/decisions/agent-reported-active-workspace.md](pi/signals-collector/docs/decisions/agent-reported-active-workspace.md) | Why Active is explicit, agent-reported and display-only | Changing Active selection, persistence or cwd relationship |
 | [pi/herdr-sidebar/README.md](pi/herdr-sidebar/README.md) | herdr-sidebar purpose, rows, install, and limitations | Using herdr-sidebar |
 | [pi/herdr-sidebar/AGENTS.md](pi/herdr-sidebar/AGENTS.md) | herdr-sidebar rules, routes, and placement | Working anywhere in `pi/herdr-sidebar/` |

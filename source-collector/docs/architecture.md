@@ -45,7 +45,10 @@ at capacity is dropped until that source's next interval: no waiting queue,
 catch-up or automatic retry. A failure doubles the normal interval, capped at
 15 minutes; success resets it. Manual refresh can request an immediate attempt.
 `get` extends watching for two minutes and forks overdue work without waiting for
-results. Config changes fence results from superseded definitions.
+results. An optional get source include list filters statuses, items and ledger
+before pure derivation inside the same read transaction, so counts and week share
+the projection. Metadata and watching remain global. Config changes fence results
+from superseded definitions.
 
 Command fetch and transform share one timeout. Effect owns detached process
 groups and SIGTERM → SIGKILL after 10 seconds. stdout is limited to 5 MiB per

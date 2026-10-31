@@ -16,7 +16,7 @@ Goals:
 - Preserve current context, model, thinking level, and extension status information. Recognized Ponytail status is represented once in its dedicated PNYTL plate; valid active Tatsu status and recognized background-tasks status are each structured once in EXT. Unrecognized/invalid/inactive Tatsu data retain the provider’s raw status text, and unknown warnings and every other status stay visible.
 - Always show how many successful compactions are persisted on the selected session branch (CMP), keeping Unknown distinct from zero.
 - Show root working state independently from optional native Active Units (AU), including queued work/workflow containers without claiming an exact running-agent count.
-- Show remaining subscription quota (USG) for Codex, Claude and Kimi 5-hour and weekly windows from the CodexBar CLI, with time to reset, keeping pending, failed, stale and unknown distinct from real values.
+- Show remaining subscription quota (USG) for configured sources’ reported 5-hour and weekly windows, with time to reset, keeping pending, failed, stale and unknown distinct from real values.
 - Remain readable across terminal widths and safe for untrusted repository/path text.
 - Consume external changes from signals-collector without doing collection I/O anywhere in the display.
 - Present this in the selected Acid / Black instrument-panel design, whose decorative motion never changes or delays displayed values and can be turned off per session.
@@ -36,5 +36,5 @@ Success is represented by deterministic renderer/consumer and real Pi loader/lif
 - The runtime uses Node.js standard library plus host-provided Pi, Pi TUI peers and the root-linked in-repo design-system package; no bundled Pi or extension-local runtime dependencies.
 - Collection belongs to signals-collector; this display runs no subprocess, fleet request or data polling. Decoration/countdown timers only repaint. Collector absence is unknown, never zero/clean; the approved live-host context arithmetic uses collector reserve, not settings lookup.
 - Active selection is session-local and follows the selected session branch; it must not leak to a new session.
-- Missing tools, auth, network, active-checkout metadata, or malformed external responses remain visible as unavailable states; primary-checkout failures remain in workspace inspection data, not the footer. A missing CodexBar CLI hides the USG row rather than showing a failure, because it is an optional integration.
+- Missing tools, auth, network, active-checkout metadata, or malformed external responses remain visible as unavailable states; primary-checkout failures remain in workspace inspection data, not the footer. Unconfigured usage or a usage engine that has never answered hides the optional USG row; individual provider failures remain visible once the engine is detected.
 - The extension must continue to work in non-TUI Pi modes even though no footer is installed.

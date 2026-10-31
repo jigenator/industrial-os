@@ -1,97 +1,113 @@
-import { execFile } from 'node:child_process';
+import { getSources, socketPath } from "./source-collector.ts";
 
-/** CodexBar provider ids shown in the footer, in display order. */
-export const USAGE_PROVIDERS = ['codex', 'claude', 'kimi'] as const;
-export type UsageProviderId = typeof USAGE_PROVIDERS[number];
-/** A window's used share; null when CodexBar reported the window without a finite percentage. */
+/** A window's used share; null when the source reported the window without a used percentage. */
 export type UsageWindow = { usedPercent: number | null; resetsAt: number | null };
-/** Only 300-minute (5H) and 10080-minute (WK) windows are kept; an absent key is a window the provider does not report. */
-export type UsageWindows = { '5h'?: UsageWindow; wk?: UsageWindow };
-export type UsageResult =
-  | { kind: 'usage'; windows: UsageWindows; updatedAt: number | null }
-  | { kind: 'unavailable'; reason: 'timeout' | 'cancelled' | 'failed' }
-  | { kind: 'not-installed' };
-type Options = { signal?: AbortSignal; timeoutMs?: number; killGraceMs?: number };
+/** Only 300-minute (5H) and 10080-minute (WK) windows; an absent key is a window the provider does not report. */
+export type UsageWindows = { "5h"?: UsageWindow; wk?: UsageWindow };
+/** Last good sample; receipt timestamp identifies the sample for display motion. */
+export type UsageSample = { windows: UsageWindows; updatedAt: number | null; fetchedAt: number };
+/** `provider` is a source-collector source id; `tag` and `color` are its raw status values. */
+export type UsageProviderState = { provider: string; tag?: string; color?: string; data?: UsageSample; failure?: "timeout" | "failed" };
+export type UsageSnapshot = { installed: boolean | null; providers: UsageProviderState[] };
 
-const WINDOWS: Record<number, keyof UsageWindows> = { 300: '5h', 10080: 'wk' };
-const record = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);
+const POLL_MS = 60_000;
+const ID = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+const WINDOWS = [["h5", "5h"], ["wk", "wk"]] as const;
+const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+const text = (v: unknown): v is string => typeof v === "string" && v.length > 0 && v.length <= 200;
 
 // ISO 8601 instants only; anything else is unknown rather than guessed.
 function instant(value: unknown): number | null {
-  if (typeof value !== 'string' || value.length > 40 || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return null;
-  const time = Date.parse(value);
-  return Number.isFinite(time) ? time : null;
+	if (typeof value !== "string" || value.length > 40 || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return null;
+	const time = Date.parse(value);
+	return Number.isFinite(time) ? time : null;
 }
 
-// Window position is not stable across providers (Kimi reverses them, Codex has
-// no primary), so windows are identified by length. Identity, credits, pace and
-// every other field are never copied out of the payload.
-function parse(provider: UsageProviderId, stdout: string): UsageResult {
-  const failed = { kind: 'unavailable', reason: 'failed' } as const;
-  let data: unknown;
-  try { data = JSON.parse(stdout); }
-  catch { return failed; }
-  if (!Array.isArray(data) || data.length !== 1) return failed;
-  const [item] = data;
-  if (!record(item) || item.provider !== provider || (item.error !== undefined && item.error !== null) || !record(item.usage)) return failed;
-  const windows: UsageWindows = {};
-  for (const position of ['primary', 'secondary', 'tertiary']) {
-    const value = item.usage[position];
-    if (value === null || value === undefined) continue;
-    if (!record(value)) return failed;
-    const key = typeof value.windowMinutes === 'number' ? WINDOWS[value.windowMinutes] : undefined;
-    if (!key || windows[key]) continue; // first of a duplicated length wins
-    const used = value.usedPercent;
-    windows[key] = { usedPercent: typeof used === 'number' && Number.isFinite(used) ? used : null, resetsAt: instant(value.resetsAt) };
-  }
-  return { kind: 'usage', windows, updatedAt: instant(item.usage.updatedAt) };
+/** `industrialOs.usageSources` from Pi settings: ordered unique source ids; absent or invalid is none. */
+export function usageSources(settings: unknown): string[] {
+	const value = record(settings) && record(settings.industrialOs) ? settings.industrialOs.usageSources : undefined;
+	if (!Array.isArray(value) || value.length > 256 || !value.every((id) => typeof id === "string" && ID.test(id))) return [];
+	return [...new Set(value as string[])];
+}
+
+export const pendingUsage = (sources: readonly string[]): UsageSnapshot => ({ installed: null, providers: sources.map((provider) => ({ provider })) });
+
+// The usage item convention: every known fact must have its type, or the whole item is no data.
+function sample(item: Record<string, unknown>, fetchedAt: number | null): UsageSample | undefined {
+	const facts = item.facts ?? {};
+	if (fetchedAt === null || !record(facts)) return undefined;
+	const updatedAt = instant(facts.updatedAt);
+	if (facts.updatedAt !== undefined && updatedAt === null) return undefined;
+	const windows: UsageWindows = {};
+	for (const [fact, key] of WINDOWS) {
+		const reported = facts[fact], used = facts[`${fact}Used`], resets = facts[`${fact}ResetsAt`];
+		if (reported === undefined || reported === false) continue;
+		const resetsAt = instant(resets);
+		if (reported !== true || (used !== undefined && !finite(used)) || (resets !== undefined && resetsAt === null)) return undefined;
+		windows[key] = { usedPercent: finite(used) ? used : null, resetsAt };
+	}
+	return { windows, updatedAt, fetchedAt };
 }
 
 /**
- * Read-only `codexbar usage` for one provider. On provider failure CodexBar exits 1
- * with a JSON error payload on stdout; its message is never returned because it is
- * untrusted and may name the account, so any non-zero exit is simply unavailable.
+ * Next usage state from one poll: the scoped `get` result, or undefined when the engine could not be
+ * read. The contract's state table is canonical; `fetchedAt` is the source's `okAt`, the end of the
+ * successful run that produced its current items.
+ *
+ * Wire fields read, described locally from source-collector's v1 contract and validated here:
+ * `{ v: 1, sources: [{ id, tag, color?, state, okAt?, error?: { code } }], items: [{ source, key, facts? }] }`.
  */
-export function fetchUsage(provider: UsageProviderId, options: Options = {}): Promise<UsageResult> {
-  const { signal } = options;
-  if (signal?.aborted) return Promise.resolve({ kind: 'unavailable', reason: 'cancelled' });
-  return new Promise((resolve) => {
-    let settled = false, deadline: ReturnType<typeof setTimeout> | undefined;
-    const done = (result: UsageResult) => {
-      if (settled) return;
-      settled = true;
-      if (deadline) clearTimeout(deadline);
-      signal?.removeEventListener('abort', abort);
-      resolve(result);
-    };
-    const child = execFile('codexbar', ['usage', '--provider', provider, '--format', 'json', '--json-only'], {
-      env: { ...process.env, NO_COLOR: '1' }, encoding: 'utf8', maxBuffer: 1024 * 1024,
-    }, (error, stdout) => {
-      if (!error) return done(parse(provider, stdout));
-      const code = 'code' in error ? error.code : undefined;
-      done(code === 'ENOENT' ? { kind: 'not-installed' } : { kind: 'unavailable', reason: 'failed' });
-    });
-    const running = () => child.pid !== undefined && child.exitCode === null && child.signalCode === null;
-    // Not execFile's `signal` or `timeout`: aborting a spawn that failed with ENOENT before Node reports
-    // it signals pid 0, the caller's whole process group (Node 22.23). Only a started child is signalled.
-    // SIGTERM lets CodexBar clean up; one that ignores it is killed after a grace period. The result
-    // settles at once either way, so a stuck child never holds up polling.
-    const stop = (result: UsageResult) => {
-      if (running()) {
-        child.kill('SIGTERM');
-        setTimeout(() => { if (running()) child.kill('SIGKILL'); }, options.killGraceMs ?? 5_000).unref();
-      }
-      done(result);
-    };
-    function abort() { stop({ kind: 'unavailable', reason: 'cancelled' }); }
-    deadline = setTimeout(() => stop({ kind: 'unavailable', reason: 'timeout' }), options.timeoutMs ?? 60_000);
-    deadline.unref();
-    signal?.addEventListener('abort', abort, { once: true });
-  });
+export function nextUsage(sources: readonly string[], previous: UsageSnapshot, reply: unknown): UsageSnapshot {
+	if (!record(reply) || reply.v !== 1 || !Array.isArray(reply.sources) || !Array.isArray(reply.items)) {
+		if (previous.installed !== true) return pendingUsage(sources);
+		return { installed: true, providers: previous.providers.map((p) => p.data ? { ...p, failure: "failed" } : p) };
+	}
+	const statuses = reply.sources.filter(record), items = reply.items.filter(record);
+	return { installed: true, providers: sources.map((provider): UsageProviderState => {
+		const status = statuses.find((s) => s.id === provider);
+		if (!status) return { provider, failure: "failed" };
+		const own = items.filter((i) => i.source === provider), item = own.find((i) => i.key === "usage");
+		const data = item && sample(item, instant(status.okAt));
+		const pending = status.state === "ok" || (status.state === "loading" && own.length === 0);
+		return {
+			provider,
+			...(text(status.tag) ? { tag: status.tag } : {}),
+			...(text(status.color) ? { color: status.color } : {}),
+			...(data ? { data } : {}),
+			...(pending ? {} : { failure: record(status.error) && status.error.code === "timeout" ? "timeout" as const : "failed" as const }),
+		};
+	}) };
 }
 
-/** Last good sample; receipt timestamp identifies the sample for display motion. */
-export type UsageSample = { windows: UsageWindows; updatedAt: number | null; fetchedAt: number };
-export type UsageProviderState = { provider: UsageProviderId; data?: UsageSample; failure?: "timeout" | "failed" };
-export type UsageSnapshot = { installed: boolean | null; providers: UsageProviderState[] };
-export const emptyUsage = (): UsageSnapshot => ({ installed: null, providers: USAGE_PROVIDERS.map((provider) => ({ provider })) });
+/**
+ * Polls the configured usage sources now, every minute while visible, and when shown again. One
+ * request at a time; disposal aborts it and suppresses its result.
+ */
+export function collectUsage(
+	sources: readonly string[], publish: (usage: UsageSnapshot) => void,
+	request: (signal: AbortSignal) => Promise<unknown> = (signal) => getSources(socketPath(), sources, { signal }),
+): { setVisible(visible: boolean): void; dispose(): void } {
+	let live = sources.length > 0, visible = true, usage = pendingUsage(sources);
+	let timer: ReturnType<typeof setInterval> | undefined, controller: AbortController | undefined;
+	async function poll() {
+		if (!live || !visible || controller) return;
+		const own = controller = new AbortController();
+		const reply = await request(own.signal).catch(() => undefined);
+		if (controller === own) controller = undefined;
+		if (!live || own.signal.aborted) return;
+		usage = nextUsage(sources, usage, reply);
+		publish(usage);
+	}
+	const resume = () => { if (live && !timer) { timer = setInterval(() => void poll(), POLL_MS); timer.unref(); } };
+	resume(); void poll();
+	return {
+		setVisible(next) {
+			if (!live || visible === next) return;
+			visible = next;
+			if (!visible) { clearInterval(timer); timer = undefined; }
+			else { resume(); void poll(); }
+		},
+		dispose() { live = false; clearInterval(timer); controller?.abort(); },
+	};
+}

@@ -184,6 +184,32 @@ Temporarily reverting the restart rebuild to `done: false` made the RPC test fai
 on a changed doneAt, so that test guards the fix. The midnight rule is checked by
 injected request times, not by waiting for a real midnight.
 
+### Scoped get (usage sources)
+
+2026-10-31, isolated macOS run, Bun 1.4.4:
+
+- Passed: frozen install (no manifest/lockfile change), typecheck, type-aware lint,
+  format check and `bun test`: 44 tests, 429 assertions, no failures.
+- Passed: offline checks for fake, jq and todo. Foreground smoke used copied
+  examples and temporary HOME/config/runtime: get, refresh, done, scoped counts
+  and week, scoped dispatch-feed plain output against the real temporary engine,
+  RPC stop (exit 0, empty engine stdout).
+- Real Unix RPC tests cover absent scope, duplicate/unknown ids, 256 entries,
+  invalid arrays/types/null, selected order/items, plan/source counts, disabled
+  null counts, current/prior-week attribution and global metadata/look cursor.
+  `optionalKey` is intentional: Effect's JSON codec otherwise accepts null as an
+  optional undefined value. Reply assertions use that same wire codec.
+- Passed: root links/anchors, guidance inventory, CLAUDE imports, whitespace and
+  publication review. No root file changed.
+- Not run: live sources/engine, launchd, Herdr or Mermaid rendering (no diagram
+  changed; no existing renderer). CLI get scoping was deliberately not added;
+  scoped reads use the additive RPC parameter.
+- Simplification pass: filter existing read-transaction inputs before the one
+  pure derivation; preserve unscoped behavior, metadata and global watching.
+  No schema migration, new query/index, cache, dependency or adapter added.
+  Early checks caught optional-null decoding and request-time field comparisons;
+  corrected before the final passing run.
+
 ## Simplification review
 
 Reviewed the full change against the assigned base. Removed one-use transport and

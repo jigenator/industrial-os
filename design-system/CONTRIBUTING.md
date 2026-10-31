@@ -288,3 +288,14 @@ Node v22.23.4, macOS, Herdr client/server 0.9.5. The crate banner takes round 5 
 - **Contrast on the frosted strip** (white at 0.1 over the backdrop): over `#131416`, `#1b1c1e` (the mockup's pane row 6, edge and centre), `#1e1f21` and `#222325`, the lamp `#9c9c9c` is 5.10, 4.61, 4.46 and 4.21:1, dividers and disabled labels `#868686` 3.84, 3.47, 3.36 and 3.18:1, white labels 11.56–13.99:1 and the acid lamp 9.59–11.61:1.
 - **Simplification:** the ground and frost are two post-passes over the grid's one-span-per-cell lines, as the mockup paints its ground after drawing, so the drawing code changed by one row index and one label color; the compact row is plate row 0, so one path serves both forms. The frost uses `blendFill`, the hex check one regular expression, and the ground formula stays in the element (one caller) with its numbers in foundation.
 - **Not run:** a resize of the native pane; physical keyboard/pointer; physical glyph, font or contrast review, including how the per-cell aluminium steps read at the user's font size; claude-interrupt and automations-monitor suites (not installed in this worktree); Lunalee integration or a pinned install; Mermaid rendering (no diagram changed). No standalone DS lint/formatter exists.
+
+## Configurable usage families (2026-10-31)
+
+macOS, Node v22.23.4; exported usage-token families plus opt-in measured 3/4-cell natural provider tags. No existing signal value or preset/default output changed.
+
+- **Passed:** `node --test` **651/651**, no failed/skipped/cancelled checks. Includes token aliases/derived neutral/prototype rejection, export and declaration presence, measured-tag validation and executable SOURCE TAG story.
+- **Passed:** required plain showcase widths 120/100/80/48/40/23 and storybook widths 120/80/48/24/12 at 24 rows, all exit 0; text snapshots reviewed for normal/narrow/fallback layouts. These are CLI composition checks, not native appearance acceptance.
+- **Passed:** root link/anchor, guidance inventory, exact CLAUDE entrypoints, whitespace and publication/import review. No new guide needs a root-map entry. The footer's consumer suite and isolated RPC load are recorded in its contributing guide.
+- **Not run:** optional strict declaration compile (the existing claude-interrupt compiler is absent); Mermaid rendering (no renderer on PATH; diagrams unchanged).
+- **Skipped:** interactive Herdr validation, explicitly outside this task's no-live-Pi/Herdr boundary. No native glyph/contrast, screen-reader or photosensitivity certification is implied.
+- Simplification: reuse secondary ink and existing mix math, alias established signal families, keep a single resolver and one default-preserving natural-tag seam. No new dependency, registry, generated artifact or timer.

@@ -38,7 +38,7 @@ flowchart LR
         SourceEngine["source-collector/<br/>local polling engine"]
         DS["design-system/<br/>elements, foundation, motions, examples"]
         CI["pi/claude-interrupt/<br/>src/index.ts"]
-        SC["pi/signals-collector/<br/>session producer + shared quota cache"]
+        SC["pi/signals-collector/<br/>session producer + configured usage reads"]
         SB["pi/status-bar/<br/>src/extension.ts, footer.ts<br/>reference implementation"]
         HS["pi/herdr-sidebar/<br/>src/extension.ts, tokens.ts"]
         HC["herdr/<br/>sidebar.toml, spaces.toml, theme.toml, test/"]
@@ -196,7 +196,7 @@ Every project's guides must appear in the [root supporting-documents map](../AGE
 - **Herdr configuration is merged by hand.** Herdr has no config includes, so `herdr/` content reaches a user's config only by a manual merge; see [its README](../herdr/README.md#install).
 - **License.** The repository has no license; claude-interrupt and the session-recap fork carry MIT from before their moves (session-recap retains Thomas Mustier's copyright), while status-bar, signals-collector, herdr-sidebar, herdr-pane-naming, image-preview and droid-header have none. Resolve when the repository is offered for reuse.
 
-The collector is the only owner of TUI session signals and shared CodexBar cache. Displays use events, not imports; see [collection ownership](decisions/session-signals-collection.md).
+The collector is the only owner of TUI session signals. Usage quota is collected by source-collector sources and read by the collector from the Pi setting `industrialOs.usageSources`. Displays use events, not imports; see [collection ownership](decisions/session-signals-collection.md) and [usage via source-collector](decisions/usage-via-source-collector.md).
 
 ## Technical decisions
 
@@ -210,7 +210,8 @@ The collector is the only owner of TUI session signals and shared CodexBar cache
 - [Spaces has one plugin daemon per socket](decisions/spaces-plugin-daemon.md)
 - [A Herdr plugin may own its runtime](decisions/herdr-plugin-runtimes.md)
 - [The automations monitor runs on Bun and Effect](decisions/automations-monitor-stack.md)
-- [Session signals have one collection owner](decisions/session-signals-collection.md)
+- [Session signals have one collection owner](decisions/session-signals-collection.md), superseded in part by the usage decision
+- [Provider usage comes from configured source-collector sources](decisions/usage-via-source-collector.md)
 - [The design system is an in-repo package and owns the colors](decisions/in-repo-design-system-package.md)
 - [Standalone packages, no shared workspace](decisions/standalone-packages.md), superseded in part by the package decision
 - [The Pi extensions' colors take precedence over the design-system palette](decisions/extension-colors-take-precedence.md), superseded by the package decision

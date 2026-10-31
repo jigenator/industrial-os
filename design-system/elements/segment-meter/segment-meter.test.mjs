@@ -154,3 +154,16 @@ test('countdown explicit overflow text preserves extreme finite host-clock displ
   assert.equal(parts[1].width, 9);
   assert.throws(() => countdown(100, 0, { overflow: 'bad' }), RangeError);
 });
+
+test('natural columns opt into four-cell and measured tags without changing preset defaults', () => {
+  const four = providerColumnParts({ tag: 'MUSE', ink: 'secondary', declared: ['wk'] }, { tagWidth: 4 });
+  assert.equal(four[0].width, 4);
+  assert.equal(four[0].top[0].text, 'MUSE');
+  const measure = (text) => [...text].reduce((n, ch) => n + (ch === '界' ? 2 : /\p{Mark}/u.test(ch) ? 0 : 1), 0);
+  const unicode = providerColumnParts({ tag: '界e\u0301 ', ink: 'secondary', declared: ['wk'] }, { tagWidth: 4, measure });
+  assert.equal(unicode[0].width, 4);
+  assert.equal(unicode[0].top[0].text, '界e\u0301 ');
+  for (const tag of ['\x1bxx', '\u202eabc', '\u0301abc']) assert.throws(() => providerColumnParts({ tag, ink: 'primary', declared: ['wk'] }, { measure }));
+  assert.throws(() => providerColumnParts({ tag: 'MUSE', ink: 'primary', declared: ['wk'] }));
+  assert.throws(() => providerColumnParts({ tag: 'abc', ink: 'primary', declared: ['wk'] }, { tagWidth: 2 }));
+});

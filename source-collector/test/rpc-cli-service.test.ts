@@ -11,8 +11,9 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { createConnection, createServer } from "node:net";
 import { acquireInstance } from "../src/instance.ts";
+import { decode, Snapshot } from "../src/contract.ts";
 import { renderPlist, inspectService, service } from "../src/service.ts";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { BunServices } from "@effect/platform-bun";
 const entry = resolve("bin/source-collector.ts");
 const testPath = `${dirname(process.execPath)}:/usr/bin:/bin`;
@@ -174,12 +175,17 @@ test("real Unix RPC: raw JSON-RPC, typed CLI, acts, refresh, reload, auth, disab
   cpSync(resolve("examples"), join(root, "config"), { recursive: true });
   const displayTitle = "Fake title\nwith tab\tand escape\u001b[31m and C1\u009b";
   const fetchFile = join(root, "config/sources/fake/fetch.ts");
+  const lastWeek = new Date();
+  lastWeek.setDate(lastWeek.getDate() - 7);
+  lastWeek.setMinutes(lastWeek.getMinutes() - 1);
   writeFileSync(
     fetchFile,
-    readFileSync(fetchFile, "utf8").replace(
-      JSON.stringify("Try the collector"),
-      JSON.stringify(displayTitle),
-    ),
+    readFileSync(fetchFile, "utf8")
+      .replace(JSON.stringify("Try the collector"), JSON.stringify(displayTitle))
+      .replace(
+        "v: 1,",
+        `v: 1, shipped: [{key: 'previous', at: '${lastWeek.toISOString()}', actor: 'agent'}],`,
+      ),
   );
   mkdirSync(join(root, "runtime"), { mode: 0o700 });
   let engine = Bun.spawn([process.execPath, entry, "run"], {
@@ -223,6 +229,44 @@ test("real Unix RPC: raw JSON-RPC, typed CLI, acts, refresh, reload, auth, disab
     expect(json.id).toBe(1);
     expect(json.result.v).toBe(1);
     expect(json.result.items).toHaveLength(4);
+    const scopedGet = async (sources?: unknown) => {
+      const reply = (await raw(
+        join(root, "runtime/feed.sock"),
+        "get",
+        sources === undefined ? {} : { sources },
+      )) as { result: unknown };
+      return decode(Schema.toCodecJson(Snapshot), reply.result);
+    };
+    const all = await scopedGet();
+    const scoped = await scopedGet(["todo", "fake", "todo", "unknown id"]);
+    expect(scoped.sources.map((s) => s.id)).toEqual(
+      all.sources.filter((s) => ["todo", "fake"].includes(s.id)).map((s) => s.id),
+    );
+    expect(scoped.items.map((i) => ({ source: i.source, key: i.key, overlay: i.overlay }))).toEqual(
+      all.items
+        .filter((i) => ["todo", "fake"].includes(i.source))
+        .map((i) => ({ source: i.source, key: i.key, overlay: i.overlay })),
+    );
+    expect(Object.keys(scoped.counts.bySource)).toEqual(scoped.sources.map((s) => s.id));
+    expect(scoped.counts.plan).toEqual({ today: 0, inbox: 3, later: 0 });
+    expect(scoped.rev).toBe(all.rev);
+    expect(scoped.staleLimitMs).toBe(all.staleLimitMs);
+    expect(scoped.alerts).toEqual(all.alerts);
+    expect(all.week.lastWeekSoFar).toEqual({ you: 0, agents: 1 });
+    expect(scoped.week.lastWeekSoFar).toEqual(all.week.lastWeekSoFar);
+    const empty = await scopedGet(["unknown id"]);
+    expect(empty.sources).toEqual([]);
+    expect(empty.items).toEqual([]);
+    expect(empty.counts).toEqual({ plan: { today: 0, inbox: 0, later: 0 }, bySource: {} });
+    expect(empty.week.total).toEqual({ you: 0, agents: 0 });
+    expect(empty.week.lastWeekSoFar).toEqual({ you: 0, agents: 0 });
+    expect((await scopedGet(Array(256).fill("todo"))).sources.map((s) => s.id)).toEqual(["todo"]);
+    for (const invalid of [[], "todo", null, [1], Array(257).fill("todo")]) {
+      const reply = (await raw(join(root, "runtime/feed.sock"), "get", { sources: invalid })) as {
+        error: unknown;
+      };
+      expect(reply.error).toBeDefined();
+    }
     const get = await cli(root, "get");
     expect(get.code).toBe(0);
     expect(JSON.parse(get.stdout).rev).toBe(json.result.rev);
@@ -280,6 +324,20 @@ test("real Unix RPC: raw JSON-RPC, typed CLI, acts, refresh, reload, auth, disab
     expect(find(after, key)?.doneAt).toBeString();
     expect(after.counts.bySource.todo.total).toBe(1);
     expect(after.week.total.you).toBe(1);
+    const todoOnly = await scopedGet(["todo"]);
+    const fakeOnly = await scopedGet(["fake"]);
+    expect(todoOnly.lastLookAt).toBe(after.lastLookAt);
+    expect(fakeOnly.lastLookAt).toBe(after.lastLookAt);
+    expect(todoOnly.week.total).toEqual(after.week.total);
+    expect(todoOnly.week.lastWeekSoFar).toEqual({ you: 0, agents: 0 });
+    expect(fakeOnly.week.lastWeekSoFar).toEqual({ you: 0, agents: 1 });
+    expect(todoOnly.week.blocks).toEqual(after.week.blocks);
+    expect(fakeOnly.week.total).toEqual({ you: 0, agents: 0 });
+    expect(fakeOnly.week.blocks.every((b) => b.you === 0 && b.agents === 0)).toBe(true);
+    expect(todoOnly.counts).toEqual({
+      plan: { today: 0, inbox: 1, later: 0 },
+      bySource: { todo: after.counts.bySource.todo },
+    });
     const doneLines = (await cli(root, "get", "--items")).stdout
       .trim()
       .split("\n")
@@ -332,6 +390,10 @@ test("real Unix RPC: raw JSON-RPC, typed CLI, acts, refresh, reload, auth, disab
     const disabled = JSON.parse((await cli(root, "get")).stdout);
     expect(disabled.sources.find((s: { id: string }) => s.id === "fake").state).toBe("disabled");
     expect(disabled.counts.bySource.fake).toBeNull();
+    const disabledScope = await scopedGet(["fake"]);
+    expect(disabledScope.sources.map((s) => s.state)).toEqual(["disabled"]);
+    expect(disabledScope.counts.bySource).toEqual({ fake: null });
+    expect(disabledScope.counts.plan).toEqual({ today: 0, inbox: 0, later: 0 });
     expect((await cli(root, "enable", "fake")).code).toBe(0);
     const duplicate = await cli(root, "run");
     expect(duplicate.code).toBe(8);

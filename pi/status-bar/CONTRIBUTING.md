@@ -4,7 +4,7 @@ Follow the [repository workflow](../../CONTRIBUTING.md) as well as this package'
 
 ## Toolchain and setup
 
-Use Node.js 22.19 or newer; the integrated baseline was checked with Node 22.23.0, Pi 1.0.2, Git 2.50.1, and `gh` 2.93.0 on macOS. USG parsing was built against recorded CodexBar 0.60.3 output; no installed `codexbar` is needed or used by tests. Pi supplies the two peer packages declared in `package.json`; the footer also imports the root-linked design-system package. Run `npm install` once at the repository root (not this extension folder) before checks or local-path loading. Do not add an extension-local dependency or lockfile for this link.
+Use Node.js 22.19 or newer; the integrated baseline was checked with Node 22.23.0, Pi 1.0.2, Git 2.50.1, and `gh` 2.93.0 on macOS. USG consumes configurable v1 usage snapshots; no installed quota CLI or live source is needed or used by display tests. Pi supplies the two peer packages declared in `package.json`; the footer also imports the root-linked design-system package. Run `npm install` once at the repository root (not this extension folder) before checks or local-path loading. Do not add an extension-local dependency or lockfile for this link.
 
 Tests that exercise Pi need the installed host root. From `pi/status-bar/`:
 
@@ -13,7 +13,7 @@ export PI_HOST_ROOT="$(npm root -g)/@earendil-works/pi-coding-agent"
 test -f "$PI_HOST_ROOT/dist/index.js"
 ```
 
-This only discovers an existing global installation. Do not run an installer to make a test silently pass. Composition fixtures create disposable repositories under the operating-system temp directory, isolate Git identity/configuration, and use a fake `gh` and a fake `codexbar`; they do not use a live GitHub account, CodexBar, provider account or network. The fakes are POSIX `sh` scripts that need `/bin/sh`, `/bin/sleep`, `/bin/cat` and `/usr/bin/grep`.
+This only discovers an existing global installation. Do not run an installer to make a test silently pass. Composition fixtures create disposable repositories under the operating-system temp directory, isolate Git identity/configuration, and use a fake `gh`; they do not use a live GitHub account, source-collector engine, provider account or network. The fakes are POSIX `sh` scripts that need `/bin/sh`, `/bin/sleep`, `/bin/cat` and `/usr/bin/grep`.
 
 The consumed design-system subpaths ship colocated `.d.mts` declarations. `test/design-system-types.ts` is a compile-only contract specimen (not a new standalone project typecheck). It is optional and borrows claude-interrupt's compiler, so it needs claude-interrupt's `npm ci` first. From the repository root:
 
@@ -45,7 +45,7 @@ Source: `package.json` and the test files under `test/`.
 | --- | --- | --- | --- | --- |
 | 1 | `pi/status-bar/` | `export PI_HOST_ROOT="$(npm root -g)/@earendil-works/pi-coding-agent"` | Existing global Pi; reads npm's global root | Locates host-provided peers |
 | 2 | `pi/status-bar/` | `test -f "$PI_HOST_ROOT/dist/index.js"` | No writes | Fails clearly when the host prerequisite is absent |
-| 3 | `pi/status-bar/` | `PI_HOST_ROOT="$PI_HOST_ROOT" npm test` | Creates/removes temp Git/session fixtures; fake `gh` and `codexbar`; no live network | All renderer, package-loader/display lifecycle, snapshot consumer/load-order and parity tests |
+| 3 | `pi/status-bar/` | `PI_HOST_ROOT="$PI_HOST_ROOT" npm test` | Creates/removes temp Git/session fixtures; fake `gh`; no live network | All renderer, package-loader/display lifecycle, snapshot consumer/load-order and parity tests |
 | 4 | `pi/status-bar/` | `printf '' \| pi --mode rpc --no-extensions --extension .` | Installed Pi; no model call; model-pattern warnings are expected and harmless because other extensions, including model providers, are off. Outside TUI mode neither display nor collector does collection I/O | Package discovery and extension loading through the installed `pi` command; success exits 0, a throwing extension exits 1 |
 
 Then follow the [repository-wide checks](../../CONTRIBUTING.md#repository-wide-checks). Record every check as passed, failed, skipped, or not run. A missing host is a failed prerequisite, not a passing or skipped integrated suite. The RPC load check is not interactive terminal verification. There is currently no established formatter, linter, standalone typecheck, or build command; do not claim one ran.
@@ -69,7 +69,7 @@ Keep structural and semantic changes separate when practical. Preserve behavior 
 - Untrusted paths, Git names, remote data, and extension statuses remain terminal-safe and width-bounded.
 - No subprocess, cache/persistence or settings-reserve lookup remains here. Missing collector displays unknown, never zero/clean.
 - Display observers/listeners and repaint/motion timers are disposed; stale callbacks cannot overwrite a newer session/component.
-- New behavior has deterministic coverage and no live GitHub or CodexBar dependency.
+- New behavior has deterministic coverage and no live GitHub or source-collector dependency.
 - YAGNI: every abstraction/dependency serves a current requirement. KISS: compare it with a direct function or existing host API. Single source of truth: shared semantics stay in one module and commands stay here. Progressive disclosure: update the relevant guide and `AGENTS.md` map without making unrelated docs mandatory.
 
 ## Keeping docs accurate
@@ -140,3 +140,21 @@ Final consumer re-run on the same toolchain: **135/135 passed**; collector follo
 - Isolated RPC package load with temporary agent/cache roots and `HERDR_ENV=0`: **exit 0**. Root links/anchors, mapped-guide inventory, exact CLAUDE entrypoints, whitespace and import/publication self-review passed; index empty.
 - Simplification reviewed the full diff against merge base `00ea975`, including surrounding observer/timer/render callers and new tests. One guarded request callback covers every repaint source; cached lines are component-local; existing stop/resume motion preserves the Ponytail budget. No renderer, design-system or status-provider behavior changed.
 - Interactive Pi/Herdr, live producers/providers, Windows, optional compile-only declaration specimen and Mermaid rendering: **not run** (no renderer on PATH; diagram unchanged). No live reload, installation, commit or push. Independent final review remains parent-owned.
+
+### Configurable usage columns (2026-10-31)
+
+macOS, Node v22.23.4, existing Pi 1.4.0. Only the design-system and display slice changed; collection/configuration rollout remains separate.
+
+- **Passed:** root `npm install` (zero vulnerabilities), `npm ls --depth=0`, linked-package checks and the root no-host-packages/lockfile boundary assertion. No extension-local install or dependency added.
+- **Failed prerequisite:** the documented npm-global-root host probe found no Pi at that prefix. **Passed** using the existing executable's actual host through explicit `PI_HOST_ROOT`; no host installed to satisfy it.
+- **Passed:** `PI_HOST_ROOT="$PI_HOST_ROOT" npm test` **147/147**, no failed/skipped/cancelled checks. Configurable order/arbitrary slash and prototype ids, raw metadata consumption, sanitization and Unicode/four-cell tags, color resolution, one-slot placeholders, reported shapes, widths 1–280 at every boot tick, fill/edge/burn, real-loader freeze/resume and all other existing behavior are covered. GPT/CLD/KMI data snapshots and data-motion expectations remain unchanged with their source tags/tokens supplied. Earlier iteration failures were expected old-shape assertions and a corrected test-routing edit, not outstanding failures.
+- **Passed:** `printf '' | pi --mode rpc --no-extensions --extension .` with isolated temporary agent/cache roots and `HERDR_ENV=0`: exit 0. Noninteractive package load only; no live Pi/Herdr session, provider call or configuration change.
+- **Passed:** design-system **651/651** and required plain CLI snapshots; root changed-link/anchor, guidance inventory, exact CLAUDE entrypoints, staged/unstaged whitespace, import/color ownership and publication review. No new guide or root-map change needed.
+- **Not run:** optional compile-only declaration specimen (existing compiler absent), Mermaid rendering (no renderer on PATH; diagram unchanged), Windows and live sources. No standalone typecheck/lint/build command exists.
+- **Skipped:** interactive Pi/Herdr, per the explicit no-live boundary. No subjective glyph/color/motion or screen-reader acceptance is claimed.
+- Rules chosen: one anonymous eight-cell slot for pending/failed-without-data/none; reported windows alone in 5H/WK order; shapes may repack. Keep the existing **27-tick/1350 ms** boot bound independent of column count, settling all content at its cutoff.
+- Full-diff simplification: removed the provider/shape registry and duplicate renderer wire type, reused generic design-system parts and imported tokens, removed obsolete spill reservation, and constructed arbitrary-id fill maps once with `Object.fromEntries` plus own-property reads instead of quadratic repeated copies or a new registry. Existing motion/timer ownership, motion-off and hidden-pane behavior stay intact.
+
+C4 integration follow-up, same date/toolchain: the real-collector composition test now requires `{ installed: null, providers: [] }` for absent `industrialOs.usageSources`, rather than the old CodexBar-missing `false`. Remaining `installed: false` test values are synthetic legacy-v1 fixtures, not real-collector expectations. A full `PI_HOST_ROOT="$PI_HOST_ROOT" npm test` rerun passed **146/147**, with the sole failure at this new assertion (`false !== null`) because this slice intentionally retains the old collector. The parent will run combined suites after integrating the collector slice; no compatibility allowance weakens the new assertion. Whitespace and scoped diff review passed. The earlier 147/147 record predates this contract-alignment assertion.
+
+Integrated branch `feature/usage-sources`, same date, Node 22.23.0, Pi 1.4.0 host via explicit `PI_HOST_ROOT`: `npm test` **147/147 passed** with the new collector, and again after the review fix that strips leading whitespace and marks together from source tags (new vectors: a bidi mark, space, then a combining mark). Interactive Pi/Herdr and a live engine: **not run**.

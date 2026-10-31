@@ -82,3 +82,9 @@ test('root-package physical public paths resolve without loading a Pi extension 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('usage colors are public and ship declarations for footer consumers', async () => {
+  assert.ok(existsSync(here('./foundation/usage-colors.d.mts')));
+  const { usageColors, USAGE_NEUTRAL } = await import('@industrial-os/design-system/foundation/usage-colors');
+  assert.equal(usageColors(), USAGE_NEUTRAL);
+});

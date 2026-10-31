@@ -413,7 +413,7 @@ export const makeEngine = (options: { runtime: string; config: string }) =>
       yield* Deferred.succeed(stopping, undefined);
     });
     const handlers = yield* Api.toHandlers({
-      get: () =>
+      get: ({ sources: selected }) =>
         safe(
           Effect.gen(function* () {
             yield* scheduler.watch;
@@ -421,12 +421,17 @@ export const makeEngine = (options: { runtime: string; config: string }) =>
               Effect.gen(function* () {
                 const now = yield* Clock.currentTimeMillis,
                   meta = yield* store.meta();
+                const scope = selected === undefined ? undefined : new Set(selected);
+                const included = (id: string | undefined) =>
+                  scope === undefined || (id !== undefined && scope.has(id));
                 const sources = (yield* store.sources())
-                  .filter((s) => entries.has(s.id))
+                  .filter((s) => entries.has(s.id) && included(s.id))
                   .map((s) => s.status)
                   .map((s) => ({ ...s, nextAt: scheduler.nextAt(s.id, now) }))
                   .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
-                const items = (yield* store.items()).filter((i) => entries.has(i.source));
+                const items = (yield* store.items()).filter(
+                  (i) => entries.has(i.source) && included(i.source),
+                );
                 return derive({
                   now,
                   ...meta,
@@ -434,7 +439,9 @@ export const makeEngine = (options: { runtime: string; config: string }) =>
                   sources,
                   items,
                   overlays: yield* store.overlays(),
-                  ledger: yield* store.ledger(new Date(now - 15 * 86400000).toISOString()),
+                  ledger: (yield* store.ledger(new Date(now - 15 * 86400000).toISOString())).filter(
+                    (event) => included(event.source),
+                  ),
                   waiting: new Map(
                     [...entries.values()].map((e) => [e.id, e.config?.waiting ?? false]),
                   ),

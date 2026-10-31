@@ -5,7 +5,7 @@ Pi extensions that carry the Industrial OS visual and interaction language into 
 ## Extensions
 
 - [claude-interrupt](claude-interrupt/README.md): press Esc while Pi works and it aborts the response and continues with your queued text, marking the continuation with an animated **DIRECTIVE UPDATED** plate.
-- [signals-collector](signals-collector/README.md): one TUI session signal source for displays, including a machine-wide private parsed quota cache; owns the display-only Active tool, never a renderer.
+- [signals-collector](signals-collector/README.md): one TUI session signal source for displays, including usage read from configured source-collector sources; owns the display-only Active tool, never a renderer.
 - [status-bar](status-bar/README.md): replaces Pi's footer with a framed Acid / Black instrument panel that shows the agent-reported active project and branch, where Pi's tools run, context use, model, and other extensions' statuses. It is the first implementation of the style.
 - [herdr-sidebar](herdr-sidebar/README.md): reports this session's state, project, context, model and current activity to Herdr's agents sidebar, drawn by the rows in [herdr/](../herdr/README.md).
 - [herdr-pane-naming](herdr-pane-naming/README.md): names only its own inherited Herdr pane from delivered user text and assistant activity, using TypeSafe/Jev and a title model; main TUI only.

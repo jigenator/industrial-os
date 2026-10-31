@@ -1,10 +1,10 @@
 # Pi Signals Collector
 
-One TUI-only, in-session data producer for Industrial OS displays. It collects Launch/agent-reported Active, Git/worktree/PR state, ROOT/settlement, current phase and pending question, model/thinking, context reserve/usage, selected-branch CMP, optional pi-subagents AU, validated private pi-goal records and optional CodexBar quota. It does not install a footer or write Herdr tokens.
+One TUI-only, in-session data producer for Industrial OS displays. It collects Launch/agent-reported Active, Git/worktree/PR state, ROOT/settlement, current phase and pending question, model/thinking, context reserve/usage, selected-branch CMP, optional pi-subagents AU, validated private pi-goal records and optional provider usage read from configured [source-collector](../../source-collector/README.md) sources. It does not install a footer or write Herdr tokens.
 
 ## Install
 
-Node.js 22.19+ and an installed Pi host are required (verified with Pi 1.0.4). Git, authenticated `gh`, CodexBar and pi-subagents are optional. Missing/failed collection means unknown/unavailable, never clean or zero. No collection runs in print/JSON/RPC child processes.
+Node.js 22.19+ and an installed Pi host are required (verified with Pi 1.0.4). Git, authenticated `gh`, a running source-collector engine and pi-subagents are optional. Missing/failed collection means unknown/unavailable, never clean or zero. No collection runs in print/JSON/RPC child processes.
 
 Select the collector alongside any displays in the one repository entry in Pi's `packages` array; see [Pi install](../README.md#install):
 
@@ -13,6 +13,14 @@ Select the collector alongside any displays in the one repository entry in Pi's 
 ```
 
 From a checkout, load for one invocation with `pi -e pi/signals-collector -e pi/status-bar` from the repository root after its `npm install` (the footer needs the linked design system). Either collector/display order works. Load the collector only once; configuring both local and git sources for it would duplicate it. This package has no local runtime install/dependencies.
+
+Usage is off until Pi settings list the source-collector sources to show, in display order:
+
+```json
+{ "industrialOs": { "usageSources": ["usage-gpt", "usage-cld", "usage-kmi"] } }
+```
+
+Each id is one source-collector source per provider. The [contract](docs/contract.md#usage-item-convention) gives the item convention and a fake CodexBar source with its jq transform. The setting is read at session start, so `/reload` applies a change.
 
 `set_active_project({ path })` belongs here. It signals before a deliberate project/worktree move and again when switching back, not for incidental reads. Relative paths resolve from Launch. Successful `{ version: 1, path }` tool-result details restore unchanged on the selected session branch (including existing status-bar sessions). It changes only the display: never cwd, tool behavior or loaded instructions/resources. See [the decision](docs/decisions/agent-reported-active-workspace.md).
 
@@ -40,9 +48,9 @@ Future panels/dashboards in the same Pi session use this contract. Add a signal 
 
 ## Limits
 
-- Herdr off-screen panes defer Git/PR and usage refresh initiation, not session/activity reporting. Showing them resumes current inspection. Unknown visibility keeps normal behavior; see the [visibility contract and multi-client/window/sidebar limits](docs/contract.md#pane-visibility-and-deferred-inspection).
+- Herdr off-screen panes defer Git/PR inspection and usage polling, not session/activity reporting. Showing them resumes current inspection. Unknown visibility keeps normal behavior; see the [visibility contract and multi-client/window/sidebar limits](docs/contract.md#pane-visibility-and-deferred-inspection).
 - Git refresh is per session, every 15 seconds and after tools while not known hidden. PR lookup shares a private bounded 60-second repository/branch cache across interactive processes; explicit auth/config overrides retain session-local caching only. See [auth isolation and failure limits](docs/contract.md#3-shared-github-pr-lookup). No render does I/O.
-- CodexBar's parsed cache is machine-wide under `$XDG_CACHE_HOME/industrial-os/signals-collector/usage.json` (default `~/.cache`), atomic and mode 0600. Sessions watch its directory and contend on one exclusive lock; a winner fetches all three providers when the last round is five minutes old, others wait. Failures retain last good provider samples and are cached. No raw account/identity/output fields persist. The [contract](docs/contract.md#compatibility-and-limits) records the accepted simultaneous stale-taker extra-fetch race.
+- Usage polls the source-collector socket every 60 seconds while visible with one scoped `get` for the configured sources; the engine fetches providers on each source's own schedule. When the engine is not running and has not answered this session, the row is hidden; after an earlier answer the last data stays, marked failed. While a polling session is visible, the engine counts as watched, so its sources run at their `every` interval. See the [state table](docs/contract.md#state-table). The former `$XDG_CACHE_HOME/industrial-os/signals-collector/usage.json` and `usage.lock` (default `~/.cache`) are no longer used and may be deleted.
 - AU is active work including pending/workflow containers, **not** an exact running-agent count. Optional RPC timeouts cannot cancel work already started inside its owner.
 - pi-goal collection validates the inspected private 0.54.10 record on observed lifecycle/message/tool/input boundaries. An idle `/goal` command-only update can wait until another boundary. No general public goal-change event is claimed.
 - Active can be stale if the agent forgets its declaration. No automatic tool-path inference, daemon or cross-session fleet/goal data.

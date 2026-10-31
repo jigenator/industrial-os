@@ -29,7 +29,7 @@ Start here and scan the supporting-documents map. Read every document whose `Rea
 | Change | Start here | Relevant boundary |
 | --- | --- | --- |
 | Path, Git, worktree, remote, PR or Active collection | [signals-collector](../signals-collector/AGENTS.md) | This extension only displays its snapshot |
-| CodexBar parsing/cache or AU/CMP/context reserve collection | [signals-collector](../signals-collector/AGENTS.md) | No subprocess/cache/settings lookup here |
+| Usage source collection/validation or AU/CMP/context reserve collection | [signals-collector](../signals-collector/AGENTS.md) | No subprocess/cache/settings lookup here |
 | Footer content, sanitization, wrapping, palette, or motion frames | `src/footer.ts` | Pure snapshot-and-frame-to-lines rendering; I/O and clocks forbidden |
 | Snapshot handshake, display lifecycle, observers or animation/countdown repaint | `src/signals.ts`, `src/extension.ts` | Public events only; guard stale sessions and dispose resources |
 | Regression coverage | Matching file in `test/` | Isolated fixtures; real installed loader only at integration boundary |

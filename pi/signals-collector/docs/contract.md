@@ -1,10 +1,10 @@
 # Signals collector contract v1
 
-Status: current. Sections 1–2 preserve the frozen 2026-10-08 handoff; section 3 adds shared PR lookup; `visible` is an additive v1 snapshot field. Herdr token/blocked-event/configuration sections belong to other projects. This collector is also the data source for future in-session panels and dashboards.
+Status: current. Section 1 preserves the frozen 2026-10-08 handoff; section 2 replaces the CodexBar cache with configured source-collector sources (2026-10-31, a compatible v1 widening); section 3 adds shared PR lookup; `visible` is an additive v1 snapshot field. Herdr token/blocked-event/configuration sections belong to other projects. This collector is also the data source for future in-session panels and dashboards.
 
 ## 1. Snapshot contract v1 (owned by `pi/signals-collector`)
 
-Transport: Pi's in-process `pi.events` bus. Only parsed CodexBar quota (section 2) and validated GitHub PR lookups (section 3) cross sessions through private caches; snapshots and local Git inspection remain session-owned.
+Transport: Pi's in-process `pi.events` bus. Only validated GitHub PR lookups (section 3) cross sessions through a private cache; usage (section 2) is read from the local source-collector engine; snapshots and local Git inspection remain session-owned.
 
 | Channel | Direction | Payload |
 | --- | --- | --- |
@@ -45,7 +45,7 @@ interface SignalsSnapshot {
                                      // from pi-goal's latest `goal-state` custom entry on the selected branch
                                      // (data.goal: status, timeUsedSeconds, activeStartedAt); null = no goal, a
                                      // cleared/complete goal, or an unrecognised record. activeSince only when status is "active".
-  usage: UsageSnapshot;              // CodexBar data from the shared cache, in status-bar's existing usage shape
+  usage: UsageSnapshot;              // configured source-collector usage sources (section 2)
 }
 
 type Phase =
@@ -70,49 +70,125 @@ Out of scope for v1 (stay in status-bar): Ponytail, Tatsu and background-tasks s
 
 The TUI session owns an event subscription, not a visibility poll. Subscribe before resolving `pane.get`, `workspace.get` and, for an active tab, `pane.layout`; resolve again after reconnect and visibility-changing events. A failed read disconnects, reports unknown and retries through bounded reconnect backoff. Concurrent events invalidate in-flight reads; disposal cancels sockets/timers and fences results. Changes use the normal coalesced snapshot push.
 
-While known hidden, stop the 15s Git interval and defer tool-end/Active-selection inspection and PR lookup; abort pending Git/PR work. Selection still validates and records the path. Usage timer/watch wakes do not start refresh rounds, but cache-file reloads continue; a round already fetching may finish under its existing lock. Root, phase, AU, context, questions, goals, model and all other lifecycle signals continue. On false → true/null, immediately inspect the latest Active path (including PR freshness), refresh stale usage under the same lock rules, and resume the Git interval. Asynchronous inspection results publish when ready, not as fabricated fresh data in the visibility snapshot.
+While known hidden, stop the 15s Git interval and defer tool-end/Active-selection inspection and PR lookup; abort pending Git/PR work. Selection still validates and records the path. Usage polling stops; a request already in flight may finish and publish. Root, phase, AU, context, questions, goals, model and all other lifecycle signals continue. On false → true/null, immediately inspect the latest Active path (including PR freshness), poll usage at once, and resume the Git interval. Asynchronous inspection results publish when ready, not as fabricated fresh data in the visibility snapshot.
 
 Limits: server focus follows the last client that navigated when several Herdr clients exist. Detached clients and minimized terminal windows still count as visible. The Herdr sidebar's Git token for a hidden pane is stale until shown again. Visible but unfocused split panes intentionally keep animating. This is server layout visibility, not operating-system window visibility.
 
-## 2. Shared CodexBar cache (owned by `pi/signals-collector`)
+## 2. Usage via source-collector (owned by `pi/signals-collector`)
 
-- One cache for the machine: `~/.cache/industrial-os/signals-collector/usage.json` (respect `XDG_CACHE_HOME`),
-  mode 0600, written atomically (temporary file then rename). It holds only the whitelisted, parsed fields
-  status-bar's `usage.ts` already keeps, plus `fetchedAt`; never raw CodexBar output, account or identity fields.
-- A collector reads the cache on start and watches its directory (`fs.watch`) to reload when another session
-  writes it. Consumers receive new usage through the normal snapshot push.
-- Refresh: one unref'd timer per collector, set for when the cache turns 5 minutes old (plus small jitter). On
-  wake it tries an exclusive lock file (`usage.lock`, created with `wx`, holding pid and time). The winner runs the
-  existing three provider fetches and writes the cache; others do nothing and wait for the file change. A lock
-  older than 3 minutes is stale and may be taken over. No session ever runs CodexBar while a fresh cache exists.
-- Failures keep status-bar's existing semantics (last good sample kept per provider, `timeout`/`failed`,
-  not-installed hides the row) and are recorded in the cache so other sessions do not retry immediately.
+Provider usage is collected by ordinary [source-collector](../../../source-collector/README.md) sources, one per provider, configured privately. This collector only reads the sources a user lists; nothing here is provider-specific. The [decision](../../../docs/decisions/usage-via-source-collector.md) explains why.
 
-A directory-watch notification that the lock was removed wakes only a contender, a collector whose last attempt found another collector's lock: it re-reads the cache and, if it is still stale, schedules an exclusive-lock attempt with the ordinary 0–249 ms jitter. This wakes contenders when a disposed/aborted holder releases without writing. A collector's own release never wakes it, however late its notification arrives, so a failed cache write keeps the five-minute retry. Missed notifications or watch failures still rely on the bounded timer/stale-lock recovery described below.
+### Configuration
 
-### Usage wire and file shape
+The Pi setting `industrialOs.usageSources`, read with `pi.getSettings()` at each session start and `session_tree` restore, is an ordered array of 1–256 source-collector source ids (`^[a-z0-9][a-z0-9_-]{0,63}$`). Order is display order; a repeated id keeps its first position. Absent, not an array, empty, longer than 256 or containing any invalid entry means no usage polling and `usage = { installed: null, providers: [] }` (row hidden). Pi merges global and project settings; a project array replaces the global one. A change applies at the next session start, for example `/reload`.
 
-The clarified v1 usage shape (no consumer clock):
+```json
+{ "industrialOs": { "usageSources": ["usage-gpt", "usage-cld", "usage-kmi"] } }
+```
+
+Verified against installed Pi 1.4.0: its settings schema allows additional top-level properties, settings files are not validated, and `getSettings()` returns a merged copy that keeps this key.
+
+### Transport and timing
+
+The socket is `feed.sock` in source-collector's runtime directory, resolved exactly as source-collector's own `paths()` does: `SOURCE_COLLECTOR_HOME`, default `~/Library/Application Support/source-collector`; a leading `~/` and a relative value resolve from `HOME` (else the OS home directory), an absolute value is used as is. Each poll opens one connection, writes one newline-delimited JSON-RPC 2.0 request and reads one newline-terminated reply:
+
+```json
+{ "jsonrpc": "2.0", "id": 1, "method": "get", "params": { "sources": ["usage-gpt", "usage-cld", "usage-kmi"] } }
+```
+
+A reply line over 1 MiB, a 5 s timeout, a missing or refused socket, a closed connection, a JSON-RPC error, a mismatched `id` or a result that is not a v1 snapshot (`v: 1` with `sources` and `items` arrays) makes the engine unreachable for that poll. There is no retry before the next poll and no other source-collector RPC. Polls run immediately at session start, every 60 s while the pane is not known hidden, and immediately when it is shown again (false → true/null); one request is outstanding at a time. Hidden panes do not poll. Non-TUI sessions do nothing. Replacement and shutdown abort the request in flight and suppress its result. The engine fetches each source on its own schedule (`every`, default 5 minutes); a poll reads only its stored state.
+
+### Usage item convention
+
+One source per provider. Its `tag` is the column tag and its `color` a usage color token such as `usage.gpt`, `usage.cld` or `usage.kmi` (the design system resolves tokens; an absent or unknown token is neutral); `label` is free text. Its transform emits SourceOutput `{ v: 1, items: [item] }` with exactly one item:
+
+- `key`: `"usage"`; `title`: any text; `since`: the provider's reported sample time (ISO with timezone) when valid, else the fetch time.
+- `facts`, all optional, absent meaning not reported:
+  - `updatedAt`: ISO string, the provider's reported sample time.
+  - For window `h5` (300 minutes) and `wk` (10080 minutes): `h5`/`wk` is `true` when the provider reported that window; `h5Used`/`wkUsed` is the used percent, only when finite; `h5ResetsAt`/`wkResetsAt` is an ISO string, only when known.
+- A provider failure makes the fetch command fail; the engine then keeps the previous items as stale.
+
+This collector validates every known fact: a window flag is `true`, `false` or absent; percentages are finite numbers; times are ISO 8601 instants with a timezone of at most 40 characters. Any other value makes the whole item no data. Unknown facts and every other item field are ignored and never copied.
+
+A fake example for a CodexBar provider, in a private config root (`sources/usage-cld/source.json`):
+
+```json
+{
+  "id": "usage-cld",
+  "label": "Claude usage",
+  "tag": "CLD",
+  "color": "usage.cld",
+  "type": "command",
+  "fetch": ["codexbar", "usage", "--provider", "claude", "--format", "json", "--json-only"],
+  "transform": "usage.jq",
+  "every": "5m",
+  "timeout": "60s",
+  "env": { "NO_COLOR": "1" }
+}
+```
+
+`usage.jq` beside it identifies windows by length, not position (Kimi reverses them; Codex has no 5-hour window), and copies no identity, credits or other fields. CodexBar exits 1 on a provider failure, which fails the fetch:
+
+```jq
+def window($minutes; $key):
+  (map(select(.windowMinutes == $minutes)) | first) as $w
+  | if $w == null then {}
+    else { ($key): true }
+      + (if ($w.usedPercent | type) == "number" then { ($key + "Used"): $w.usedPercent } else {} end)
+      + (if ($w.resetsAt | type) == "string" then { ($key + "ResetsAt"): $w.resetsAt } else {} end)
+    end;
+.[0] as $p
+| if ($p.usage | type) != "object" or $p.error != null then error("no usage") else . end
+| ([$p.usage.primary, $p.usage.secondary, $p.usage.tertiary] | map(objects)) as $windows
+| ($p.usage.updatedAt | if type == "string" then . else null end) as $updated
+| { v: 1, items: [{
+    key: "usage", title: "Usage", since: ($updated // (now | todate)),
+    facts: (($windows | window(300; "h5") + window(10080; "wk"))
+      + (if $updated then { updatedAt: $updated } else {} end))
+  }] }
+```
+
+The engine runs commands with only `HOME`, `PATH` and the configured `env`; use an absolute `codexbar` path if its `PATH` lacks one. Usage items are ordinary items to other clients: give dispatch-feed an include list that leaves the usage sources out.
+
+### State table
+
+`providers` always holds one entry per configured id, in configured order.
+
+| Condition | `installed` | Provider entry |
+| --- | --- | --- |
+| No valid setting | `null` | none (`providers: []`) |
+| Before any successful reply, including an unreachable engine | `null` | `{ provider }` |
+| Successful reply: id absent from `sources` | `true` | `{ provider, failure: "failed" }` |
+| Successful reply: status `ok` | `true` | `tag`, `color`, `data` from a valid usage item; no failure |
+| Successful reply: status `loading` and no items from that source | `true` | `tag`, `color`; pending: no data, no failure |
+| Successful reply: any other status (`stale`, `auth`, `error`, `planned`, `config_error`, `disabled`, or `loading` with items) | `true` | `tag`, `color`, `data` from a valid usage item if one is returned (stale keeps last-known items; auth clears them); `failure: "timeout"` when the status `error.code` is `"timeout"`, else `"failed"` |
+| Unreachable after an earlier success | `true` | the previous entry; one with `data` gains `failure: "failed"`, one without is unchanged |
+
+`tag` and `color` are the status's raw strings, copied only when 1–200 characters; consumers sanitize and clip them. `data.fetchedAt` is the source status's `okAt`: the end of the successful run that produced its current items, so it moves only with a new sample. The item's `seenAt` is not used because it stays at the first time the key was seen. Without a valid `okAt` there is no data. `data.updatedAt` is `facts.updatedAt`, else null. No error message, label or other status field is copied.
+
+### Usage wire shape
+
+The widened v1 shape (no consumer clock):
 
 ```ts
-type UsageSnapshot = {
-  installed: boolean | null; // null = unknown; false hides the optional row
-  providers: UsageProviderState[]; // codex, claude, kimi, in this order
-};
+type UsageSnapshot = { installed: boolean | null; providers: UsageProviderState[] }; // configured order
 type UsageProviderState = {
-  provider: "codex" | "claude" | "kimi";
+  provider: string;   // source-collector source id
+  tag?: string;       // raw source tag
+  color?: string;     // raw source color token
   data?: {
     windows: { "5h"?: UsageWindow; wk?: UsageWindow };
-    updatedAt: number | null;
-    fetchedAt: number; // receipt time of this successful sample
+    updatedAt: number | null; // provider's reported sample time
+    fetchedAt: number;        // the source's okAt
   };
   failure?: "timeout" | "failed";
 };
 type UsageWindow = { usedPercent: number | null; resetsAt: number | null };
-type UsageCacheFile = UsageSnapshot & { fetchedAt: number };
 ```
 
-`UsageCacheFile.fetchedAt` is the last completed refresh round, including failures or a missing executable. `data.fetchedAt` remains the last successful provider receipt time when a refresh fails. A persisted file always has a boolean `installed`; `null` is in-memory unknown before a valid cache read/round. `updatedAt` is CodexBar's reported sample time; footer staleness prefers it to `data.fetchedAt`. Consumers add their own `now` only at presentation. No credentials, identities, raw stderr or raw CodexBar records are persisted.
+`provider` was a fixed `"codex" | "claude" | "kimi"` union and `tag`/`color` are new; this is an approved compatible widening that stays version 1. Footer staleness prefers `updatedAt` to `fetchedAt`. Consumers add their own `now` only at presentation.
+
+The former machine-wide cache, `$XDG_CACHE_HOME/industrial-os/signals-collector/usage.json` with `usage.lock` (default cache root `~/.cache`), is no longer read or written. It may be deleted; the `pr` directory beside it is still in use.
 
 ### Compatibility and limits
 
@@ -122,7 +198,7 @@ The collector alone resolves Pi settings into reserve. For exact existing footer
 
 Goal records are private pi-goal 0.54.10 compatibility, not a released integration API. Validate the latest selected-branch `goal-state` record; incompatible/malformed/latest-cleared records become null, not fallback to an older goal. Supported statuses are active, paused, blocked, usage_limited and budget_limited. Lifecycle/message/tool/input boundaries resample records; pi-goal has no general public goal-change event. An idle `/goal` command-only change may wait for another observed boundary; no polling/invented channel.
 
-Cache contenders re-stat the stale lock's inode and mtime immediately before unlink, then retry exclusive `wx`. Losing contenders wait/back off. Stat/unlink is not an atomic compare-and-delete: simultaneous stale takers can cause one extra CodexBar round. This accepted residual race does not corrupt the cache because writes are atomic. Fresh-lock/fresh-cache contention has one winner; lock age uses the recorded time (mtime for malformed locks). Watch errors leave the five-minute refresh timer as bounded recovery, not a second polling loop. Jitter is 0–249 ms. Filesystem/lock/write failures do not trigger uncoordinated fetches or success-shaped data.
+Usage needs a running source-collector engine: when it is not running and has not answered this session, the row stays hidden (`installed: null`), not zero. Each visible session polls on its own; while one is open the engine counts as watched, so its sources run at `every` rather than `idleEvery`.
 
 ## 3. Shared GitHub PR lookup
 
@@ -134,4 +210,4 @@ Auth isolation follows [gh's environment contract](https://cli.github.com/manual
 
 Application cache directories are checked for symlinks/ownership and secured to 0700; files are exclusively created 0600 and atomically renamed. Cache reads refuse symlinks, nonregular files, wrong ownership/mode and oversized data. `refresh.lock` is a global exclusive `wx` lock, deliberately serializing different keys too. A winner rechecks freshness under lock before invoking the existing bounded 10s gh API command ([explicit GET/raw fields](https://cli.github.com/manual/gh_api)). Losers retry only lock/cache access with 50–99ms unref'd abortable backoff for at most 12s, then return unavailable; they never fall back to uncoordinated gh. Cache/permission/write failures remain unavailable, not absent. Successful/failure lookup results are shared for 60s; cache infrastructure failures retain per-session retry caching only.
 
-Locks older than 30s (above the 10s command budget plus write/cleanup margin) may be removed after inode/mtime recheck, followed by another exclusive `wx` attempt. As with quota, simultaneous stale takers have a narrow accepted extra-fetch race because stat/unlink is not atomic; ordinary fresh-lock contention has one winner. A paused holder or clock jump can look stale. Waiters remain bounded even when a crash has not yet reached the stale threshold; a subsequent refresh recovers automatically. Disposal/Active/session change abort waiting/gh, releases an owned lock and suppresses pending writes before rename; an already committed atomic cache entry may remain useful to other sessions, but stale work never publishes to the replaced session. There is no watcher, daemon, background polling loop or unbounded retry queue for PRs.
+Locks older than 30s (above the 10s command budget plus write/cleanup margin) may be removed after inode/mtime recheck, followed by another exclusive `wx` attempt. Simultaneous stale takers have a narrow accepted extra-fetch race because stat/unlink is not atomic; ordinary fresh-lock contention has one winner. A paused holder or clock jump can look stale. Waiters remain bounded even when a crash has not yet reached the stale threshold; a subsequent refresh recovers automatically. Disposal/Active/session change abort waiting/gh, releases an owned lock and suppresses pending writes before rename; an already committed atomic cache entry may remain useful to other sessions, but stale work never publishes to the replaced session. There is no watcher, daemon, background polling loop or unbounded retry queue for PRs.

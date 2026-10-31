@@ -32,6 +32,8 @@ Signal colors now also serve Herdr chrome: the [Herdr theme](../../herdr/theme.t
 
 The [Pi theme](../../pi/theme/industrial-os.json) likewise restates roles and signal colors, plus one [Pi chrome color](../foundation/README.md#pi-chrome-colors) in `PI_CHROME`: `bone` `#e2dccb`, the warm off-white of Pi's editor border. `PI_CHROME.lamp` `#ff5c00` is the Pi droid header's signal lamp, the Marathon signal orange in its own role. The SIGNAL COLORS story shows neither.
 
+Usage sources select the [usage families](../foundation/README.md#usage-color-families) by exact token, independently of provider id or tag. Existing GPT/CLD/KMI lit, used and mid inks are unchanged; absent/unknown tokens use secondary-grey lit with its derived 20%/50% mixes. No additional provider brand mapping is implied.
+
 ## Motions
 
 Thirty [motions](../motions/README.md) decorate already-rendered lines at an explicit time, under the shared [motion rules](../../docs/design.md#motion): scan, pulse, and reveal; the state and attention motions modeled on the extensions (draw-in, warm-up, latch, beacon, cycle, fade, blink, flash); and the signal, meter, and glitch motions (ping, wipe, fill-in, burn-out, edge pulse, restrike, ghost, nudge), plus dashboard decode, breathe, arrival-ping, ambient-sweep and ambient-load. `animate: false` is every motion's motion-off state. Warning and critical cells are exempt unless a motion opts in for a state cue (warm-up, latch, beacon, flash), and then every frame keeps the state's shape and word. This exemption protects cells, not an entire message. Motions that can hide or replace characters (reveal, draw-in, ghost, and the glyph motions) belong only on nonessential decoration; compose complete readings, labels, and status messages outside them.

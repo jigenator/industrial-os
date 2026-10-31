@@ -60,8 +60,9 @@ def exercise(exit_key, code, motion=False):
         before = termios.tcgetattr(slave)
         fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 54, 118, 0, 0))
         env = {**os.environ, "SOURCE_COLLECTOR_HOME": home, "HOME": home,
-               "HERDR_SOCKET_PATH": home + "/not-herdr.sock", "TERM": "xterm-256color"}
-        child = subprocess.Popen([BUN, "bin/dispatch-feed.ts"] + ([] if motion else ["--motion-off"]), cwd=ROOT,
+               "HERDR_SOCKET_PATH": home + "/not-herdr.sock", "TERM": "xterm-256color",
+               "DISPATCH_FEED_SOURCES": "env-only"}
+        child = subprocess.Popen([BUN, "bin/dispatch-feed.ts", "--sources", " reviews, scratch, ,reviews "] + ([] if motion else ["--motion-off"]), cwd=ROOT,
                                  env=env, stdin=slave, stdout=slave, stderr=slave, close_fds=True)
         capture = bytearray()
 
@@ -89,6 +90,8 @@ def exercise(exit_key, code, motion=False):
             drain(0.4)
             assert any(r.get("params", {}).get("do") == "todo.add" and r["params"].get("text") == "PTY task" for r in requests)
             assert all(r["params"].get("actor") == "you" for r in requests if r["method"] == "act")
+            assert all(r["params"] == {"sources": ["reviews", "scratch", "reviews"]} for r in requests if r["method"] == "get")
+            assert all(r["params"].get("source") == "scratch" for r in requests if r.get("params", {}).get("do") == "todo.add")
             fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 12, 40, 0, 0))
             child.send_signal(signal.SIGWINCH)
             drain()
