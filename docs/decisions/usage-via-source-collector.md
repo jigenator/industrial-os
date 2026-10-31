@@ -4,7 +4,7 @@ Status: current. Date: 2026-10-31; approved. Supersedes the quota part of [sessi
 
 ## Choice
 
-Provider usage is collected by ordinary [source-collector](../../source-collector/README.md) sources, one per provider, in a private config. Each source's transform emits one `usage` item following the [usage item convention](../../pi/signals-collector/docs/contract.md#usage-item-convention). `pi/signals-collector` reads only the source ids listed in the Pi setting `industrialOs.usageSources`, with a scoped `get` over source-collector's socket every minute while its pane is visible, and maps them into the v1 `usage` field in that order. Its [state table](../../pi/signals-collector/docs/contract.md#state-table) is canonical. Displays render whatever usage columns arrive; nothing outside the private config and the documented convention names CodexBar or a provider.
+Provider usage is collected by ordinary [source-collector](../../source-collector/README.md) sources, one per provider, in a private config. Each source's transform emits one `usage` item following the [usage item convention](../../pi/signals-collector/docs/contract.md#usage-item-convention). `pi/signals-collector` reads only the source ids listed in the Pi setting `industrialOs.usageSources`, with a scoped `get` over source-collector's socket, timed from each source's `nextAt` while its pane is visible, and maps them into the v1 `usage` field in that order. Its [state table](../../pi/signals-collector/docs/contract.md#state-table) is canonical. Displays render whatever usage columns arrive; nothing outside the private config and the documented convention names CodexBar or a provider.
 
 ## Why
 
@@ -21,7 +21,7 @@ Provider usage is collected by ordinary [source-collector](../../source-collecto
 ## Consequences and revisit
 
 - The usage row is hidden when the engine is not running and has not answered this session; after an earlier answer the last data stays, marked failed. This trades the old standalone CodexBar call for one shared owner.
-- Every visible configured Pi session polls on its own, and any `get` keeps the engine in its watched cadence, so while one is visible its sources run at `every` rather than `idleEvery`.
+- Every visible configured Pi session polls on its own, timed from each source's `nextAt`. A scoped `get` watches only its selected sources, so while one is visible the usage sources run at `every` rather than `idleEvery` and other sources are unaffected.
 - Usage items are ordinary engine items, so other clients see them unless scoped. Dispatch-feed should run with an include list.
 - The snapshot stays v1: `provider` widens from a fixed union to a source id, with optional raw `tag` and `color`.
 - The former cache file and lock are no longer used and may be deleted.

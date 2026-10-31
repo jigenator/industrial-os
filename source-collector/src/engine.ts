@@ -416,7 +416,7 @@ export const makeEngine = (options: { runtime: string; config: string }) =>
       get: ({ sources: selected }) =>
         safe(
           Effect.gen(function* () {
-            yield* scheduler.watch;
+            yield* scheduler.watch(selected);
             return yield* store.sql.withTransaction(
               Effect.gen(function* () {
                 const now = yield* Clock.currentTimeMillis,

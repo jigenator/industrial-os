@@ -31,7 +31,7 @@ test("scheduler watched/idle timing and immediate overdue admission on watch tra
       yield* TestClock.adjust("11 seconds");
       yield* scheduler.tick;
       expect(runs).toBe(1);
-      yield* scheduler.watch;
+      yield* scheduler.watch();
       yield* Effect.yieldNow;
       expect(runs).toBe(2);
       yield* TestClock.adjust("11 seconds");
@@ -45,6 +45,42 @@ test("scheduler watched/idle timing and immediate overdue admission on watch tra
       yield* TestClock.adjust("11 seconds");
       yield* scheduler.tick;
       expect(runs).toBe(4);
+    }),
+  );
+});
+test("scoped watch speeds up only the requested sources; unscoped covers all", async () => {
+  await timed(
+    Effect.gen(function* () {
+      const runs: Record<string, number> = { a: 0, b: 0 };
+      const scheduler = yield* makeScheduler((c) =>
+        Effect.sync(() => {
+          runs[c.id]++;
+        }),
+      );
+      scheduler.configure([config("a"), config("b")], 20);
+      yield* scheduler.tick;
+      yield* Effect.yieldNow;
+      expect(runs).toEqual({ a: 1, b: 1 });
+      yield* TestClock.adjust("11 seconds");
+      yield* scheduler.watch(["a", "a", "unknown"]);
+      yield* Effect.yieldNow;
+      expect(runs).toEqual({ a: 2, b: 1 }); // only a is overdue at its watched interval
+      expect(Date.parse(scheduler.nextAt("b", 11000)!)).toBe(30000);
+      yield* TestClock.adjust("121 seconds");
+      yield* scheduler.tick;
+      yield* Effect.yieldNow;
+      expect(runs).toEqual({ a: 3, b: 2 }); // both idle-due again, a's watch expired
+      expect(Date.parse(scheduler.nextAt("a", 132000)!)).toBe(162000);
+      yield* scheduler.watch();
+      expect(Date.parse(scheduler.nextAt("b", 132000)!)).toBe(142000);
+      yield* scheduler.watch(["b"]);
+      yield* scheduler.watch(["b"]);
+      yield* Effect.yieldNow;
+      expect(runs).toEqual({ a: 3, b: 2 }); // re-watching inside an unscoped window adds no run
+      scheduler.configure([config("a"), config("b"), config("c")], 20);
+      yield* scheduler.tick;
+      yield* Effect.yieldNow;
+      expect(Date.parse(scheduler.nextAt("c", 132000)!)).toBe(142000); // configured inside an unscoped window
     }),
   );
 });
@@ -85,7 +121,7 @@ test("failure doubles delay, caps at 15 minutes, success resets; stop admits not
         failRun ? Effect.fail(fail("command_failed", "no")) : Effect.void,
       );
       scheduler.configure([config("a")], 20);
-      yield* scheduler.watch;
+      yield* scheduler.watch();
       yield* Effect.yieldNow;
       expect(Date.parse(scheduler.nextAt("a", 0)!)).toBe(20000);
       for (let i = 0; i < 8; i++) {
