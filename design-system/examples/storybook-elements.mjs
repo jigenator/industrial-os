@@ -15,10 +15,11 @@ import { statusRow } from '../elements/status-row/status-row.mjs';
 import { COUNT_PLATES, countPlate } from '../elements/count-plate/count-plate.mjs';
 import { lamp } from '../elements/lamp/lamp.mjs';
 import { modePlate, pnytlPlate } from '../elements/mode-plate/mode-plate.mjs';
+import { usageColors } from '../foundation/usage-colors.mjs';
 import { SURFACE_PALETTE } from '../foundation/surface-palette.mjs';
 import { stateChip, stateChips } from '../elements/state-chip/state-chip.mjs';
 import { numeralAt, numeralGrid, numeralLines, pixelNumeral, textGrid } from '../elements/pixel-numeral/pixel-numeral.mjs';
-import { providerColumn, segmentMeter } from '../elements/segment-meter/segment-meter.mjs';
+import { providerColumn, providerColumnParts, segmentMeter } from '../elements/segment-meter/segment-meter.mjs';
 import { threadRail, threadRailPieces } from '../elements/thread-rail/thread-rail.mjs';
 import { frameGeometry, instrumentFrame } from '../elements/instrument-frame/instrument-frame.mjs';
 import { transcriptMarker } from '../elements/transcript-marker/transcript-marker.mjs';
@@ -418,8 +419,14 @@ const METER = element('segment-meter', {
     { name: 'STALE', note: 'Failure after a good sample: last windows kept, a dim tag, and its age (16m) in warning.', input: { provider: 'claude', failure: 'failed', data: { windows: { '5h': { usedPercent: 30, resetsAt: 120 * MIN }, wk: { usedPercent: 55, resetsAt: 3 * 24 * 60 * MIN } }, updatedAt: 0 } }, now: 16 * MIN },
     { name: 'NONE', note: 'A successful sample with no windows: none.', input: { provider: 'codex', data: { windows: {}, updatedAt: 0 } } },
     { name: 'METER', note: 'segmentMeter alone: eight inline squares, 87.5% remaining.', meter: { remaining: 87.5, ink: 'primary' } },
+    { name: 'SOURCE TAG', note: 'Natural parts opt into a four-cell source tag and the derived neutral usage family.', parts: true, input: { tag: 'MUSE', ink: usageColors('usage.muse').lit, declared: ['wk'] } },
   ],
   specimen(variant, width) {
+    if (variant.parts) {
+      const opts = { tagWidth: 4 }, parts = providerColumnParts(variant.input, opts);
+      const lines = ['top', 'bottom'].map((side) => fitLine(parts.flatMap((part, i) => [...(i ? [span(' ')] : []), ...part[side]]), width));
+      return { lines, calls: [`parts = ${call('providerColumnParts', variant.input, opts)}`, `['top', 'bottom'].map((side) => fitLine(parts.flatMap((part, i) => [...(i ? [span(' ')] : []), ...part[side]]), ${width}))`], facts: ['Four-cell tag; no provider preset or brand color implied'] };
+    }
     if (variant.meter) return piece('segmentMeter', (o) => segmentMeter(variant.meter, o), [variant.meter], {}, width);
     const opts = { width: within(width, 30), now: variant.now ?? 0 };
     const lines = providerColumn(variant.input, opts);

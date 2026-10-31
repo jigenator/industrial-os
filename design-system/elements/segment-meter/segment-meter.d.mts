@@ -1,4 +1,4 @@
-import type { Color, Line } from '../../foundation/cells.mjs';
+import type { Color, Line, Measure } from '../../foundation/cells.mjs';
 export type UsageProvider = 'codex' | 'claude' | 'kimi';
 export type UsageWindowKey = '5h' | 'wk';
 export interface ProviderLook { tag: string; ink: Color; declared: readonly UsageWindowKey[] }
@@ -13,4 +13,4 @@ export function countdown(resetsAt?: number | null, now?: number | null, options
 export function staleAge(ms: number): string;
 export function providerColumnWidth(input: ProviderInput, options?: ProviderOptions): number;
 export function providerColumn(input: ProviderInput, options: ProviderOptions & { width: number }): Line[];
-export function providerColumnParts(input: ProviderInput, options?: ProviderOptions & { age?: string | null; countdownOverflow?: 'throw' | 'text' }): ProviderPart[];
+export function providerColumnParts(input: ProviderInput, options?: ProviderOptions & { age?: string | null; countdownOverflow?: 'throw' | 'text'; tagWidth?: 3 | 4; measure?: Measure }): ProviderPart[];
