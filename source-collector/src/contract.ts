@@ -234,7 +234,13 @@ export const Health = S.Struct({
   sources: S.Array(SourceStatus),
 });
 export const Api = RpcGroup.make(
-  Rpc.make("get", { payload: {}, success: Snapshot, error: CollectorError }),
+  Rpc.make("get", {
+    payload: {
+      sources: S.optionalKey(S.Array(S.String).check(S.isMinLength(1), S.isMaxLength(256))),
+    },
+    success: Snapshot,
+    error: CollectorError,
+  }),
   Rpc.make("act", { payload: Act, success: S.Struct({ rev: S.Number }), error: CollectorError }),
   Rpc.make("refresh", { payload: { source: S.optional(Id) }, error: CollectorError }),
   Rpc.make("status", { payload: {}, success: Health, error: CollectorError }),
