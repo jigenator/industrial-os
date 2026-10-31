@@ -10,7 +10,8 @@ export type UsageSample = { windows: UsageWindows; updatedAt: number | null; fet
 export type UsageProviderState = { provider: string; tag?: string; color?: string; data?: UsageSample; failure?: "timeout" | "failed" };
 export type UsageSnapshot = { installed: boolean | null; providers: UsageProviderState[] };
 
-const POLL_MS = 60_000;
+// Poll just after the engine's next planned run; while one runs, check again shortly.
+const AFTER_RUN_MS = 5_000, RUNNING_MS = 10_000, MAX_MS = 5 * 60_000, UNREACHABLE_MS = 60_000;
 const ID = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 const WINDOWS = [["h5", "5h"], ["wk", "wk"]] as const;
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -81,33 +82,50 @@ export function nextUsage(sources: readonly string[], previous: UsageSnapshot, r
 }
 
 /**
- * Polls the configured usage sources now, every minute while visible, and when shown again. One
- * request at a time; disposal aborts it and suppresses its result.
+ * Delay before the next poll, from the reply just read. A scheduled source has `nextAt`; a running one
+ * has none, so it is checked again in RUNNING_MS. Disabled, planned and misconfigured sources never run.
+ * Clamped to [RUNNING_MS, MAX_MS]; an unreadable engine retries in UNREACHABLE_MS.
+ */
+export function nextPollDelay(sources: readonly string[], reply: unknown, now: number): number {
+	if (!record(reply) || reply.v !== 1 || !Array.isArray(reply.sources)) return UNREACHABLE_MS;
+	let delay = MAX_MS;
+	for (const s of reply.sources.filter(record)) {
+		if (!sources.includes(s.id as string) || ["disabled", "planned", "config_error"].includes(s.state as string)) continue;
+		const at = instant(s.nextAt);
+		delay = Math.min(delay, at === null ? RUNNING_MS : at - now + AFTER_RUN_MS);
+	}
+	return Math.max(RUNNING_MS, delay);
+}
+
+/**
+ * Polls the configured usage sources now, then at `nextPollDelay` while visible, and when shown again.
+ * One request at a time; disposal aborts it and suppresses its result.
  */
 export function collectUsage(
 	sources: readonly string[], publish: (usage: UsageSnapshot) => void,
 	request: (signal: AbortSignal) => Promise<unknown> = (signal) => getSources(socketPath(), sources, { signal }),
 ): { setVisible(visible: boolean): void; dispose(): void } {
 	let live = sources.length > 0, visible = true, usage = pendingUsage(sources);
-	let timer: ReturnType<typeof setInterval> | undefined, controller: AbortController | undefined;
+	let timer: ReturnType<typeof setTimeout> | undefined, controller: AbortController | undefined;
 	async function poll() {
 		if (!live || !visible || controller) return;
+		clearTimeout(timer); timer = undefined;
 		const own = controller = new AbortController();
 		const reply = await request(own.signal).catch(() => undefined);
 		if (controller === own) controller = undefined;
 		if (!live || own.signal.aborted) return;
 		usage = nextUsage(sources, usage, reply);
 		publish(usage);
+		if (visible) { timer = setTimeout(() => void poll(), nextPollDelay(sources, reply, Date.now())); timer.unref(); }
 	}
-	const resume = () => { if (live && !timer) { timer = setInterval(() => void poll(), POLL_MS); timer.unref(); } };
-	resume(); void poll();
+	void poll();
 	return {
 		setVisible(next) {
 			if (!live || visible === next) return;
 			visible = next;
-			if (!visible) { clearInterval(timer); timer = undefined; }
-			else { resume(); void poll(); }
+			if (!visible) { clearTimeout(timer); timer = undefined; }
+			else void poll();
 		},
-		dispose() { live = false; clearInterval(timer); controller?.abort(); },
+		dispose() { live = false; clearTimeout(timer); controller?.abort(); },
 	};
 }

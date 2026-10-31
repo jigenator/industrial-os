@@ -7,6 +7,7 @@ type Slot = {
   enabled: boolean;
   finished?: number;
   failures: number;
+  watchedUntil?: number;
 };
 export const makeScheduler = <E, R>(
   run: (config: SourceConfig) => Effect.Effect<void, E, R>,
@@ -15,12 +16,14 @@ export const makeScheduler = <E, R>(
   Effect.gen(function* () {
     const scope = yield* Scope.Scope;
     const slots = new Map<string, Slot>();
-    let watchedUntil = 0,
+    // An unscoped watch covers every source, including ones configured during its window.
+    let allWatchedUntil = 0,
       stopped = false,
       concurrency = limit;
+    const watched = (s: Slot, now: number) => now < Math.max(allWatchedUntil, s.watchedUntil ?? 0);
     const interval = (s: Slot, now: number) => {
       const base = durationMs(
-        now < watchedUntil ? (s.config.every ?? "5m") : (s.config.idleEvery ?? "15m"),
+        watched(s, now) ? (s.config.every ?? "5m") : (s.config.idleEvery ?? "15m"),
       );
       return s.failures ? Math.min(900000, base * 2 ** Math.min(s.failures, 20)) : base;
     };
@@ -84,12 +87,19 @@ export const makeScheduler = <E, R>(
           } else slots.set(config.id, { config, active: false, enabled: true, failures: 0 });
         }
       },
-      watch: Effect.gen(function* () {
-        const now = yield* Clock.currentTimeMillis;
-        const idle = now >= watchedUntil;
-        watchedUntil = now + 120000;
-        if (idle) yield* tick;
-      }),
+      // Watching only the requested sources keeps a scoped reader from speeding up the rest.
+      watch: (ids?: Iterable<string>) =>
+        Effect.gen(function* () {
+          const now = yield* Clock.currentTimeMillis,
+            until = now + 120000;
+          const targets = ids === undefined
+            ? [...slots.values()]
+            : [...new Set(ids)].flatMap((id) => slots.get(id) ?? []);
+          const idle = targets.some((s) => !watched(s, now));
+          if (ids === undefined) allWatchedUntil = until;
+          else for (const s of targets) s.watchedUntil = until;
+          if (idle) yield* tick;
+        }),
       refresh: (source?: string) =>
         Effect.gen(function* () {
           const selected = source

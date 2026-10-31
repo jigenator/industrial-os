@@ -96,7 +96,7 @@ The socket is `feed.sock` in source-collector's runtime directory, resolved exac
 { "jsonrpc": "2.0", "id": 1, "method": "get", "params": { "sources": ["usage-gpt", "usage-cld", "usage-kmi"] } }
 ```
 
-A reply line over 1 MiB, a 5 s timeout, a missing or refused socket, a closed connection, a JSON-RPC error, a mismatched `id` or a result that is not a v1 snapshot (`v: 1` with `sources` and `items` arrays) makes the engine unreachable for that poll. There is no retry before the next poll and no other source-collector RPC. Polls run immediately at session start, every 60 s while the pane is not known hidden, and immediately when it is shown again (false → true/null); one request is outstanding at a time. Hidden panes do not poll. Non-TUI sessions do nothing. Replacement and shutdown abort the request in flight and suppress its result. The engine fetches each source on its own schedule (`every`, default 5 minutes); a poll reads only its stored state.
+A reply line over 1 MiB, a 5 s timeout, a missing or refused socket, a closed connection, a JSON-RPC error, a mismatched `id` or a result that is not a v1 snapshot (`v: 1` with `sources` and `items` arrays) makes the engine unreachable for that poll. There is no retry before the next poll and no other source-collector RPC. Polls run immediately at session start and when the pane is shown again (false → true/null). While the pane is not known hidden, the next poll is timed from the reply: 5 s after the earliest `nextAt` among the configured sources, 10 s when one has no `nextAt` (it is running), ignoring disabled, planned and misconfigured sources; clamped to 10 s–5 min, and 60 s after an unreachable engine. One request is outstanding at a time. Hidden panes do not poll. Non-TUI sessions do nothing. Replacement and shutdown abort the request in flight and suppress its result. The engine fetches each source on its own schedule (`every`, default 5 minutes); a poll reads only its stored state.
 
 ### Usage item convention
 
@@ -148,7 +148,7 @@ def window($minutes; $key):
   }] }
 ```
 
-The engine runs commands with only `HOME`, `PATH` and the configured `env`; use an absolute `codexbar` path if its `PATH` lacks one. Usage items are ordinary items to other clients: give dispatch-feed an include list that leaves the usage sources out.
+The engine runs commands with only `HOME`, `PATH` and the configured `env`; use an absolute `codexbar` path if its `PATH` lacks one. CodexBar's Claude provider also needs `USER` (verified with CodexBar 0.82.0: without it, it reports no available fetch strategy), so add `"USER": "<login name>"` to `env`. Usage items are ordinary items to other clients: give dispatch-feed an include list that leaves the usage sources out.
 
 ### State table
 
@@ -198,7 +198,7 @@ The collector alone resolves Pi settings into reserve. For exact existing footer
 
 Goal records are private pi-goal 0.54.10 compatibility, not a released integration API. Validate the latest selected-branch `goal-state` record; incompatible/malformed/latest-cleared records become null, not fallback to an older goal. Supported statuses are active, paused, blocked, usage_limited and budget_limited. Lifecycle/message/tool/input boundaries resample records; pi-goal has no general public goal-change event. An idle `/goal` command-only change may wait for another observed boundary; no polling/invented channel.
 
-Usage needs a running source-collector engine: when it is not running and has not answered this session, the row stays hidden (`installed: null`), not zero. Each visible session polls on its own; while one is open the engine counts as watched, so its sources run at `every` rather than `idleEvery`.
+Usage needs a running source-collector engine: when it is not running and has not answered this session, the row stays hidden (`installed: null`), not zero. Each visible session polls on its own. A scoped `get` watches only the usage sources, so while one is visible they run at `every` and the engine's other sources keep their own cadence.
 
 ## 3. Shared GitHub PR lookup
 

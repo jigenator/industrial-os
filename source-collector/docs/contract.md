@@ -114,7 +114,7 @@ is feed.sock (0600), in the private runtime directory (0700). For example:
 
 | Method     | Input                                | Result                                                    |
 | ---------- | ------------------------------------ | --------------------------------------------------------- |
-| get        | { sources?: string[] }               | Snapshot; watching extends for two minutes                |
+| get        | { sources?: string[] }               | Snapshot; watching extends two minutes (selected sources) |
 | act        | do, actor and operation fields below | {rev}                                                     |
 | refresh    | optional source                      | void; background admission, no queue                      |
 | status     | {}                                   | engine phase, pid, active/runs/failures, source health    |
@@ -128,8 +128,10 @@ Duplicates are harmless and unknown ids are silently omitted. The reply contains
 only selected source statuses (in normal source order) and their items;
 `counts.plan`, `counts.bySource` (selected ids only) and all week values use only
 selected sources. `v`, `rev`, `at`, `lastLookAt`, `staleLimitMs` and `alerts` stay
-global. Even a scoped get extends watching for all sources for two minutes; it
-is a read projection, not an authorization or collection boundary. For example:
+global. A scoped get extends watching (the `every` rather than `idleEvery`
+cadence) for two minutes only for its selected, configured sources; an unscoped
+get does so for every source. It is a read projection, not an authorization or
+collection boundary. For example:
 
 ```json
 { "jsonrpc": "2.0", "id": 1, "method": "get", "params": { "sources": ["todo", "fake"] } }

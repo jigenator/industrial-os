@@ -21,7 +21,7 @@ Provider usage is collected by ordinary [source-collector](../../source-collecto
 ## Consequences and revisit
 
 - The usage row is hidden when the engine is not running and has not answered this session; after an earlier answer the last data stays, marked failed. This trades the old standalone CodexBar call for one shared owner.
-- Every visible configured Pi session polls on its own, and any `get` keeps the engine in its watched cadence, so while one is visible its sources run at `every` rather than `idleEvery`.
+- Every visible configured Pi session polls on its own, timed from each source's `nextAt`. A scoped `get` watches only its selected sources, so while one is visible the usage sources run at `every` rather than `idleEvery` and other sources are unaffected.
 - Usage items are ordinary engine items, so other clients see them unless scoped. Dispatch-feed should run with an include list.
 - The snapshot stays v1: `provider` widens from a fixed union to a source id, with optional raw `tag` and `color`.
 - The former cache file and lock are no longer used and may be deleted.

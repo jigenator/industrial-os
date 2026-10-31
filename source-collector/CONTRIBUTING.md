@@ -40,7 +40,7 @@ All fixtures use fake data and temporary storage. The tests cover:
 
 - config isolation, duplicates, strict schemas, relative/absolute/~/ roots and
   checklist paths under a temporary HOME;
-- watched/idle timing, immediate overdue admission, 20 slots, no self-overlap,
+- watched/idle timing, scoped (per-source) and unscoped watching, immediate overdue admission, 20 slots, no self-overlap,
   dropped ticks, exponential capped backoff and success reset using TestClock;
 - command success/nonzero/invalid output, closed stdin, minimal env, jq and argv
   transforms, output caps, action argv and actual SIGTERM → SIGKILL escalation;
