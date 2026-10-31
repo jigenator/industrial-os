@@ -25,14 +25,14 @@ export type PullRequestInfo =
   | { kind: 'unavailable'; reason: string }
   | { kind: 'not-applicable' };
 
-export type UsageProviderId = "codex" | "claude" | "kimi";
-/** A window's used share; null when CodexBar reported the window without a finite percentage. */
+export type UsageProviderId = string;
+/** A window's used share; null when the source reported the window without a finite percentage. */
 export type UsageWindow = { usedPercent: number | null; resetsAt: number | null };
 /** Only 300-minute (5H) and 10080-minute (WK) windows are kept; an absent key is a window the provider does not report. */
 export type UsageWindows = { '5h'?: UsageWindow; wk?: UsageWindow };
 /** Last good sample; receipt timestamp identifies the sample for display motion. */
 export type UsageSample = { windows: UsageWindows; updatedAt: number | null; fetchedAt: number };
-export type UsageProviderState = { provider: UsageProviderId; data?: UsageSample; failure?: "timeout" | "failed" };
+export type UsageProviderState = { provider: UsageProviderId; tag?: string; color?: string; data?: UsageSample; failure?: "timeout" | "failed" };
 export type UsageSnapshot = { installed: boolean | null; providers: UsageProviderState[] };
 export type Phase =
 	| { kind: "waiting" | "thinking" | "writing"; since: number }

@@ -56,3 +56,7 @@ providerColumnParts({ provider: 'unknown' });
 flash([plate], { time: 0, hideState: true });
 // @ts-expect-error Unknown state-chip count policy.
 stateChipParts({ label: 'TCLI', state: 'behind' }, { countPolicy: 'coerce' });
+import { usageColors, USAGE_COLORS, USAGE_NEUTRAL } from '@industrial-os/design-system/foundation/usage-colors';
+const neutralLit: `#${string}` = usageColors('usage.unknown').lit;
+void [neutralLit, USAGE_COLORS['usage.gpt'], USAGE_NEUTRAL];
+providerColumnParts({ tag: 'MUSE', ink: usageColors('usage.muse').lit, declared: ['wk'] }, { tagWidth: 4, measure: (text) => text.length });

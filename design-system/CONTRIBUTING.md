@@ -274,3 +274,14 @@ Node v22.23.4, macOS, Herdr client/server 0.9.5. New element `crate-banner` (`cr
 - **Bounded native, injected input only:** one new no-focus tab; only its returned root pane received input. The storybook was browsed to CRATE BANNER and through all eight states at 246×77; each native text capture equals the pure layout frame for that state, and the ANSI readback contains the paper, hairline, darker-accent, acid, label and divider colors. `q` exited 0 with an identical `stty -g` before and after. The tab was closed, including a pane a tab watcher created in it, which received no input.
 - **Simplification:** placement reuses `CellGrid` (measured graphemes) and `fitText` (cuts), colors are existing roles and values but one, tool spans come from the drawn items, and the compact form is one ladder of levels; the barcode generator stays in the element (one caller) and keeps the mockup's arithmetic so its bars match.
 - **Not run:** a resize of the native pane; physical keyboard/pointer; physical glyph, font or contrast review, including whether `⟁` spills in the user's terminal and how `◢ ◤` and the bars join; claude-interrupt and automations-monitor suites (not installed in this worktree); Lunalee integration or a pinned install; Mermaid rendering (no diagram changed). No standalone DS lint/formatter exists.
+
+## Configurable usage families (2026-10-31)
+
+macOS, Node v22.23.4; exported usage-token families plus opt-in measured 3/4-cell natural provider tags. No existing signal value or preset/default output changed.
+
+- **Passed:** `node --test` **651/651**, no failed/skipped/cancelled checks. Includes token aliases/derived neutral/prototype rejection, export and declaration presence, measured-tag validation and executable SOURCE TAG story.
+- **Passed:** required plain showcase widths 120/100/80/48/40/23 and storybook widths 120/80/48/24/12 at 24 rows, all exit 0; text snapshots reviewed for normal/narrow/fallback layouts. These are CLI composition checks, not native appearance acceptance.
+- **Passed:** root link/anchor, guidance inventory, exact CLAUDE entrypoints, whitespace and publication/import review. No new guide needs a root-map entry. The footer's consumer suite and isolated RPC load are recorded in its contributing guide.
+- **Not run:** optional strict declaration compile (the existing claude-interrupt compiler is absent); Mermaid rendering (no renderer on PATH; diagrams unchanged).
+- **Skipped:** interactive Herdr validation, explicitly outside this task's no-live-Pi/Herdr boundary. No native glyph/contrast, screen-reader or photosensitivity certification is implied.
+- Simplification: reuse secondary ink and existing mix math, alias established signal families, keep a single resolver and one default-preserving natural-tag seam. No new dependency, registry, generated artifact or timer.

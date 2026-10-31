@@ -10,6 +10,7 @@
     "./foundation/cells": "./foundation/cells.mjs",
     "./foundation/palette": "./foundation/palette.mjs",
     "./foundation/signal-colors": "./foundation/signal-colors.mjs",
+    "./foundation/usage-colors": "./foundation/usage-colors.mjs",
     "./foundation/industrialos-colors": "./foundation/industrialos-colors.mjs",
     "./foundation/surface": "./foundation/surface.mjs",
     "./foundation/surface-palette": "./foundation/surface-palette.mjs",

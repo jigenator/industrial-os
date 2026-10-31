@@ -1,4 +1,4 @@
-import { assertCells, fitLine, lineWidth, resolveColor, safeText, span } from '../../foundation/cells.mjs';
+import { assertCells, cells, fitLine, lineWidth, resolveColor, safeText, span, textSlot } from '../../foundation/cells.mjs';
 import { SIGNAL_COLORS } from '../../foundation/signal-colors.mjs';
 
 // footer.ts:211-215: declared layout is independent of whether a provider has answered.
@@ -51,14 +51,17 @@ export function staleAge(ms) {
   if (ms < DAY) return `${Math.max(1, Math.floor(ms / HOUR))}h`;
   return ms < 100 * DAY ? `${Math.floor(ms / DAY)}d` : '99+';
 }
-function columnParts(input, { segments = 8, now, natural = false, age: suppliedAge, countdownOverflow = 'throw' } = {}) {
+function columnParts(input, { segments = 8, now, natural = false, age: suppliedAge, countdownOverflow = 'throw', tagWidth = 3, measure } = {}) {
   segmentCount(segments); timestamp(now, 'now');
   const { provider, data, failure } = input;
   if (failure !== undefined && !['timeout', 'failed'].includes(failure)) throw new RangeError('failure must be timeout or failed');
   if (provider !== undefined && !Object.hasOwn(USAGE_PROVIDERS, provider)) throw new RangeError('unknown provider');
   const look = provider === undefined ? input : USAGE_PROVIDERS[provider];
-  const tag = safeText(look.tag);
-  if (tag.length !== 3) throw new RangeError('provider tag must be three display cells');
+  if (![3, 4].includes(tagWidth)) throw new RangeError('tagWidth must be 3 or 4');
+  const tag = measure === undefined ? safeText(look.tag) : look.tag;
+  const tagStyle = { fg: look.ink, bold: true };
+  if (measure !== undefined) textSlot([span(tag, tagStyle)], tagWidth, { measure });
+  else if (cells(tag) !== tagWidth) throw new RangeError('provider tag must match tagWidth');
   resolveColor(look.ink);
   if (!Array.isArray(look.declared) || !look.declared.length || look.declared.some((k) => !WINDOWS.includes(k)) || new Set(look.declared).size !== look.declared.length) throw new RangeError('declared must contain unique 5h/wk window keys');
   if (data !== undefined && (!data || typeof data !== 'object' || !data.windows || typeof data.windows !== 'object' || Array.isArray(data.windows))) throw new TypeError('data must contain windows');
@@ -81,7 +84,7 @@ function columnParts(input, { segments = 8, now, natural = false, age: suppliedA
   const age = suppliedAge === undefined ? stale ? elapsed === undefined ? '?' : staleAge(elapsed) : '' : suppliedAge ?? '';
   const isStale = suppliedAge === undefined ? stale : suppliedAge !== null;
   const part = (top, bottom, width, kind = 'slot', window) => natural ? { top, bottom, width, bottomWidth: lineWidth(bottom), kind, window } : { top: fitLine(top, width), bottom: fitLine(bottom, width), width };
-  const parts = [part([span(tag, isStale ? { fg: 'decorative' } : { fg: look.ink, bold: true })], age ? [span(age, { fg: 'warning' })] : [], 3, 'tag')];
+  const parts = [part([span(tag, isStale ? { fg: 'decorative' } : { fg: look.ink, bold: true })], age ? [span(age, { fg: 'warning' })] : [], tagWidth, 'tag')];
   const slot = Math.max(segments, 7); // Reserve pending/timeout text in custom short meters, in EVERY state.
   const keys = WINDOWS.filter((k) => look.declared.includes(k) || windows[k]);
   const none = data && !Object.keys(windows).length;
@@ -125,7 +128,7 @@ export function providerColumn(input, { width, segments = 8, now } = {}) {
 
 // Natural, unpadded text and glyph boundaries; hosts own multi-provider packing and opaque emission.
 // `age` is an optional already-formatted clock-correction display: null=current, otherwise stale.
-export function providerColumnParts(input, { segments = 8, now, age, countdownOverflow = 'throw' } = {}) {
+export function providerColumnParts(input, { segments = 8, now, age, countdownOverflow = 'throw', tagWidth = 3, measure } = {}) {
   if (!['throw', 'text'].includes(countdownOverflow)) throw new RangeError('countdownOverflow must be throw or text');
-  return columnParts(input, { segments, now, age, countdownOverflow, natural: true });
+  return columnParts(input, { segments, now, age, countdownOverflow, tagWidth, measure, natural: true });
 }

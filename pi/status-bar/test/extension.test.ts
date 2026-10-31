@@ -563,7 +563,7 @@ test("hidden footer freezes all repaint sources and cached rendering; resume is 
 	t.after(() => h.stop());
 	const advance = mockClock(t);
 	await h.emitStart(); await advance(5);
-	h.publish({ usage: { installed: true, providers: [{ provider: "codex", data: { fetchedAt: Date.now(), updatedAt: null, windows: { "5h": { usedPercent: 25, resetsAt: Date.now() + 3600000 } } } }] } });
+	h.publish({ usage: { installed: true, providers: [{ provider: "quota/team", tag: "MUSE", color: "usage.kmi", data: { fetchedAt: Date.now(), updatedAt: null, windows: { "5h": { usedPercent: 25, resetsAt: Date.now() + 3600000 } } } }] } });
 	const cached = h.component.render(300);
 	const armed = t.mock.method(globalThis, "setTimeout");
 	h.publish({ visible: false }); const renders = h.renders;
@@ -583,6 +583,7 @@ test("hidden footer freezes all repaint sources and cached rendering; resume is 
 	h.publish({ visible: true }); assert.equal(h.renders, renders + 1, "one resume repaint");
 	const first = h.component.render(300); const text = first.map(shownText).join("\n");
 	assert.match(text, /second-model/); assert.match(text, /08 AU/); assert.match(text, /FUL/);
+	assert.match(text, /MUSE/, "widened v1 source metadata survives real-loader display and hidden resume");
 	assert.ok(armed.mock.callCount() > 0, "visible render rearms decoration/countdown");
 	await h.motion("off"); const settled = h.component.render(300);
 	for (const label of ["01 ACT", "02 CTX", "03 MDL", "04 USG"]) {

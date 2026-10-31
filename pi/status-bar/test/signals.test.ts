@@ -54,7 +54,7 @@ async function composed(t: any, order: string[]) {
 }
 test("actual Pi loader composes display/collector in both orders: equal renderer bytes and replacement handshake", async (t) => {
 	for (const order of [[resolve("."), resolve("../signals-collector")], [resolve("../signals-collector"), resolve(".")]]) {
-		const h = await composed(t, order); assert.match(h.initialText, /Git pending/); assert.doesNotMatch(h.initialText, /no collector/); assert.ok(h.snapshot); assert.equal(h.snapshot.compactions, 0); assert.equal(h.snapshot.usage.installed, false);
+		const h = await composed(t, order); assert.match(h.initialText, /Git pending/); assert.doesNotMatch(h.initialText, /no collector/); assert.ok(h.snapshot); assert.equal(h.snapshot.compactions, 0); assert.equal(h.snapshot.usage.installed, null, "unconfigured usage has no detected engine (C4)"); assert.deepEqual(h.snapshot.usage.providers, []);
 		const expected = { homePath: homedir(), launchPath: h.snapshot.launch, activePath: h.snapshot.active, workspace: h.snapshot.workspace ?? undefined, pullRequest: h.snapshot.pr,
 			activity: { working: false, units: h.snapshot.units }, compactions: h.snapshot.compactions, tatsu: undefined, ponytail: "unknown", statuses: h.statuses, model: h.model, thinking: "high", contextUsage: h.usage, compactionReserve: h.snapshot.context.reserve };
 		for (const width of [1, 20, 60, 120, 280]) assert.deepEqual(h.component().render(width), renderFooter(expected, width, theme));
@@ -77,4 +77,15 @@ test("visible is additive: old, null and malformed values fail open; only false 
 		assert.equal(seen.at(-1).visible, typeof value === "boolean" ? value : null);
 	}
 	observer.dispose();
+});
+
+test("widened v1 usage preserves configured order, arbitrary ids and raw metadata", () => {
+	const events = host.createEventBus(), seen: any[] = [];
+	const providers = [{ provider: "__proto__", tag: "\x1b[31mNEW", color: "usage.unknown" }, { provider: "a/b", data: { windows: { wk: { usedPercent: null, resetsAt: null } }, updatedAt: null, fetchedAt: 1 } }];
+	const raw = { ...dto(), usage: { installed: true, providers } };
+	const off = events.on("signals-collector:v1:request", (r: any) => r.reply(raw));
+	const consumer = observeSignals({ events } as any, () => "live", (s) => seen.push(s));
+	assert.deepEqual(seen.at(-1).usage.providers, providers);
+	assert.notEqual(seen.at(-1).usage.providers, providers, "consumer clones the wire value");
+	consumer.dispose(); off();
 });
