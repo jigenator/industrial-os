@@ -250,3 +250,18 @@ sheetCard({ heading: { state: 'working' } }, { width: 40, preset: measuredPanePr
 sheetCard({ readouts: ['2 AU'] }, { width: 40 });
 // @ts-expect-error preset bold is a boolean
 cardState({}, { preset: { unread: { code: 'unread', shape: '', tone: 'accent', bold: 'yes' } } });
+
+// The crate banner (Lunalee's chat pane plate), through its package subpath.
+import { crateBanner } from '@industrial-os/design-system/elements/crate-banner';
+import type { CrateTool } from '@industrial-os/design-system/elements/crate-banner';
+const crateTools: CrateTool[] = [{ id: 'board', label: 'BOARD', icon: '▦', state: 'open', hover: true }, { id: 'notes', label: 'NOTES', state: 'disabled' }];
+const crate = crateBanner({ serial: '2610-0427', hold: 2, clock: '09:34', tools: crateTools }, { width: 60 });
+crate.lines.length satisfies number;
+crate.tools[0]?.end satisfies number | undefined;
+crateBanner({ serial: 'X', hold: null, clock: null, mark: null, registered: false }, { width: 24, form: 'compact', measure });
+// @ts-expect-error hover is a flag beside the state, not a state
+crateBanner({ serial: 'X', tools: [{ id: 'a', label: 'A', state: 'hover' }] }, { width: 60 });
+// @ts-expect-error the serial is required
+crateBanner({ hold: 2 }, { width: 60 });
+// @ts-expect-error unknown form
+crateBanner({ serial: 'X' }, { width: 60, form: 'tall' });

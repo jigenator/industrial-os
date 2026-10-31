@@ -13,6 +13,7 @@ test('surface palette keeps canonical roles and the locked survey colors, withou
   assert.equal(SURFACE_PALETTE.floor, '#262626');
   assert.equal(SURFACE_PALETTE.code, '#00e5ff');
   assert.equal(SURFACE_PALETTE.yellow, '#ffd400');
+  assert.equal(SURFACE_PALETTE.paperHair, '#dadada');
   assert.equal(SURFACE_PALETTE.inputHover, undefined);
   assert.equal(SURFACE_PALETTE.alpha, undefined);
   for (const value of Object.values(SURFACE_PALETTE).flat()) assert.match(value, /^#[0-9a-f]{6}$/);

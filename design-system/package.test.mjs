@@ -51,6 +51,7 @@ const lunaleeModules = [
   'elements/scope-meter', 'elements/sounding-meter', 'motions/scope-trace', 'motions/sounding-sweep',
   'elements/callout', 'elements/document-block', 'elements/sheet-card', 'elements/desk-tray', 'elements/operation-row', 'motions/callout-entrance', 'motions/phosphor-head',
   'elements/feed-bezel', 'elements/input-frame', 'motions/feed-scan', 'motions/corner-snap',
+  'elements/crate-banner',
 ];
 
 test('every planned Lunalee module is public and ships colocated declarations', () => {

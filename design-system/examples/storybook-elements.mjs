@@ -39,9 +39,10 @@ import { CellGrid } from '../foundation/cell-grid.mjs';
 import { phaseSteps, readoutBlock, readoutLine, slotStrip, splitBar } from '../elements/readout/readout.mjs';
 import { eventRow } from '../elements/event-row/event-row.mjs';
 import { scrollRail } from '../elements/scroll-rail/scroll-rail.mjs';
+import { crateBanner } from '../elements/crate-banner/crate-banner.mjs';
 import { CATEGORY_TONES } from '../foundation/board-tones.mjs';
 import { BOARD_INKS } from '../foundation/signal-colors.mjs';
-import { call, code } from './storybook-usage.mjs';
+import { call, code, literal } from './storybook-usage.mjs';
 
 // Specimens keep to a readable width, never wider than the cells they are given.
 export const within = (width, preferred) => Math.min(width, preferred);
@@ -867,4 +868,41 @@ const SCROLL_RAIL = boardStory('scroll-rail', 'SCROLL RAIL', 'A faint one-column
   { name: 'END', note: 'At the end.', parts: () => [['scrollRail', { total: 40, visible: 8, offset: 32 }]] },
 ]);
 
-export const ELEMENT_STORIES = [PANEL, FRAME, PLATE, COUNT, MODE, CHIP, LAMP, ROW, GAUGE, NUMERAL, METER, RAIL, MARKER, LINE_METER, COLUMN_BLOCK, TAB_RULE, ACTION_LABEL, POPUP_HEADER, NOTICE_ROW, SCOPE_METER, SOUNDING_METER, FEED_BEZEL, INPUT_FRAME, CALLOUT, DOCUMENT_BLOCK, SHEET_CARD, DESK_TRAY, OPERATION_ROW, ...DASHBOARD_STORIES, SECTION_HEAD, BOARD_MARKS, TIME_LANE, READOUT, EVENT_ROW, SCROLL_RAIL];
+// The crate banner: Lunalee's chat pane plate. Fixtures only; the host supplies the hold count, clock and tool states.
+const CRATE_TOOLS = [{ id: 'board', label: 'BOARD', icon: '▦', state: 'ready' }, { id: 'notes', label: 'NOTES', icon: '≡', state: 'ready' }];
+const CRATE = { serial: '2610-0427', hold: 2, clock: '09:34', tools: CRATE_TOOLS };
+const crateTools = (states) => CRATE_TOOLS.map((tool, i) => ({ ...tool, ...states[i] }));
+const CRATE_BANNER = element('crate-banner', {
+  title: 'CRATE BANNER',
+  summary: 'A crate pane\'s white maker\'s plate over a black tool strip, or one compact row. Returns lines and each tool\'s cell span.',
+  rules: [
+    'Wide from 56 cells, narrow from 40; below 40 the full form is the compact row.',
+    'The stroke never sits behind text: the maker, division and serial are cut before it.',
+    'Every tool state has a shape: a dot lamp when ready, a filled lamp when open, none when disabled.',
+    'Hover inks the whole item black on acid and keeps the lamp; it is ignored on a disabled tool.',
+    'HOLD is grey at 0 and 99+ above 99; an unknown hold or clock shows ? or --:--, never zero.',
+  ],
+  variants: [
+    { name: 'WIDE', note: 'Fixture: the approved plate at 60 cells, HOLD 2.', input: CRATE, width: 60 },
+    { name: 'NARROW', note: 'At 40 cells the stroke narrows to three cells and meets the column line; the mark sits just before it.', input: CRATE, width: 40 },
+    { name: 'HOLD 0', note: 'Nothing waiting: the count turns grey.', input: { ...CRATE, hold: 0 }, width: 60 },
+    { name: 'HOLD 99+', note: 'Above 99 the count is 99+; an unknown clock is --:--.', input: { ...CRATE, hold: 120, clock: null }, width: 60 },
+    { name: 'OPEN', note: 'BOARD open: an acid filled lamp.', input: { ...CRATE, tools: crateTools([{ state: 'open' }]) }, width: 60 },
+    { name: 'HOVER', note: 'The host sets hover while the pointer is over NOTES; BOARD stays open.', input: { ...CRATE, tools: crateTools([{ state: 'open' }, { hover: true }]) }, width: 60 },
+    { name: 'DISABLED', note: 'NOTES disabled: a structural label and no lamp, never hover-styled.', input: { ...CRATE, tools: crateTools([{}, { state: 'disabled', hover: true }]) }, width: 60 },
+    { name: 'COMPACT', note: 'One row at 80, 56, 44, 32 and 16 cells: icons, the registered mark, clock, HOLD and tools are shed in turn.', input: CRATE, compact: [80, 56, 44, 32, 16] },
+  ],
+  specimen(v, width) {
+    const sizes = v.compact ? v.compact.map((w) => within(width, w)) : [within(width, v.width)];
+    const options = (w) => (v.compact ? { width: w, form: 'compact' } : { width: w });
+    const made = sizes.map((w) => crateBanner(v.input, options(w)));
+    const rows = (n) => `${n} ROW${n === 1 ? '' : 'S'}`;
+    return {
+      lines: made.flatMap((banner) => banner.lines.map((line) => fitLine(line, width))),
+      calls: [`crate = ${literal(v.input)}`, ...sizes.map((w) => `${call('crateBanner', code('crate'), options(w))}.lines`)],
+      facts: made.map((banner, i) => `${sizes[i]} CELLS, ${rows(banner.lines.length)}; TOOLS ${banner.tools.map((t) => `${t.id} ${t.start}-${t.end}`).join(', ') || 'none'}`),
+    };
+  },
+});
+
+export const ELEMENT_STORIES = [PANEL, FRAME, PLATE, COUNT, MODE, CHIP, LAMP, ROW, GAUGE, NUMERAL, METER, RAIL, MARKER, LINE_METER, COLUMN_BLOCK, TAB_RULE, ACTION_LABEL, POPUP_HEADER, NOTICE_ROW, SCOPE_METER, SOUNDING_METER, FEED_BEZEL, INPUT_FRAME, CALLOUT, DOCUMENT_BLOCK, SHEET_CARD, DESK_TRAY, OPERATION_ROW, ...DASHBOARD_STORIES, SECTION_HEAD, BOARD_MARKS, TIME_LANE, READOUT, EVENT_ROW, SCROLL_RAIL, CRATE_BANNER];

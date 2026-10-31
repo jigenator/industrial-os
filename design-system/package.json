@@ -89,6 +89,7 @@
     "./elements/time-lane": "./elements/time-lane/time-lane.mjs",
     "./elements/readout": "./elements/readout/readout.mjs",
     "./elements/event-row": "./elements/event-row/event-row.mjs",
-    "./elements/scroll-rail": "./elements/scroll-rail/scroll-rail.mjs"
+    "./elements/scroll-rail": "./elements/scroll-rail/scroll-rail.mjs",
+    "./elements/crate-banner": "./elements/crate-banner/crate-banner.mjs"
   }
 }
