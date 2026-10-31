@@ -92,7 +92,13 @@ function drawTools(grid, y, x, items, measure) {
     return { id: item.id, row: y, start, end };
   });
 }
-const toolsWidth = (items) => (items.length ? 1 + items.reduce((n, item) => n + item.width + 1, 0) : 0);
+// prefixWidths(items)[k] is the width of the first k items on the strip (a leading cell, then each item and its
+// separator), built in one pass so shedding tools stays linear.
+function prefixWidths(items) {
+  const widths = [0];
+  for (const item of items) widths.push((widths.at(-1) || 1) + item.width + 1);
+  return widths;
+}
 
 // The serial's barcode as the approved mockup draws it: a string-seeded generator picks bars between guard bars.
 // Its arithmetic is kept exactly, double rounding in the multiply included, so the bars match the mockup's.
@@ -153,13 +159,10 @@ function full(v, width, measure) {
 
   // The black strip: icons only in wide geometry; tools that do not fit whole are left out.
   at(0, 6).glyphs(' '.repeat(width), { fg: 'primary', bg: 'field' });
-  const items = [];
-  for (const tool of v.tools) {
-    const item = toolItem(tool, wide, measure);
-    if (toolsWidth([...items, item]) > width) break;
-    items.push(item);
-  }
-  return { grid, tools: drawTools(grid, 6, 0, items, measure) };
+  const all = v.tools.map((tool) => toolItem(tool, wide, measure)), widths = prefixWidths(all);
+  let fit = 0;
+  while (fit < all.length && widths[fit + 1] <= width) fit++;
+  return { grid, tools: drawTools(grid, 6, 0, all.slice(0, fit), measure) };
 }
 
 // One paper row: stripe, maker and ®, then, at least two cells on, HOLD, the clock and the tools at the right edge.
@@ -181,14 +184,21 @@ function compact(v, width, measure) {
     { hold: true, tools: all },
     ...Array.from({ length: all + 1 }, (_, i) => ({ tools: all - i })),
   ];
+  // Tool items are built once per icon mode; levels only read prefix widths, and planning stops at the first fit.
+  const modes = [false, true].map((icons) => {
+    const items = v.tools.map((tool) => toolItem(tool, icons, measure));
+    return { items, widths: prefixWidths(items) };
+  });
   const plan = (level) => {
-    const items = v.tools.slice(0, level.tools).map((tool) => toolItem(tool, !!level.icons, measure));
+    const mode = modes[level.icons ? 1 : 0];
     const indicators = (level.hold ? 5 + count.length : 0) + (level.hold && level.clock ? 2 : 0) + (level.clock ? clock.length : 0);
-    const right = (indicators ? indicators + 1 : 0) + toolsWidth(items);
+    const right = (indicators ? indicators + 1 : 0) + mode.widths[level.tools];
     const registered = v.registered && !!level.registered;
-    return { ...level, items, right, fits: lead + makerWidth + (registered ? 2 : 0) + (right ? 2 + right : 0) <= width, registered };
+    const fits = lead + makerWidth + (registered ? 2 : 0) + (right ? 2 + right : 0) <= width;
+    return fits && { ...level, items: mode.items.slice(0, level.tools), right, registered };
   };
-  const chosen = levels.map(plan).find((p) => p.fits);
+  let chosen;
+  for (const level of levels) if ((chosen = plan(level))) break;
   if (lead) pen(grid, 0, 0, measure).glyphs('  ', { fg: 'field', bg: 'accent' });
   const name = pen(grid, 0, lead, measure).line(chosen ? maker : fitText(v.maker, width - lead, { measure, style: BOLD }));
   if (!chosen) return { grid, tools: [] };

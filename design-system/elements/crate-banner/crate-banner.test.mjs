@@ -215,6 +215,20 @@ test('a host measurer keeps Unicode text and wide graphemes within the exact wid
   assert.throws(() => crateBanner({ ...input, maker: 'bad\x1b[31m' }, { width: 60, measure }), TypeError);
 });
 
+test('planning the tool layout is linear in the number of tools', () => {
+  const calls = (n, form, width) => {
+    let count = 0;
+    const measure = (text) => { count++; return [...text].length; };
+    const tools = Array.from({ length: n }, (_, i) => ({ id: String(i), label: 'A', state: 'ready' }));
+    crateBanner({ serial: 'X', tools }, { width, form, measure });
+    return count;
+  };
+  for (const [form, width] of [['compact', 1], ['compact', 60], ['full', 60]]) {
+    const small = calls(100, form, width), large = calls(200, form, width);
+    assert.ok(large - small <= 2 * (small + 50), `${form} at ${width}: ${small} measure calls for 100 tools, ${large} for 200`);
+  }
+});
+
 test('® and the mark are optional; the input is not changed', () => {
   const input = structuredClone(INPUT);
   const rows = plain(crateBanner({ ...input, registered: false, mark: null }, { width: 60 }).lines);
