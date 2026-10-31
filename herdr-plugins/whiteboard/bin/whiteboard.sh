@@ -3,6 +3,7 @@
 #   pane:     run the board in this pane, or explain how to build it.
 #   open:     open the board in a split to the right of the focused pane.
 #   open-tab: open the board in a new tab.
+#   open-modal: open the board in a session-modal popup over the layout.
 # The open modes are actions, so each can be bound to a key.
 set -u
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -22,8 +23,12 @@ open | open-tab)
   # shellcheck disable=SC2086
   exec "${HERDR_BIN_PATH:-herdr}" plugin pane open --plugin "${HERDR_PLUGIN_ID:-industrial-os.whiteboard}" --entrypoint board $placement --focus
   ;;
+open-modal)
+  # The board-modal entrypoint's manifest placement is popup.
+  exec "${HERDR_BIN_PATH:-herdr}" plugin pane open --plugin "${HERDR_PLUGIN_ID:-industrial-os.whiteboard}" --entrypoint board-modal
+  ;;
 *)
-  echo "usage: whiteboard.sh pane|open|open-tab" >&2
+  echo "usage: whiteboard.sh pane|open|open-tab|open-modal" >&2
   exit 2
   ;;
 esac
