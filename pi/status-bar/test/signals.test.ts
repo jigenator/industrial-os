@@ -54,7 +54,7 @@ async function composed(t: any, order: string[]) {
 }
 test("actual Pi loader composes display/collector in both orders: equal renderer bytes and replacement handshake", async (t) => {
 	for (const order of [[resolve("."), resolve("../signals-collector")], [resolve("../signals-collector"), resolve(".")]]) {
-		const h = await composed(t, order); assert.match(h.initialText, /Git pending/); assert.doesNotMatch(h.initialText, /no collector/); assert.ok(h.snapshot); assert.equal(h.snapshot.compactions, 0); assert.equal(h.snapshot.usage.installed, false);
+		const h = await composed(t, order); assert.match(h.initialText, /Git pending/); assert.doesNotMatch(h.initialText, /no collector/); assert.ok(h.snapshot); assert.equal(h.snapshot.compactions, 0); assert.equal(h.snapshot.usage.installed, null, "unconfigured usage has no detected engine (C4)"); assert.deepEqual(h.snapshot.usage.providers, []);
 		const expected = { homePath: homedir(), launchPath: h.snapshot.launch, activePath: h.snapshot.active, workspace: h.snapshot.workspace ?? undefined, pullRequest: h.snapshot.pr,
 			activity: { working: false, units: h.snapshot.units }, compactions: h.snapshot.compactions, tatsu: undefined, ponytail: "unknown", statuses: h.statuses, model: h.model, thinking: "high", contextUsage: h.usage, compactionReserve: h.snapshot.context.reserve };
 		for (const width of [1, 20, 60, 120, 280]) assert.deepEqual(h.component().render(width), renderFooter(expected, width, theme));
