@@ -79,11 +79,12 @@ import { phaseSteps, readoutBlock, readoutLine, slotStrip, splitBar } from '../e
 import { eventRow } from '../elements/event-row/event-row.mjs';
 import { scrollRail } from '../elements/scroll-rail/scroll-rail.mjs';
 import { crateBanner } from '../elements/crate-banner/crate-banner.mjs';
+import { surfaceAt } from '../foundation/surface.mjs';
 import { cornerSnap } from '../motions/corner-snap.mjs';
 const API = {
   callout, calloutGeometry, subtitle, subtitleGeometry, timestampLeader, documentHeading, listRow, quoteRows, linkLines, codeBand, inlineCode, specTable, cardState, cardHeading, sheetCard, stackCard, stackRow, sheetListRow, deskStrip, deskHeading, questionTitle, questionBody, deskFooter, operationHeading, operationRow, operationDetail, calloutEntrance, phosphorHead,
   feedBezel, imageLabel, imageInset, inputFrame, feedScan, cornerSnap,
-  endMark, pointer, runTrail, scheduleMark, spine, stateCell, sectionHead, laneAxis, laneRun, laneTrack, CellGrid, phaseSteps, readoutBlock, readoutLine, slotStrip, splitBar, eventRow, scrollRail, crateBanner,
+  endMark, pointer, runTrail, scheduleMark, spine, stateCell, sectionHead, laneAxis, laneRun, laneTrack, CellGrid, phaseSteps, readoutBlock, readoutLine, slotStrip, splitBar, eventRow, scrollRail, crateBanner, surfaceAt,
   popupFrame, popupTitleBar, verticalRule,
   tabRule, leader, neatline, nameRule, actionLabel, keyHints, popupHeader, popupFooter, noticeRow, scopeMeter, soundingMeter, scopeTrace, soundingSweep,
   typeUnit, activityStrip, planCounter, activityTrace, alertTicker, ambientField, decode, breathe, arrivalPing, ambientSweep,

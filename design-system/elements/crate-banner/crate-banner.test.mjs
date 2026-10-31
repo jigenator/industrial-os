@@ -1,33 +1,59 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GLYPHS, lineWidth, paint, resolveColor } from '../../foundation/cells.mjs';
+import { surfaceAt } from '../../foundation/surface.mjs';
 import { crateBanner } from './crate-banner.mjs';
 
 const TOOLS = [{ id: 'board', label: 'BOARD', icon: '▦', state: 'ready' }, { id: 'notes', label: 'NOTES', icon: '≡', state: 'ready' }];
 const INPUT = { serial: '2610-0427', hold: 2, clock: '09:34', tools: TOOLS };
 const plain = (lines) => lines.map((line) => paint(line, 'none'));
 
-// One letter per cell: a space by its background (p paper, a accent, k black); any other cell by ink, background
-// and weight (i ink, B bold ink, g label grey, h hairline, e accent edge, s darker accent on paint, A/X ink on paint,
-// w/W white on black, d grey lamp, o acid lamp, r divider).
-const CODES = {
-  '#000000/#f6f6f6/0': 'i', '#000000/#f6f6f6/1': 'B', '#717171/#f6f6f6/0': 'g', '#dadada/#f6f6f6/0': 'h', '#c0fe04/#f6f6f6/0': 'e',
-  '#90be03/#c0fe04/0': 's', '#000000/#c0fe04/0': 'A', '#000000/#c0fe04/1': 'X', '#ffffff/#000000/0': 'w', '#ffffff/#000000/1': 'W',
-  '#717171/#000000/0': 'd', '#c0fe04/#000000/0': 'o', '#555555/#000000/0': 'r', '#555555/#000000/1': 'R',
-};
-const SPACES = { '#f6f6f6': 'p', '#c0fe04': 'a', '#000000': 'k' };
-const cellsOf = (line) => line.flatMap((s) => [...s.text].map((ch) => ({ ch, fg: resolveColor(s.style.fg).toLowerCase(), bg: resolveColor(s.style.bg).toLowerCase(), bold: !!s.style.bold })));
-const codes = (lines) => lines.map((line) => cellsOf(line).map((c) => (c.ch === ' ' ? SPACES[c.bg] : CODES[`${c.fg}/${c.bg}/${c.bold ? 1 : 0}`]) ?? '?').join(''));
+// The approved aluminium ground, written out independently of the element: l = 214 + 26(1−u²) − 6t + 3.2·sin(0.42x +
+// 2.3y) + 1.6·sin(1.37x + 5.1y), RGB (l−3, l, l+4), each channel clamped and rounded; hairlines are 28 darker.
+const hx = (rgb) => '#' + rgb.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+const rgbOf = (color) => [1, 3, 5].map((i) => parseInt(color.slice(i, i + 2), 16));
+function groundAt(x, y, width) {
+  const t = y / 5, u = width === 1 ? 0 : 2 * x / (width - 1) - 1;
+  return hx([-3, 0, 4].map((d) => 214 + 26 * (1 - u * u) - 6 * t + 3.2 * Math.sin(0.42 * x + 2.3 * y) + 1.6 * Math.sin(1.37 * x + 5.1 * y) + d));
+}
+const hairOn = (ground) => hx(rgbOf(ground).map((v) => v - 28));
+const frostOver = (under) => hx(rgbOf(under).map((v) => 255 * 0.1 + v * 0.9));
+const luminance = (color) => rgbOf(color).map((v) => v / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
+const contrast = (a, b) => { const [hi, lo] = [luminance(a), luminance(b)].sort((p, q) => q - p); return (hi + 0.05) / (lo + 0.05); };
+// The host background under the strip in the mockup: its pane gradient (top 34, drop 26, edge 8) on row 6 of 22 rows.
+const paneRow = (width) => Array.from({ length: width }, (_, x) => surfaceAt(x, 6, { width, height: 22, gradient: { top: 34, drop: 26, edge: 8 } }));
 
-// Goldens taken from the approved mockup (lunalee prototypes/crate-banner, paint.html v10) by running its own cell
-// engine for oneStroke('serialAligned', 'mark', 'barcode') at 60 and 40 columns, HOLD 2, clock 09:34.
+// One letter per cell. A space by its background: p the aluminium ground at that cell, a accent, k black, f the
+// frosted strip. Any other cell by ink, background and weight: on the ground i/B ink, g label grey, h hairline,
+// e accent edge; on paint s darker accent, A/X ink; on black w/W white, d grey lamp, o acid lamp, r divider; on
+// frost v/V white, l lifted lamp, c acid lamp, q lifted divider.
+const INKS = { '#000000': 'ink', '#4f5257': 'label', '#c0fe04': 'acid', '#90be03': 'shade', '#ffffff': 'white', '#717171': 'lamp', '#555555': 'rule', '#9c9c9c': 'frostLamp', '#868686': 'frostRule' };
+const LETTERS = {
+  'p/ink/0': 'i', 'p/ink/1': 'B', 'p/label/0': 'g', 'p/hair/0': 'h', 'p/acid/0': 'e', 'a/shade/0': 's', 'a/ink/0': 'A', 'a/ink/1': 'X',
+  'k/white/0': 'w', 'k/white/1': 'W', 'k/lamp/0': 'd', 'k/acid/0': 'o', 'k/rule/0': 'r', 'k/rule/1': 'R',
+  'f/white/0': 'v', 'f/white/1': 'V', 'f/frostLamp/0': 'l', 'f/acid/0': 'c', 'f/frostRule/0': 'q',
+};
+const cellsOf = (line) => line.flatMap((s) => [...s.text].map((ch) => ({ ch, fg: resolveColor(s.style.fg).toLowerCase(), bg: resolveColor(s.style.bg).toLowerCase(), bold: !!s.style.bold })));
+// Rows 0–5 are plate rows (the compact row is row 0); `backdrop` is the strip's host background.
+const codes = (lines, { backdrop = null } = {}) => lines.map((line, y) => cellsOf(line).map((c, x, row) => {
+  const ground = y < 6 ? groundAt(x, y, row.length) : null;
+  const bg = c.bg === ground ? 'p' : c.bg === '#c0fe04' ? 'a' : c.bg === '#000000' ? 'k' : backdrop && c.bg === frostOver(backdrop[x]) ? 'f' : '?';
+  if (c.ch === ' ') return bg;
+  return LETTERS[`${bg}/${ground && c.fg === hairOn(ground) ? 'hair' : INKS[c.fg]}/${c.bold ? 1 : 0}`] ?? '?';
+}).join(''));
+
+// Goldens from the approved mockup (lunalee prototypes/crate-banner, texture.html round 5: ground C brushed aluminium,
+// HALDENN DYNAMICS under the maker, shadow off), taken by running its own cell engine for
+// oneStroke('serialAligned', 'mark', 'barcode') at 60 and 40 columns, clock 09:34. `cells` is the solid strip;
+// `frosted` the strip row with the mockup's "frosted 10%" over its pane row, and the approved lifted lamp and
+// divider inks in place of the mockup's #717171 and #555555. Each case lists the rows that differ from HOLD 2.
 const MOCKUP = {
   60: {
     text: [
       '  +──────────────────────────◢────◤───────+────────────────+',
       '  │ INDUSTRIAL-OS ®         ◢    ◤     ⟁  │ HOLD 2   09:34 │',
-      '  │                        ◢    ◤         +────────────────+',
-      '  │ HALDENN DYNAMICS      ◢    ◤          │ UNIT      M-02 │',
+      '  │ HALDENN DYNAMICS       ◢    ◤         +────────────────+',
+      '  │                       ◢    ◤          │ UNIT      M-02 │',
       '  │                      ◢    ◤           │ ▌▏▏▍▐▐█▏▍▐▍▍▍▐ │',
       '  + S/N 2610-0427 ──────◢────◤────────────+────────────────+',
       '  ▦ BOARD · │ ≡ NOTES · │                                   ',
@@ -35,22 +61,29 @@ const MOCKUP = {
     cells: [
       'aaBhhhhhhhhhhhhhhhhhhhhhhhhhhessssehhhhhhhBhhhhhhhhhhhhhhhhB',
       'aahpBBBBBBBBBBBBBpipppppppppeaaaaepppppBpphpggggpBpppBBBBBph',
-      'aahppppppppppppppppppppppppeaaaaepppppppppBhhhhhhhhhhhhhhhhB',
-      'aahpgggggggpggggggggppppppeaaaaepppppppppphpggggppppppBBBBph',
+      'aahpgggggggpggggggggpppppppeaaaaepppppppppBhhhhhhhhhhhhhhhhB',
+      'aahpppppppppppppppppppppppeaaaaepppppppppphpggggppppppBBBBph',
       'aahppppppppppppppppppppppeaaaaeppppppppppphpiiiiiiiiiiiiiiph',
       'aaBpgggpgggggggggphhhhhhessssehhhhhhhhhhhhBhhhhhhhhhhhhhhhhB',
       'kkWkWWWWWkdkrkWkWWWWWkdkrkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk',
     ],
-    // HOLD 0 with BOARD open: only rows 1 and 6 change.
-    idle: { 1: 'aahpBBBBBBBBBBBBBpipppppppppeaaaaepppppBpphpggggpgpppBBBBBph', 6: 'kkWkWWWWWkokrkWkWWWWWkdkrkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk' },
+    frosted: 'ffVfVVVVVflfqfVfVVVVVflfqfffffffffffffffffffffffffffffffffff',
+    cases: [
+      { hold: 0, open: ['board'], text: { 1: '  │ INDUSTRIAL-OS ®         ◢    ◤     ⟁  │ HOLD 0   09:34 │', 6: '  ▦ BOARD ● │ ≡ NOTES · │                                   ' },
+        cells: { 1: 'aahpBBBBBBBBBBBBBpipppppppppeaaaaepppppBpphpggggpgpppBBBBBph', 6: 'kkWkWWWWWkokrkWkWWWWWkdkrkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk' },
+        frosted: 'ffVfVVVVVfcfqfVfVVVVVflfqfffffffffffffffffffffffffffffffffff' },
+      { hold: 12, open: ['board', 'notes'], text: { 1: '  │ INDUSTRIAL-OS ®         ◢    ◤     ⟁  │ HOLD 12  09:34 │', 6: '  ▦ BOARD ● │ ≡ NOTES ● │                                   ' },
+        cells: { 1: 'aahpBBBBBBBBBBBBBpipppppppppeaaaaepppppBpphpggggpBBppBBBBBph', 6: 'kkWkWWWWWkokrkWkWWWWWkokrkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk' },
+        frosted: 'ffVfVVVVVfcfqfVfVVVVVfcfqfffffffffffffffffffffffffffffffffff' },
+    ],
     spans: [{ id: 'board', row: 6, start: 1, end: 12 }, { id: 'notes', row: 6, start: 13, end: 24 }],
   },
   40: {
     text: [
       '  +────────────────────◢─◤─────────────+',
       '  │ INDUSTRIAL-OS ® ⟁ ◢│◤HOLD 2  09:34 │',
-      '  │                  ◢ ◤───────────────+',
-      '  │ HALDENN DYNAMICS◢ ◤│ UNIT     M-02 │',
+      '  │ HALDENN DYNAMICS ◢ ◤───────────────+',
+      '  │                 ◢ ◤│ UNIT     M-02 │',
       '  │                ◢ ◤ │ ▌▏▏▍▐▐█▏▍▐▍▍▐ │',
       '  + S/N 2610-0427 ◢─◤──+───────────────+',
       '  BOARD ·│ NOTES ·│                     ',
@@ -58,27 +91,40 @@ const MOCKUP = {
     cells: [
       'aaBhhhhhhhhhhhhhhhhhhhhesehhhhhhhhhhhhhB',
       'aahpBBBBBBBBBBBBBpipBpeseggggpBppBBBBBph',
-      'aahppppppppppppppppppeaehhhhhhhhhhhhhhhB',
-      'aahpgggggggpggggggggeaehpggggpppppBBBBph',
+      'aahpgggggggpggggggggpeaehhhhhhhhhhhhhhhB',
+      'aahpppppppppppppppppeaehpggggpppppBBBBph',
       'aahppppppppppppppppeaephpiiiiiiiiiiiiiph',
       'aaBpgggpgggggggggpesehhBhhhhhhhhhhhhhhhB',
       'kkWWWWWkdrkWWWWWkdrkkkkkkkkkkkkkkkkkkkkk',
     ],
-    idle: { 1: 'aahpBBBBBBBBBBBBBpipBpeseggggpgppBBBBBph', 6: 'kkWWWWWkorkWWWWWkdrkkkkkkkkkkkkkkkkkkkkk' },
+    frosted: 'ffVVVVVflqfVVVVVflqfffffffffffffffffffff',
+    cases: [
+      { hold: 0, open: ['board'], text: { 1: '  │ INDUSTRIAL-OS ® ⟁ ◢│◤HOLD 0  09:34 │', 6: '  BOARD ●│ NOTES ·│                     ' },
+        cells: { 1: 'aahpBBBBBBBBBBBBBpipBpeseggggpgppBBBBBph', 6: 'kkWWWWWkorkWWWWWkdrkkkkkkkkkkkkkkkkkkkkk' },
+        frosted: 'ffVVVVVfcqfVVVVVflqfffffffffffffffffffff' },
+      { hold: 12, open: ['board', 'notes'], text: { 1: '  │ INDUSTRIAL-OS ® ⟁ ◢│◤HOLD 12 09:34 │', 6: '  BOARD ●│ NOTES ●│                     ' },
+        cells: { 1: 'aahpBBBBBBBBBBBBBpipBpeseggggpBBpBBBBBph', 6: 'kkWWWWWkorkWWWWWkorkkkkkkkkkkkkkkkkkkkkk' },
+        frosted: 'ffVVVVVfcqfVVVVVfcqfffffffffffffffffffff' },
+    ],
     spans: [{ id: 'board', row: 6, start: 1, end: 9 }, { id: 'notes', row: 6, start: 10, end: 18 }],
   },
 };
 
-test('the full form reproduces the approved mockup cell for cell at 60 and 40 columns', () => {
-  for (const [width, golden] of Object.entries(MOCKUP)) {
-    const { lines, tools } = crateBanner(INPUT, { width: Number(width) });
-    assert.deepEqual(plain(lines), golden.text, `${width} text`);
-    assert.deepEqual(codes(lines), golden.cells, `${width} cells`);
-    assert.deepEqual(tools, golden.spans);
-    const idle = crateBanner({ ...INPUT, hold: 0, tools: [{ ...TOOLS[0], state: 'open' }, TOOLS[1]] }, { width: Number(width) });
-    const expected = golden.cells.map((row, y) => golden.idle[y] ?? row);
-    assert.deepEqual(codes(idle.lines), expected, `${width} HOLD 0, BOARD open`);
-    assert.equal(plain(idle.lines)[6], golden.text[6].replace('·', '●'));
+test('the full form reproduces the approved mockup cell for cell at 60 and 40 columns, solid and frosted', () => {
+  for (const [key, golden] of Object.entries(MOCKUP)) {
+    const width = Number(key), backdrop = paneRow(width);
+    for (const { hold = 2, open = [], text = {}, cells = {}, frosted = golden.frosted } of [{}, ...golden.cases]) {
+      const tools = TOOLS.map((tool) => ({ ...tool, state: open.includes(tool.id) ? 'open' : 'ready' }));
+      const rows = (base, diff) => base.map((row, y) => diff[y] ?? row);
+      const solid = crateBanner({ ...INPUT, hold, tools }, { width });
+      assert.deepEqual(plain(solid.lines), rows(golden.text, text), `${width} HOLD ${hold} text`);
+      assert.deepEqual(codes(solid.lines), rows(golden.cells, cells), `${width} HOLD ${hold} cells`);
+      assert.deepEqual(solid.tools, golden.spans);
+      const frost = crateBanner({ ...INPUT, hold, tools }, { width, stripBackdrop: backdrop });
+      assert.deepEqual(plain(frost.lines), plain(solid.lines), 'frosting changes no glyph');
+      assert.deepEqual(codes(frost.lines, { backdrop }), [...rows(golden.cells, cells).slice(0, 6), frosted], `${width} HOLD ${hold} frosted`);
+      assert.deepEqual(frost.tools, solid.tools);
+    }
   }
 });
 
@@ -103,6 +149,26 @@ test('hover inks the whole item black on acid and keeps the lamp truthful; disab
     // A disabled tool keeps its item width, so a state change never moves the tools after it.
     const ready = crateBanner({ ...INPUT, tools: tools.map((t) => ({ ...t, state: 'ready', hover: false })) }, { width });
     assert.deepEqual(ready.tools, spans);
+    // Frosted, hover keeps its solid acid; the disabled label and the dividers take the lifted divider ink.
+    const backdrop = paneRow(width);
+    const frosted = cellsOf(crateBanner({ ...INPUT, tools }, { width, stripBackdrop: backdrop }).lines[6]);
+    for (const [i, { start, end }] of spans.entries()) {
+      const item = frosted.slice(start, end);
+      if (i < 2) assert.deepEqual(item, row.slice(start, end), 'hover is unchanged by frosting');
+      else assert.ok(item.every((c, k) => c.bg === frostOver(backdrop[start + k]) && (c.ch === ' ' || c.fg === '#868686')));
+      assert.deepEqual([frosted[end].ch, frosted[end].fg], ['│', '#868686']);
+    }
+  }
+});
+
+test('the division sits directly under the maker, with a blank cell before the stroke at 40 cells', () => {
+  const rows = plain(crateBanner(INPUT, { width: 40 }).lines);
+  assert.equal(rows[2].slice(4, 22), 'HALDENN DYNAMICS ◢');
+  assert.equal(rows[3].slice(2, 20), '│' + ' '.repeat(17), 'row 3 is open ground');
+  // At every full width the division keeps clear of the stroke on its row.
+  for (let width = 40; width <= 160; width++) {
+    const row = plain(crateBanner(INPUT, { width }).lines)[2];
+    assert.ok(row.indexOf('HALDENN DYNAMICS') === 4 && row.indexOf('◢') >= 4 + 'HALDENN DYNAMICS'.length + 1, `${width}`);
   }
 });
 
@@ -120,6 +186,26 @@ test('every width from 1 to 160 is exact, in both forms, with the stroke clear o
       for (const form of ['full', 'compact']) {
         const { lines, tools } = crateBanner(input, { width, form });
         const full = form === 'full' && width >= 40;
+        // The aluminium ground under every plate cell but the paint (and the compact row's black chips); hairlines
+        // follow it, and every label reads at 4.5:1 or more on its own cell.
+        for (const [y, line] of lines.slice(0, full ? 6 : 1).entries()) {
+          for (const [x, c] of cellsOf(line).entries()) {
+            if (c.bg === '#c0fe04' || (!full && c.bg === '#000000')) continue;
+            const ground = groundAt(x, y, width);
+            assert.equal(c.bg, ground, `${form} ${width} (${x},${y}) ground`);
+            if ('─│'.includes(c.ch)) assert.equal(c.fg, hairOn(ground), `${form} ${width} (${x},${y}) hairline`);
+            if (c.fg === '#4f5257' && c.ch !== ' ') assert.ok(contrast(c.fg, c.bg) >= 4.5, `${form} ${width} (${x},${y}) label contrast`);
+          }
+        }
+        // Frosting changes only the strip's black cells; the compact row has no strip and ignores it.
+        const backdrop = Array.from({ length: width }, (_, x) => hx([x % 40, 31, 33]));
+        const frosted = crateBanner(input, { width, form, stripBackdrop: backdrop });
+        assert.deepEqual(frosted.tools, tools);
+        assert.deepEqual(frosted.lines.slice(0, full ? 6 : 1), lines.slice(0, full ? 6 : 1));
+        if (full) {
+          const strip = cellsOf(frosted.lines[6]), solid = cellsOf(lines[6]);
+          strip.forEach((c, x) => assert.equal(c.bg, solid[x].bg === '#000000' ? frostOver(backdrop[x]) : solid[x].bg, `${width} strip (${x})`));
+        }
         assert.equal(lines.length, full ? 7 : 1, `${form} ${width}`);
         for (const line of lines) {
           assert.equal(lineWidth(line), width, `${form} ${width}`);
@@ -146,7 +232,7 @@ test('every width from 1 to 160 is exact, in both forms, with the stroke clear o
         if (input.mark !== null) {
           const x = width - (width >= 56 ? 18 : 17) - 3;
           assert.equal(grid[1][x].ch, input.mark ?? '⟁');
-          assert.deepEqual([grid[1][x + 1].ch, grid[1][x + 1].bg], [' ', '#f6f6f6'], `${width} the mark keeps its blank cell`);
+          assert.deepEqual([grid[1][x + 1].ch, grid[1][x + 1].bg], [' ', groundAt(x + 1, 1, width)], `${width} the mark keeps its blank cell`);
         }
       }
     }
@@ -156,7 +242,8 @@ test('every width from 1 to 160 is exact, in both forms, with the stroke clear o
 test('long text is cut with an ellipsis before the stroke; ® goes before the maker is cut', () => {
   const rows = plain(crateBanner(VARIANTS[3], { width: 40 }).lines);
   assert.equal(rows[1], '  │ A VERY LONG MA… * ◢│◤HOLD ?  --:-- │');
-  assert.equal(rows[3], '  │ A DIVISION NAME…◢ ◤│ UNIT UNIT-NU… │');
+  assert.equal(rows[2], '  │ A DIVISION NAME …◢ ◤───────────────+');
+  assert.equal(rows[3], '  │                 ◢ ◤│ UNIT UNIT-NU… │');
   assert.equal(rows[5], '  + S/N SERIAL-0… ◢─◤──+───────────────+');
   assert.equal(rows[6], '  BOARD ·│ NOTES ·│ FILES  │            ', 'a tool that does not fit whole is left out');
   assert.equal(plain(crateBanner({ ...INPUT, maker: 'INDUSTRIAL-OS-X' }, { width: 40 }).lines)[1], '  │ INDUSTRIAL-OS-X ⟁ ◢│◤HOLD 2  09:34 │');
@@ -210,8 +297,8 @@ test('a host measurer keeps Unicode text and wide graphemes within the exact wid
       for (const { start, end, row } of tools) assert.ok(end > start && end < width && row === lines.length - 1);
     }
   }
-  assert.ok(plain(crateBanner(input, { width: 60, measure }).lines)[3].includes('Haldenn · 動力'));
-  assert.ok(plain(crateBanner(input, { width: 60 }).lines)[3].includes('Haldenn ? ??'), 'without a measurer text stays ASCII');
+  assert.ok(plain(crateBanner(input, { width: 60, measure }).lines)[2].includes('Haldenn · 動力'));
+  assert.ok(plain(crateBanner(input, { width: 60 }).lines)[2].includes('Haldenn ? ??'), 'without a measurer text stays ASCII');
   assert.throws(() => crateBanner({ ...input, maker: 'bad\x1b[31m' }, { width: 60, measure }), TypeError);
 });
 
@@ -264,4 +351,18 @@ test('invalid input throws', () => {
   assert.throws(bad({ tools: [{ id: 'a', label: 'A', state: 'ready', icon: 'AB' }] }), TypeError);
   assert.throws(bad({ tools: [{ id: 'a', label: 3, state: 'ready' }] }), TypeError);
   assert.throws(bad({ tools: [{ id: 'a', label: 'A', state: 'ready' }, { id: 'a', label: 'B', state: 'open' }] }), RangeError);
+  // The strip backdrop is one #rrggbb per cell, checked in both forms even though the compact row ignores it.
+  const backdrop = (width, color = '#1e1f21') => Array(width).fill(color);
+  for (const form of ['full', 'compact']) {
+    assert.throws(bad({}, { width: 60, form, stripBackdrop: backdrop(59) }), RangeError);
+    assert.throws(bad({}, { width: 60, form, stripBackdrop: backdrop(61) }), RangeError);
+    assert.throws(bad({}, { width: 60, form, stripBackdrop: '#1e1f21' }), TypeError);
+    assert.throws(bad({}, { width: 60, form, stripBackdrop: backdrop(60, 'field') }), TypeError);
+    assert.throws(bad({}, { width: 60, form, stripBackdrop: backdrop(60, '#fff') }), TypeError);
+    assert.throws(bad({}, { width: 60, form, stripBackdrop: [...backdrop(59), 0x1e1f21] }), TypeError);
+    assert.throws(bad({}, { width: 60, form, stripBackdrop: [...backdrop(59), '#1e1f21 '] }), TypeError);
+    assert.doesNotThrow(bad({}, { width: 60, form, stripBackdrop: null }));
+    assert.doesNotThrow(bad({}, { width: 60, form, stripBackdrop: backdrop(60, '#1E1F21') }));
+  }
+  assert.deepEqual(crateBanner(INPUT, { width: 30, form: 'compact', stripBackdrop: backdrop(30) }), crateBanner(INPUT, { width: 30, form: 'compact' }));
 });
