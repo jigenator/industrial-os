@@ -321,6 +321,19 @@ test('planning the tool layout is linear in the number of tools', () => {
   }
 });
 
+test('a tool without a lamp is just its icon and label, and still hovers and hit-tests', () => {
+  for (const [width, text] of [[60, '  ▦ BOARD │ ≡ NOTES · │'], [40, '  BOARD │ NOTES ·│']]) {
+    const tools = [{ id: 'board', label: 'BOARD', icon: '▦', state: 'ready', lamp: false }, { id: 'notes', label: 'NOTES', icon: '≡', state: 'ready' }];
+    const { lines, tools: spans } = crateBanner({ ...INPUT, tools }, { width });
+    assert.ok(plain(lines)[6].startsWith(text), plain(lines)[6]);
+    assert.deepEqual(spans[0], { id: 'board', row: 6, start: 0, end: text.indexOf('│') });
+    const hovered = cellsOf(crateBanner({ ...INPUT, tools: [{ ...tools[0], hover: true }, tools[1]] }, { width }).lines[6]);
+    assert.ok(hovered.slice(0, spans[0].end).every((c) => c.bg === '#c0fe04'));
+    assert.ok(!/[●·]/.test(plain(lines)[6].slice(0, spans[0].end)));
+  }
+  assert.throws(() => crateBanner({ ...INPUT, tools: [{ id: 'a', label: 'A', state: 'ready', lamp: 'no' }] }, { width: 60 }), TypeError);
+});
+
 test('® and the mark are optional; the input is not changed', () => {
   const input = structuredClone(INPUT);
   const rows = plain(crateBanner({ ...input, registered: false, mark: null }, { width: 60 }).lines);

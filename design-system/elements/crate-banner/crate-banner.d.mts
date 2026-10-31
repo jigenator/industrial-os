@@ -1,6 +1,7 @@
 import type { Line, Measure } from '../../foundation/cells.mjs';
 export type CrateToolState = 'ready' | 'open' | 'disabled';
-export interface CrateTool { id: string; label: string; icon?: string | null; state: CrateToolState; hover?: boolean }
+/** `lamp: false` draws no lamp (` ▦ LABEL `), for a tool that runs an action rather than tracking an open crate. */
+export interface CrateTool { id: string; label: string; icon?: string | null; state: CrateToolState; hover?: boolean; lamp?: boolean }
 export interface CrateBannerInput {
   maker?: string; registered?: boolean; division?: string; unit?: string; serial: string;
   hold?: number | null; clock?: string | null; mark?: string | null; tools?: readonly CrateTool[];
