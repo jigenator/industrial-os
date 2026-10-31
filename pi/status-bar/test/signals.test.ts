@@ -78,3 +78,14 @@ test("visible is additive: old, null and malformed values fail open; only false 
 	}
 	observer.dispose();
 });
+
+test("widened v1 usage preserves configured order, arbitrary ids and raw metadata", () => {
+	const events = host.createEventBus(), seen: any[] = [];
+	const providers = [{ provider: "__proto__", tag: "\x1b[31mNEW", color: "usage.unknown" }, { provider: "a/b", data: { windows: { wk: { usedPercent: null, resetsAt: null } }, updatedAt: null, fetchedAt: 1 } }];
+	const raw = { ...dto(), usage: { installed: true, providers } };
+	const off = events.on("signals-collector:v1:request", (r: any) => r.reply(raw));
+	const consumer = observeSignals({ events } as any, () => "live", (s) => seen.push(s));
+	assert.deepEqual(seen.at(-1).usage.providers, providers);
+	assert.notEqual(seen.at(-1).usage.providers, providers, "consumer clones the wire value");
+	consumer.dispose(); off();
+});

@@ -3,6 +3,7 @@ import type { ContextUsage, Theme } from "@earendil-works/pi-coding-agent";
 import { backgroundAnsi, foregroundAnsi, rgbColor, stripTerminalSequences, sliceByColumn, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { ACID_BLACK } from "@industrial-os/design-system/foundation/palette";
 import { SIGNAL_COLORS } from "@industrial-os/design-system/foundation/signal-colors";
+import { usageColors, USAGE_NEUTRAL } from "@industrial-os/design-system/foundation/usage-colors";
 import { random as seededRandom, hash, between, pick, shuffle, seedFrom } from "@industrial-os/design-system/foundation/seeded";
 import type { Color, Span, Style as ElementStyle } from "@industrial-os/design-system/foundation/cells";
 import { labelPlate, PLATE_TONES } from "@industrial-os/design-system/elements/label-plate";
@@ -25,7 +26,7 @@ import { beacon as attentionBeacon } from "@industrial-os/design-system/motions/
 import { fillIn } from "@industrial-os/design-system/motions/fill-in";
 import { edgePulse } from "@industrial-os/design-system/motions/edge-pulse";
 import { burnOut } from "@industrial-os/design-system/motions/burn-out";
-import type { UsageProviderId, UsageWindow, UsageWindows } from "./signals.ts";
+import type { UsageProviderId, UsageWindow, UsageProviderState } from "./signals.ts";
 import type { CheckoutInfo, PullRequestInfo, WorkspaceInfo } from "./signals.ts";
 
 /** Confirmed producer modes, distinct from checking/unavailable display state. */
@@ -33,11 +34,9 @@ export type PonytailMode = "off" | "lite" | "full" | "ultra" | "review";
 export type PonytailState = PonytailMode | "checking" | "unknown";
 /** Root session state and native active-work units. Absent activity or null units are unknown, never zero. */
 export type FooterActivity = { working: boolean; units: number | null };
-/** Last good CodexBar sample. `fetchedAt` is the adapter's wall-clock receipt time and identifies the sample. */
-export type UsageSample = { windows: UsageWindows; updatedAt: number | null; fetchedAt: number };
-/** Never fetched (neither field), the last good sample, and/or the latest fetch's failure. */
-export type UsageProviderState = { provider: UsageProviderId; data?: UsageSample; failure?: "timeout" | "failed" };
-/** Supplied only once CodexBar is known to be installed. `now` is wall-clock epoch ms from the adapter. */
+/** Usage wire types are shared locally with the snapshot consumer, not re-declared by the renderer. */
+export type { UsageSample, UsageProviderState } from "./signals.ts";
+/** Supplied once the configured usage engine has answered. `now` is wall-clock epoch ms from the adapter. */
 export type FooterUsage = { now: number; providers: readonly UsageProviderState[] };
 /** Minimal validated public Tatsu v1 data; no provider prose or identifiers. */
 export type TatsuComponent = { component: "tatsu-cli" | "agent-workspace"; state: "inactive" | "checking" | "current" | "behind" | "repair" | "local_changes" | "missing" | "not_runnable" | "unavailable"; commitsBehind?: number; localChanges?: boolean };
@@ -108,7 +107,7 @@ export type FooterSnapshot = {
 	compactions?: number | null;
 	/** Pi's effective compaction reserve for the model; absent when auto-compaction is off or the setting is unusable. */
 	compactionReserve?: number;
-	/** Subscription usage windows; absent hides the USG row (CodexBar missing or not yet detected). */
+	/** Subscription usage windows; absent hides the USG row (usage engine unavailable or not yet detected). */
 	usage?: FooterUsage;
 };
 /** Pi's theme converts these concrete colors for truecolor or 256-color terminals. */
@@ -167,6 +166,7 @@ const COLORS = {
 	claude: SIGNAL_COLORS.cld, claudeUsed: SIGNAL_COLORS.cldUsed, claudeMid: SIGNAL_COLORS.cldMid,
 	kimi: SIGNAL_COLORS.kmi, kimiUsed: SIGNAL_COLORS.kmiUsed, kimiMid: SIGNAL_COLORS.kmiMid,
 	usageGhost: SIGNAL_COLORS.ghost,
+	usageNeutral: USAGE_NEUTRAL.lit, usageNeutralUsed: USAGE_NEUTRAL.used, usageNeutralMid: USAGE_NEUTRAL.mid,
 } as const;
 const piColor = (hex: string) => rgbColor(...[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number]);
 const C = Object.fromEntries(Object.entries(COLORS).map(([alias, hex]) => [alias, piColor(hex)])) as Record<keyof typeof COLORS, ReturnType<typeof rgbColor>>;
@@ -240,11 +240,13 @@ const panelLabels = (percent: number | undefined, windowText: string) =>
 
 const USAGE_WINDOWS = ["5h", "wk"] as const;
 type UsageWindowKey = typeof USAGE_WINDOWS[number];
-// `windows` is each provider's declared layout, not a parse rule: it fixes the column so polling never shifts it.
-const USAGE: Record<UsageProviderId, { tag: string; lit: Hue; used: Hue; mid: Hue; windows: readonly UsageWindowKey[] }> = {
-	codex: { tag: "GPT", lit: "codex", used: "codexUsed", mid: "codexMid", windows: ["wk"] },
-	claude: { tag: "CLD", lit: "claude", used: "claudeUsed", mid: "claudeMid", windows: ["5h", "wk"] },
-	kimi: { tag: "KMI", lit: "kimi", used: "kimiUsed", mid: "kimiMid", windows: ["5h", "wk"] },
+// Source tags are untrusted terminal text; use the host's whole-grapheme column clipping, not JS length.
+const usageTag = (provider: UsageProviderState) => {
+	const clean = (raw: string) => safeText(raw.slice(0, 1024).toWellFormed()).replace(/[\u061c\u200e\u200f]/g, "").replace(/^[\p{Grapheme_Extend}\p{Emoji_Modifier}\u200d]+/u, "").trim();
+	const tag = typeof provider.tag === "string" ? sliceByColumn(clean(provider.tag), 0, 4, true) : "";
+	const fallback = sliceByColumn(clean(provider.provider).toUpperCase(), 0, 3, true);
+	const text = tag || fallback || "?";
+	return text + " ".repeat(Math.max(0, 3 - visibleWidth(text)));
 };
 const USAGE_STALE_MS = 15 * 60_000, BURN_STEPS = [100, 250, 400, 600] as const;
 // The edge square's pulse at the end of each period, in steps that end at `until` ms: it shrinks to the small square
@@ -253,11 +255,9 @@ const EDGE_PULSE = [{ until: 50, glyph: "▪", dim: false }, { until: 100, glyph
 const EDGE_PULSE_MS = EDGE_PULSE[EDGE_PULSE.length - 1].until;
 // Each window is USAGE_SQUARES squares, each an equal share of its quota.
 const USAGE_SQUARES = 8, USAGE_SLICE = 100 / USAGE_SQUARES;
-// Tag, then one square group per window, one cell apart; columns sit three cells apart. A state word (`pending`,
-// `timeout`, `failed`) wider than its slot may spill up to two cells into that gap, so one blank always precedes the
-// next column; with eight-square slots none needs to.
-const USAGE_GAP = 3, USAGE_SPILL = 2, USAGE_WORD = 7;
-const usageColumn = (n: number) => 3 + 1 + USAGE_SQUARES * n + (n - 1);
+// Tag, then one square group per reported window, one cell apart; columns sit three cells apart.
+// Every state word fits inside its eight-cell placeholder.
+const USAGE_GAP = 3;
 // Remaining share, clamped for display; null is an unknown window.
 const remainingOf = (window: UsageWindow) => window.usedPercent === null || !Number.isFinite(window.usedPercent) ? null : Math.min(100, Math.max(0, 100 - window.usedPercent));
 // Squares of 12.5% each; the epsilon keeps float noise on a boundary (87.5000000001) from lighting another square,
@@ -352,12 +352,9 @@ const PULSE_CAP = 6;
 const USAGE_FILL_TICKS = USAGE_SQUARES;
 // USG row boot: a draw-in front sweeps this many cells a tick from the plate's left edge, the text row one tick behind.
 export const USAGE_SWEEP_CELLS_PER_TICK = 3;
-// The widest natural row: plate, gap and every provider column with its declared windows plus room for one
-// undeclared window (where one exists), three cells apart. The boot covers it, then the text row's lag; wider rows
-// are drawn settled when it ends.
-const USAGE_ROW_CELLS = ` ${LABEL.usg} `.length + 1 - USAGE_GAP
-	+ Object.values(USAGE).reduce((sum, look) => sum + usageColumn(Math.min(look.windows.length + 1, USAGE_WINDOWS.length)) + USAGE_GAP, 0);
-export const USAGE_BOOT_TICKS = Math.ceil(USAGE_ROW_CELLS / USAGE_SWEEP_CELLS_PER_TICK) + 1;
+// Fixed compatibility budget, independent of configured columns/shapes: 1350 ms, then every cell settles.
+// Long rows may finish at the cutoff; configuration must never create an unbounded state-hiding boot.
+export const USAGE_BOOT_TICKS = 27;
 
 export const TATSU_CHECK_STEP_MS = 150;
 export const TATSU_LATCH_TICKS = 3;
@@ -497,9 +494,10 @@ const sameUsage = (a: Readonly<Record<string, UsageMemory>>, b: Readonly<Record<
 	const keys = Object.keys(a);
 	return keys.length === Object.keys(b).length && keys.every((key) => b[key] && a[key].stamp === b[key].stamp && a[key].lit === b[key].lit && a[key].period === b[key].period);
 };
-const providerOf = (key: string) => key.split("/")[0] as UsageProviderId;
+const providerOf = (key: string) => key.slice(0, key.lastIndexOf("/"));
 // Providers the USG row renders, in display order; none means no row.
-const usageRow = (snapshot: FooterSnapshot) => (snapshot.usage?.providers ?? []).filter((provider) => USAGE[provider.provider]);
+const usageRow = (snapshot: FooterSnapshot) => snapshot.usage?.providers ?? [];
+const providerFill = (fill: Readonly<Partial<Record<string, number>>> | undefined, id: string) => fill && Object.hasOwn(fill, id) ? fill[id] : undefined;
 const sameFill = (a: Readonly<Partial<Record<UsageProviderId, number>>>, b: Readonly<Partial<Record<UsageProviderId, number>>>) => {
 	const keys = Object.keys(a) as UsageProviderId[];
 	return keys.length === Object.keys(b).length && keys.every((key) => a[key] === b[key]);
@@ -624,14 +622,13 @@ export function advanceMotion(state: MotionState, snapshot: FooterSnapshot, now:
 	// that gains data (from pending or a failure without data) fills in from now; during a row boot it is simply drawn
 	// current when the front reaches it. A newer sample never restarts a fill-in.
 	const row = usageRow(snapshot);
-	let fill: Partial<Record<UsageProviderId, number>> = {};
-	for (const [provider, at] of Object.entries(next.usageFill) as [UsageProviderId, number][]) if (ticksSince(at, now) < USAGE_FILL_TICKS) fill[provider] = at;
+	let fill: Partial<Record<UsageProviderId, number>> = Object.fromEntries(Object.entries(next.usageFill).filter(([, at]) => ticksSince(at!, now) < USAGE_FILL_TICKS));
 	if (next.usageBoot !== undefined && ticksSince(next.usageBoot, now) >= USAGE_BOOT_TICKS) set("usageBoot", undefined);
 	if (!row.length) { set("usageBoot", undefined); fill = {}; }
 	else if (!state.usageShown) { set("usageBoot", now); fill = {}; }
 	else if (next.usageBoot === undefined) {
 		const had = new Set(Object.keys(state.usage).map(providerOf));
-		for (const provider of row) if (provider.data && !had.has(provider.provider)) fill[provider.provider] = now;
+		fill = Object.fromEntries([...Object.entries(fill), ...row.filter((provider) => provider.data && !had.has(provider.provider)).map((provider) => [provider.provider, now])]);
 	}
 	set("usageShown", row.length > 0);
 	if (!sameFill(fill, next.usageFill)) set("usageFill", fill);
@@ -646,7 +643,7 @@ export function advanceMotion(state: MotionState, snapshot: FooterSnapshot, now:
 		const previous = state.usage[key];
 		if (!previous || previous.stamp === memory.stamp) continue;
 		if (burns[key]) { delete burns[key]; burned = true; }
-		if (previous.lit !== undefined && memory.lit !== undefined && memory.lit < previous.lit && next.usageBoot === undefined && fill[providerOf(key)] === undefined) { burns[key] = { at: now, from: previous.lit, to: memory.lit }; burned = true; }
+		if (previous.lit !== undefined && memory.lit !== undefined && memory.lit < previous.lit && next.usageBoot === undefined && providerFill(fill, providerOf(key)) === undefined) { burns[key] = { at: now, from: previous.lit, to: memory.lit }; burned = true; }
 	}
 	if (!sameUsage(state.usage, usage)) set("usage", usage);
 	if (burned) set("usageBurns", burns);
@@ -726,14 +723,10 @@ export function motionFrame(state: MotionState, now: number): FooterFrame {
 		const k = ticksSince(state.usageBoot, now);
 		if (k >= 0 && k < USAGE_BOOT_TICKS) frame.usageBoot = k;
 	}
-	const fill: Partial<Record<UsageProviderId, number>> = {};
-	for (const [provider, at] of Object.entries(state.usageFill) as [UsageProviderId, number][]) {
-		const k = ticksSince(at, now);
-		if (k < USAGE_FILL_TICKS) fill[provider] = k;
-	}
+	const fill = Object.fromEntries(Object.entries(state.usageFill).map(([provider, at]) => [provider, ticksSince(at!, now)] as const).filter(([, k]) => k < USAGE_FILL_TICKS));
 	if (Object.keys(fill).length) frame.usageFill = fill;
 	// A running row boot or fill-in suppresses its windows' edge pulse and burn-out; a burn-out suppresses its window's pulse.
-	const held = (key: string) => frame.usageBoot !== undefined || fill[providerOf(key)] !== undefined;
+	const held = (key: string) => frame.usageBoot !== undefined || providerFill(fill, providerOf(key)) !== undefined;
 	const usage: Record<string, UsageEffect> = {};
 	for (const [key, burn] of Object.entries(state.usageBurns)) {
 		const elapsed = now - burn.at;
@@ -1127,12 +1120,13 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 		+ paintElement(ponytail.icon) + paintElement(ponytail.title)
 		+ ponytail.codeCells.map((part, i) => paint(part.text, { ...elementStyle(part.style), ...(confirmedPonytail(snapshot.ponytail) && snapshot.ponytail !== "off" && ((frame.ponytailMask ?? 0) & (1 << i)) ? { fg: "field" as const } : {}) })).join("")
 		+ paintElement(ponytail.trailingPad) + paintElement(ponytail.rightGap) : "";
-	// The same for pre-styled single-width text (single-width characters only) whose first cell is at x: its settled part, the
+	// Pre-styled text whose first cell is at x: whole graphemes in its settled part, the
 	// front repainted from its characters, and nothing past the front; callers pad with blank field.
 	const drawInText = (text: string, x: number, front: number) => {
 		if (front === Infinity) return text;
 		const settled = Math.max(0, front - USAGE_SWEEP_CELLS_PER_TICK - x);
-		return truncateToWidth(text, settled, "") + paint([...stripTerminalSequences(text)].slice(settled, Math.max(0, front - x)).join(""), LOCKED);
+		const before = truncateToWidth(text, settled, ""), start = visibleWidth(before);
+		return before + paint(sliceByColumn(stripTerminalSequences(text), start, Math.max(0, front - x - start), true), LOCKED);
 	};
 	// Pre-styled entries (Tatsu components, background-task groups) break only between parts, so one never splits while
 	// it fits a line; one wider than its line wraps like any other status. The first line holds `first` cells after any
@@ -1203,10 +1197,10 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 		return { parts: undefined, text: fg + bg + restoreBase(safeText(status, true), fg, bg) };
 	});
 
-	/* ---------- USG: one fixed column per provider, squares over countdowns; motion restyles, never moves ---------- */
+	/* ---------- USG: one column per configured provider, squares over countdowns ---------- */
 	// Text under a part may spill past its right edge into the following blank; parts never overlap.
 	type UsagePart = { top: string; bottom: string; width: number; bottomWidth: number };
-	type UsageGroup = UsagePart & { parts: UsagePart[]; reserve: number; alone?: boolean };
+	type UsageGroup = UsagePart & { parts: UsagePart[]; alone?: boolean };
 	const joinParts = (parts: UsagePart[], space: number): UsagePart => {
 		let top = "", bottom = "", x = 0, end = 0;
 		parts.forEach((part, i) => {
@@ -1217,22 +1211,26 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 		});
 		return { top, bottom, width: x, bottomWidth: end };
 	};
-	// A column's room on a line includes the spill its state word could need, so wrap points never depend on state.
-	const footprint = (group: UsageGroup) => Math.max(group.width + group.reserve, group.bottomWidth);
+	// Include the text extent when fitting whole columns.
+	const footprint = (group: UsageGroup) => Math.max(group.width, group.bottomWidth);
 	const usageNow = finite(snapshot.usage?.now), lastLatch = USAGE_FILL_TICKS - 1;
 	const usageGroups = usageRow(snapshot).map((provider): UsageGroup => {
-		const look = USAGE[provider.provider], age = staleAge(provider, usageNow), fill = frame.usageFill?.[provider.provider];
+		const colors = usageColors(provider.color), look = { lit: hueOf(colors.lit, "text"), used: hueOf(colors.used, "graphic"), mid: hueOf(colors.mid, "graphic") };
+		const tag = usageTag(provider), tagWidth = visibleWidth(tag) as 3 | 4;
+		const age = staleAge(provider, usageNow), fill = providerFill(frame.usageFill, provider.provider);
 		// Normalize permissive host values before entering the element's strict boundary; preserve displayed clock age.
 		const windows = provider.data && Object.fromEntries(USAGE_WINDOWS.filter((key) => provider.data!.windows[key]).map((key) => {
 			const w = provider.data!.windows[key]!, remaining = remainingOf(w);
 			return [key, { usedPercent: remaining === null ? null : 100 - remaining, resetsAt: finite(w.resetsAt) ?? null }];
 		}));
-		const natural = providerColumnParts({ provider: provider.provider, failure: provider.failure, ...(windows ? { data: { windows } } : {}) }, { now: usageNow, age: age ?? null, countdownOverflow: "text" });
+		// No shape declaration: only reported windows. One anonymous slot stands for pending/failure/none.
+		const declared = USAGE_WINDOWS.filter((key) => windows?.[key]);
+		const natural = providerColumnParts({ tag, ink: colors.lit, declared: declared.length ? declared : ["wk"], failure: provider.failure, ...(windows ? { data: { windows } } : {}) }, { now: usageNow, age: age ?? null, countdownOverflow: "text", tagWidth, measure: visibleWidth });
 		const ink = (s: Style): Style => fill !== undefined && fill < lastLatch ? { fg: "graphic" } : s;
 		const parts = natural.map((part): UsagePart => {
 			let top = "", drawn = 0;
 			for (const span of part.top) {
-				if (part.kind === "tag") { top += paint(span.text, elementStyle(span.style)); drawn += span.text.length; continue; }
+				if (part.kind === "tag") { top += paint(span.text, elementStyle(span.style)); drawn += visibleWidth(span.text); continue; }
 				for (const glyph of span.text) {
 					const i = drawn++, key = part.window as UsageWindowKey | undefined, window = key && provider.data?.windows[key];
 					const remaining = window ? remainingOf(window) : null, effect = key ? frame.usage?.[`${provider.provider}/${key}`] : undefined;
@@ -1254,8 +1252,7 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 			top += paint(" ".repeat(Math.max(0, part.width - drawn)));
 			return { top, bottom: part.bottom.map((s) => paint(s.text, ink(elementStyle(s.style)))).join(""), width: part.width, bottomWidth: part.bottomWidth };
 		});
-		const width = usageColumn(look.windows.length);
-		return { ...joinParts(parts, 1), parts, reserve: Math.min(USAGE_SPILL, Math.max(0, 4 + USAGE_WORD - width)) };
+		return { ...joinParts(parts, 1), parts };
 	});
 	// Below 40 columns a group wider than the line splits between its tag and window slots, and a slot wider still
 	// wraps on its own rows: values are never clipped. Split pieces never share a line with another provider.
@@ -1264,13 +1261,13 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 		const out: UsageGroup[] = [];
 		let run: UsagePart[] = [];
 		const extent = (parts: UsagePart[]) => { const joined = joinParts(parts, 1); return Math.max(joined.width, joined.bottomWidth); };
-		const push = () => { if (run.length) out.push({ ...joinParts(run, 1), parts: run, reserve: 0, alone: true }); run = []; };
+		const push = () => { if (run.length) out.push({ ...joinParts(run, 1), parts: run, alone: true }); run = []; };
 		for (const part of group.parts) {
 			if (run.length && extent([...run, part]) > w) push();
 			if (extent([part]) <= w) { run.push(part); continue; }
 			push();
 			for (const text of [part.top, part.bottom]) for (const piece of wrap(text, w)) {
-				if (stripTerminalSequences(piece).trim()) out.push({ top: piece, bottom: "", width: visibleWidth(piece), bottomWidth: 0, parts: [], reserve: 0, alone: true });
+				if (stripTerminalSequences(piece).trim()) out.push({ top: piece, bottom: "", width: visibleWidth(piece), bottomWidth: 0, parts: [], alone: true });
 			}
 		}
 		push();
