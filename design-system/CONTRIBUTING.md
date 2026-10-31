@@ -289,6 +289,13 @@ Node v22.23.4, macOS, Herdr client/server 0.9.5. The crate banner takes round 5 
 - **Simplification:** the ground and frost are two post-passes over the grid's one-span-per-cell lines, as the mockup paints its ground after drawing, so the drawing code changed by one row index and one label color; the compact row is plate row 0, so one path serves both forms. The frost uses `blendFill`, the hex check one regular expression, and the ground formula stays in the element (one caller) with its numbers in foundation.
 - **Not run:** a resize of the native pane; physical keyboard/pointer; physical glyph, font or contrast review, including how the per-cell aluminium steps read at the user's font size; claude-interrupt and automations-monitor suites (not installed in this worktree); Lunalee integration or a pinned install; Mermaid rendering (no diagram changed). No standalone DS lint/formatter exists.
 
+## Crate banner hover edge (2026-10-31)
+
+Node v22.23.4, macOS. On the full form's strip the first tool now owns the strip's leading cell (its span starts at column 0), so a hovered first tool's acid lines up with the stripe above it; David asked for this after seeing the live pane. The compact row is unchanged.
+
+- **Passed:** `node --test` **653/653**; the mockup goldens are unchanged except the first span's `start` (1 → 0 at 60 and 40), and the hover test now asserts the leading cell is acid while the first tool is hovered and black otherwise. Showcase 120/100/80/48/40/23 and storybook 120/80/48/24/12 at 24 rows exit 0.
+- **Not run:** the bounded native Herdr check (a one-cell span change, no new glyph or colour), strict declaration compile (no declaration changed) and consumer suites.
+
 ## Configurable usage families (2026-10-31)
 
 macOS, Node v22.23.4; exported usage-token families plus opt-in measured 3/4-cell natural provider tags. No existing signal value or preset/default output changed.
