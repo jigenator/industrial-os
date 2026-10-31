@@ -1,7 +1,7 @@
 // Compile-only public contract specimen; uses the existing claude-interrupt compiler, no DS toolchain.
 import { cells, fit, fitLine, fitText, lineWidth, paint, resolveStyle, span, textSlot } from '@industrial-os/design-system/foundation/cells';
 import { composeSurface, blendFill, dotAt, surfaceAt } from '@industrial-os/design-system/foundation/surface';
-import { SURFACE_PALETTE } from '@industrial-os/design-system/foundation/surface-palette';
+import { ALUMINIUM_GROUND, FROST_ALPHA, SURFACE_PALETTE } from '@industrial-os/design-system/foundation/surface-palette';
 import { INDUSTRIALOS_COLORS, shadeRamp } from '@industrial-os/design-system/foundation/industrialos-colors';
 import { labelPlate } from '@industrial-os/design-system/elements/label-plate';
 import { lamp } from '@industrial-os/design-system/elements/lamp';
@@ -259,6 +259,17 @@ const crate = crateBanner({ serial: '2610-0427', hold: 2, clock: '09:34', tools:
 crate.lines.length satisfies number;
 crate.tools[0]?.end satisfies number | undefined;
 crateBanner({ serial: 'X', hold: null, clock: null, mark: null, registered: false }, { width: 24, form: 'compact', measure });
+const crateBackdrop: `#${string}`[] = Array.from({ length: 60 }, (_, x) => surfaceAt(x, 6, { width: 60, height: 22 }));
+crateBanner({ serial: 'X' }, { width: 60, stripBackdrop: crateBackdrop });
+crateBanner({ serial: 'X' }, { width: 60, stripBackdrop: null });
+SURFACE_PALETTE.aluminiumLabel satisfies `#${string}`;
+ALUMINIUM_GROUND.channels[2] satisfies number;
+ALUMINIUM_GROUND.streaks[0]?.amplitude satisfies number | undefined;
+blendFill('primary', crateBackdrop[0] ?? 'field', FROST_ALPHA);
+// @ts-expect-error the strip backdrop is one #rrggbb string per cell, not one color
+crateBanner({ serial: 'X' }, { width: 60, stripBackdrop: '#1e1f21' });
+// @ts-expect-error the strip backdrop holds #rrggbb strings, not numbers
+crateBanner({ serial: 'X' }, { width: 60, stripBackdrop: [0x1e1f21] });
 // @ts-expect-error hover is a flag beside the state, not a state
 crateBanner({ serial: 'X', tools: [{ id: 'a', label: 'A', state: 'hover' }] }, { width: 60 });
 // @ts-expect-error the serial is required

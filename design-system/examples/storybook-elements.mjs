@@ -40,6 +40,7 @@ import { phaseSteps, readoutBlock, readoutLine, slotStrip, splitBar } from '../e
 import { eventRow } from '../elements/event-row/event-row.mjs';
 import { scrollRail } from '../elements/scroll-rail/scroll-rail.mjs';
 import { crateBanner } from '../elements/crate-banner/crate-banner.mjs';
+import { surfaceAt } from '../foundation/surface.mjs';
 import { CATEGORY_TONES } from '../foundation/board-tones.mjs';
 import { BOARD_INKS } from '../foundation/signal-colors.mjs';
 import { call, code, literal } from './storybook-usage.mjs';
@@ -874,10 +875,11 @@ const CRATE = { serial: '2610-0427', hold: 2, clock: '09:34', tools: CRATE_TOOLS
 const crateTools = (states) => CRATE_TOOLS.map((tool, i) => ({ ...tool, ...states[i] }));
 const CRATE_BANNER = element('crate-banner', {
   title: 'CRATE BANNER',
-  summary: 'A crate pane\'s white maker\'s plate over a black tool strip, or one compact row. Returns lines and each tool\'s cell span.',
+  summary: 'A crate pane\'s brushed-aluminium maker\'s plate over a black or frosted tool strip, or one compact row. Returns lines and each tool\'s cell span.',
   rules: [
     'Wide from 56 cells, narrow from 40; below 40 the full form is the compact row.',
-    'The stroke never sits behind text: the maker, division and serial are cut before it.',
+    'The stroke never sits behind text: the maker, the division under it and the serial are cut before it.',
+    'Given the host\'s background under the strip, the strip is frosted; without it the strip stays solid black.',
     'Every tool state has a shape: a dot lamp when ready, a filled lamp when open, none when disabled.',
     'Hover inks the whole item black on acid and keeps the lamp; it is ignored on a disabled tool.',
     'HOLD is grey at 0 and 99+ above 99; an unknown hold or clock shows ? or --:--, never zero.',
@@ -890,16 +892,20 @@ const CRATE_BANNER = element('crate-banner', {
     { name: 'OPEN', note: 'BOARD open: an acid filled lamp.', input: { ...CRATE, tools: crateTools([{ state: 'open' }]) }, width: 60 },
     { name: 'HOVER', note: 'The host sets hover while the pointer is over NOTES; BOARD stays open.', input: { ...CRATE, tools: crateTools([{ state: 'open' }, { hover: true }]) }, width: 60 },
     { name: 'DISABLED', note: 'NOTES disabled: a structural label and no lamp, never hover-styled.', input: { ...CRATE, tools: crateTools([{}, { state: 'disabled', hover: true }]) }, width: 60 },
+    { name: 'FROSTED', note: 'Fixture: the default surface gradient as the host\'s background under the strip; white at 10% over it, hover still acid.', input: { ...CRATE, tools: crateTools([{ state: 'open' }, { hover: true }]) }, width: 60, frosted: true },
     { name: 'COMPACT', note: 'One row at 80, 56, 44, 32 and 16 cells: icons, the registered mark, clock, HOLD and tools are shed in turn.', input: CRATE, compact: [80, 56, 44, 32, 16] },
   ],
   specimen(v, width) {
     const sizes = v.compact ? v.compact.map((w) => within(width, w)) : [within(width, v.width)];
-    const options = (w) => (v.compact ? { width: w, form: 'compact' } : { width: w });
+    // The frosted fixture's backdrop: the default surface gradient on row 6 of a 22-row pane; `shown` is its usage text.
+    const backdrop = (w) => Array.from({ length: w }, (_, x) => surfaceAt(x, 6, { width: w, height: 22 }));
+    const shown = (w) => `Array.from({ length: ${w} }, (_, x) => surfaceAt(x, 6, { width: ${w}, height: 22 }))`;
+    const options = (w, usage) => (v.compact ? { width: w, form: 'compact' } : v.frosted ? { width: w, stripBackdrop: usage ? code('backdrop') : backdrop(w) } : { width: w });
     const made = sizes.map((w) => crateBanner(v.input, options(w)));
     const rows = (n) => `${n} ROW${n === 1 ? '' : 'S'}`;
     return {
       lines: made.flatMap((banner) => banner.lines.map((line) => fitLine(line, width))),
-      calls: [`crate = ${literal(v.input)}`, ...sizes.map((w) => `${call('crateBanner', code('crate'), options(w))}.lines`)],
+      calls: [`crate = ${literal(v.input)}`, ...(v.frosted ? sizes.map((w) => `backdrop = ${shown(w)}`) : []), ...sizes.map((w) => `${call('crateBanner', code('crate'), options(w, true))}.lines`)],
       facts: made.map((banner, i) => `${sizes[i]} CELLS, ${rows(banner.lines.length)}; TOOLS ${banner.tools.map((t) => `${t.id} ${t.start}-${t.end}`).join(', ') || 'none'}`),
     };
   },

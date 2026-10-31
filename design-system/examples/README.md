@@ -162,4 +162,4 @@ SECTION HEAD, BOARD MARKS, TIME LANE, READOUT, EVENT ROW and SCROLL RAIL show th
 
 ## Crate banner story
 
-CRATE BANNER shows Lunalee's chat pane plate with synthetic fixtures: the wide (60) and narrow (40) plates, HOLD 0 and above 99 with an unknown clock, BOARD open, NOTES hovered and NOTES disabled, and the compact row at five widths. Each specimen lists the tool spans a host would hit-test. The serial, counts and clock are examples, never live values.
+CRATE BANNER shows Lunalee's chat pane plate with synthetic fixtures: the wide (60) and narrow (40) plates, HOLD 0 and above 99 with an unknown clock, BOARD open, NOTES hovered and NOTES disabled, the frosted strip over a fixture backdrop (the default surface gradient's row 6 of 22, built with `surfaceAt` in the displayed call), and the compact row at five widths. Each specimen lists the tool spans a host would hit-test. The serial, counts and clock are examples, never live values.

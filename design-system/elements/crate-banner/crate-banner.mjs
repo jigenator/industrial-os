@@ -1,21 +1,27 @@
-// The crate banner: a crate pane's white maker's plate over a black tool strip, or one compact row. The host
-// supplies the hold count, the clock and each tool's state, and hit-tests the returned tool spans. Contract: README.md.
+// The crate banner: a crate pane's brushed-aluminium maker's plate over a black or frosted tool strip, or one compact
+// row. The host supplies the hold count, the clock, each tool's state and, for frosting, its background under the strip,
+// and hit-tests the returned tool spans. Contract: README.md.
 import { assertCells, fitText, GLYPHS, lineWidth, span } from '../../foundation/cells.mjs';
 import { CellGrid } from '../../foundation/cell-grid.mjs';
 import { INDUSTRIALOS_COLORS } from '../../foundation/industrialos-colors.mjs';
 import { SIGNAL_COLORS } from '../../foundation/signal-colors.mjs';
-import { SURFACE_PALETTE } from '../../foundation/surface-palette.mjs';
+import { blendFill } from '../../foundation/surface.mjs';
+import { ALUMINIUM_GROUND, FROST_ALPHA, SURFACE_PALETTE } from '../../foundation/surface-palette.mjs';
 
+// The plate is drawn on light paper with paper hairlines, then brushed: the aluminium ground replaces each paper cell.
 const PAPER = INDUSTRIALOS_COLORS.find((c) => c.id === 'light-paper').hex;
 const HAIR = SURFACE_PALETTE.paperHair;
 const SHADE = SIGNAL_COLORS.accent75; // a hairline under the stroke's paint
 const ink = (fg, bold = false) => (bold ? { fg, bg: PAPER, bold } : { fg, bg: PAPER });
-const INK = ink('field'), BOLD = ink('field', true), LABEL = ink('decorative'), RULE = ink(HAIR);
+const INK = ink('field'), BOLD = ink('field', true), LABEL = ink(SURFACE_PALETTE.aluminiumLabel), RULE = ink(HAIR);
+// On the frosted strip the ready lamp and the structural inks are lifted to stay legible.
+const FROSTED_INK = { decorative: SURFACE_PALETTE.frostLamp, structural: SURFACE_PALETTE.frostRule };
 
 const FULL_WIDTH = 40, WIDE_WIDTH = 56;
 const FRAME = new Set([' ', '─', '│', '+']); // the cells a stroke edge may replace
 const TOOL_STATES = new Set(['ready', 'open', 'disabled']);
 const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/;
+const HEX = /^#[0-9a-f]{6}$/i;
 
 const glyph = (value, name) => {
   if (typeof value !== 'string' || [...value].length !== 1 || !(/^[\x21-\x7e]$/.test(value) || GLYPHS.includes(value))) {
@@ -136,7 +142,7 @@ function full(v, width, measure) {
   }
 
   // Name cell. The mark and its blank spill cell sit three cells left of the column line; the maker stops before
-  // the stroke and one cell before the mark, losing ® before it is cut.
+  // the stroke and one cell before the mark, losing ® before it is cut. The division sits directly under the maker.
   const markX = sep - 3;
   const room = Math.min(edge(1), v.mark === null ? sep - 1 : markX - 1) - (L + 2);
   const maker = text(v.maker, Infinity, BOLD);
@@ -144,7 +150,7 @@ function full(v, width, measure) {
   const name = at(L + 2, 1).line(registered ? maker : text(v.maker, room, BOLD));
   if (registered) name.glyphs(' ', INK).glyphs('®', INK);
   if (v.mark !== null) at(markX, 1).glyphs(v.mark, BOLD).glyphs(' ', BOLD);
-  at(L + 2, 3).line(text(v.division, edge(3) - (L + 2), LABEL));
+  at(L + 2, 2).line(text(v.division, edge(2) - (L + 2), LABEL));
   // The serial breaks the bottom rule, aligned with the maker; it is cut before it would reach the stroke.
   at(L + 1, 5).glyphs(' S/N ', LABEL).line(text(v.serial, edge(5) - (L + 1) - 6, LABEL)).glyphs(' ', LABEL);
 
@@ -211,6 +217,33 @@ function compact(v, width, measure) {
   return { grid, tools: drawTools(grid, 0, right.x, chosen.items, measure) };
 }
 
+// The aluminium ground of plate cell (x, y) and its hairline, as the approved mockup computes them; t runs 0–1 down
+// the six plate rows and u -1–1 across them (0 on a one-cell row). The compact row is plate row 0.
+const channel = (v) => Math.max(0, Math.min(255, Math.round(v)));
+const hex = (rgb) => '#' + rgb.map((v) => v.toString(16).padStart(2, '0')).join('');
+function aluminium(x, y, width) {
+  const { base, band, fall, streaks, channels, hair } = ALUMINIUM_GROUND;
+  const t = y / 5, u = width === 1 ? 0 : 2 * x / (width - 1) - 1;
+  const l = streaks.reduce((sum, s) => sum + s.amplitude * Math.sin(x * s.x + y * s.y), base + band * (1 - u * u) - fall * t);
+  const rgb = channels.map((d) => channel(l + d));
+  return { ground: hex(rgb), hair: hex(rgb.map((v) => channel(v + hair))) };
+}
+// Every paper cell of a plate row takes the ground, and a paper hairline follows it. Lines hold one span per cell.
+function brush(line, y) {
+  return line.map((s, x) => {
+    if (s.style.bg !== PAPER) return s;
+    const { ground, hair } = aluminium(x, y, line.length);
+    return span(s.text, { ...s.style, bg: ground, ...(s.style.fg === HAIR ? { fg: hair } : {}) });
+  });
+}
+// Frosting: white over the host's background on every black strip cell, with the lifted inks; hover keeps its acid.
+function frost(line, backdrop) {
+  return line.map((s, x) => {
+    if (s.style.bg !== 'field') return s;
+    return span(s.text, { ...s.style, bg: blendFill('primary', backdrop[x], FROST_ALPHA), fg: FROSTED_INK[s.style.fg] ?? s.style.fg });
+  });
+}
+
 // CellGrid lines hold one span per cell; adjacent cells with the same style join.
 const same = (a, b) => a.fg === b.fg && a.bg === b.bg && a.bold === b.bold;
 function joined(line) {
@@ -223,10 +256,17 @@ function joined(line) {
   return out;
 }
 
-export function crateBanner(input, { width, form = 'full', measure } = {}) {
+export function crateBanner(input, { width, form = 'full', measure, stripBackdrop = null } = {}) {
   const v = read(input);
   assertCells(width, 'crate banner width');
   if (form !== 'full' && form !== 'compact') throw new RangeError('crate banner form must be full or compact');
+  if (stripBackdrop !== null) {
+    if (!Array.isArray(stripBackdrop)) throw new TypeError('crate banner stripBackdrop must be an array or null');
+    if (stripBackdrop.length !== width) throw new RangeError('crate banner stripBackdrop must hold one color per cell');
+    for (const color of stripBackdrop) if (typeof color !== 'string' || !HEX.test(color)) throw new TypeError('crate banner stripBackdrop colors must be #rrggbb');
+  }
   const { grid, tools } = form === 'full' && width >= FULL_WIDTH ? full(v, width, measure) : compact(v, width, measure);
-  return { lines: grid.lines().map(joined), tools };
+  // Plate rows (the compact row is row 0) are brushed; only the full form has a strip row, row 6, to frost.
+  const lines = grid.lines().map((line, y) => (y < 6 ? brush(line, y) : stripBackdrop ? frost(line, stripBackdrop) : line));
+  return { lines: lines.map(joined), tools };
 }

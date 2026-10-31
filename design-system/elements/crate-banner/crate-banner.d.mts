@@ -8,4 +8,9 @@ export interface CrateBannerInput {
 /** The cells one rendered tool occupies on `lines[row]`, `end` exclusive, for the host's hit-testing. */
 export interface CrateToolSpan { id: string; row: number; start: number; end: number }
 export type CrateBannerForm = 'full' | 'compact';
-export function crateBanner(input: CrateBannerInput, options: { width: number; form?: CrateBannerForm; measure?: Measure }): { lines: Line[]; tools: CrateToolSpan[] };
+export interface CrateBannerOptions {
+  width: number; form?: CrateBannerForm; measure?: Measure;
+  /** The host's background under the strip row, one `#rrggbb` per cell (length `width`), to frost the strip; null keeps it solid black. The compact form ignores it. */
+  stripBackdrop?: readonly `#${string}`[] | null;
+}
+export function crateBanner(input: CrateBannerInput, options: CrateBannerOptions): { lines: Line[]; tools: CrateToolSpan[] };
