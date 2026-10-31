@@ -11,7 +11,7 @@ Independent projects are here. They share code only through the private design-s
 - [source-collector](source-collector/README.md): one Bun/Effect engine for scheduled command and checklist sources, SQLite state and polling Unix RPC; private configs stay local.
 - [design-system](design-system/README.md): the terminal design system, a reference kit of elements, motions, a storybook, and a showcase. Plain Node.js, no dependencies. It is the private package `@industrial-os/design-system`, which in-repo projects import by name; it is never published. The authorised outside consumer Lunalee uses public root-package paths from a full-SHA git pin ([decision](docs/decisions/in-repo-design-system-package.md#lunalee-pinned-public-git-consumption)).
 - [pi/claude-interrupt](pi/claude-interrupt/README.md): a Pi extension that aborts the current response on Esc and continues with your queued text, marking the continuation with an animated plate.
-- [pi/signals-collector](pi/signals-collector/README.md): one TUI session signal producer for displays and future panels/dashboards; machine-wide parsed CodexBar cache, no renderer.
+- [pi/signals-collector](pi/signals-collector/README.md): one TUI session signal producer for displays and future panels/dashboards; reads configured usage sources from source-collector, no renderer.
 - [pi/status-bar](pi/status-bar/README.md): a Pi extension that replaces the footer with a framed Acid / Black instrument panel showing the agent-reported active project, where Pi's tools run, context use, model, and other extensions' statuses. It is the first implementation of the style.
 - [pi/herdr-sidebar](pi/herdr-sidebar/README.md): a Pi extension that reports each Pi session's state to Herdr's agents sidebar as tokens.
 - [pi/herdr-pane-naming](pi/herdr-pane-naming/README.md): names its own inherited Herdr pane from current work, using TypeSafe/Jev and a title model; main TUI sessions only.
@@ -35,7 +35,7 @@ industrial-os/
 ├── design-system/            terminal design system and its guides
 ├── pi/                       Pi extensions and the Pi theme, each its own project
 │   ├── claude-interrupt/     interrupt-and-continue with the DIRECTIVE UPDATED marker
-│   ├── signals-collector/    TUI session signals and shared quota cache
+│   ├── signals-collector/    TUI session signals and configured usage sources
 │   ├── status-bar/           the Acid / Black footer for the agent-reported active project
 │   ├── herdr-sidebar/        this session's state as Herdr agents-sidebar tokens
 │   ├── herdr-pane-naming/    automatic names for this inherited Herdr pane
