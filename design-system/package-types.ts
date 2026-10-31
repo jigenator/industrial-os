@@ -270,6 +270,9 @@ blendFill('primary', crateBackdrop[0] ?? 'field', FROST_ALPHA);
 crateBanner({ serial: 'X' }, { width: 60, stripBackdrop: '#1e1f21' });
 // @ts-expect-error the strip backdrop holds #rrggbb strings, not numbers
 crateBanner({ serial: 'X' }, { width: 60, stripBackdrop: [0x1e1f21] });
+crateBanner({ serial: 'X', tools: [{ id: 'board', label: 'BOARD', icon: '▦', state: 'ready', lamp: false }] }, { width: 60 });
+// @ts-expect-error lamp is a boolean
+crateBanner({ serial: 'X', tools: [{ id: 'a', label: 'A', state: 'ready', lamp: 'no' }] }, { width: 60 });
 // @ts-expect-error hover is a flag beside the state, not a state
 crateBanner({ serial: 'X', tools: [{ id: 'a', label: 'A', state: 'hover' }] }, { width: 60 });
 // @ts-expect-error the serial is required

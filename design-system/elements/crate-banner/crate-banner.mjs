@@ -44,14 +44,15 @@ function read(input) {
   const ids = new Set();
   const list = tools.map((tool) => {
     if (!tool || typeof tool !== 'object' || Array.isArray(tool)) throw new TypeError('crate banner tool must be an object');
-    const { id, label, icon = null, state, hover = false } = tool;
+    const { id, label, icon = null, state, hover = false, lamp = true } = tool;
     if (typeof id !== 'string' || typeof label !== 'string') throw new TypeError('crate banner tool id and label must be strings');
     if (ids.has(id)) throw new RangeError(`crate banner tool id ${id} is not unique`);
     ids.add(id);
     if (!TOOL_STATES.has(state)) throw new RangeError('crate banner tool state must be ready, open or disabled');
     if (typeof hover !== 'boolean') throw new TypeError('crate banner tool hover must be boolean');
+    if (typeof lamp !== 'boolean') throw new TypeError('crate banner tool lamp must be boolean');
     if (icon !== null) glyph(icon, 'tool icon');
-    return { id, label, icon, state, hover: hover && state !== 'disabled' };
+    return { id, label, icon, state, hover: hover && state !== 'disabled', lamp };
   });
   return {
     maker, registered, division, unit, serial, mark, tools: list,
@@ -80,6 +81,13 @@ function toolItem(tool, icons, measure) {
   const lamp = off ? ' ' : tool.state === 'open' ? '●' : '·';
   const lampStyle = { ...base, ...(off || tool.hover ? {} : { fg: tool.state === 'open' ? 'accent' : 'decorative' }) };
   const tail = icons ? ' ' : '';
+  // A tool without a lamp (an action, not a crate that stays open) is just ` ▦ LABEL `.
+  if (!tool.lamp) return {
+    id: tool.id,
+    pad: base,
+    width: 1 + icon.length + lineWidth(label, { measure }) + 1,
+    draw: (p) => p.glyphs(` ${icon}`, name).line(label).glyphs(' ', base),
+  };
   return {
     id: tool.id,
     pad: base,
