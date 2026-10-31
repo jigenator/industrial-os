@@ -19,7 +19,8 @@ The [session-signals decision](session-signals-collection.md) deferred a daemon
 until a concrete cross-session external consumer existed. A later Herdr task
 screen and other independent polling clients now provide that case. This engine
 collects configured external task sources; it does not move Pi's session signals
-or parsed quota cache out of their existing owner.
+out of their existing owner. Provider usage later moved here as ordinary sources;
+see [usage via source-collector](usage-via-source-collector.md).
 
 ## Alternatives
 

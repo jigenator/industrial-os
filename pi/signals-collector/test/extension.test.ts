@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import test, { after } from "node:test";
 import { fakeHerdr } from "./herdr-fixture.ts";
+import { fakeSourceCollector, snapshot, status, usageItem } from "./source-collector-fixture.ts";
 
 // This gate loads the actual collector through the installed Pi loader. External
 // commands and optional public fleet replies are deterministic offline fixtures.
@@ -57,27 +58,13 @@ printf '%s %s\\n' "$$" "$*" >> "$PI_FOOTER_FIXTURE/gh.log"
 while [ -e "$PI_FOOTER_FIXTURE/hold-gh" ]; do /bin/sleep 0.02 </dev/null >/dev/null 2>&1; done
 printf '[]'
 `;
-// Deterministic `codexbar`: the n-th call for a provider prints `<provider>.<n>.json` (else `<provider>.json`) from
-// the fixture's `codexbar` directory, exits 1 for an error payload, and records SIGTERM. A `hold-<provider>.<n>` file
-// keeps that call pending until the test releases it, independent of real-time scheduling. The trap is armed
-// before the call is logged, so a logged call always records its SIGTERM.
-const fakeCodexbarScript = `#!/bin/sh
-p=$3 dir="$PI_FOOTER_FIXTURE/codexbar" log="$PI_FOOTER_FIXTURE/codexbar.log"
-trap 'printf "%s\\n" "$p" >> "$PI_FOOTER_FIXTURE/codexbar.kills"; exit 143' TERM
-prior=0; [ -e "$log" ] && prior=$(/usr/bin/grep -c -e " --provider $p " "$log")
-printf '%s %s\\n' "$$" "$*" >> "$log"
-while [ -e "$dir/hold-$p.$prior" ]; do /bin/sleep 0.02 </dev/null >/dev/null 2>&1; done
-if [ -e "$dir/$p.$prior.json" ]; then out=$(/bin/cat "$dir/$p.$prior.json"); else out=$(/bin/cat "$dir/$p.json" 2>/dev/null); fi
-printf '%s' "$out"
-case $out in *'"error"'*) exit 1 ;; esac
-`;
 const gitIsolation = { GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null", GIT_TERMINAL_PROMPT: "0" };
 const runGit = (cwd: string, args: string[], env: NodeJS.ProcessEnv = process.env) => execFileSync(git, ["-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", ...args], { cwd, env, encoding: "utf8" });
 const shared = await realpath(await mkdtemp(join(tmpdir(), "pi-footer-shared-")));
 after(() => rm(shared, { recursive: true, force: true }));
 const fakes = join(shared, "fakes"), seed = join(shared, "seed");
 await Promise.all([fakes, seed].map((path) => mkdir(path)));
-for (const [name, script] of [["git", fakeGit], ["gh", fakeGh], ["codexbar", fakeCodexbarScript]]) {
+for (const [name, script] of [["git", fakeGit], ["gh", fakeGh]]) {
 	await writeFile(join(fakes, name), script); await chmod(join(fakes, name), 0o755);
 }
 // One isolated seed repository (branch `release`, one empty commit); each fixture copies it.
@@ -91,7 +78,8 @@ async function fixtures(t: any) {
 	await Promise.all([repo, second].map((path) => cp(seed, path, { recursive: true })));
 	await Promise.all(["git", "gh"].map((name) => symlink(join(fakes, name), join(bin, name))));
 	const saved = { ...process.env };
-	Object.assign(process.env, { HERDR_ENV: "0", PATH: bin, PI_FOOTER_FIXTURE: root, XDG_CACHE_HOME: join(root, "cache"), ...gitIsolation });
+	// SOURCE_COLLECTOR_HOME keeps every collector away from a live engine socket; tests that poll point it at a fake.
+	Object.assign(process.env, { HERDR_ENV: "0", PATH: bin, PI_FOOTER_FIXTURE: root, XDG_CACHE_HOME: join(root, "cache"), SOURCE_COLLECTOR_HOME: join(root, "source-collector"), ...gitIsolation });
 	const gitLog = join(root, "git.log"), ghLog = join(root, "gh.log");
 	t.after(async () => {
 		// Preserve Node's native environment object so os.homedir sees later HOME changes.
@@ -150,8 +138,9 @@ test("TUI-only collection; synchronous request/ready; strict seq, immutable repl
 	assert.equal(h.read(), undefined); await h.start();
 	assert.deepEqual(h.ready, [{ version: 1, sessionId: manager.getSessionId() }]);
 	const initial = h.read(); assert.equal(initial.version, 1); assert.equal(initial.sessionId, manager.getSessionId()); assert.equal(initial.launch, f.launch);
+	assert.deepEqual(initial.usage, { installed: null, providers: [] }, "no usage sources configured: row hidden, no polling");
 	initial.active = "mutated"; assert.equal(h.read().active, f.launch);
-	await until(() => h.pushed.length > 0); await until(() => h.read().workspace !== null && h.read().usage.installed === false); await sleep(150);
+	await until(() => h.pushed.length > 0); await until(() => h.read().workspace !== null); await sleep(150);
 	const times: number[] = []; h.events.on("signals-collector:v1:snapshot", () => times.push(Date.now()));
 	h.idle(false); const before = h.pushed.length, at = Date.now();
 	for (let n = 0; n < 30; n++) await h.runner.emit({ type: "agent_start" });
@@ -286,7 +275,7 @@ test("fleet v1 validates session/capabilities/counts, retains while pending, tim
 
 test("snapshot rate budget is monotonic while wire timestamps use the wall clock", async (t) => {
 	const f = await fixtures(t), h = await harness(f, host.SessionManager.inMemory(f.launch)); t.after(() => h.stop());
-	await h.start(); await until(() => h.read().workspace !== null && h.read().usage.installed === false); await sleep(150);
+	await h.start(); await until(() => h.read().workspace !== null); await sleep(150);
 	const pushes: number[] = []; h.events.on("signals-collector:v1:snapshot", () => pushes.push(performance.now()));
 	h.model({ provider: "fixture", id: "before", contextWindow: 128000 }); await h.runner.emit({ type: "model_select" }); await until(() => pushes.length === 1);
 	const wall = Date.now(); t.mock.method(Date, "now", () => wall + 60000);
@@ -317,7 +306,7 @@ test("non-TUI set_active_project validates and persists the same details without
 
 test("streaming deltas neither sample host state nor publish; phase starts still do", async (t) => {
 	const f = await fixtures(t), h = await harness(f, host.SessionManager.inMemory(f.launch)); t.after(() => h.stop());
-	await h.start(); await until(() => h.read().workspace !== null && h.read().usage.installed === false); await sleep(150);
+	await h.start(); await until(() => h.read().workspace !== null); await sleep(150);
 	h.idle(false); await h.runner.emit({ type: "agent_start" });
 	await h.runner.emit({ type: "message_update", message: {}, assistantMessageEvent: { type: "text_start", contentIndex: 0, partial: { content: [] } } });
 	await sleep(150);
@@ -336,13 +325,12 @@ test("streaming deltas neither sample host state nor publish; phase starts still
 test("hidden panes defer Git/PR/selection inspection but keep lifecycle signals; visible and unknown catch up", async (t) => {
 	const f = await fixtures(t), herdr = await fakeHerdr(t), manager = host.SessionManager.inMemory(f.launch), h = await harness(f, manager);
 	t.after(() => h.stop());
-	await symlink(join(fakes, "codexbar"), join(f.root, "bin", "codexbar"));
-	await mkdir(join(f.root, "codexbar"));
-	for (const provider of ["codex", "claude", "kimi"]) await writeFile(join(f.root, "codexbar", `${provider}.json`), JSON.stringify([{ provider, usage: { primary: { windowMinutes: 300, usedPercent: 25 } } }]));
-	const usageLog = join(f.root, "codexbar.log");
+	const sc = await fakeSourceCollector(t); process.env.SOURCE_COLLECTOR_HOME = sc.home;
+	sc.result = snapshot([status("usage-cld")], [usageItem("usage-cld", { h5: true, h5Used: 25 })]);
+	h.settings({ industrialOs: { usageSources: ["usage-cld"] } });
 	f.runGit(f.repo, ["remote", "add", "origin", "https://github.com/fixture/repo.git"]);
 	await h.start(); await h.select(f.repo); await until(() => h.read().pr?.kind === "none" && h.read().visible === true && h.read().usage.installed === true); await until(f.idle);
-	assert.equal(await f.count(usageLog), 3);
+	assert.equal(sc.requests.length, 1);
 	t.mock.timers.enable({ apis: ["setInterval", "Date"], now: Date.now() });
 	herdr.workspace.focused = false; herdr.event("workspace_focused"); await until(() => h.read().visible === false); await until(f.idle);
 	const gitCalls = await f.count(f.gitLog), prCalls = await f.count(f.ghLog);
@@ -350,14 +338,14 @@ test("hidden panes defer Git/PR/selection inspection but keep lifecycle signals;
 	h.idle(false); await h.runner.emit({ type: "agent_start" }); await h.runner.emit(toolEnd());
 	h.model({ provider: "fixture", id: "hidden-model", contextWindow: 128000 }); await h.runner.emit({ type: "model_select" });
 	t.mock.timers.tick(6 * 60000); await sleep(150);
-	assert.equal(await f.count(usageLog), 3);
+	assert.equal(sc.requests.length, 1, "hidden panes do not poll usage");
 	assert.equal(await f.count(f.gitLog), gitCalls); assert.equal(await f.count(f.ghLog), prCalls);
 	assert.equal(h.read().root.working, true); assert.equal(h.read().phase.kind, "waiting"); assert.equal(h.read().model.id, "hidden-model");
 	assert.equal(h.pushed.at(-1).visible, false);
 	herdr.workspace.focused = true; herdr.event("workspace_focused");
 	await until(() => h.read().visible === true && h.read().workspace.git.active.dirty === true);
 	await until(async () => await f.count(f.ghLog) > prCalls);
-	await until(async () => await f.count(usageLog) === 6);
+	await until(() => sc.requests.length === 2);
 	herdr.workspace.focused = false; herdr.event("tab_focused"); await until(() => h.read().visible === false); await until(f.idle);
 	await h.select(f.second); const selectedCalls = await f.count(f.gitLog);
 	assert.equal(h.read().active, f.second); assert.equal(h.read().workspace, null);
@@ -368,6 +356,39 @@ test("hidden panes defer Git/PR/selection inspection but keep lifecycle signals;
 	assert.equal(h.read().active, f.second, "unknown resumes pending selection inspection");
 	await writeFile(join(f.second, "after-resume"), "dirty"); t.mock.timers.tick(15000);
 	await until(() => h.read().workspace.git.active.dirty === true);
-	await h.stop(); await until(f.idle); const stopped = await f.count(f.gitLog); t.mock.timers.tick(60000); await sleep(100);
-	assert.equal(await f.count(f.gitLog), stopped); assert.deepEqual(h.errors, []);
+	await h.stop(); await until(f.idle); const stopped = await f.count(f.gitLog), polled = sc.requests.length; t.mock.timers.tick(60000); await sleep(100);
+	assert.equal(await f.count(f.gitLog), stopped); assert.equal(sc.requests.length, polled); assert.deepEqual(h.errors, []);
+});
+
+test("configured usage sources: scoped socket get in Pi-settings order; replacement and shutdown fence pending replies", async (t) => {
+	const f = await fixtures(t), sc = await fakeSourceCollector(t), manager = host.SessionManager.inMemory(f.launch), h = await harness(f, manager);
+	t.after(() => h.stop()); process.env.SOURCE_COLLECTOR_HOME = sc.home;
+	sc.result = snapshot([status("usage-cld", { color: "usage.cld" }), status("usage-gpt", { state: "stale", error: { code: "timeout", message: "Source timed out" } })],
+		[usageItem("usage-cld", { h5: true, h5Used: 19 }), usageItem("usage-gpt", { wk: true, wkUsed: 25 })]);
+	h.settings({ industrialOs: { usageSources: ["usage-gpt", "usage-cld", "usage-gone"] } });
+	await h.start();
+	assert.deepEqual(h.read().usage, { installed: null, providers: [{ provider: "usage-gpt" }, { provider: "usage-cld" }, { provider: "usage-gone" }] });
+	await until(() => h.read().usage.installed === true);
+	assert.deepEqual(sc.requests.map((r) => [r.method, r.params]), [["get", { sources: ["usage-gpt", "usage-cld", "usage-gone"] }]]);
+	const fetchedAt = Date.parse(status("usage-cld").okAt);
+	assert.deepEqual(h.read().usage.providers, [
+		{ provider: "usage-gpt", tag: "GPT", data: { windows: { wk: { usedPercent: 25, resetsAt: null } }, updatedAt: null, fetchedAt }, failure: "timeout" },
+		{ provider: "usage-cld", tag: "CLD", color: "usage.cld", data: { windows: { "5h": { usedPercent: 19, resetsAt: null } }, updatedAt: null, fetchedAt } },
+		{ provider: "usage-gone", failure: "failed" },
+	]);
+	await until(() => h.pushed.at(-1)?.usage.installed === true);
+
+	sc.hold = true; const seen = sc.requests.length;
+	manager.newSession(); await h.start("new"); await until(() => sc.requests.length === seen + 1);
+	h.settings({}); manager.newSession(); await h.start("new"); // the held replies belong to replaced sessions
+	sc.disconnect(); await sleep(150);
+	assert.deepEqual(h.read().usage, { installed: null, providers: [] }, "settings are read per session; stale replies never publish");
+	await h.stop(); const polled = sc.requests.length;
+	t.mock.timers.enable({ apis: ["setInterval"] }); t.mock.timers.tick(5 * 60000); await sleep(100);
+	assert.equal(sc.requests.length, polled);
+	for (const mode of ["print", "json", "rpc"]) {
+		const non = await harness(f, host.SessionManager.inMemory(f.launch), mode); t.after(() => non.stop());
+		non.settings({ industrialOs: { usageSources: ["usage-cld"] } }); await non.start(); await sleep(100); await non.stop();
+	}
+	assert.equal(sc.requests.length, polled, "non-TUI sessions never connect"); assert.deepEqual(h.errors, []);
 });

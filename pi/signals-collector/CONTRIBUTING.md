@@ -4,7 +4,7 @@ Follow the [root workflow](../../CONTRIBUTING.md). Commands below run from `pi/s
 
 ## Setup
 
-Node.js 22.19+, an **existing** installed Pi (validated baseline 1.0.4), Git and POSIX fixture utilities are required. Tests use Node's built-in runner/type stripping and resolve Pi peers through the host, with no local dependency install/lockfile. No CodexBar/gh/provider account/network is used; fake executables/temp XDG/Git identity/config isolate fixtures. Do not install a missing host to claim a pass. A displayed status-bar also needs the root install linking the design system; this collector itself does not import it.
+Node.js 22.19+, an **existing** installed Pi (validated baseline 1.0.4), Git and POSIX fixture utilities are required. Tests use Node's built-in runner/type stripping and resolve Pi peers through the host, with no local dependency install/lockfile. No live source-collector engine, gh, provider account or network is used; fake executables, a fake source-collector socket (`SOURCE_COLLECTOR_HOME` always set to a fixture), temp XDG and Git identity/config isolate fixtures. Do not install a missing host to claim a pass. A displayed status-bar also needs the root install linking the design system; this collector itself does not import it.
 
 ## Full validation sequence
 
@@ -12,7 +12,7 @@ Node.js 22.19+, an **existing** installed Pi (validated baseline 1.0.4), Git and
 | --- | --- | --- |
 | 1 | `export PI_HOST_ROOT="$(npm root -g)/@earendil-works/pi-coding-agent"` | Discover existing host peers |
 | 2 | `test -f "$PI_HOST_ROOT/dist/index.js"` | Host prerequisite, read-only |
-| 3 | `PI_HOST_ROOT="$PI_HOST_ROOT" npm test` | Source-named policy/parser/domain/cache and real-host transport/lifecycle/selection tests; isolated temporary repositories/fake executables, cache watcher/multiple processes/locks; no live providers |
+| 3 | `PI_HOST_ROOT="$PI_HOST_ROOT" npm test` | Source-named policy/parser/domain/cache and real-host transport/lifecycle/selection tests; isolated temporary repositories/fake executables, fake source-collector and Herdr sockets, PR cache multiple processes/locks; no live providers |
 | 4 | `printf '' \| pi --mode rpc --no-extensions --extension .` | Real CLI package/load gate; non-TUI collector does no collection/model call; expected disabled-provider model-pattern warnings; exit 0 required |
 
 Then follow [repository-wide checks](../../CONTRIBUTING.md#repository-wide-checks). Consumer composition/load-order/byte checks and existing renderer tests run in status-bar's own sequence. Use `node --experimental-strip-types --test test/<source>.test.ts` for a focused iteration; Pi-boundary tests still require `PI_HOST_ROOT`. No declared formatter/linter/build/standalone project typecheck. MockTimers/type-stripping experimental warnings are expected on Node 22.
@@ -64,3 +64,15 @@ Final budget check: **45/45 collector and 135/135 consumer tests passed** after 
 - Consumer suite: **138/138 passed**. Root changed-document links/anchors, mapped-guide inventory, exact CLAUDE entrypoints, whitespace and import/publication self-review passed; index empty.
 - Simplification reviewed the full diff against merge base `00ea975`, including new files and surrounding callers. Retained a minimal independent visibility socket client, centralized footer repaint suppression, reused existing stop/resume motion and cache locks; removed mixed acknowledgement/request cancellation bookkeeping. No generic transport package, dependency, provider registry or cross-extension import.
 - Interactive Pi/Herdr, live GitHub/CodexBar, Windows and Mermaid rendering: **not run** (no renderer on PATH; diagram unchanged). Independent final review remains a parent-owned gate, not implied by these checks.
+
+### Usage via source-collector
+
+2026-10-31, macOS, Node 22.23.4 and existing installed Pi 1.4.0:
+
+- Settings precheck: Pi 1.4.0's settings schema allows additional top-level properties and settings files are not validated. A probe extension run with `printf '' | pi --mode rpc --no-extensions --extension <probe>` and a temporary `PI_CODING_AGENT_DIR/settings.json` read `pi.getSettings().industrialOs.usageSources` intact (exit 0). No real settings file read or changed.
+- npm's global prefix again lacked Pi (prerequisite failed there); `PI_HOST_ROOT` was set to the existing host behind the `pi` executable, where the prerequisite passed. `PI_HOST_ROOT="$PI_HOST_ROOT" npm test`: **63/63 passed** in each of four runs, the last after the final edits, no failed/skipped/cancelled tests. New: the socket path rule, scoped `get` request, error/mismatched/malformed/closed/oversized replies, timeout and abort against a fake socket; the setting, the state table, defensive item validation, unreachable-after-success and the poll lifecycle (immediate, 60s, hidden, show, overlap, dispose) with mock timers; real-loader configured order, session replacement/shutdown fencing and non-TUI no-connection. The CodexBar fetch/cache tests are deleted with their code. Every fixture sets `SOURCE_COLLECTOR_HOME` to a temporary path; no live engine or socket was touched.
+- Isolated `printf '' | pi --mode rpc --no-extensions --extension .` with temporary agent, cache and `SOURCE_COLLECTOR_HOME`: **exit 0**.
+- The documented jq transform was run with jq 1.7.1 on CodexBar-shaped fixture payloads: Claude, Codex and Kimi each gave one valid item, and an error payload exited non-zero. Not run against live CodexBar or a running engine.
+- herdr-sidebar suite after removing its CodexBar composition fixture: **114/114 passed**. status-bar suite, after the root `npm install`: **137/138**; the failure is `test/signals.test.ts`, which still expects `usage.installed === false` and belongs to the footer change.
+- Root changed-document links/anchors, decision inventory, exact CLAUDE entrypoints and `git diff --check` passed. Mermaid rendering: **not run**, no diagram changed.
+- Interactive Pi/Herdr, a live source-collector engine, live CodexBar and Windows: **not run**.
