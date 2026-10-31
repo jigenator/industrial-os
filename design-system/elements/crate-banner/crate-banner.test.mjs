@@ -76,7 +76,8 @@ const MOCKUP = {
         cells: { 1: 'aahpBBBBBBBBBBBBBpipppppppppeaaaaepppppBpphpggggpBBppBBBBBph', 6: 'kkWkWWWWWkokrkWkWWWWWkokrkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk' },
         frosted: 'ffVfVVVVVfcfqfVfVVVVVfcfqfffffffffffffffffffffffffffffffffff' },
     ],
-    spans: [{ id: 'board', row: 6, start: 1, end: 12 }, { id: 'notes', row: 6, start: 13, end: 24 }],
+    // The first tool owns the strip's leading cell, so its hover lines up with the stripe (the mockup's span began at 1).
+    spans: [{ id: 'board', row: 6, start: 0, end: 12 }, { id: 'notes', row: 6, start: 13, end: 24 }],
   },
   40: {
     text: [
@@ -106,7 +107,8 @@ const MOCKUP = {
         cells: { 1: 'aahpBBBBBBBBBBBBBpipBpeseggggpBBpBBBBBph', 6: 'kkWWWWWkorkWWWWWkorkkkkkkkkkkkkkkkkkkkkk' },
         frosted: 'ffVVVVVfcqfVVVVVfcqfffffffffffffffffffff' },
     ],
-    spans: [{ id: 'board', row: 6, start: 1, end: 9 }, { id: 'notes', row: 6, start: 10, end: 18 }],
+    // The first tool owns the strip's leading cell, so its hover lines up with the stripe (the mockup's span began at 1).
+    spans: [{ id: 'board', row: 6, start: 0, end: 9 }, { id: 'notes', row: 6, start: 10, end: 18 }],
   },
 };
 
@@ -146,6 +148,9 @@ test('hover inks the whole item black on acid and keeps the lamp truthful; disab
       }
       assert.equal(row[end].ch, '│');
     }
+    // The leading cell belongs to the first tool: acid under the stripe while it is hovered, black otherwise.
+    assert.equal(spans[0].start, 0);
+    assert.equal(cellsOf(crateBanner({ ...INPUT, tools: tools.map((t) => ({ ...t, hover: false })) }, { width }).lines[6])[0].bg, '#000000');
     // A disabled tool keeps its item width, so a state change never moves the tools after it.
     const ready = crateBanner({ ...INPUT, tools: tools.map((t) => ({ ...t, state: 'ready', hover: false })) }, { width });
     assert.deepEqual(ready.tools, spans);

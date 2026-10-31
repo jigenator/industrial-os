@@ -82,16 +82,19 @@ function toolItem(tool, icons, measure) {
   const tail = icons ? ' ' : '';
   return {
     id: tool.id,
+    pad: base,
     width: 1 + icon.length + lineWidth(label, { measure }) + 2 + tail.length,
     draw: (p) => p.glyphs(` ${icon}`, name).line(label).glyphs(' ', base).glyphs(lamp, lampStyle).glyphs(tail, base),
   };
 }
 
-// The tools that fit whole from `x`, each followed by a divider; returns their spans.
-function drawTools(grid, y, x, items, measure) {
-  const p = pen(grid, y, x, measure).glyphs(' ', { fg: 'primary', bg: 'field' });
+// The tools that fit whole from `x`, each followed by a divider; returns their spans. With `flush` the first tool
+// also owns the leading cell, so its hover starts at the strip's left edge, under the stripe.
+function drawTools(grid, y, x, items, measure, flush = false) {
+  const lead = flush && items[0];
+  const p = pen(grid, y, x, measure).glyphs(' ', lead ? lead.pad : { fg: 'primary', bg: 'field' });
   return items.map((item) => {
-    const start = p.x;
+    const start = item === lead ? x : p.x;
     item.draw(p);
     const end = p.x;
     p.glyphs('│', { fg: 'structural', bg: 'field' });
@@ -168,7 +171,7 @@ function full(v, width, measure) {
   const all = v.tools.map((tool) => toolItem(tool, wide, measure)), widths = prefixWidths(all);
   let fit = 0;
   while (fit < all.length && widths[fit + 1] <= width) fit++;
-  return { grid, tools: drawTools(grid, 6, 0, all.slice(0, fit), measure) };
+  return { grid, tools: drawTools(grid, 6, 0, all.slice(0, fit), measure, true) };
 }
 
 // One paper row: stripe, maker and ®, then, at least two cells on, HOLD, the clock and the tools at the right edge.

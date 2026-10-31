@@ -23,7 +23,7 @@ const { lines, tools } = crateBanner({
   serial: '2610-0427', hold: 2, clock: '09:34',
   tools: [{ id: 'board', label: 'BOARD', icon: '▦', state: 'open' }, { id: 'notes', label: 'NOTES', icon: '≡', state: 'ready', hover: true }],
 }, { width: 60 });
-// lines: 7 lines of 60 cells; tools: [{ id: 'board', row: 6, start: 1, end: 12 }, { id: 'notes', row: 6, start: 13, end: 24 }]
+// lines: 7 lines of 60 cells; tools: [{ id: 'board', row: 6, start: 0, end: 12 }, { id: 'notes', row: 6, start: 13, end: 24 }]
 crateBanner({ serial: '2610-0427', hold: 0, clock: '09:34' }, { width: 32, form: 'compact' }).lines; // one line
 // With the host's background under the strip row (here the default surface gradient), the strip is frosted.
 const stripBackdrop = Array.from({ length: 60 }, (_, x) => surfaceAt(x, 6, { width: 60, height: 22 }));
@@ -52,7 +52,7 @@ Geometry: an acid stripe in columns 0–1 of the six plate rows; the frame's lef
 - The unit is cut with `…` to the cell beside `UNIT`.
 - Strip (row 6, black or frosted): a blank cell, then each tool as ` ▦ LABEL · ` and a structural `│` divider; the icon and the trailing blank only in wide geometry. Labels are bold white, never cut; a tool that does not fit whole is left out with every tool after it.
 
-Tool states, each with a shape as well as a color: **ready** shows a decorative `·` lamp; **open** an acid `●`; **disabled** a structural, regular-weight label and no lamp (blank cells keep the item's width, so nothing moves). **Hover** paints the whole item black on acid and keeps the lamp's shape (`●` open, `·` ready); it is ignored on a disabled tool.
+Tool states, each with a shape as well as a color: **ready** shows a decorative `·` lamp; **open** an acid `●`; **disabled** a structural, regular-weight label and no lamp (blank cells keep the item's width, so nothing moves). **Hover** paints the whole item black on acid and keeps the lamp's shape (`●` open, `·` ready); it is ignored on a disabled tool. On the full form's strip the first tool also owns the strip's leading cell (its span starts at column 0), so its hover lines up with the stripe above it; in the compact row tools keep their leading blank.
 
 **Frosted strip:** every strip cell that would be black takes white at `FROST_ALPHA` (10%) over the backdrop's cell below it. The ready lamp lifts to `frostLamp` and the dividers and disabled labels to `frostRule`, so they keep at least 3:1 over a dark pane: over `#131416`–`#222325` the lamp is 4.21–5.10:1 and the dividers and disabled labels 3.18–3.84:1 (on solid black they are 4.30:1 and 2.82:1, as before). The frost is designed for a dark backdrop; a light one lowers these. White labels and the acid lamp are unchanged. A hovered item stays solid acid. Glyphs, spans and the plate are the same in both strip modes.
 
