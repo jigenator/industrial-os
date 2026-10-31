@@ -6,8 +6,8 @@ Status: current. Evidence: the full source and tests in this directory, the mani
 
 | Module | Owns | Depends on |
 | --- | --- | --- |
-| `herdr-plugin.toml` | The `cargo build` step, the `board` pane (a split by default) and the `open` and `open-tab` actions | Herdr 0.9.3 plugin manifest |
-| `bin/whiteboard.sh` | `pane`: run the binary, or print how to build it. `open` and `open-tab`: ask Herdr to open the pane in a split or a tab | POSIX `sh`, `HERDR_BIN_PATH` |
+| `herdr-plugin.toml` | The `cargo build` step, the `board` pane (a split by default), the `board-modal` pane (a 90% popup) and the `open`, `open-tab` and `open-modal` actions | Herdr 0.9.3 plugin manifest |
+| `bin/whiteboard.sh` | `pane`: run the binary, or print how to build it. `open`, `open-tab` and `open-modal`: ask Herdr to open the pane in a split, a tab or a popup | POSIX `sh`, `HERDR_BIN_PATH` |
 | `src/main.rs` | Board path, load, terminal setup and restore (raw mode, alternate screen, mouse capture, bracketed paste), the event loop, raw clipboard outbox drain to OSC 52 and detached clipboard subprocess workers, failure messages | `board`, `app`, `ui`, ratatui's crossterm |
 | `src/app.rs` | `App`: item/arrow selection, byte-boundary edit cursor/selection, formatting, session cut buffer and raw clipboard outbox, drags, connect mode, double-click timing, buttons, saving and quitting | `board`, crossterm event types |
 | `src/board.rs` | `Item` ids, `Board` and arrows, shared pure connector routing clipped before cell iteration, byte-range word wrap for raw and rendered spans, raw cursor mapping, transient per-note scroll geometry, edit-aware text geometry, hit tests, JSON load and atomic save, `board_path` | `markdown`, serde, `unicode-width` |
@@ -19,9 +19,9 @@ Nothing imports `main.rs`; the model consumes the pure Markdown parser, and `ui.
 
 ## Flows
 
-**Opening.** The `open` action runs `herdr plugin pane open --plugin industrial-os.whiteboard --entrypoint board --placement split --direction right --focus`; `open-tab` passes `--placement tab` instead. The manifest's own placement is `split`, for a direct `pane open` without one. Herdr starts `sh bin/whiteboard.sh pane` in the new pane, from the plugin directory, with `HERDR_PLUGIN_STATE_DIR`, `HERDR_SOCKET_PATH` and `HERDR_WORKSPACE_ID` set. The script `exec`s `target/release/whiteboard`.
+**Opening.** The `open` action runs `herdr plugin pane open --plugin industrial-os.whiteboard --entrypoint board --placement split --direction right --focus`; `open-tab` passes `--placement tab` instead. The manifest's own placement is `split`, for a direct `pane open` without one. `open-modal` opens the `board-modal` entrypoint, whose manifest placement is `popup`, because the CLI's `--placement` has no popup value. Herdr starts `sh bin/whiteboard.sh pane` in the new pane, from the plugin directory, with `HERDR_PLUGIN_STATE_DIR`, `HERDR_SOCKET_PATH` and `HERDR_WORKSPACE_ID` set; a popup gets no `HERDR_WORKSPACE_ID`, only `workspace_id` in `HERDR_PLUGIN_CONTEXT_JSON`. The script `exec`s `target/release/whiteboard`.
 
-**Board path.** `board_path` takes the first of: a path argument; `$HERDR_PLUGIN_STATE_DIR/boards/<fnv1a64(HERDR_SOCKET_PATH)>/<workspace-id>.json`, with every character outside `[A-Za-z0-9_-]` replaced by `_` and `default` for a missing value; or `./whiteboard.json`. The socket hash partitions boards by Herdr session, because Herdr shares one plugin state directory across sessions.
+**Board path.** `board_path` takes the first of: a path argument; `$HERDR_PLUGIN_STATE_DIR/boards/<fnv1a64(HERDR_SOCKET_PATH)>/<workspace-id>.json`, where the workspace ID is `HERDR_WORKSPACE_ID`, else the `workspace_id` in `HERDR_PLUGIN_CONTEXT_JSON`, with every character outside `[A-Za-z0-9_-]` replaced by `_` and `default` for a missing value; or `./whiteboard.json`. The socket hash partitions boards by Herdr session, because Herdr shares one plugin state directory across sessions.
 
 **Loading.** A missing file is an empty board. Missing or duplicate item ids are assigned fresh ids; invalid, self and duplicate arrows are dropped. A file that cannot be read or parsed stops the program before it takes over the terminal; it is never overwritten.
 
@@ -37,7 +37,7 @@ Nothing imports `main.rs`; the model consumes the pure Markdown parser, and `ui.
 
 **Saving.** `Board::save` creates the directory, writes `<name>.json.tmp` and renames it over the board. `App` remembers the file's modification time from its last load or save. If the file changed since then, the first save is refused with an error, and a second save overwrites. Quitting saves first and stays open if that fails.
 
-**Exit.** Mouse capture and bracketed paste are disabled and the terminal restored on a normal exit, on an error, and from the panic hook. Herdr closes the board's pane when the process exits; a tab placement closes with it.
+**Exit.** Mouse capture and bracketed paste are disabled and the terminal restored on a normal exit, on an error, and from the panic hook. Herdr closes the board's pane when the process exits; a tab placement closes with it, and a popup closes.
 
 ## Invariants
 

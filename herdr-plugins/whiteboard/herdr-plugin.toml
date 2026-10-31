@@ -14,6 +14,15 @@ title = "Whiteboard"
 placement = "split"
 command = ["sh", "bin/whiteboard.sh", "pane"]
 
+# The CLI's --placement cannot request a popup, so the modal is its own entrypoint.
+[[panes]]
+id = "board-modal"
+title = "Whiteboard"
+placement = "popup"
+width = "90%"
+height = "90%"
+command = ["sh", "bin/whiteboard.sh", "pane"]
+
 [[actions]]
 id = "open"
 title = "Open whiteboard beside this pane"
@@ -23,3 +32,8 @@ command = ["sh", "bin/whiteboard.sh", "open"]
 id = "open-tab"
 title = "Open whiteboard in a new tab"
 command = ["sh", "bin/whiteboard.sh", "open-tab"]
+
+[[actions]]
+id = "open-modal"
+title = "Open whiteboard in a modal"
+command = ["sh", "bin/whiteboard.sh", "open-modal"]

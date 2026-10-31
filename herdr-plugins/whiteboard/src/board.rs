@@ -569,7 +569,16 @@ pub fn board_path(arg: Option<OsString>, env: impl Fn(&str) -> Option<String>) -
         return PathBuf::from("whiteboard.json");
     };
     let session = env("HERDR_SOCKET_PATH").map_or_else(|| "default".into(), |s| format!("{:016x}", fnv1a(&s)));
-    let workspace = env("HERDR_WORKSPACE_ID").filter(|w| !w.is_empty()).unwrap_or_else(|| "default".into());
+    // A popup gets no HERDR_WORKSPACE_ID; its workspace is only in the plugin context.
+    let context_workspace = || {
+        let context: serde_json::Value = serde_json::from_str(&env("HERDR_PLUGIN_CONTEXT_JSON")?).ok()?;
+        Some(context.get("workspace_id")?.as_str()?.to_string())
+    };
+    let workspace = env("HERDR_WORKSPACE_ID")
+        .filter(|w| !w.is_empty())
+        .or_else(context_workspace)
+        .filter(|w| !w.is_empty())
+        .unwrap_or_else(|| "default".into());
     let file: String =
         workspace.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).collect();
     Path::new(&state).join("boards").join(session).join(format!("{file}.json"))
@@ -693,6 +702,19 @@ mod tests {
         let path = board_path(None, herdr);
         let session = format!("{:016x}", fnv1a("/run/herdr.sock"));
         assert_eq!(path, Path::new("/state/boards").join(session).join("w_1____x.json"));
+
+        let popup = |k: &str| match k {
+            "HERDR_PLUGIN_STATE_DIR" => Some("/state".to_string()),
+            "HERDR_PLUGIN_CONTEXT_JSON" => Some(r#"{"workspace_id":"w2","tab_id":"w2:t1"}"#.to_string()),
+            _ => None,
+        };
+        assert_eq!(board_path(None, popup), PathBuf::from("/state/boards/default/w2.json"));
+        let garbled = |k: &str| match k {
+            "HERDR_PLUGIN_STATE_DIR" => Some("/state".to_string()),
+            "HERDR_PLUGIN_CONTEXT_JSON" => Some("not json".to_string()),
+            _ => None,
+        };
+        assert_eq!(board_path(None, garbled), PathBuf::from("/state/boards/default/default.json"));
 
         let bare = |k: &str| (k == "HERDR_PLUGIN_STATE_DIR").then(|| "/state".to_string());
         assert_eq!(board_path(None, bare), PathBuf::from("/state/boards/default/default.json"));

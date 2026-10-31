@@ -6,7 +6,7 @@ checks and guides; shared rules are in [AGENTS.md](AGENTS.md).
 | Plugin | Purpose | Runtime |
 | --- | --- | --- |
 | [Spaces](spaces/README.md) | Per-space counts, quiet ages and quiet-unit ordering | Node 22, standard library only |
-| [Whiteboard](whiteboard/README.md) | Sticky notes and text on a mouse-driven board, one per workspace, in a split or a tab | Rust, built with Cargo |
+| [Whiteboard](whiteboard/README.md) | Sticky notes and text on a mouse-driven board, one per workspace, in a split, a tab or a modal | Rust, built with Cargo |
 | [Automations Monitor](automations-monitor/README.md) | Read-only dashboard of this machine's Tatsu automation pipelines and schedules, in a split or a tab | Bun 1.4.4 with TypeScript and Effect, dependencies installed from `bun.lock` |
 
 | [Dispatch feed](dispatch-feed/README.md) | Source-collector task dashboard and triage, in a split or tab | Bun 1.4.4, TypeScript, design-system imports |

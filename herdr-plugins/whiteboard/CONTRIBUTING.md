@@ -11,7 +11,7 @@ Follow the [root workflow](../../CONTRIBUTING.md). Toolchain: Rust stable with C
 | 3 | `herdr-plugins/whiteboard/` | `node --test` | `palette.rs` matches the exported design-system `foundation/palette` and selected `foundation/signal-colors`; no color is written elsewhere |
 | 4 | `herdr-plugins/whiteboard/` | `cargo build --release --locked && python3 test/pty_smoke.py` | The built binary through `bin/whiteboard.sh pane` in a pseudo-terminal, with Herdr variables pointing at a temporary directory: mouse capture and bracketed paste on and off, empty state, toolbar click, typing, bracketed and line-feed pastes, drag, double-click, keyboard move, OSC 52 plus a temporary-file clipboard override (never the real clipboard), the per-workspace board file, and reopening it |
 | 5 | Root | [Repository-wide checks](../../CONTRIBUTING.md#repository-wide-checks) | Links, guide map, entry points, whitespace, publication review |
-| 6 | Isolated Herdr | [Isolated Herdr check](#isolated-herdr-check) | Manifest, both actions, split and tab panes, mouse and focus through a Herdr client, resize, storage, reopen |
+| 6 | Isolated Herdr | [Isolated Herdr check](#isolated-herdr-check) | Manifest, the three actions, split, tab and modal panes, mouse and focus through a Herdr client, resize, storage, reopen |
 | 7 | Live Herdr | Interactive use in the operator's own session | Requires the operator to link or install the plugin; not a development check |
 
 ### Isolated Herdr check
@@ -21,7 +21,7 @@ Use a throwaway Herdr that shares nothing with a live session, as in the [Spaces
 Clipboard checks must never touch the operator's clipboard. Use a temporary-file writer as `WHITEBOARD_CLIPBOARD_CMD`; explicitly inject it into a temporary copy of the manifest's pane command (for example `[/usr/bin/env, WHITEBOARD_CLIPBOARD_CMD=<temp-writer>, sh, bin/whiteboard.sh, pane]`, with each value quoted in TOML). This guarantees the override even if Herdr filters inherited environment variables. Copy the launcher and point its release binary at the worktree build, then link only that temporary plugin. Do not change the source manifest or live installation.
 
 1. Start `herdr server`, `herdr plugin link` this directory, then `herdr workspace create`.
-2. `herdr plugin action invoke industrial-os.whiteboard.open`; `herdr pane layout` shows a `Whiteboard` pane split to the right in the current tab, and `herdr pane read` shows the empty board. `open-tab` adds a new tab instead.
+2. `herdr plugin action invoke industrial-os.whiteboard.open`; `herdr pane layout` shows a `Whiteboard` pane split to the right in the current tab, and `herdr pane read` shows the empty board. `open-tab` adds a new tab instead. `open-modal` leaves `herdr pane layout` unchanged and the attached client draws the board in a popup; `q` there saves `<workspace-id>.json`, not `default.json`.
 3. Attach a client (`herdr`) in a pseudo-terminal and press Enter to dismiss the first-run welcome dialog, which otherwise takes the first input. Find the pane's screen origin from the client's output (where it draws `WHITEBOARD`); `herdr pane layout` coordinates exclude the sidebar and tab bar. Send SGR mouse sequences to the client at that offset, and read the result with `herdr pane read --source visible`.
 4. Resize the split with `herdr pane resize` and read the pane again while the client is attached; without a client, `pane read` does not reflect the layout width.
 5. Press `q`; only the board's pane closes, and the board is under the isolated `XDG_STATE_HOME`. Reopen it and read it back.
@@ -239,3 +239,16 @@ Reviewed the full diff against `origin/main`: reused the raw cursor/range mappin
 **Simplification pass:** reviewed the full diff against `origin/main`; reused byte ranges and one small prefix classifier rather than a Markdown re-parser. Kept timeout policy in main and documented the test-override descendant exception in architecture. Removed the duplicate nonzero-exit test setup, and kept blank-only formatting a no-op. No crate, persistent state or palette values added; free-text ink unchanged. Skipped the requested render re-parse optimization because the performance regression passes. Reran all affected automated/offline checks afterward.
 
 **Not run:** a new isolated/live Herdr check for these review fixes, real clipboard utilities, Linux or physical-terminal checks. Earlier isolated fake-clipboard evidence remains separate. No commit, push, PR, live install or real clipboard write.
+
+### Modal action
+
+2026-10-31, macOS, rustc 1.97.1, Herdr 0.9.5. Added the `open-modal` action and `board-modal` popup entrypoint (90% × 90%). A popup gets no `HERDR_WORKSPACE_ID`, so `board_path` now falls back to `workspace_id` in `HERDR_PLUGIN_CONTEXT_JSON`.
+
+**Passed**
+
+- `cargo test --locked`: **96 passed**, 0 failed, with context-JSON and malformed-context cases added to the board-path test. `cargo clippy --all-targets --locked`: no warnings; `node --test`: **2/2 passed**; release build and `python3 test/pty_smoke.py`: `PTY SMOKE OK`.
+- Isolated Herdr 0.9.5 (temporary copy with a pane command that also wrote its environment to a file): `plugin link` accepted `placement = "popup"` with percentage sizes and listed all three actions. With a client attached, `open-modal` exited 0 and the client drew the board while `pane layout` still showed one pane. The popup's environment had `HERDR_PLUGIN_CONTEXT_JSON` with `workspace_id` but no `HERDR_WORKSPACE_ID`. Typing `n`, text, `Esc`, `q` closed the popup and saved `boards/<hash>/w1.json`; `open` then showed the same note in a split. Live `config.toml` and `plugins.json` checksums were unchanged.
+
+**Failed, then fixed:** the first isolated run showed the popup opening the `default` board because `HERDR_WORKSPACE_ID` was missing.
+
+**Not run:** mouse input inside the popup, Herdr 0.9.3 (the manifest minimum; its docs describe popup placement), Linux, live install.

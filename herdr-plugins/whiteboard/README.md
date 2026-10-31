@@ -1,6 +1,6 @@
 # Industrial OS Whiteboard
 
-A Herdr 0.9.3+ plugin: a mouse-driven whiteboard with sticky notes, free text and connecting arrows, drawn in Acid / Black with [ratatui](https://ratatui.rs). It opens in a split beside the pane you are in, or in its own tab, and each workspace has its own board.
+A Herdr 0.9.3+ plugin: a mouse-driven whiteboard with sticky notes, free text and connecting arrows, drawn in Acid / Black with [ratatui](https://ratatui.rs). It opens in a split beside the pane you are in, in its own tab, or in a modal over the layout, and each workspace has its own board.
 
 Rust and Cargo build it; it has no Node runtime. Linux and macOS only. Why a Herdr plugin here may use another runtime is recorded in [the decision](../../docs/decisions/herdr-plugin-runtimes.md).
 
@@ -21,10 +21,12 @@ If the binary is missing, the pane says how to build it and waits for Enter.
 | --- | --- |
 | `industrial-os.whiteboard.open` | In a split to the right of the focused pane |
 | `industrial-os.whiteboard.open-tab` | In a new tab |
+| `industrial-os.whiteboard.open-modal` | In a modal popup covering 90% of the terminal, over the layout |
 
 ```sh
 herdr plugin action invoke industrial-os.whiteboard.open
 herdr plugin action invoke industrial-os.whiteboard.open-tab
+herdr plugin action invoke industrial-os.whiteboard.open-modal
 ```
 
 Opening the pane directly uses the manifest's default, a split of the focused pane; `--placement` and `--direction` override it:
@@ -33,7 +35,9 @@ Opening the pane directly uses the manifest's default, a split of the focused pa
 herdr plugin pane open --plugin industrial-os.whiteboard --entrypoint board --placement split --direction down
 ```
 
-The board is a normal Herdr pane once open: resize, move, zoom or swap it like any other, and it redraws at its new size. To bind keys, add this to Herdr's `config.toml`. Both keys are free in Herdr 0.9.3's defaults, where `prefix+w` is the workspace picker; check your own bindings first.
+The modal is the `board-modal` entrypoint, because the CLI's `--placement` cannot request a popup. It takes all keyboard input until the board quits; `q` saves and closes it. It shows the same workspace board as a split or tab.
+
+A split or tab board is a normal Herdr pane once open: resize, move, zoom or swap it like any other, and it redraws at its new size. To bind keys, add this to Herdr's `config.toml`. Both keys are free in Herdr 0.9.3's defaults, where `prefix+w` is the workspace picker; check your own bindings first.
 
 ```toml
 [[keys.command]]
