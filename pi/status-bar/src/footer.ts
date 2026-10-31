@@ -242,7 +242,7 @@ const USAGE_WINDOWS = ["5h", "wk"] as const;
 type UsageWindowKey = typeof USAGE_WINDOWS[number];
 // Source tags are untrusted terminal text; use the host's whole-grapheme column clipping, not JS length.
 const usageTag = (provider: UsageProviderState) => {
-	const clean = (raw: string) => safeText(raw.slice(0, 1024).toWellFormed()).replace(/[\u061c\u200e\u200f]/g, "").replace(/^[\p{Grapheme_Extend}\p{Emoji_Modifier}\u200d]+/u, "").trim();
+	const clean = (raw: string) => safeText(raw.slice(0, 1024).toWellFormed()).replace(/[\u061c\u200e\u200f]/g, "").replace(/^[\s\p{Grapheme_Extend}\p{Emoji_Modifier}\u200d]+/u, "").trimEnd();
 	const tag = typeof provider.tag === "string" ? sliceByColumn(clean(provider.tag), 0, 4, true) : "";
 	const fallback = sliceByColumn(clean(provider.provider).toUpperCase(), 0, 3, true);
 	const text = tag || fallback || "?";
@@ -280,7 +280,7 @@ function ageStep(ms: number): number | undefined {
 	if (ms < DAY) return Math.max(2 * HOUR, (Math.floor(ms / HOUR) + 1) * HOUR) - ms;
 	return ms < 100 * DAY ? (Math.floor(ms / DAY) + 1) * DAY - ms : undefined;
 }
-// Age of the last good sample (CodexBar's updatedAt, else receipt) once a fetch failed or it is older than 15 min.
+// Age of the last good sample (the provider's updatedAt, else the source's okAt) once a fetch failed or it is older than 15 min.
 function staleAge(provider: UsageProviderState, now: number | undefined): string | undefined {
 	if (!provider.data) return undefined;
 	const age = now === undefined ? NaN : now - (finite(provider.data.updatedAt) ?? provider.data.fetchedAt);

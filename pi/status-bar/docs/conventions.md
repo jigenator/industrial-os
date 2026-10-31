@@ -38,5 +38,5 @@ Workspace/usage/collection tests moved to their owner's test tree. Fixtures use 
 - No standalone static/format/build/CI gate or dependency-pinned host/lockfile. Tests use the global host by design; add tooling only with approved need.
 - No license: no LICENSE or manifest license field; repository licensing remains unresolved.
 - Interactive Pi/Herdr, subjective glyph/color/motion/ambiguous-wide terminals and Windows are unverified. No live PNYTL/Tatsu/background-task producer/provider qualification is implied by offline fixtures.
-- Collector-specific optional fleet/CodexBar/GitHub/private-goal limitations are recorded by [the collector](../../signals-collector/README.md#limits). Agent-reported Active may be stale if its declaration is omitted.
+- Collector-specific optional fleet/usage-source/GitHub/private-goal limitations are recorded by [the collector](../../signals-collector/README.md#limits). Agent-reported Active may be stale if its declaration is omitted.
 - Legacy state-hiding compatibility effects remain host-owned; any visual/policy correction requires a separately approved change, not weakening DS protections.

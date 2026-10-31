@@ -2673,7 +2673,7 @@ test("USG configurable ids, tags, tokens and reported windows render in snapshot
 		const at = text(cells).indexOf(tag);
 		assert.ok(at >= 0, tag); assert.equal(cells[at].fg, ink, tag); assert.equal(cells[at].bold, true, tag);
 	}
-	for (const [raw, expected] of [["\x1b]0;hidden\x07界e\u0301Z!", "界e\u0301Z"], ["\u202e\u200f\u061cMUSE\nextra", "MUSE"], ["\u0301Q", "Q  "], ["\ud800ABC", "�ABC"], ["", "FAL"]]) {
+	for (const [raw, expected] of [["\x1b]0;hidden\x07界e\u0301Z!", "界e\u0301Z"], ["\u202e\u200f\u061cMUSE\nextra", "MUSE"], ["\u0301Q", "Q  "], ["\u200e \u0301Q", "Q  "], ["\u0301 \u200d \u0301Q", "Q  "], ["\ud800ABC", "�ABC"], ["", "FAL"]]) {
 		const f = withUsage([single("fallback", { wk: 50 }, { tag: raw })]);
 		assert.ok(rows(f).some((line) => line.includes(expected)), JSON.stringify(raw));
 		assert.doesNotMatch(renderFooter(f, 100, theme).join(""), /hidden|[\u061c\u200f\u202e]/);

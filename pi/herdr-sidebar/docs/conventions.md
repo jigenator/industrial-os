@@ -38,7 +38,7 @@ Scope reviewed: the complete source and tests at the revision that added the pro
 - `test/tokens.test.ts`: every rule of the token contract, the snapshot validation, and the key list read from [the contract](token-contract.md).
 - `test/sender.test.ts` and `test/herdr-client.test.ts`: the modules against `test/fake-herdr.ts`.
 - `test/extension.test.ts`: the real installed Pi loader, runner and event bus, a fake collector extension loaded before or after, and the fake Herdr server; for `/flag`, Pi's real session runtime with session files in a temporary directory (command dispatch, reload, new, resume, fork and tree navigation), with no model call.
-- `test/signals.test.ts`: both real collector/sidebar package load orders through Pi's loader, offline Git/gh/CodexBar fixtures, real usage/context shapes and lifecycle-to-token assertions. Test-only sibling package paths follow status-bar's composition precedent; production imports never cross project boundaries.
+- `test/signals.test.ts`: both real collector/sidebar package load orders through Pi's loader, offline Git/gh fixtures, real context shapes and lifecycle-to-token assertions. Test-only sibling package paths follow status-bar's composition precedent; production imports never cross project boundaries.
 
 **Rule:** no test contacts a live Herdr. Each extension case sets the Herdr environment to the fake server and restores it. **Rule:** `test/fake-herdr.ts` models only behavior read in the Herdr source of the version in use, and cites it.
 

@@ -13,7 +13,7 @@ export PI_HOST_ROOT="$(npm root -g)/@earendil-works/pi-coding-agent"
 test -f "$PI_HOST_ROOT/dist/index.js"
 ```
 
-This only discovers an existing global installation. Do not run an installer to make a test silently pass. Composition fixtures create disposable repositories under the operating-system temp directory, isolate Git identity/configuration, and use a fake `gh` and a fake `codexbar`; they do not use a live GitHub account, CodexBar, provider account or network. The fakes are POSIX `sh` scripts that need `/bin/sh`, `/bin/sleep`, `/bin/cat` and `/usr/bin/grep`.
+This only discovers an existing global installation. Do not run an installer to make a test silently pass. Composition fixtures create disposable repositories under the operating-system temp directory, isolate Git identity/configuration, and use a fake `gh`; they do not use a live GitHub account, source-collector engine, provider account or network. The fakes are POSIX `sh` scripts that need `/bin/sh`, `/bin/sleep`, `/bin/cat` and `/usr/bin/grep`.
 
 The consumed design-system subpaths ship colocated `.d.mts` declarations. `test/design-system-types.ts` is a compile-only contract specimen (not a new standalone project typecheck). It is optional and borrows claude-interrupt's compiler, so it needs claude-interrupt's `npm ci` first. From the repository root:
 
@@ -45,7 +45,7 @@ Source: `package.json` and the test files under `test/`.
 | --- | --- | --- | --- | --- |
 | 1 | `pi/status-bar/` | `export PI_HOST_ROOT="$(npm root -g)/@earendil-works/pi-coding-agent"` | Existing global Pi; reads npm's global root | Locates host-provided peers |
 | 2 | `pi/status-bar/` | `test -f "$PI_HOST_ROOT/dist/index.js"` | No writes | Fails clearly when the host prerequisite is absent |
-| 3 | `pi/status-bar/` | `PI_HOST_ROOT="$PI_HOST_ROOT" npm test` | Creates/removes temp Git/session fixtures; fake `gh` and `codexbar`; no live network | All renderer, package-loader/display lifecycle, snapshot consumer/load-order and parity tests |
+| 3 | `pi/status-bar/` | `PI_HOST_ROOT="$PI_HOST_ROOT" npm test` | Creates/removes temp Git/session fixtures; fake `gh`; no live network | All renderer, package-loader/display lifecycle, snapshot consumer/load-order and parity tests |
 | 4 | `pi/status-bar/` | `printf '' \| pi --mode rpc --no-extensions --extension .` | Installed Pi; no model call; model-pattern warnings are expected and harmless because other extensions, including model providers, are off. Outside TUI mode neither display nor collector does collection I/O | Package discovery and extension loading through the installed `pi` command; success exits 0, a throwing extension exits 1 |
 
 Then follow the [repository-wide checks](../../CONTRIBUTING.md#repository-wide-checks). Record every check as passed, failed, skipped, or not run. A missing host is a failed prerequisite, not a passing or skipped integrated suite. The RPC load check is not interactive terminal verification. There is currently no established formatter, linter, standalone typecheck, or build command; do not claim one ran.
@@ -69,7 +69,7 @@ Keep structural and semantic changes separate when practical. Preserve behavior 
 - Untrusted paths, Git names, remote data, and extension statuses remain terminal-safe and width-bounded.
 - No subprocess, cache/persistence or settings-reserve lookup remains here. Missing collector displays unknown, never zero/clean.
 - Display observers/listeners and repaint/motion timers are disposed; stale callbacks cannot overwrite a newer session/component.
-- New behavior has deterministic coverage and no live GitHub or CodexBar dependency.
+- New behavior has deterministic coverage and no live GitHub or source-collector dependency.
 - YAGNI: every abstraction/dependency serves a current requirement. KISS: compare it with a direct function or existing host API. Single source of truth: shared semantics stay in one module and commands stay here. Progressive disclosure: update the relevant guide and `AGENTS.md` map without making unrelated docs mandatory.
 
 ## Keeping docs accurate
@@ -156,3 +156,5 @@ macOS, Node v22.23.4, existing Pi 1.4.0. Only the design-system and display slic
 - Full-diff simplification: removed the provider/shape registry and duplicate renderer wire type, reused generic design-system parts and imported tokens, removed obsolete spill reservation, and constructed arbitrary-id fill maps once with `Object.fromEntries` plus own-property reads instead of quadratic repeated copies or a new registry. Existing motion/timer ownership, motion-off and hidden-pane behavior stay intact.
 
 C4 integration follow-up, same date/toolchain: the real-collector composition test now requires `{ installed: null, providers: [] }` for absent `industrialOs.usageSources`, rather than the old CodexBar-missing `false`. Remaining `installed: false` test values are synthetic legacy-v1 fixtures, not real-collector expectations. A full `PI_HOST_ROOT="$PI_HOST_ROOT" npm test` rerun passed **146/147**, with the sole failure at this new assertion (`false !== null`) because this slice intentionally retains the old collector. The parent will run combined suites after integrating the collector slice; no compatibility allowance weakens the new assertion. Whitespace and scoped diff review passed. The earlier 147/147 record predates this contract-alignment assertion.
+
+Integrated branch `feature/usage-sources`, same date, Node 22.23.0, Pi 1.4.0 host via explicit `PI_HOST_ROOT`: `npm test` **147/147 passed** with the new collector, and again after the review fix that strips leading whitespace and marks together from source tags (new vectors: a bidi mark, space, then a combining mark). Interactive Pi/Herdr and a live engine: **not run**.
