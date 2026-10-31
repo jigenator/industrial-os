@@ -5,12 +5,14 @@ import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
 import { DefaultPackageManager, getAgentDir, keyText, loadProjectContextFiles, loadSkills, SettingsManager, VERSION } from "@earendil-works/pi-coding-agent";
 import type { TUI } from "@earendil-works/pi-tui";
 import { backgroundAnsi, foregroundAnsi, rgbColor, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import { assignment, clock, coreValue, herdrCodes, sessionCodes } from "./facts.ts";
-import { type HeaderState, introEnd, type Line, type Manifest, renderHeader } from "./header.ts";
+import { assignment, clock, coreValue, herdrCodes, interruptAction, sessionCodes } from "./facts.ts";
+import { type Frame, frameAt, type HeaderState, introEnd, type Line, type Manifest, settledFrame } from "./header.ts";
 import { buildManifest, failure, readBranch } from "./sources.ts";
 
 /** At most 20 frames a second during the intro, none after it. */
 export const FRAME_MS = 50;
+/** A backstop: the intro settles by now even if no frame has said it ended, such as a header Pi never draws. */
+export const INTRO_LIMIT_MS = 8000;
 
 export interface Clock {
 	now(): number;
@@ -32,7 +34,7 @@ const ink = (hex: string) => {
 function paintLine(line: Line, width: number, mode: ColorMode): string {
 	let out = "", last = "";
 	for (const span of line) {
-		const sgr = foregroundAnsi(ink(span.fg), mode) + backgroundAnsi(ink(span.bg), mode);
+		const sgr = (span.bold ? "\x1b[1m" : "\x1b[22m") + foregroundAnsi(ink(span.fg), mode) + backgroundAnsi(ink(span.bg), mode);
 		if (sgr !== last) { out += sgr; last = sgr; }
 		out += span.text;
 	}
@@ -50,6 +52,8 @@ export class DroidHeader {
 	private disposals: Array<() => void> = [];
 	private firstRender: Array<() => void> | undefined = [];
 	private cache: { width: number; mode: ColorMode; lines: string[] } | undefined;
+	/** The settled frame for the last width drawn; the intro animates it and ends when it says. */
+	private frame: Frame | undefined;
 	private state: HeaderState;
 	private readonly time: Clock;
 
@@ -71,7 +75,7 @@ export class DroidHeader {
 		}
 		return {
 			render: (width: number) => this.render(width, theme.getColorMode()),
-			invalidate: () => { this.cache = undefined; },
+			invalidate: () => { this.cache = undefined; this.frame = undefined; },
 			dispose: () => this.dispose(),
 		};
 	}
@@ -96,11 +100,13 @@ export class DroidHeader {
 		else this.disposals.push(cleanup);
 	}
 
-	setManifest(manifest: Manifest) {
+	/** A new manifest, and the key hints that go with it (the Escape hint's action can follow the manifest). */
+	setManifest(manifest: Manifest, hints = this.state.hints) {
 		if (this.disposed) return;
 		const arrived = !this.settled && manifest.status === "ready" ? this.elapsed() : undefined;
-		this.state = { ...this.state, manifest, manifestAt: arrived };
+		this.state = { ...this.state, manifest, manifestAt: arrived, hints };
 		this.cache = undefined;
+		this.frame = undefined;
 		this.tui?.requestRender();
 	}
 
@@ -127,8 +133,15 @@ export class DroidHeader {
 		return this.startedAt === undefined ? 0 : this.time.now() - this.startedAt;
 	}
 
+	private frameFor(width: number) {
+		if (this.frame?.width !== width) this.frame = settledFrame(this.state, width, visibleWidth);
+		return this.frame;
+	}
+
+	// The intro ends when the frame last drawn has finished; before any draw there is nothing to end.
 	private tick() {
-		if (this.elapsed() >= introEnd(this.state)) this.settle();
+		const elapsed = this.elapsed();
+		if (elapsed >= INTRO_LIMIT_MS || (this.frame && elapsed >= introEnd(this.frame))) this.settle();
 		else this.tui?.requestRender();
 	}
 
@@ -137,16 +150,16 @@ export class DroidHeader {
 		this.firstRender = undefined;
 		for (const run of waiting ?? []) this.afterFirstRender(run);
 		if (this.settled && this.cache?.width === width && this.cache.mode === mode) return this.cache.lines;
-		const lines = renderHeader(this.state, width, this.settled ? Infinity : this.elapsed(), visibleWidth).map((line) => paintLine(line, width, mode));
+		const lines = frameAt(this.frameFor(width), this.settled ? Infinity : this.elapsed()).map((line) => paintLine(line, width, mode));
 		if (this.settled) this.cache = { width, mode, lines };
 		return lines;
 	}
 }
 
-function keyHints(): Array<[string, string]> {
+function keyHints(manifest: Manifest): Array<[string, string]> {
 	const key = (id: Parameters<typeof keyText>[0]) => { try { return keyText(id); } catch { return ""; } };
 	// Pi's own header also hints `ctrl+o more`, but that key expands only Pi's header; this one has nothing to expand.
-	const hints: Array<[string, string]> = [[key("app.interrupt"), "interrupt"], [key("app.clear"), "clear"], ["/", "commands"], ["!", "bash"]];
+	const hints: Array<[string, string]> = [[key("app.interrupt"), interruptAction(manifest)], [key("app.clear"), "clear"], ["/", "commands"], ["!", "bash"]];
 	return hints.filter(([k]) => k);
 }
 
@@ -183,7 +196,7 @@ export default function droidHeader(pi: ExtensionAPI, time: Clock = systemClock,
 			deployed: clock(seen.get(sessionId)!),
 			assignment: assignment(ctx.cwd, branch),
 			manifest: { status: "pending" },
-			hints: keyHints(),
+			hints: keyHints({ status: "pending" }),
 		};
 		// Animate only when the header is on screen at start: a fresh, empty session, with motion on. Pi records the
 		// starting thinking level before `session_start`, so setting entries alone still count as empty.
@@ -202,7 +215,7 @@ export default function droidHeader(pi: ExtensionAPI, time: Clock = systemClock,
 					return manifestOf({ cwd: ctx.cwd, trusted: ctx.isProjectTrusted(), prompts });
 				})
 				.catch(failure)
-				.then((manifest) => header.setManifest(manifest));
+				.then((manifest) => header.setManifest(manifest, keyHints(manifest)));
 		});
 	});
 

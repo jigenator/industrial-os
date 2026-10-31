@@ -191,7 +191,7 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [pi/droid-header/CONTRIBUTING.md](pi/droid-header/CONTRIBUTING.md) | droid-header toolchain, exact checks and verification records | Making or verifying a droid-header change |
 | [pi/droid-header/docs/architecture.md](pi/droid-header/docs/architecture.md) | droid-header modules, flow, state, host seams and invariants | Changing behavior, lifecycle, I/O or host dependencies |
 | [pi/droid-header/docs/conventions.md](pi/droid-header/docs/conventions.md) | droid-header engineering rules and adoption gaps | Writing or reviewing code |
-| [pi/droid-header/docs/design.md](pi/droid-header/docs/design.md) | droid-header layouts, values, states, motion rates, colors and mock deviations | Changing anything human-facing |
+| [pi/droid-header/docs/design.md](pi/droid-header/docs/design.md) | droid-header layouts, values, states, intro rates, colors, the approved reference and its deviations | Changing anything human-facing |
 | [pi/droid-header/docs/mission.md](pi/droid-header/docs/mission.md) | droid-header goals, non-goals and constraints | Choosing or changing scope |
 | [pi/theme/README.md](pi/theme/README.md) | The Pi theme's purpose, install and limits | Using the Pi theme or changing its public usage |
 | [pi/theme/AGENTS.md](pi/theme/AGENTS.md) | Pi theme rules, routes and placement | Working anywhere in pi/theme |

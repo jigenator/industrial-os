@@ -17,19 +17,18 @@ Follow [root conventions](../../../docs/conventions.md) and the [Pi guide](../..
 
 ## Colors and motion
 
-- Colors only from `@industrial-os/design-system/foundation/palette` and `signal-colors`, numerals from `elements/pixel-numeral`, seeded randomness from `foundation/seeded`; no hex literal in `src/`. Check: review, and the golden frame's per-cell colors.
-- Motion follows the [root motion rules](../../../docs/design.md#motion) and the decode exception there. Rates are constants in `header.ts` and stated in [design](design.md#motion); change both together.
-- Frames are pure functions of time; the host only chooses `t`. At most one 50 ms interval, and none once settled.
+- The plate is `elements/unit-plate`, the surface `foundation/surface`, the intro `motions/crt-boot`; colors are Acid / Black roles and `signal-colors` and `surface-palette` values, resolved by `foundation/cells`. No hex literal and no drawing of the design system's own in `src/`: what the header needs that the design system lacks is added there first. Check: review, and the goldens' per-cell colors.
+- Motion follows the [root motion rules](../../../docs/design.md#motion) and the droid header's CRT boot exception there. The boot's rates are the design system's `CRT_BOOT_TIMING`; the header's own are `FRAME_MS` and `INTRO_LIMIT_MS` in `extension.ts`. Both are stated in [design](design.md#motion); change them together.
+- Frames are pure functions of state, width, time and seed; the host only chooses `t`. At most one 50 ms interval, and none once settled.
 
 ## Tests
 
-Tests write only to temporary directories, set `PI_CODING_AGENT_DIR` to one before loading the extension, and never touch real sessions, settings or `~/.pi`. `test/header.test.ts` holds the golden frame: the approved mock's settled output at 104 columns with public-safe manifest names, every cell's text and colors, barcode cells checked against the design system's generator. Private names from a real machine never enter fixtures.
+Tests write only to temporary directories, set `PI_CODING_AGENT_DIR` to one before loading the extension, and never touch real sessions, settings or `~/.pi`. `test/header.test.ts` holds the goldens: the approved reference's settled output at 104 and 64 columns from its own public-safe sample state, every cell's text, colors and weight, apart from the hairline ink [deviation](design.md#deviations-from-the-approved-reference). Private names from a real machine never enter fixtures.
 
 ## Adoption gaps
 
 | Gap | Evidence | Next change and check |
 | --- | --- | --- |
-| Decode lives in the extension | `decode` in `src/header.ts` mirrors `decodeGlyph` (`foundation/decode-glyph`) on the unmerged `feature/dispatch-feed` branch: the same scramble set, seeded settle times and 70 ms step. It also keeps a grapheme that `decodeGlyph` rejects (wide or outside ASCII and the design-system glyphs) whole until it settles | After dispatch-feed merges, import its decode for one-cell ASCII and design-system glyphs and delete the local copy; the intro tests must pass unchanged |
 | No interactive Pi/Herdr qualification | Offline tests, the RPC load check and a scripted terminal run outside Herdr | An authorized manual check in Pi inside Herdr: intro, settle on typing, resize, `/new`, `/reload`, colors |
 | No standalone typecheck, formatter, linter or lockfile | Tests use the global host by design, like status-bar; a one-off strict `tsc` is recorded in contributing | Add only with an approved need |
 | No license | No `LICENSE` or manifest license field | The repository's open license decision |
