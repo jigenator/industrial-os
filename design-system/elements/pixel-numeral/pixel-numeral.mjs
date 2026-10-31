@@ -18,6 +18,11 @@ export const HEX_FONT = Object.freeze(Object.fromEntries(Object.entries({
   C: ['111', '100', '100', '100', '111'], D: ['110', '101', '101', '101', '110'],
   E: ['111', '100', '111', '100', '111'], F: ['111', '100', '111', '100', '100'],
 }).map(([key, rows]) => [key, Object.freeze(rows)])));
+// Letters a unit code needs beyond hex, drawn in the same stroke: R keeps B's notched top corner, so it never reads
+// as A (the droid header's DRD- prefix). Separate from HEX_FONT, whose keys are hex digits; textGrid draws from all three.
+export const LETTER_FONT = Object.freeze(Object.fromEntries(Object.entries({
+  R: ['110', '101', '110', '101', '101'],
+}).map(([key, rows]) => [key, Object.freeze(rows)])));
 // The dashboard face: rounded strokes for digits and ?, as the dispatch-feed type units draw counts. Other
 // characters keep their FONT or HEX_FONT glyph. Selected by textGrid's face option; FONT itself is unchanged.
 export const DASHBOARD_FONT = Object.freeze(Object.fromEntries(Object.entries({
@@ -43,10 +48,10 @@ export const TALL_FONT = Object.freeze(Object.fromEntries(Object.entries({
   '-': ['000', '000', '000', '000', '111', '000', '000', '000', '000'],
   '?': ['0110', '1001', '0001', '0001', '0010', '0100', '0100', '0000', '0100'],
 }).map(([key, rows]) => [key, Object.freeze(rows)])));
-// Each face's glyph for a character; the instrument and dashboard faces fall back to FONT and HEX_FONT.
+// Each face's glyph for a character; the instrument and dashboard faces fall back to FONT, HEX_FONT and LETTER_FONT.
 const FACES = Object.freeze({
-  instrument: (ch) => FONT[ch] ?? HEX_FONT[ch],
-  dashboard: (ch) => DASHBOARD_FONT[ch] ?? FONT[ch] ?? HEX_FONT[ch],
+  instrument: (ch) => FONT[ch] ?? HEX_FONT[ch] ?? LETTER_FONT[ch],
+  dashboard: (ch) => DASHBOARD_FONT[ch] ?? FONT[ch] ?? HEX_FONT[ch] ?? LETTER_FONT[ch],
   tall: (ch) => TALL_FONT[ch],
 });
 export const NUMERAL_TONES = Object.freeze({ ok: 'primary', warn: 'warning', high: 'critical', unknown: 'decorative' });
@@ -75,15 +80,15 @@ export function numeralGrid(value, { tone } = {}) {
   if (![...text].every((ch) => Object.hasOwn(FONT, ch))) return undefined;
   return gridOf([...text], ink, 13);
 }
-// Any FONT or HEX_FONT characters (faces `instrument` and `dashboard`, six pixel rows), or TALL_FONT characters
+// Any FONT, HEX_FONT or LETTER_FONT characters (faces `instrument` and `dashboard`, six pixel rows), or TALL_FONT characters
 // (face `tall`, ten pixel rows), exactly as wide as their glyphs: no minimum width and no number formatting.
 // face 'dashboard' swaps in DASHBOARD_FONT's digits; the default 'instrument' face is FONT.
 export function textGrid(text, { ink = 'primary', face = 'instrument' } = {}) {
   if (typeof text !== 'string') throw new TypeError('pixel text must be a string');
   const chars = [...text];
-  const known = face === 'tall' ? (ch) => Object.hasOwn(TALL_FONT, ch) : (ch) => Object.hasOwn(FONT, ch) || Object.hasOwn(HEX_FONT, ch);
+  const known = face === 'tall' ? (ch) => Object.hasOwn(TALL_FONT, ch) : (ch) => Object.hasOwn(FONT, ch) || Object.hasOwn(HEX_FONT, ch) || Object.hasOwn(LETTER_FONT, ch);
   if (chars.length === 0 || chars.length > 250 || !chars.every(known)) {
-    throw new RangeError(face === 'tall' ? 'tall pixel text must be 1–250 characters from TALL_FONT' : 'pixel text must be 1–250 characters from FONT or HEX_FONT');
+    throw new RangeError(face === 'tall' ? 'tall pixel text must be 1–250 characters from TALL_FONT' : 'pixel text must be 1–250 characters from FONT, HEX_FONT or LETTER_FONT');
   }
   resolveColor(ink);
   if (typeof face !== 'string' || !Object.hasOwn(FACES, face)) throw new RangeError('pixel face must be instrument, dashboard or tall');

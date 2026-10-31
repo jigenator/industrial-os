@@ -163,3 +163,7 @@ SECTION HEAD, BOARD MARKS, TIME LANE, READOUT, EVENT ROW and SCROLL RAIL show th
 ## Crate banner story
 
 CRATE BANNER shows Lunalee's chat pane plate with synthetic fixtures: the wide (60) and narrow (40) plates, HOLD 0 and above 99 with an unknown clock, BOARD open, NOTES hovered and NOTES disabled, the frosted strip over a fixture backdrop (the default surface gradient's row 6 of 22, built with `surfaceAt` in the displayed call), and the compact row at five widths. Each specimen lists the tool spans a host would hit-test. The serial, counts and clock are examples, never live values.
+
+## Unit plate and CRT boot stories
+
+UNIT PLATE shows the Pi droid header's plate with synthetic fixtures: the 104-cell plate with its peak, the 64-cell plate with its title block and no peak, the plate only (`titleBlock: false`) at 48, and an unknown session's `DRD-????`. CRT BOOT plays the boot over a 56-cell plate and two ledger rows at the motion's 50 ms step, for the session seed and another; its note states the 10-a-second power-on flicker and the 20-a-second typing. The unit, serial and seeds are examples, never live values.

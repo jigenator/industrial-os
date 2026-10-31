@@ -3,6 +3,8 @@ export type NumeralTone = 'ok' | 'warn' | 'high' | 'unknown';
 export interface NumeralGrid { w: number; g: (Color | null)[][] }
 export const FONT: Readonly<Record<string, readonly string[]>>;
 export const HEX_FONT: Readonly<Record<'A' | 'B' | 'C' | 'D' | 'E' | 'F', readonly string[]>>;
+/** Unit-code letters beyond hex, such as the R of DRD-. */
+export const LETTER_FONT: Readonly<Record<'R', readonly string[]>>;
 export const NUMERAL_TONES: Readonly<Record<NumeralTone, Color>>;
 export function numeralGrid(value?: number | null, options?: { tone?: NumeralTone }): NumeralGrid | undefined;
 export const DASHBOARD_FONT: Readonly<Record<string, readonly string[]>>;

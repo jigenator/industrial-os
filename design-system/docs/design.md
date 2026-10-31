@@ -20,6 +20,8 @@ The [crate banner](../elements/crate-banner/README.md) is Lunalee's chat pane he
 
 Final visual acceptance of every element remains a maintainer decision.
 
+The [unit plate](../elements/unit-plate/README.md) is the Pi droid header's maker's plate: the crate banner's brushed-aluminium ground under the maker, a 3×5 pixel wordmark of the unit code (the pixel font gained an `R`), the serial in the bottom hairline, and, where there is room, a title block with a seeded barcode at the right margin and a hollow acid peak between the blocks, kept clear of both. Unknown digits are grey `?`, never zero. Its 104- and 64-column plates are checked against the approved mockup's text, and the droid header's goldens check every cell's colors; no native-terminal glyph or contrast review has been made.
+
 ## IndustrialOS colors
 
 A separate reference collection of 22 named colors, with five-step derived shade ramps. Values live in [foundation](../foundation/README.md#industrialos-colors). It does not replace Acid / Black, add roles to it, or form a theme switch. Wherever a generated ramp step is shown, label it `DERIVED`, distinct from its `BASE` color. Put hex values and names on the normal field rather than on the swatch, and do not claim contrast or accessibility for any combination without checking it.
@@ -36,7 +38,7 @@ Usage sources select the [usage families](../foundation/README.md#usage-color-fa
 
 ## Motions
 
-Thirty [motions](../motions/README.md) decorate already-rendered lines at an explicit time, under the shared [motion rules](../../docs/design.md#motion): scan, pulse, and reveal; the state and attention motions modeled on the extensions (draw-in, warm-up, latch, beacon, cycle, fade, blink, flash); and the signal, meter, and glitch motions (ping, wipe, fill-in, burn-out, edge pulse, restrike, ghost, nudge), plus dashboard decode, breathe, arrival-ping, ambient-sweep and ambient-load. `animate: false` is every motion's motion-off state. Warning and critical cells are exempt unless a motion opts in for a state cue (warm-up, latch, beacon, flash), and then every frame keeps the state's shape and word. This exemption protects cells, not an entire message. Motions that can hide or replace characters (reveal, draw-in, ghost, and the glyph motions) belong only on nonessential decoration; compose complete readings, labels, and status messages outside them.
+Thirty-one [motions](../motions/README.md) decorate already-rendered lines at an explicit time, under the shared [motion rules](../../docs/design.md#motion): scan, pulse, and reveal; the state and attention motions modeled on the extensions (draw-in, warm-up, latch, beacon, cycle, fade, blink, flash); and the signal, meter, and glitch motions (ping, wipe, fill-in, burn-out, edge pulse, restrike, ghost, nudge), plus dashboard decode, breathe, arrival-ping, ambient-sweep and ambient-load, and the droid header's CRT boot. `animate: false` is every motion's motion-off state. Warning and critical cells are exempt unless a motion opts in for a state cue (warm-up, latch, beacon, flash), and then every frame keeps the state's shape and word. This exemption protects cells, not an entire message. Motions that can hide or replace characters (reveal, draw-in, ghost, and the glyph motions) belong only on nonessential decoration; compose complete readings, labels, and status messages outside them.
 
 ### Fast and flashing motions
 
@@ -51,6 +53,7 @@ The shared motion rule has no frequency cap, and asks each project to state its 
 | ping | Bars change on a 40 ms grid, 25 steps a second, for 1520 ms |
 | latch | Locked 50 ms, inverted 100 ms, once |
 | draw-in, fill-in, edge pulse, restrike, ghost, nudge, beacon | 50 ms steps (20 a second) during each event |
+| CRT boot | 50 ms typing chunks (20 a second); every other 50 ms frame dims until 350 ms (10 flickers a second); two whole-block flickers of 50 or 100 ms and four line tears at seeded times; once, up to 5.85 s |
 
 Rates for every motion, including the slow ones, are in each motion's section.
 

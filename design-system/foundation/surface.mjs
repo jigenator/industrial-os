@@ -1,5 +1,5 @@
 import { assertCells, resolveColor, resolveStyle, cells } from './cells.mjs';
-import { SURFACE_PALETTE } from './surface-palette.mjs';
+import { ALUMINIUM_GROUND, SURFACE_PALETTE } from './surface-palette.mjs';
 
 const graphemes = new Intl.Segmenter('und', { granularity: 'grapheme' });
 const hex = (channels) => '#' + channels.map((v) => v.toString(16).padStart(2, '0')).join('');
@@ -49,6 +49,22 @@ export function dotAt(x, y) {
     ? SURFACE_PALETTE.dotMajor : SURFACE_PALETTE.dots[dotHash(x, y) % SURFACE_PALETTE.dots.length];
 }
 
+// The brushed-aluminium ground of a six-row plate (the crate banner's and the unit plate's) at cell (x, y), and the
+// hairline drawn on it: l = base + band·(1 − u²) − fall·t + Σ amplitude·sin(x·streak.x + y·streak.y), RGB l plus
+// `channels`, the hairline that plus `hair`, each rounded and clamped. u runs −1–1 across the width (0 on one cell),
+// t 0–1 down the six rows.
+const channel = (v) => Math.max(0, Math.min(255, Math.round(v)));
+export function aluminiumAt(x, y, { width } = {}) {
+  assertCells(width, 'aluminium width');
+  coordinate(x, y);
+  if (x >= width || y > 5) throw new RangeError('aluminium coordinate is outside its six-row plate');
+  const { base, band, fall, streaks, channels, hair } = ALUMINIUM_GROUND;
+  const t = y / 5, u = width === 1 ? 0 : 2 * x / (width - 1) - 1;
+  const l = streaks.reduce((sum, s) => sum + s.amplitude * Math.sin(x * s.x + y * s.y), base + band * (1 - u * u) - fall * t);
+  const rgb = channels.map((d) => channel(l + d));
+  return { ground: hex(rgb), hair: hex(rgb.map((v) => channel(v + hair))) };
+}
+
 export function blendFill(fill, under, alpha) {
   if (typeof alpha !== 'number') throw new TypeError('alpha must be a number');
   if (!Number.isFinite(alpha) || alpha < 0 || alpha > 1) throw new RangeError('alpha must be 0–1');
@@ -56,11 +72,13 @@ export function blendFill(fill, under, alpha) {
 }
 
 // Cell rows are already parsed by the host. No ANSI parsing, environment lookup or token interpretation happens here.
-export function composeSurface(rows, { width, height, origin = { x: 0, y: 0 }, fills = {}, exclude = [], color = true, gradient } = {}) {
+export function composeSurface(rows, { width, height, origin = { x: 0, y: 0 }, fills = {}, exclude = [], color = true, gradient, dotClearance = 2, dotFloor = 0 } = {}) {
   assertCells(width, 'surface width');
   assertCells(height, 'surface height');
   coordinate(origin.x, origin.y);
   if (typeof color !== 'boolean') throw new TypeError('color must be boolean');
+  if (dotClearance !== 1 && dotClearance !== 2) throw new RangeError('dotClearance must be 1 or 2');
+  if (typeof dotFloor !== 'number' || !Number.isInteger(dotFloor) || dotFloor < 0 || dotFloor > 255) throw new RangeError('dotFloor must be an integer 0–255');
   gradient = gradientOf(gradient);
   if (!Array.isArray(rows) || !rows.length || !Array.isArray(rows[0]) || !rows[0].length) throw new TypeError('surface needs nonempty cell rows');
   const columns = rows[0].length;
@@ -104,7 +122,7 @@ export function composeSurface(rows, { width, height, origin = { x: 0, y: 0 }, f
       }
       resolveStyle(cell.style);
       if (cell.text !== ' ' || cell.continuation) {
-        for (let i = Math.max(0, x - 2); i <= Math.min(columns - 1, x + 2); i++) busy[i] = 1;
+        for (let i = Math.max(0, x - dotClearance); i <= Math.min(columns - 1, x + dotClearance); i++) busy[i] = 1;
       }
       return { ...cell, style: { ...cell.style } };
     });
@@ -122,6 +140,8 @@ export function composeSurface(rows, { width, height, origin = { x: 0, y: 0 }, f
       if (alpha === undefined) return cell;
       cell.style.bg = own === null ? under : blendFill(own, under, alpha);
       if (cell.text !== ' ' || cell.continuation || busy[x] || masks[y][x] || alpha === 1) return cell;
+      // The floor fades out where the gradient is darker than dotFloor (its lightness is the red channel).
+      if (parseInt(under.slice(1, 3), 16) < dotFloor) return cell;
       const dot = dotAt(absoluteX, absoluteY);
       if (dot) {
         cell.text = '·';

@@ -117,7 +117,8 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [design-system/elements/event-row/README.md](design-system/elements/event-row/README.md) | Event row contract: log and detail forms | Using or changing event rows |
 | [design-system/elements/scroll-rail/README.md](design-system/elements/scroll-rail/README.md) | Scroll rail contract: track, thumb and nothing-to-scroll | Using or changing scroll rails |
 | [design-system/elements/crate-banner/README.md](design-system/elements/crate-banner/README.md) | Crate banner contract | Using or changing crate-banner |
-| [design-system/motions/README.md](design-system/motions/README.md) | Every motion's contract, parameters, rates, presets, state-cell opt-in, motion-off, host timing, and extension rules | Using, adding, or changing a motion |
+| [design-system/elements/unit-plate/README.md](design-system/elements/unit-plate/README.md) | Unit plate contract: maker, pixel wordmark, serial, title block, barcode and peak | Using or changing the unit plate |
+| [design-system/motions/README.md](design-system/motions/README.md) | Every motion's contract, parameters, rates, presets, state-cell opt-in, motion-off, host timing, and extension rules, including the CRT boot | Using, adding, or changing a motion |
 | [design-system/examples/README.md](design-system/examples/README.md) | Storybook keys, sections and scrolling index, playback rates, the marker timeline, reuse examples, host seam, and how to add stories | Using the storybook or showcase, adding a story, or changing a host |
 | [pi/README.md](pi/README.md) | Pi extensions index, status, and install | Using the Pi extensions or adding one |
 | [pi/AGENTS.md](pi/AGENTS.md) | Rules every Pi extension shares and the required project set | Working anywhere in `pi/` |

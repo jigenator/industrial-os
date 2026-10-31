@@ -55,6 +55,8 @@ import { inputFrame } from '../elements/input-frame/input-frame.mjs';
 import { typeUnit } from '../elements/type-unit/type-unit.mjs';
 import { feedScan, feedScanDuration, FEED_SCAN_DEFAULTS } from '../motions/feed-scan.mjs';
 import { cornerSnap, CORNER_SNAP_DEFAULTS } from '../motions/corner-snap.mjs';
+import { crtBoot, crtBootDuration, CRT_BOOT_DEFAULTS, CRT_BOOT_TIMING } from '../motions/crt-boot.mjs';
+import { unitPlate } from '../elements/unit-plate/unit-plate.mjs';
 import { call, code, literal, spread } from './storybook-usage.mjs';
 
 // Redraw interval for continuously changing motions (scan, pulse, reveal): setInterval truncates
@@ -789,4 +791,32 @@ const AMBIENT_LOAD = motionStory({
     body:(width)=>body(ambientField(Array.from({length:54},()=>fitLine([],width))),`ambientField(Array.from({length:54},()=>fitLine([],${width})))`)}],
 });
 
-export const MOTION_STORIES = [SCAN, PULSE, REVEAL, DRAW_IN, WARM_UP, LATCH, BEACON, CYCLE, FADE, BLINK, FLASH, PING, WIPE, FILL_IN, BURN_OUT, EDGE_PULSE, RESTRIKE, GHOST, NUDGE, MARKER_TIMELINE_STORY, SCOPE_TRACE, SOUNDING_SWEEP, FEED_SCAN, CORNER_SNAP, CALLOUT_ENTRANCE, PHOSPHOR_HEAD, DASH_DECODE, DASH_BREATHE, DASH_ARRIVAL_PING, DASH_AMBIENT_SWEEP, AMBIENT_LOAD];
+// The CRT boot over a unit plate and two ledger rows, as the Pi droid header boots. Fixtures only.
+const BOOT_UNIT = { unit: 'DRD-C0DE', serial: '0000-BEEF', seed: 0xbeef };
+const bootBody = (width) => body(
+  [...unitPlate(BOOT_UNIT, { width }).lines, fitLine([span('  MODEL      ', { fg: 'secondary' }), span('OPUS-5.5 / HIGH')], width), fitLine([span('  WORKSPACE  ', { fg: 'secondary' }), span('INDUSTRIAL-OS')], width)],
+  `[...${call('unitPlate', BOOT_UNIT, { width })}.lines, ${call('fitLine', code(`[${call('span', '  MODEL      ', { fg: 'secondary' })}, ${call('span', 'OPUS-5.5 / HIGH')}]`), width)}, ${call('fitLine', code(`[${call('span', '  WORKSPACE  ', { fg: 'secondary' })}, ${call('span', 'INDUSTRIAL-OS')}]`), width)}]`,
+);
+const CRT_BOOT = motionStory({
+  id: 'crt-boot',
+  fn: 'crtBoot',
+  title: 'CRT BOOT',
+  summary: 'A one-shot retro CRT boot: a power-on line, the grounds flickering in, each row typed behind an acid cursor, a refresh bar and seeded glitches, then exactly the input.',
+  motion: crtBoot,
+  defaults: CRT_BOOT_DEFAULTS,
+  units: {},
+  duration: (lines, o) => crtBootDuration(lines, o),
+  frame: () => CRT_BOOT_TIMING.chunk,
+  rules: [
+    `Rows start ${CRT_BOOT_TIMING.stagger} ms apart, never more than ${CRT_BOOT_TIMING.spread} ms in all, typing in ${CRT_BOOT_TIMING.chunk} ms chunks: 20 frames a second.`,
+    'Until 350 ms every other 50 ms frame dims: 10 flickers a second. Two whole-screen flickers of 50 or 100 ms and four row tears follow. No photosensitivity claim is made.',
+    'A line with a warning or critical cell shows settled in every frame. Motion-off is the settled block.',
+    'Typing hides cells it has not reached: a declared exception to the shared motion rule.',
+  ],
+  variants: [
+    { name: 'DROID HEADER', note: 'The droid header\'s boot over its plate, seeded by the session; 20 frames a second, 10 flickers a second at power-on.', options: { seed: 0xbeef }, body: bootBody, plainVisible: true },
+    { name: 'OTHER SEED', note: 'Another session: another pace, tears and flicker times.', options: { seed: 7 }, body: bootBody, plainVisible: true },
+  ],
+});
+
+export const MOTION_STORIES = [SCAN, PULSE, REVEAL, DRAW_IN, WARM_UP, LATCH, BEACON, CYCLE, FADE, BLINK, FLASH, PING, WIPE, FILL_IN, BURN_OUT, EDGE_PULSE, RESTRIKE, GHOST, NUDGE, MARKER_TIMELINE_STORY, SCOPE_TRACE, SOUNDING_SWEEP, FEED_SCAN, CORNER_SNAP, CALLOUT_ENTRANCE, PHOSPHOR_HEAD, DASH_DECODE, DASH_BREATHE, DASH_ARRIVAL_PING, DASH_AMBIENT_SWEEP, AMBIENT_LOAD, CRT_BOOT];

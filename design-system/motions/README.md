@@ -2,7 +2,7 @@
 
 Small, reusable motion primitives for instrument-like terminal details. Each is a pure function: rendered lines and an explicit time in, new lines out. Nothing here reads a clock, starts a timer, writes to the terminal, or keeps state. The host owns time, redraws, and cleanup. See [foundation](../foundation/README.md) for the line model.
 
-A motion decorates rendered lines; it does not supply data. Most preserve every character. Reveal and draw-in hide cells they have not reached, and ghost, ping, cycle, beacon, edge pulse, nudge, and blink with an `offGlyph` change or blank glyphs; each section says which. Except for explicitly declared bounded decode (below), apply anything that can obscure text only to nonessential decoration, and compose complete readings, labels, and status rows outside the transform.
+A motion decorates rendered lines; it does not supply data. Most preserve every character. Reveal and draw-in hide cells they have not reached, and ghost, ping, cycle, beacon, edge pulse, nudge, and blink with an `offGlyph` change or blank glyphs; each section says which. Except for explicitly declared bounded decode and CRT boot (below), apply anything that can obscure text only to nonessential decoration, and compose complete readings, labels, and status rows outside the transform.
 
 | Motion | Runs | Ends at | Changes | State cells |
 | --- | --- | --- | --- | --- |
@@ -32,6 +32,7 @@ A motion decorates rendered lines; it does not supply data. Most preserve every 
 | [arrival ping](#arrivalpinglines-options-and-arrivalpingdurationoptions) | once | arrivalPingDuration | blank-space dots | exempt |
 | [ambient sweep](#ambientsweeplines-options) | loop | | decorative foreground | exempt |
 | [ambient load](#ambientloadlines-options-and-ambientloaddurationlines-options) | once | ambientLoadDuration | grid/dots/registration glyphs and ink | exempt |
+| [CRT boot](#crtbootlines-options-and-crtbootdurationlines-options) | once, seeded | `crtBootDuration` | hides untyped cells, garbles, style | exempt, whole line |
 
 Each motion lives in its own file here, named like its row, with its checks beside it in `<name>.test.mjs` (scan, pulse, and reveal are checked in `motions.test.mjs`).
 
@@ -525,6 +526,23 @@ const replay = () => { stop(); elapsed = 0; complete = false; play(); };
 - Redraw a stepped motion on its own step (a `tick`, `step`, or `frame` option, or the grid of its times); a slower timer samples it and misstates its rate. The [storybook](../examples/README.md#playback-rate) does this and shows the interval it uses.
 - At 15 fps a scan moves at most one cell per frame when `period >= (width + band) / 15` seconds. A faster period skips cells but remains correct.
 - Label demonstration playback as a demonstration. Do not run motion on live data that is not changing.
+
+## `crtBoot(lines, options)` and `crtBootDuration(lines, options)`
+
+A one-shot retro CRT boot over settled lines, the Pi droid header's intro and its declared exception to the [shared motion rule](../../docs/design.md#motion): it hides cells it has not typed and garbles the two behind its cursor. Pure in time: the same lines, options and time give the same frame, and from `crtBootDuration(lines, options)` on it returns exactly the input. `CRT_BOOT_DEFAULTS` holds the options and `CRT_BOOT_TIMING` the phase times and rates below, both frozen.
+
+Options, beside `time` and `animate`: `seed` (integer, default 0) seeds the pace, jitter, garble and glitches; `paint` and `ground` list `{ row, start, end }` cell ranges; `late` is `{ row, time }`; `measure` is the host's measurer, so wide graphemes keep their cells (without it every code unit is one cell, as the line model's ASCII contract).
+
+- **Power-on, 0–120 ms:** no text; the middle line `primary` over `field` at 85%, the lines either side at 12%, `field` elsewhere.
+- **Grounds, 120–350 ms:** each cell's background with no ink; every other 50 ms frame dims (10 flickers a second). `ground` cells (texture that is part of the ground, such as floor dots) show as they are from here on and are never garbled or lit. `paint` cells (decoration painted on the ground, such as the [unit plate](../elements/unit-plate/README.md)'s peak) take the ground of the nearest cell to their left until typed, and are never garbled.
+- **Typing, from 350 ms:** line `y` starts at `350 + y × stagger + jitter`, where `stagger = min(42, 2100 / (lines − 1))` ms, so the starts never spread over more than 2.1 s, and `jitter` is a seeded 0–5 chunks of 50 ms. With `late`, lines from `late.row` down start no earlier than `late.time + (y − late.row) × stagger`. Each 50 ms chunk the cursor advances a seeded 4–11 cells (about one chunk in six it stalls); a blank cell that is not paint costs a quarter. A line is settled after at most 60 chunks. The cursor is an `accent` `█` on the ground under it; the two cells behind it are bold garble from `ABCDEF0123456789#%&*+=<>/\?$` (ink `field` on a light ground, `primary` on a dark one), and on a dark ground the ten before them bold `primary` phosphor. A finished line is the input's.
+- **Refresh bar, 700–1600 ms:** three lines lifted toward `primary`, 50% on a light ground and 7% on a dark one, crossing the block once.
+- **Glitches:** six at seeded times on the 50 ms grid between 350 ms and 200 ms before the end, each 50 or 100 ms: four tears (one to three lines shifted 1–4 cells right, the ground filling in behind; a wide grapheme cut at the edge becomes a space) and two whole-block flickers (ink 45% toward its ground, the ground 70% toward `field`).
+- **End:** `crtBootDuration` is the last line's start plus its chunks, at least 350 ms, plus a 150 ms settle. It is bounded by 350 + 2100 + 250 + 60 × 50 + 150 = 5850 ms however many lines; the droid header's own frames end in about 1.9–3.5 s up to 200 columns, and by 4.3 s at 300.
+- A line holding a `warning` or `critical` cell shows settled in every frame, so a failure or warning is never typed or garbled; compose such a reading on its own line.
+- Every frame keeps each line's width. Motion-off (`animate: false`) is the input. Lines type on their own 50 ms chunks from their own starts, so a host samples it at most every 50 ms (20 frames a second); the storybook previews it at 50 ms.
+
+Invalid options throw: a non-integer seed, a negative or fractional range, late row or late time `RangeError`; a `paint` or `ground` that is not an array of objects, a non-object `late` or a non-function `measure` `TypeError`. Checks: [crt-boot.test.mjs](crt-boot.test.mjs), and the CRT BOOT story.
 
 ## Extending
 

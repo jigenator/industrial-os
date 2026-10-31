@@ -91,6 +91,9 @@
     "./elements/readout": "./elements/readout/readout.mjs",
     "./elements/event-row": "./elements/event-row/event-row.mjs",
     "./elements/scroll-rail": "./elements/scroll-rail/scroll-rail.mjs",
-    "./elements/crate-banner": "./elements/crate-banner/crate-banner.mjs"
+    "./elements/crate-banner": "./elements/crate-banner/crate-banner.mjs",
+    "./foundation/barcode": "./foundation/barcode.mjs",
+    "./elements/unit-plate": "./elements/unit-plate/unit-plate.mjs",
+    "./motions/crt-boot": "./motions/crt-boot.mjs"
   }
 }

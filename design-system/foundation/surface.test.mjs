@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { blendFill, composeSurface, dotAt, surfaceAt } from './surface.mjs';
-import { SURFACE_PALETTE as P } from './surface-palette.mjs';
+import { aluminiumAt, blendFill, composeSurface, dotAt, surfaceAt } from './surface.mjs';
+import { ALUMINIUM_GROUND, SURFACE_PALETTE as P } from './surface-palette.mjs';
 
 const rows = (width, height, bg) => Array.from({ length: height }, () => Array.from({ length: width }, () => ({ text: ' ', style: bg ? { bg } : {} })));
 const at = (bg, alpha, options = {}) => composeSurface(rows(12, 2, bg), { width: 12, height: 2, fills: { [bg]: { alpha } }, ...options });
@@ -166,4 +166,41 @@ test('surface gradient is configurable; defaults are unchanged', () => {
   const strong = composeSurface(row, { width: 2, height: 1, gradient: { top: 40 } })[0];
   assert.equal(strong[1].style.bg, surfaceAt(1, 0, { width: 2, height: 1, gradient: { top: 40 } }));
   assert.equal(composeSurface(row, { width: 2, height: 1 })[0][1].style.bg, surfaceAt(1, 0, { width: 2, height: 1 }));
+});
+
+test('dot clearance and floor are opt-in; the defaults are unchanged', () => {
+  // One inked cell at x 8: the default keeps dots two cells away, clearance 1 only one.
+  const input = rows(20, 2);
+  input[1][8].text = 'x';
+  const ink = (o) => composeSurface(input, { width: 20, height: 2, ...o })[1].map((c) => c.text).join('');
+  assert.equal(ink({}), ink({ dotClearance: 2, dotFloor: 0 }));
+  assert.equal(ink({}), '  ·     x     ·   · ');
+  assert.equal(ink({ dotClearance: 1 }), '  ·     x     ·   · '.replace(/^(.{6}) /, '$1·').replace(/^(.{10}) /, '$1·'));
+  const tight = rows(20, 2);
+  tight[1][4].text = 'x';
+  assert.deepEqual([2, 6].map((x) => composeSurface(tight, { width: 20, height: 2 })[1][x].text), [' ', ' ']);
+  assert.deepEqual([2, 6].map((x) => composeSurface(tight, { width: 20, height: 2, dotClearance: 1 })[1][x].text), ['·', '·']);
+  // The floor: no dot where the gradient's lightness is below dotFloor; the ground itself is unchanged.
+  const fade = { top: 19, drop: 19, edge: 3 };
+  const tall = composeSurface(rows(30, 20), { width: 30, height: 20, gradient: fade, dotFloor: 9 });
+  tall.forEach((row, y) => row.forEach((c, x) => {
+    const l = parseInt(surfaceAt(x, y, { width: 30, height: 20, gradient: fade }).slice(1, 3), 16);
+    assert.equal(c.style.bg, surfaceAt(x, y, { width: 30, height: 20, gradient: fade }));
+    if (c.text === '·') assert.ok(l >= 9, `${x},${y}`);
+    else if (dotAt(x, y) && l >= 9) assert.fail(`missing dot at ${x},${y}`);
+  }));
+  for (const bad of [0, 3, '1', 1.5]) assert.throws(() => composeSurface(rows(2, 1), { width: 2, height: 1, dotClearance: bad }), RangeError);
+  for (const bad of [-1, 256, 1.5, '9']) assert.throws(() => composeSurface(rows(2, 1), { width: 2, height: 1, dotFloor: bad }), RangeError);
+});
+
+test('aluminiumAt is the plate ground formula and its hairline, inside 8-bit RGB', () => {
+  const { base, band, fall, streaks, channels, hair } = ALUMINIUM_GROUND;
+  const hex = (v) => '#' + v.map((c) => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, '0')).join('');
+  for (const width of [1, 2, 40, 60, 104, 1000]) for (let y = 0; y < 6; y++) for (const x of [0, 1, Math.floor(width / 2), width - 1].filter((x) => x < width)) {
+    const u = width === 1 ? 0 : 2 * x / (width - 1) - 1;
+    const l = base + band * (1 - u * u) - fall * (y / 5) + streaks.reduce((s, k) => s + k.amplitude * Math.sin(x * k.x + y * k.y), 0);
+    const ground = channels.map((d) => Math.max(0, Math.min(255, Math.round(l + d))));
+    assert.deepEqual(aluminiumAt(x, y, { width }), { ground: hex(ground), hair: hex(ground.map((c) => c + hair)) });
+  }
+  for (const [x, y, width] of [[0, 6, 10], [10, 0, 10], [-1, 0, 10], [0, 0, 0], [0.5, 0, 10]]) assert.throws(() => aluminiumAt(x, y, { width }), RangeError);
 });
