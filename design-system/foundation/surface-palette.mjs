@@ -1,6 +1,7 @@
 import { ACID_BLACK } from './palette.mjs';
 
-// Lunalee's survey-sheet colors (not new Acid / Black roles). Alpha policy belongs to its host.
+// Lunalee's survey-sheet colors (not new Acid / Black roles). Alpha policy for composeSurface fills belongs to its host;
+// FROST_ALPHA below is the crate banner's own fixed strip blend, not a compositor default.
 export const SURFACE_PALETTE = Object.freeze({
   ...ACID_BLACK,
   plateGrey: '#a8a8a8', rule: '#3a3f46', bone: '#e6e2d3', wheat: '#e3cfa0', wheatHi: '#f4e4bf',
