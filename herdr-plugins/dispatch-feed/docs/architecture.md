@@ -17,6 +17,10 @@ records Bun without Effect; commands are in [contributing](../CONTRIBUTING.md).
   act and refresh exist. Three-second deadline, 16 MiB response ceiling, two
   simultaneous requests maximum. Close aborts every pending connection. Errors
   expose fixed codes only, including Effect 4.0.6's Cause-array typed failures.
+  The CLI's `--sources` include list overrides `DISPATCH_FEED_SOURCES`; comma
+  entries are trimmed and empty entries discarded. Transport attaches a nonempty
+  list only to get requests, for interactive polls and plain output alike; an
+  empty list sends the existing `{}`. Other RPCs remain unchanged.
   A void refresh reply may omit result. Mutation transport failures are outcome
   unknown, never replayed. Read-only rejects mutations before opening a socket.
 - `app.ts`: server snapshots, connection state and reconciliation; local selection,
@@ -24,7 +28,8 @@ records Bun without Effect; commands are in [contributing](../CONTRIBUTING.md).
   Polling coalesces concurrent reads and requests one immediate follow-up after
   an acknowledged action. No optimistic domain update. Done to-dos are snapshot
   items with doneAt; the pane keeps no completed records. A draft keeps the list
-  chosen when it opened and sends it as todo.add source. Mark, arrival and
+  chosen from the included snapshot when it opened and always sends it as todo.add
+  source, never falling back to an engine-wide checklist. Mark, arrival and
   activity memory is bounded/pruned; snapshot limits are 256 sources and 20,000 items.
 - `text.ts`: the terminal measure (`Bun.stringWidth`), display sanitising that
   turns controls and bidi characters into `?`, and grapheme-safe draft tail/Backspace.

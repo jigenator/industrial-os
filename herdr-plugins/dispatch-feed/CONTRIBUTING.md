@@ -139,6 +139,31 @@ median 7.15 ms, p95 8.36 ms on the development machine; not a throughput claim.
 **Not run:** isolated Herdr, physical terminals' emoji and ambiguous-width
 rendering, which may differ from Bun's `stringWidth`.
 
+### Source include list
+
+2026-10-31, isolated macOS run, Bun 1.4.4:
+
+- Passed: root npm setup/boundary checks, frozen install (no manifest/lockfile
+  change), strict typecheck, type-aware lint, format check and `bun test`: 27
+  tests, 867 assertions, no failures.
+- Passed: `python3 test/pty_smoke.py`, including scoped initial/follow-up reads,
+  flag-over-env precedence and explicitly named todo.add target, alongside its
+  existing input/resize/idle/motion/exit/terminal-restoration checks.
+- Fake-socket plain CLI tests cover no list, environment, trimmed/empty entries,
+  duplicates, flag precedence including an empty flag, and missing flag values.
+  Transport tests confirm repeated get scope and unchanged act/refresh payloads.
+- Passed: scoped plain output against a temporary real engine with copied source
+  fixtures; source statuses/items and plan/week counts agree with the RPC scope.
+- Passed: design-system `node --test` (647 tests), documented showcase widths
+  120/100/80/48/40/23 and storybook widths 120/80/48/24/12; root local-link/anchor,
+  guidance inventory, CLAUDE import, whitespace and publication reviews.
+- Not run: isolated/live Herdr, live engine, physical terminal or Mermaid render.
+  No renderer/lifecycle behavior or diagram changed; no new host-support claim.
+- Simplification pass: parse the list once at startup and attach it only at the
+  existing transport get boundary, shared by interactive/plain modes. Shared the
+  test subprocess helper. Read app.ts: every todo.add already names the checklist
+  chosen from its snapshot; no engine-wide fallback is used or newly introduced.
+
 ### Done to-dos from the snapshot and named add target
 
 macOS, Bun 1.4.4, Node 22.23.4, with the engine change that adds `doneAt` and

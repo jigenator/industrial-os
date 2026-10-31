@@ -10,12 +10,26 @@ export const ENTER = "\x1b[?1049h\x1b[?25l\x1b[?7l\x1b[?1003h\x1b[?1006h\x1b[?10
 export const LEAVE =
   "\x1b[?2004l\x1b[?1003l\x1b[?1002l\x1b[?1000l\x1b[?1006l\x1b[?1004l\x1b[?7h\x1b[0m\x1b[?25h\x1b[?1049l";
 export async function run(args: string[]): Promise<void> {
+  args = [...args];
+  const sourceIndex = args.indexOf("--sources");
+  const sourceList = sourceIndex < 0 ? process.env.DISPATCH_FEED_SOURCES : args[sourceIndex + 1];
+  if (sourceIndex >= 0) {
+    if (sourceList === undefined || sourceList.startsWith("--"))
+      throw new Error("--sources requires a comma-separated list");
+    args.splice(sourceIndex, 2);
+  }
+  const sources = (sourceList ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
   const allowed = new Set(["--plain", "--read-only", "--motion-off", "--help"]);
   if (args.some((arg) => !allowed.has(arg)))
-    throw new Error("usage: dispatch-feed [--plain] [--read-only] [--motion-off]");
+    throw new Error(
+      "usage: dispatch-feed [--plain] [--read-only] [--motion-off] [--sources a,b,c]",
+    );
   if (args.includes("--help")) {
     console.log(
-      "dispatch-feed [--plain] [--read-only] [--motion-off]\nKeys: ? help, q quit, m motion, b ambient. SOURCE_COLLECTOR_HOME selects the engine.",
+      "dispatch-feed [--plain] [--read-only] [--motion-off] [--sources a,b,c]\nKeys: ? help, q quit, m motion, b ambient. SOURCE_COLLECTOR_HOME selects the engine.\n--sources overrides DISPATCH_FEED_SOURCES; empty lists include all sources.",
     );
     return;
   }
@@ -24,7 +38,7 @@ export async function run(args: string[]): Promise<void> {
     args.includes("--plain") ||
     !process.stdin.isTTY ||
     !process.stdout.isTTY;
-  const client = new FeedClient(socketPath(), readOnly);
+  const client = new FeedClient(socketPath(), readOnly, 3000, sources);
   let frame: Frame | null = null,
     stopped = false,
     failed = false,

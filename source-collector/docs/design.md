@@ -41,6 +41,8 @@ to-do stays open; done again, it counts once more. A reopen on a later day leave
 the earlier shipment counted, and a repeat completion is never a second shipment.
 
 rev tracks stored changes, not a repaint clock. at, ages and future flags are
-computed on every get, even when rev is unchanged. Polling never waits for a
-fresh fetch. Colors are design-system name strings passed through, never hex
-values. alerts is always an empty reserved array.
+computed on every get, even when rev is unchanged. A scoped get shows only its
+selected sources, items, counts and week activity; shared metadata, look cursor
+and watching remain global. Unknown selected ids simply contribute nothing.
+Polling never waits for a fresh fetch. Colors are design-system name strings
+passed through, never hex values. alerts is always an empty reserved array.

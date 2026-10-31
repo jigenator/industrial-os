@@ -70,11 +70,13 @@ export class FeedClient implements Rpc {
     readonly path: string,
     readonly readOnly = false,
     readonly timeoutMs = 3000,
+    readonly sources: readonly string[] = [],
   ) {}
   request(method: Method, params: Record<string, unknown> = {}): Promise<unknown> {
     if (this.disposed) return Promise.reject(new RpcError("disconnected"));
     if (this.readOnly && method !== "get") return Promise.reject(new RpcError("read_only"));
     if (this.pending.size >= 2) return Promise.reject(new RpcError("busy"));
+    if (method === "get" && this.sources.length) params = { ...params, sources: this.sources };
     const id = ++this.nextId;
     return new Promise((resolve, reject) => {
       const socket = createConnection({ path: this.path });

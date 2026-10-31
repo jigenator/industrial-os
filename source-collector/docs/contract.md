@@ -114,13 +114,26 @@ is feed.sock (0600), in the private runtime directory (0700). For example:
 
 | Method     | Input                                | Result                                                    |
 | ---------- | ------------------------------------ | --------------------------------------------------------- |
-| get        | {}                                   | Snapshot; watching extends for two minutes                |
+| get        | { sources?: string[] }               | Snapshot; watching extends for two minutes                |
 | act        | do, actor and operation fields below | {rev}                                                     |
 | refresh    | optional source                      | void; background admission, no queue                      |
 | status     | {}                                   | engine phase, pid, active/runs/failures, source health    |
 | version    | {}                                   | {v:1, version}                                            |
 | setEnabled | source, enabled, actor               | {rev}; local overlay, CLI enable/disable                  |
 | stop       | {}                                   | void acknowledgement; drain continues before process exit |
+
+`get` without `sources` returns the complete snapshot as before. When present,
+`sources` must be an array of 1–256 strings; other values are schema errors.
+Duplicates are harmless and unknown ids are silently omitted. The reply contains
+only selected source statuses (in normal source order) and their items;
+`counts.plan`, `counts.bySource` (selected ids only) and all week values use only
+selected sources. `v`, `rev`, `at`, `lastLookAt`, `staleLimitMs` and `alerts` stay
+global. Even a scoped get extends watching for all sources for two minutes; it
+is a read projection, not an authorization or collection boundary. For example:
+
+```json
+{ "jsonrpc": "2.0", "id": 1, "method": "get", "params": { "sources": ["todo", "fake"] } }
+```
 
 The last two methods are additive operational controls needed by the CLI.
 Act.do is plan/pin/handled/look/todo.add/todo.done/todo.reopen/action. Actor is
