@@ -42,6 +42,7 @@ import { eventRow } from '../elements/event-row/event-row.mjs';
 import { scrollRail } from '../elements/scroll-rail/scroll-rail.mjs';
 import { crateBanner } from '../elements/crate-banner/crate-banner.mjs';
 import { surfaceAt } from '../foundation/surface.mjs';
+import { unitPlate } from '../elements/unit-plate/unit-plate.mjs';
 import { CATEGORY_TONES } from '../foundation/board-tones.mjs';
 import { BOARD_INKS } from '../foundation/signal-colors.mjs';
 import { call, code, literal } from './storybook-usage.mjs';
@@ -918,4 +919,33 @@ const CRATE_BANNER = element('crate-banner', {
   },
 });
 
-export const ELEMENT_STORIES = [PANEL, FRAME, PLATE, COUNT, MODE, CHIP, LAMP, ROW, GAUGE, NUMERAL, METER, RAIL, MARKER, LINE_METER, COLUMN_BLOCK, TAB_RULE, ACTION_LABEL, POPUP_HEADER, NOTICE_ROW, SCOPE_METER, SOUNDING_METER, FEED_BEZEL, INPUT_FRAME, CALLOUT, DOCUMENT_BLOCK, SHEET_CARD, DESK_TRAY, OPERATION_ROW, ...DASHBOARD_STORIES, SECTION_HEAD, BOARD_MARKS, TIME_LANE, READOUT, EVENT_ROW, SCROLL_RAIL, CRATE_BANNER];
+// The unit plate: the Pi droid header's maker's plate. Fixtures only; the host supplies the unit, serial and seed.
+const UNIT = { unit: 'DRD-C0DE', serial: '0000-BEEF', seed: 0xbeef };
+const UNIT_PLATE = element('unit-plate', {
+  title: 'UNIT PLATE',
+  summary: 'A unit\'s six-row brushed-aluminium maker\'s plate: the maker over a pixel wordmark, the serial in the bottom hairline, a title block and a hollow acid peak. Returns lines and the peak\'s painted cells.',
+  rules: [
+    'The title block needs two cells clear of the left block, and the peak two cells clear of it and three of the title block; else they are left out.',
+    'The peak\'s strokes are three solid cells wide, narrowing to two and one as the room shrinks.',
+    'Too narrow for the pixels, the unit is bold text; the maker and the unit clip with an ellipsis, the maker losing its ® first.',
+    'An unknown digit is drawn as a ? in label grey, never as a zero.',
+    'The barcode is seeded by the host: the same seed always draws the same bars.',
+  ],
+  variants: [
+    { name: 'HANGING', note: 'Fixture: the droid header\'s plate at 104 cells, the peak between the blocks.', input: UNIT, width: 104 },
+    { name: 'STACKED', note: 'At 64 cells there is no room for the peak; the title block stays.', input: UNIT, width: 64 },
+    { name: 'PLATE ONLY', note: 'titleBlock false: the maker, wordmark and serial only, as the header draws from 40 to 55 cells.', input: UNIT, width: 48, titleBlock: false },
+    { name: 'UNKNOWN', note: 'A session with no ID: the unit and serial digits are unknown.', input: { ...UNIT, unit: 'DRD-????', serial: '????-????' }, width: 64 },
+  ],
+  specimen(v, width) {
+    const w = within(width, v.width), options = v.titleBlock === false ? { width: w, titleBlock: false } : { width: w };
+    const made = unitPlate(v.input, options);
+    return {
+      lines: made.lines.map((line) => fitLine(line, width)),
+      calls: [`unit = ${literal(v.input)}`, `${call('unitPlate', code('unit'), options)}.lines`],
+      facts: [`${w} CELLS, ${made.lines.length} ROWS; PEAK ${made.paint.length ? `${made.paint[0].end - made.paint[0].start - 2}-CELL STROKES` : 'none'}`],
+    };
+  },
+});
+
+export const ELEMENT_STORIES = [PANEL, FRAME, PLATE, COUNT, MODE, CHIP, LAMP, ROW, GAUGE, NUMERAL, METER, RAIL, MARKER, LINE_METER, COLUMN_BLOCK, TAB_RULE, ACTION_LABEL, POPUP_HEADER, NOTICE_ROW, SCOPE_METER, SOUNDING_METER, FEED_BEZEL, INPUT_FRAME, CALLOUT, DOCUMENT_BLOCK, SHEET_CARD, DESK_TRAY, OPERATION_ROW, ...DASHBOARD_STORIES, SECTION_HEAD, BOARD_MARKS, TIME_LANE, READOUT, EVENT_ROW, SCROLL_RAIL, CRATE_BANNER, UNIT_PLATE];

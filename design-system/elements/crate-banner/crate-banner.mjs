@@ -5,8 +5,9 @@ import { assertCells, fitText, GLYPHS, lineWidth, span } from '../../foundation/
 import { CellGrid } from '../../foundation/cell-grid.mjs';
 import { INDUSTRIALOS_COLORS } from '../../foundation/industrialos-colors.mjs';
 import { SIGNAL_COLORS } from '../../foundation/signal-colors.mjs';
-import { blendFill } from '../../foundation/surface.mjs';
-import { ALUMINIUM_GROUND, FROST_ALPHA, SURFACE_PALETTE } from '../../foundation/surface-palette.mjs';
+import { barcode as bars } from '../../foundation/barcode.mjs';
+import { aluminiumAt, blendFill } from '../../foundation/surface.mjs';
+import { FROST_ALPHA, SURFACE_PALETTE } from '../../foundation/surface-palette.mjs';
 
 // The plate is drawn on light paper with paper hairlines, then brushed: the aluminium ground replaces each paper cell.
 const PAPER = INDUSTRIALOS_COLORS.find((c) => c.id === 'light-paper').hex;
@@ -119,11 +120,9 @@ function prefixWidths(items) {
 
 // The serial's barcode as the approved mockup draws it: a string-seeded generator picks bars between guard bars.
 // Its arithmetic is kept exactly, double rounding in the multiply included, so the bars match the mockup's.
-const BARS = ['▏', '▎', '▍', '▌', '▐', '█', ' ', '▏', '▍', ' '];
 function barcode(seed, n) {
   let h = [...seed].reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) >>> 0, 7);
-  const bars = Array.from({ length: n - 2 }, () => BARS[((h = (h * 1103515245 + 12345) >>> 0) >>> 16) % BARS.length]);
-  return `▌${bars.join('')}▐`;
+  return bars(n, (count) => ((h = (h * 1103515245 + 12345) >>> 0) >>> 16) % count);
 }
 
 function full(v, width, measure) {
@@ -228,22 +227,11 @@ function compact(v, width, measure) {
   return { grid, tools: drawTools(grid, 0, right.x, chosen.items, measure) };
 }
 
-// The aluminium ground of plate cell (x, y) and its hairline, as the approved mockup computes them; t runs 0–1 down
-// the six plate rows and u -1–1 across them (0 on a one-cell row). The compact row is plate row 0.
-const channel = (v) => Math.max(0, Math.min(255, Math.round(v)));
-const hex = (rgb) => '#' + rgb.map((v) => v.toString(16).padStart(2, '0')).join('');
-function aluminium(x, y, width) {
-  const { base, band, fall, streaks, channels, hair } = ALUMINIUM_GROUND;
-  const t = y / 5, u = width === 1 ? 0 : 2 * x / (width - 1) - 1;
-  const l = streaks.reduce((sum, s) => sum + s.amplitude * Math.sin(x * s.x + y * s.y), base + band * (1 - u * u) - fall * t);
-  const rgb = channels.map((d) => channel(l + d));
-  return { ground: hex(rgb), hair: hex(rgb.map((v) => channel(v + hair))) };
-}
 // Every paper cell of a plate row takes the ground, and a paper hairline follows it. Lines hold one span per cell.
 function brush(line, y) {
   return line.map((s, x) => {
     if (s.style.bg !== PAPER) return s;
-    const { ground, hair } = aluminium(x, y, line.length);
+    const { ground, hair } = aluminiumAt(x, y, { width: line.length });
     return span(s.text, { ...s.style, bg: ground, ...(s.style.fg === HAIR ? { fg: hair } : {}) });
   });
 }

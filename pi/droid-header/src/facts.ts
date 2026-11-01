@@ -57,6 +57,21 @@ export function assignment(cwd: string, branch: Branch): string {
 	return `${project} · ${where.toUpperCase()}`;
 }
 
+/**
+ * The Escape hint's action: `steer` once a ready manifest shows claude-interrupt, which makes Escape continue on the
+ * queued text; otherwise `interrupt`, Pi's own behavior. It shows when an extension is listed as `claude-interrupt` or
+ * `<package>/claude-interrupt`, or `steering` is set because an enabled extension's path is claude-interrupt's (a
+ * package that contributes only it is listed by its package name). The manifest lists what Pi's settings enable, so a
+ * claude-interrupt loaded only with `-e` is not seen.
+ */
+export function interruptAction(manifest: { status: string; extensions?: readonly string[]; steering?: boolean }): "steer" | "interrupt" {
+	if (manifest.status !== "ready") return "interrupt";
+	const listed = (manifest.extensions ?? []).some((name) => name === "claude-interrupt" || name.endsWith("/claude-interrupt"));
+	return listed || manifest.steering ? "steer" : "interrupt";
+}
+/** Whether an enabled extension is claude-interrupt: a `claude-interrupt` or `pi-claude-interrupt` folder or file on its path. */
+export const isClaudeInterrupt = (path: string) => /(?:^|[\\/])(?:pi-)?claude-interrupt(?:[\\/]|\.[^\\/]*$)/.test(path);
+
 /** DEPLOYED: a local wall-clock time as HH:MM:SS. */
 export const clock = (date: Date) => [date.getHours(), date.getMinutes(), date.getSeconds()].map((n) => String(n).padStart(2, "0")).join(":");
 

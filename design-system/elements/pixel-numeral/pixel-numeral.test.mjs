@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { stripVTControlCharacters } from 'node:util';
 import { GLYPHS, lineWidth, paint, span } from '../../foundation/cells.mjs';
-import { FONT, HEX_FONT, NUMERAL_TONES, numeralAt, numeralGrid, numeralLines, pixelNumeral, textGrid } from './pixel-numeral.mjs';
+import { FONT, HEX_FONT, LETTER_FONT, NUMERAL_TONES, numeralAt, numeralGrid, numeralLines, pixelNumeral, textGrid } from './pixel-numeral.mjs';
 const text = (lines) => lines.map((line) => paint(line, 'none'));
 
 test('exact extension pixel snapshots and 13-column minimum', () => {
@@ -84,9 +84,22 @@ test('hex text grids: exact width, distinct letters, the same packing and recons
   assert.deepEqual(numeralAt(unit, { w: 15, g: Array.from({ length: 6 }, () => Array(15).fill(null)) }, 1, 7), unit);
   // numeralGrid keeps its digit-only reading contract.
   assert.deepEqual(textGrid('64.0'), numeralGrid(64));
-  for (const bad of ['', 'c0de', 'G', '1 2', 'A'.repeat(251)]) assert.throws(() => textGrid(bad), RangeError, JSON.stringify(bad));
+  for (const bad of ['', 'c0de', 'G', 'r', '1 2', 'A'.repeat(251)]) assert.throws(() => textGrid(bad), RangeError, JSON.stringify(bad));
   for (const bad of [null, 12, ['A']]) assert.throws(() => textGrid(bad), TypeError);
   assert.throws(() => textGrid('A', { ink: 'bad' }), TypeError);
+});
+test('unit-code letters: R draws DRD- in the same stroke, never as A, in the instrument and dashboard faces', () => {
+  assert.deepEqual(Object.keys(LETTER_FONT), ['R']);
+  assert.ok(Object.isFrozen(LETTER_FONT) && Object.values(LETTER_FONT).every(Object.isFrozen));
+  assert.deepEqual(LETTER_FONT.R, ['110', '101', '110', '101', '101']);
+  // The droid header's wordmark: eight glyphs and seven gaps.
+  const mark = textGrid('DRD-C0DE');
+  assert.equal(mark.w, 31);
+  assert.deepEqual(text(numeralLines(mark, { width: 31 })), ['█▀▄ █▀▄ █▀▄     █▀▀ █▀█ █▀▄ █▀▀', '█ █ █▀▄ █ █ ▀▀▀ █   █ █ █ █ █▀▀', '▀▀  ▀ ▀ ▀▀      ▀▀▀ ▀▀▀ ▀▀  ▀▀▀']);
+  const shapes = [...Object.values(FONT), ...Object.values(HEX_FONT), ...Object.values(LETTER_FONT)].map((rows) => rows.join('/'));
+  assert.equal(new Set(shapes).size, shapes.length);
+  assert.deepEqual(textGrid('R', { face: 'dashboard' }), textGrid('R'));
+  assert.throws(() => textGrid('R', { face: 'tall' }), RangeError);
 });
 test('invalid dimensions, values, tones, grids, progress and seeds throw', () => {
   for (const value of [NaN, Infinity, '1', true]) assert.throws(() => numeralGrid(value), RangeError);

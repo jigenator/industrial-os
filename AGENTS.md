@@ -117,7 +117,8 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [design-system/elements/event-row/README.md](design-system/elements/event-row/README.md) | Event row contract: log and detail forms | Using or changing event rows |
 | [design-system/elements/scroll-rail/README.md](design-system/elements/scroll-rail/README.md) | Scroll rail contract: track, thumb and nothing-to-scroll | Using or changing scroll rails |
 | [design-system/elements/crate-banner/README.md](design-system/elements/crate-banner/README.md) | Crate banner contract | Using or changing crate-banner |
-| [design-system/motions/README.md](design-system/motions/README.md) | Every motion's contract, parameters, rates, presets, state-cell opt-in, motion-off, host timing, and extension rules | Using, adding, or changing a motion |
+| [design-system/elements/unit-plate/README.md](design-system/elements/unit-plate/README.md) | Unit plate contract: maker, pixel wordmark, serial, title block, barcode and peak | Using or changing the unit plate |
+| [design-system/motions/README.md](design-system/motions/README.md) | Every motion's contract, parameters, rates, presets, state-cell opt-in, motion-off, host timing, and extension rules, including the CRT boot | Using, adding, or changing a motion |
 | [design-system/examples/README.md](design-system/examples/README.md) | Storybook keys, sections and scrolling index, playback rates, the marker timeline, reuse examples, host seam, and how to add stories | Using the storybook or showcase, adding a story, or changing a host |
 | [pi/README.md](pi/README.md) | Pi extensions index, status, and install | Using the Pi extensions or adding one |
 | [pi/AGENTS.md](pi/AGENTS.md) | Rules every Pi extension shares and the required project set | Working anywhere in `pi/` |
@@ -190,7 +191,7 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [pi/droid-header/CONTRIBUTING.md](pi/droid-header/CONTRIBUTING.md) | droid-header toolchain, exact checks and verification records | Making or verifying a droid-header change |
 | [pi/droid-header/docs/architecture.md](pi/droid-header/docs/architecture.md) | droid-header modules, flow, state, host seams and invariants | Changing behavior, lifecycle, I/O or host dependencies |
 | [pi/droid-header/docs/conventions.md](pi/droid-header/docs/conventions.md) | droid-header engineering rules and adoption gaps | Writing or reviewing code |
-| [pi/droid-header/docs/design.md](pi/droid-header/docs/design.md) | droid-header layouts, values, states, motion rates, colors and mock deviations | Changing anything human-facing |
+| [pi/droid-header/docs/design.md](pi/droid-header/docs/design.md) | droid-header layouts, values, states, intro rates, colors, the approved reference and its deviations | Changing anything human-facing |
 | [pi/droid-header/docs/mission.md](pi/droid-header/docs/mission.md) | droid-header goals, non-goals and constraints | Choosing or changing scope |
 | [pi/theme/README.md](pi/theme/README.md) | The Pi theme's purpose, install and limits | Using the Pi theme or changing its public usage |
 | [pi/theme/AGENTS.md](pi/theme/AGENTS.md) | Pi theme rules, routes and placement | Working anywhere in pi/theme |

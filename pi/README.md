@@ -11,7 +11,7 @@ Pi extensions that carry the Industrial OS visual and interaction language into 
 - [herdr-pane-naming](herdr-pane-naming/README.md): names only its own inherited Herdr pane from delivered user text and assistant activity, using TypeSafe/Jev and a title model; main TUI only.
 - [session-recap](session-recap/README.md): UI-only brief away recaps and manual detailed active-branch recaps through a separate model; TUI only.
 - [image-preview](image-preview/README.md): previews image files whose paths are in the editor, above the editor, without changing the draft or the message; TUI only.
-- [droid-header](droid-header/README.md): replaces Pi's startup header with the Acid / Black droid details panel: this session's droid ID, model, Herdr pane, project and branch, and a manifest of what Pi's settings load; TUI only.
+- [droid-header](droid-header/README.md): replaces Pi's startup header with the droid header, a brushed-aluminium unit plate over a ledger: this session's droid ID, model, Herdr pane, project and branch, and a manifest of what Pi's settings load; TUI only.
 - [theme](theme/README.md): the `industrial-os` Pi theme, Acid / Black neutrals with a bone editor border; a theme file, not an extension.
 
 None of the extensions is published to npm.

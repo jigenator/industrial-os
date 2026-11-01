@@ -1,91 +1,109 @@
 # Design
 
-When Pi opens, the top of the screen identifies the agent you are talking to and what it has loaded: one framed Acid / Black panel in place of Pi's logo and hints. It reads like a machine's data plate. Every value is real, and the panel never adds keys, focus or modes. Install, `quietStartup` and limits are in the [README](../README.md); this page owns presentation. The approved mock it follows is the operator's `approved-mockup.mjs`, settled at 104 columns, reproduced cell for cell by the golden test apart from the [deviations](#deviations-from-the-approved-mock).
+When Pi opens, the top of the screen identifies the agent you are talking to and what it has loaded, in place of Pi's logo and hints: a brushed-aluminium maker's plate, a frosted strip of key hints, and a ledger of the droid's specifications and manifest on the chat pane's dark surface. Every value is real, and the header never adds keys, focus or modes. Install, `quietStartup` and limits are in the [README](../README.md); this page owns presentation. It follows the [approved reference](#approved-reference) cell for cell at 104 and 64 columns, apart from the [deviations](#deviations-from-the-approved-reference).
 
 ## Layouts
 
-**Full, 100 columns and wider.** The frame fills the terminal width; columns past 104 widen the value areas, the manifest and the rules.
+**Hanging ledger, 100 columns and wider.** The plate's title block and peak, the hints on one row, and a 16-cell gutter that holds `SPECIFICATIONS`, `MANIFEST` and each hold's name and count, with the values and items hanging from it.
 
 ```text
-┏━ DRD-C0DE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ● ━┓
-┃                                                                                                      ┃
-┃  █▀▀ █▀█ █▀▄ █▀▀     01 CLS  PI AGENT DROID                  04 SCT  WA1.T1                          ┃
-┃  █   █ █ █ █ █▀▀     02 COR  OPUS-5.5 / HIGH                 05 MOD  004 MODULES            \|/      ┃
-┃  ▀▀▀ ▀▀▀ ▀▀  ▀▀▀     03 FRM  PI 1.4.0                        06 SKL  003 SKILLS             -*-      ┃
-┃  ▏▐▏▐▍▐▎▏▌▎▍▎▏▐▐     •••••   DEPLOYED 09:30:00 ───────────────────┤  ASSIGNMENT             /|\      ┃
-┃  ▏▐▏▐▍▐▎▏▌▎▍▎▏▐▐     •••••                                        │  INDUSTRIAL-OS · MAIN            ┃
-┃                                                                                                      ┃
-┣━ MANIFEST ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃                                                                                                      ┃
-┃   CTX  02      ▪ ~/.pi/agent/AGENTS.md  ▪ AGENTS.md                                                  ┃
-┃   CONTEXT                                                                                            ┃
-┃                                                                                                      ┃
-┃   SKL  03      ▪ code-review  ▪ debugging  ▪ release-notes                                           ┃
-┃   SKILLS                                                                                             ┃
-┃                                                                                                      ┃
-┃   PRM  02      ▪ /plan  ▪ /review                                                                    ┃
-┃   PROMPTS                                                                                            ┃
-┃                                                                                                      ┃
-┃   EXT  04      ▪ ask-user  ▪ industrial-os/droid-header  ▪ industrial-os/status-bar                  ┃
-┃   MODULES      ▪ pi-web-access                                                                       ┃
-┃                                                                                                      ┃
-┗━ SES-0000BEEF│PNE-WA1:P1│PI-1.4.0 ━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┻━━━━━━━━━━━┻━┛
++─────────────────────────────────────────────────────◢───◤◥───◣───────────────────────────────────────+
+  INDUSTRIAL-OS ®                                    ◢   ◤  ◥   ◣                     ⟁ PI AGENT DROID
+  █▀▄ █▀▄ █▀▄     █▀▀ █▀█ █▀▄ █▀▀                   ◢   ◤    ◥   ◣                    ▌ ▌ ▍ ▍▏█▎▍ ▏█▎▐
+  █ █ █▀▄ █ █ ▀▀▀ █   █ █ █ █ █▀▀                  ◢   ◤      ◥   ◣                   ▌ ▌ ▍ ▍▏█▎▍ ▏█▎▐
+  ▀▀  ▀ ▀ ▀▀      ▀▀▀ ▀▀▀ ▀▀  ▀▀▀                 ◢   ◤        ◥   ◣                  HALDENN DYNAMICS
++ S/N 0000-BEEF ─────────────────────────────────◢───◤──────────◥───◣──────────────────────────────────+
+                  escape steer         ctrl+c clear         / commands           ! bash
+  ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·
+  SPECIFICATIONS  MODEL                OPUS-5.5 / HIGH      SECTOR               WA1.T1
+  ·   ·   ·   ·   FRAMEWORK   ·   ·    PI 1.4.0   ·   ·   · PANE  ·   ·   ·   ·  WA1:P1   ·   ·   ·   ·
+                  DEPLOYED             09:30:00             ASSIGNMENT           INDUSTRIAL-OS · MAIN
+  ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·
 
- escape interrupt · ctrl+c clear · / commands · ! bash
+  MANIFEST    31  ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·
+
+  CONTEXT ·   02  ~/.pi/agent/AGENTS.md   ·   ·   ·   ·   · AGENTS.md ·   ·   ·   ·   ·   ·   ·   ·   ·
+
+  SKILLS      12  code-review ·   ·    design-review  ·   · incident-response ·  release-notes
+                  commit-messages      docs-writing         migrations           security-review
+                  debugging            frontend-design    · perf-profiling       test-planning
+
+  PROMPTS     03  /explain             /plan                /review
+
+  EXTENSIONS  14  ask-user                                  industrial-os/image-preview
+                  example-tasks                             industrial-os/session-recap
+                  …                                         …
 ```
 
-The unit number is the design system's 3×5 pixel numeral (hex letters from `HEX_FONT`), over a two-row barcode seeded from the session. Six numbered plates sit in two columns; values are clipped with `…` before the next column or the starburst. Manifest items flow with two cells between them and wrap under their hold; a hold is at least two rows, its name under its plate.
+The extensions hold is cut short here; it continues for its 14 items. The floor's dots fade out toward the last row, which is black.
 
-**Compact, 40 to 99 columns.** One column of plates, values to the frame; no numeral, barcode, dot grid or starburst. The manifest wraps as in the full layout.
+**Stacked ledger, 56 to 99 columns.** The same plate without the peak below 72 columns, the hints in rows, `SPECIFICATIONS` and each hold's name on their own rows with the count on the second column line, and the values and items under them.
 
 ```text
-┏━ DRD-C0DE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ● ━┓
-┃                                                              ┃
-┃   01 CLS  PI AGENT DROID                                     ┃
-┃   02 COR  OPUS-5.5 / HIGH                                    ┃
-┃   03 FRM  PI 1.4.0                                           ┃
-┃   04 SCT  WA1.T1                                             ┃
-┃   05 MOD  004 MODULES                                        ┃
-┃   06 SKL  003 SKILLS                                         ┃
-┃                                                              ┃
-┃   DEPLOYED 09:30:00                                          ┃
-┃   ASSIGNMENT  INDUSTRIAL-OS · MAIN                           ┃
-┃                                                              ┃
-┣━ MANIFEST ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃                                                              ┃
-┃   CTX  02      ▪ ~/.pi/agent/AGENTS.md  ▪ AGENTS.md          ┃
-┃   CONTEXT                                                    ┃
-┃                                                              ┃
-┃   SKL  03      ▪ code-review  ▪ debugging                    ┃
-┃   SKILLS       ▪ release-notes                               ┃
-┃                                                              ┃
-┃   PRM  02      ▪ /plan  ▪ /review                            ┃
-┃   PROMPTS                                                    ┃
-┃                                                              ┃
-┃   EXT  04      ▪ ask-user  ▪ industrial-os/droid-header      ┃
-┃   MODULES      ▪ industrial-os/status-bar                    ┃
-┃                ▪ pi-web-access                               ┃
-┃                                                              ┃
-┗━ SES-0000BEEF│PNE-WA1:P1│PI-1.4.0 ━━━━━┻━━━━━━━━━━━┻━━━━━━━━━┛
++──────────────────────────────────────────────────────────────+
+  INDUSTRIAL-OS ®                             ⟁ PI AGENT DROID
+  █▀▄ █▀▄ █▀▄     █▀▀ █▀█ █▀▄ █▀▀             ▌ ▌ ▍ ▍▏█▎▍ ▏█▎▐
+  █ █ █▀▄ █ █ ▀▀▀ █   █ █ █ █ █▀▀             ▌ ▌ ▍ ▍▏█▎▍ ▏█▎▐
+  ▀▀  ▀ ▀ ▀▀      ▀▀▀ ▀▀▀ ▀▀  ▀▀▀             HALDENN DYNAMICS
++ S/N 0000-BEEF ───────────────────────────────────────────────+
+  escape steer        / commands
+  ctrl+c clear        ! bash
+  ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·
+  SPECIFICATIONS
+  MODEL   ·   ·   ·   OPUS-5.5 / HIGH ·   ·   ·   ·   ·   ·   ·
+  FRAMEWORK           PI 1.4.0
+  DEPLOYED    ·   ·   09:30:00    ·   ·   ·   ·   ·   ·   ·   ·
+  SECTOR              WA1.T1
+  PANE    ·   ·   ·   WA1:P1  ·   ·   ·   ·   ·   ·   ·   ·   ·
+  ASSIGNMENT          INDUSTRIAL-OS · MAIN
+  ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·
 
- escape interrupt · ctrl+c clear · / commands · ! bash
+  MANIFEST    ·   ·   31  ·   ·   ·   ·   ·   ·   ·   ·   ·   ·
+
+  CONTEXT ·   ·   ·   02  ·   ·   ·   ·   ·   ·   ·   ·   ·   ·
+  ~/.pi/agent/AGENTS.md
+  AGENTS.md   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·
+
+  SKILLS  ·   ·   ·   12  ·   ·   ·   ·   ·   ·   ·   ·   ·
+  code-review         docs-writing        perf-profiling
+  …
 ```
 
-**Minimal, below 40 columns.** One settled line, `DRD-C0DE ● PI-1.4.0 · 004 MOD · 003 SKL`, clipped with `…`; no manifest, hints or motion.
+**Plate only, 40 to 55 columns.** The plate keeps the maker, the `DRD-` wordmark and the serial only, with no title block or peak, over the stacked ledger:
 
-Every line is exactly the terminal width. Key hints that do not fit are dropped whole from the end.
+```text
++──────────────────────────────────────────────+
+  INDUSTRIAL-OS ®
+  █▀▄ █▀▄ █▀▄     █▀▀ █▀█ █▀▄ █▀▀
+  █ █ █▀▄ █ █ ▀▀▀ █   █ █ █ █ █▀▀
+  ▀▀  ▀ ▀ ▀▀      ▀▀▀ ▀▀▀ ▀▀  ▀▀▀
++ S/N 0000-BEEF ───────────────────────────────+
+  escape steer          / commands
+  ctrl+c clear          ! bash
+```
+
+**Minimal, below 40 columns.** One settled line, `DRD-C0DE ● PI-1.4.0 · 014 MOD · 012 SKL`, clipped with `…`; no plate, ledger, hints or intro.
+
+The plate is the design system's [unit plate](../../../design-system/elements/unit-plate/README.md); its geometry, the peak's room rules and the long-maker order are in its contract. The ledger's table is one set of equal columns per width, at least 20 cells each (two columns of 18–19 cells below 44 columns), from the gutter (hanging) or the left margin (stacked) to three cells before the right edge. Every value, hold item and hint starts on a column line:
+
+- A specification's label is on one column line and its value on the next; a value runs to two cells before the next group's label, or to the right margin, and is clipped there with `…`.
+- A hold's items, and the hints, flow top to bottom through the narrowest span of columns (one column, a whole divisor of the column count, or all of them) whose columns hold the longest item with two cells to spare. An item wider than the whole table is clipped to it with `…`.
+- An empty hold shows its name and `00` and no items.
+
+Every line is exactly the terminal width at every width; above 1000 columns the 1000-column header is padded with the field. Layout never throws.
 
 ## Values
 
 | Field | Rule |
 | --- | --- |
 | Unit, `DRD-` | The last four hex digits of the session ID, uppercased; `????` when the ID has fewer than eight |
-| `SES-` | The first eight hex digits; `????????` when unknown. They also seed the barcode, dither and decode |
-| `02 COR` | A short model label, then the thinking level uppercased: the provider prefix, a `claude-` word and a date or `-latest` suffix are dropped, a trailing `N-N` reads `N.N` (`anthropic/claude-sonnet-4-5-20250929` → `SONNET-4.5`). Pi's placeholder model (provider and ID `unknown`) and a missing level are `--` |
-| `03 FRM`, `PI-` | Pi's `VERSION` |
-| `04 SCT` | `HERDR_WORKSPACE_ID` and the tab part of `HERDR_TAB_ID`, joined with `.` and uppercased (`wA1`, `wA1:t1` → `WA1.T1`) |
-| `PNE-` | `HERDR_PANE_ID` uppercased. IDs that are not 1–32 of `A-Za-z0-9:._-` count as absent; absent is `--` |
-| `05 MOD`, `06 SKL` | Three-digit extension and skill counts from the manifest; `--` until it is ready |
+| `S/N` | The first eight hex digits as `0000-BEEF`; `????-????` when unknown. They also seed the barcode and the intro |
+| `MODEL` | A short model label, then the thinking level uppercased: the provider prefix, a `claude-` word and a date or `-latest` suffix are dropped, a trailing `N-N` reads `N.N` (`anthropic/claude-sonnet-4-5-20250929` → `SONNET-4.5`). Pi's placeholder model (provider and ID `unknown`) and a missing level are `--` |
+| `FRAMEWORK`, `PI-` | `PI` and Pi's `VERSION` |
+| `SECTOR` | `HERDR_WORKSPACE_ID` and the tab part of `HERDR_TAB_ID`, joined with `.` and uppercased (`wA1`, `wA1:t1` → `WA1.T1`) |
+| `PANE` | `HERDR_PANE_ID` uppercased. IDs that are not 1–32 of `A-Za-z0-9:._-` count as absent; absent is `--` |
+| `MANIFEST` and each hold's count | The total and each hold's count as two digits or more, from the manifest; `--` until it is ready. The minimal line's `MOD` and `SKL` are three-digit extension and skill counts |
+| Escape hint | Pi's interrupt key, then `steer` once the ready manifest shows claude-interrupt enabled (an extension named `claude-interrupt` or `…/claude-interrupt`, or any enabled extension whose path has a `claude-interrupt` or `pi-claude-interrupt` folder or file), and `interrupt` while the manifest is pending or unavailable, or does not show it |
 | `DEPLOYED` | Local `HH:MM:SS` when this Pi process first saw the session |
 | `ASSIGNMENT` | The working folder's name uppercased, `·`, and the branch (or the first seven hex digits of a detached commit), uppercased; `--` for a HEAD it cannot read; just the folder outside a repository |
 | Context | Pi's context files in load order, relative to the working folder, else `~/` for home, else absolute |
@@ -99,63 +117,66 @@ Untrusted text shows controls and bidi marks as `?` and is clipped on whole grap
 
 | State | Shown |
 | --- | --- |
-| Manifest pending | Counts `--`, the manifest area empty below the divider; never `000` or LOADING |
-| Manifest ready | Counts and the four holds; an empty hold shows `00` and no items |
-| Manifest unavailable | `MANIFEST UNAVAILABLE` in critical and `· <reason>` in secondary, counts `--`; never animated or scrambled. Reasons include `SETTINGS UNREADABLE: global ~/.pi/agent/settings.json` (each unreadable file's scope and path) |
-| Unknown session, outside Herdr, no model | `????`, `--` as in [values](#values); the unknown numeral is drawn in decorative |
+| Manifest pending | The `MANIFEST` total `--` and nothing under it; never `00` or LOADING. The Escape hint says `interrupt` |
+| Manifest ready | The total and the four holds; an empty hold shows `00` and no items |
+| Manifest unavailable | The total `--`, then `MANIFEST UNAVAILABLE` in critical and `· <reason>` in secondary; never typed or garbled by the intro. Reasons include `SETTINGS UNREADABLE: global ~/.pi/agent/settings.json` (each unreadable file's scope and path) |
+| Unknown session | `DRD-????` and `S/N ????-????`, the unknown digits drawn as `?` in label grey |
+| Outside Herdr, no model | `--` as in [values](#values) |
 | Not a repository | The folder name alone |
 
 ## Motion
 
-Only a fresh, empty session animates: Pi's `startup` or `new`, with nothing but setting entries. The intro plays once, at most 20 frames a second, and every frame is a pure function of its time:
+Only a fresh, empty session animates: Pi's `startup` or `new`, with nothing but setting entries, and `NO_MOTION` unset or empty. The intro is the design system's [CRT boot](../../../design-system/motions/README.md#crtbootlines-options-and-crtbootdurationlines-options) over the whole settled header, seeded from the session, played once and drawn at most every 50 ms (20 frames a second). Every frame is a pure function of the state, the width, the time and the seed; the settled frame is exactly the header above.
 
 | Time (ms) | What happens | Rate |
 | --- | --- | --- |
-| 0–500 | Top rule draws left to right | |
-| 0–1500 | Lamp blinks `○`/`●`, then holds `●` | Flips every 80 ms, about 6 flashes a second |
-| 100–900 | Side rails draw down | |
-| 250–800 | Bottom rule draws right to left | |
-| 300–1000 | Unit number assembles from the design system's numeral dither | |
-| 500 + 170 × plate | Each plate warms through accent 25, 50, 75 % to acid | 60 ms per step |
-| 700 + 170 × plate | Its value decodes: blank, scramble, true text | Glyph changes every 70 ms; true within 500 ms |
-| 700–1100 | Barcode scans in | |
-| 900–1300 | `MANIFEST` divider draws | |
-| 1100 | Dot grid appears | |
-| 1200–1600 | `DEPLOYED` leader types | |
-| 1300 until settled | Starburst spins `\|/-\`, then rests on `*` | Steps every 70 ms |
-| 1500–2000 | `ASSIGNMENT` types | |
-| 1200–2700 | Manifest items print in order; a hold's plate flashes acid as it starts | Plate flash 120 ms |
-| 2500–2900 | Key hints appear group by group | |
-| 2900 | Settled | |
+| 0–120 | Power-on: a bright line across the middle row, no text | Once |
+| 120–350 | The grounds come up: the aluminium, the frosted strip and the dark floor with its dots, no text | Every other 50 ms frame dims: 10 flickers a second |
+| From 350 | Each row types left to right behind an acid `█` cursor, the two cells behind it garbled and, on the dark floor, about ten more in bright phosphor | 50 ms chunks of 4–11 cells (20 a second) |
+| `350 + row × stagger` | Row starts, plus a seeded 0–250 ms jitter. `stagger = min(42, 2100 / (rows − 1))` ms, so every row starts within 2.1 s of the first however tall the header | |
+| 700–1600 | One refresh bar, three rows lifted toward white, rolls down once | |
+| Seeded | Four row tears (1–3 rows shifted 1–4 cells right) and two whole-header flickers, each 50 or 100 ms | Two whole-header flickers |
+| End | The last row's end plus 150 ms: about 1.9–3.5 s up to 200 columns, about 4.3 s at 300 columns with a long manifest, never later than 5.85 s | |
 
-A ready manifest that arrives during the intro prints from its arrival, so the intro ends at most 1.7 s later (at most 4.6 s in all); one that arrives after the intro appears settled at once. The compact layout runs the same timeline without the numeral, barcode, dots and starburst.
+The peak's acid paint is typed with its row and hidden under the aluminium until then; the floor's dots are part of the ground and show from 120 ms. A ready manifest that arrives during the intro types its holds from its arrival, its rows staggered as above, and extends the intro by as long as they take; one that arrives after the intro appears settled at once. As a backstop for a header Pi stops drawing, the intro settles 8 s after it starts whatever the frame.
 
-Decode uses the [root decode exception](../../../docs/design.md#motion): only plate values decode, each within 500 ms, and the failure state never does. Typed rows reveal real text; nothing suggests progress that is not happening, and no frame shows a percentage or a loading word.
+This is the [root motion exception](../../../docs/design.md#motion) for the droid header: typing hides cells it has not reached and garbles two at its cursor, then shows the true text. A row holding a warning or critical cell, such as `MANIFEST UNAVAILABLE`, shows settled in every frame, so a failure is never typed or garbled. Nothing suggests progress that is not happening: the rows type at a seeded pace, not with the manifest's progress, and no frame shows a percentage or a loading word.
 
-The first keystroke, a submitted message or an agent start settles the intro at once, without taking the key. Resumed, forked and reloaded sessions, sessions with content, and `NO_MOTION` set to any non-empty value show the settled panel immediately. The lamp is decoration, not a status: it does not track activity. Its 80 ms flashes and the starburst are fast motion with no photosensitivity check.
+The first keystroke, a submitted message or an agent start settles the intro at once, without taking the key. Resumed, forked and reloaded sessions, sessions with content, and `NO_MOTION` set to any non-empty value show the settled header immediately. The 10-a-second grounds flicker and the whole-header flickers are flashing motion with no photosensitivity check.
 
 ## Colors
 
-All from the design system's Acid / Black roles and Pi chrome, never the Pi theme:
+All from the design system, never the Pi theme:
 
-| Part | Role |
+| Part | Color |
 | --- | --- |
-| Frame, rules, junctions, separators | structural |
-| `DRD-` ID, starburst | accent |
-| Lamp | Pi chrome `lamp` |
-| Plates | field on accent, warming through `accent25`, `accent50`, `accent75` |
-| Values, numeral, barcode, manifest items, `DEPLOYED` | primary |
-| Hold names, `ASSIGNMENT`, `▪`, dot grid, coordinates, hint keys, an unknown numeral | decorative |
-| Hold plates (settled), `MANIFEST`, hint actions, a failure's reason | secondary |
-| `MANIFEST UNAVAILABLE` | critical |
+| Plate ground and hairlines | The unit plate's brushed aluminium (`ALUMINIUM_GROUND`), hairlines its ground's hairline |
+| Maker, wordmark, title, barcode, serial | `field`, bold for the maker, wordmark and title |
+| `S/N`, division, unknown digits | `SURFACE_PALETTE.aluminiumLabel` |
+| Peak | `accent`, the hairline under it `SIGNAL_COLORS.accent75` |
+| Strip | White at `FROST_ALPHA` over the surface gradient's top row; keys bold `primary`, actions `SURFACE_PALETTE.frostLamp` |
+| Floor | The design system's surface gradient run from 19 to black at the last row (`top` 19, `drop` 19, `edge` 3), its dot lattice one cell clear of ink and left out below lightness 9 |
+| `SPECIFICATIONS`, `MANIFEST`, values | Bold `primary` |
+| Labels, hold counts, a failure's reason | `secondary` |
+| Hold names | Bold `secondary` |
+| Items, the total | `primary` |
+| `MANIFEST UNAVAILABLE` | `critical` |
+| Minimal line | `DRD-` `accent`, `●` Pi chrome `lamp`, the rest `secondary` |
 
-## Deviations from the approved mock
+## Approved reference
 
-- **No `ctrl+o more` hint.** In Pi that key expands only Pi's own header; this one has nothing to expand. The operator chose to drop it.
-- **Key names come from Pi.** `keyText` gives `escape` where the mock wrote `esc`, and follows the user's bindings.
-- **Seeded by the design system.** The barcode uses the design system's seeded generator, and the unit number assembles with its numeral dither, not the mock's own generator and flicker.
-- **Real names.** Manifest names follow [values](#values), not the mock's hand-written list.
-- **Synthetic values in the golden frame.** The mock hard-codes one real session's IDs and start time. The golden test runs it with synthetic ones (`DRD-C0DE`, `SES-0000BEEF`, `WA1:P1`, `WA1.T1`, `09:30:00`) and a public-safe manifest, with the design system's `D` and `E` glyphs added to the mock's font; this page's frames use the same values.
-- **Width.** The mock clamps to 100–140 columns; the header fills any width from 100 and adds the compact and minimal layouts below.
-- **States the mock lacks.** Pending, unavailable and unknown values, and a late manifest extending the intro.
-- **Once.** The mock replays its intro in a loop; the header plays it once.
+The operator's approved droid-header concept work, outside this repository: `work/k-motion/g-shared.mjs` (the plate and ledger), `texture.mjs`, whose `renderTextured(width, STATE, 'aluminium', { transition: 'fade-dots' })` is the final composition, `crt.mjs` (`crtFrame`, `crtDuration`) for the intro, and `data.mjs` for the sample state. `test/header.test.ts` holds that composition's settled output at 104 and 64 columns, every cell's text, colors and weight, generated by running the mockup on its own sample state, which is the state this page's frames show; the design system's CRT boot matches `crtFrame` at every 10 ms of both widths.
+
+## Deviations from the approved reference
+
+- **Hairlines.** The mockup draws the plate's hairlines `#dadada`; the header uses the crate banner's treatment, each cell's aluminium ground 28 darker, so the plate shares one look with the crate banner. The goldens differ from the mockup in those cells' ink only. Approved by the operator.
+- **Narrow tables.** Below 44 columns the ledger keeps two columns of 18–19 cells rather than one, so labels and values stay side by side. The mockup has no layout below 56. Approved.
+- **Stagger cap.** The mockup staggers rows 42 ms apart whatever the height, so a long manifest could boot for many seconds. The stagger is `min(42, 2100 / (rows − 1))` ms; at 104 and 64 columns with the sample state it is the mockup's 42. Approved.
+- **Escape hint.** The mockup always says `steer`. The header says `steer` only once the manifest shows claude-interrupt enabled, else `interrupt`, because without claude-interrupt Escape interrupts. A claude-interrupt loaded only with `-e` is not in the manifest, so the hint then says `interrupt`. Approved.
+- **Key names come from Pi.** `keyText` gives `escape` and `ctrl+c` and follows the user's bindings; a key Pi cannot name is left out.
+- **Barcode and unknown digits.** The barcode is drawn by the design system's `barcode()` from its seeded `random(seed)`, as the mockup's own generator was; an unknown session's digits are `?` in label grey, a state the mockup lacks.
+- **Widths.** The mockup is laid out at fixed widths; the header fills any width from 1, padding past 1000 columns with the field, and adds the plate-only and minimal layouts.
+- **Backstop.** An 8 s limit settles an intro whose frames Pi stops drawing; the mockup has none.
+- **States the mockup lacks.** Pending, unavailable and unknown values, and a late manifest typing from its arrival.
+- **Real names.** Manifest names follow [values](#values), not the mockup's hand-written list. The mockup's sample state, which the goldens use, has synthetic IDs (`DRD-C0DE`, `0000-BEEF`, `WA1:P1`, `WA1.T1`, `09:30:00`) and public-safe names.
+- **Once.** The mockup replays its intro in a loop; the header plays it once.

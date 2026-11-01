@@ -6,8 +6,8 @@ import test, { after, beforeEach } from "node:test";
 import { load, measure, tui } from "./host.ts";
 
 // The extension through the installed host's own Pi packages, with a fake Pi API, context, TUI and clock.
-const { default: droidHeader, DroidHeader, FRAME_MS } = await load("src/extension.ts");
-const { INTRO_MS } = await load("src/header.ts");
+const { default: droidHeader, DroidHeader, FRAME_MS, INTRO_LIMIT_MS } = await load("src/extension.ts");
+const { introEnd, settledFrame } = await load("src/header.ts");
 
 const root = await realpath(await mkdtemp(join(tmpdir(), "droid-header-ext-")));
 after(() => rm(root, { recursive: true, force: true }));
@@ -51,8 +51,9 @@ function harness(options: { mode?: string; reason?: string; entries?: string[]; 
 		getThinkingLevel: () => "high",
 		getCommands: () => [{ name: "flag", source: "extension" }, { name: "plan", source: "prompt" }, { name: "skill:review", source: "skill" }],
 	};
-	const screen = { renders: 0, requestRender() { this.renders++; } };
+	// Like Pi, the fake TUI draws the header (at 104 columns) whenever a render is requested.
 	const state = { header: undefined as any, inputListeners: new Set<(data: string) => unknown>(), setHeaderCalls: 0 };
+	const screen = { renders: 0, requestRender() { this.renders++; state.header?.render(104); } };
 	const ctx = {
 		mode: options.mode ?? "tui", cwd, model: { id: "claude-opus-5-5", provider: "anthropic" }, isProjectTrusted: () => true,
 		sessionManager: { getSessionId: () => options.sessionId ?? "0000beef-0000-4000-8000-00000000c0de", getEntries: () => (options.entries ?? ["thinking_level_change"]).map((type) => ({ type })) },
@@ -72,10 +73,13 @@ function harness(options: { mode?: string; reason?: string; entries?: string[]; 
 	const text = (width = 104) => state.header.render(width).map((line: string) => tui.stripTerminalSequences(line));
 	return { clock, screen, state, emit, start, text };
 }
-/** Waits for the real manifest to be built (the header stops showing pending counts). */
+/** Waits for the real manifest to be built (the header stops showing a pending total). */
+const pending = (rows: string[]) => /MANIFEST +--/.test(rows.join("\n"));
 async function settleManifest(h: { text: () => string[] }) {
-	for (let i = 0; i < 200 && /-- MODULES/.test(h.text().join("\n")); i++) await new Promise((done) => setTimeout(done, 25));
+	for (let i = 0; i < 200 && pending(h.text()); i++) await new Promise((done) => setTimeout(done, 25));
 }
+/** A settled header: the plate's serial and the whole ledger are drawn, with no cursor in the strip or below. */
+const settledText = (rows: string[]) => rows.some((row) => /S\/N 0000-BEEF/.test(row)) && rows.some((row) => /SPECIFICATIONS/.test(row)) && !rows.slice(6).join("").includes("█");
 
 beforeEach(() => { delete process.env.NO_MOTION; });
 
@@ -88,7 +92,7 @@ test("a fresh session animates at most every 50 ms, settles after the intro and 
 	h.clock.advance(1000);
 	const mid = h.screen.renders;
 	assert.ok(mid >= 1000 / FRAME_MS, `${mid} renders requested in the first second`);
-	h.clock.advance(INTRO_MS);
+	h.clock.advance(4000);
 	assert.equal(h.clock.intervals(), 0, "no frame timer after the intro");
 	assert.equal(h.state.inputListeners.size, 0, "the input listener is released when settled");
 	const settled = h.screen.renders;
@@ -96,12 +100,13 @@ test("a fresh session animates at most every 50 ms, settles after the intro and 
 	assert.equal(h.screen.renders, settled, "no renders after settling");
 	// The real manifest, built in-process after the first draw, is drawn settled once it is ready.
 	await settleManifest(h);
-	assert.match(h.text().join("\n"), /EXT {2}01 {6}▪ notes/);
-	assert.match(h.text()[6], /│ {2}PROJECT · MAIN/);
-	assert.match(h.text()[3], /02 COR {2}OPUS-5\.5 \/ HIGH/);
+	const rows = h.text();
+	assert.match(rows.join("\n"), /EXTENSIONS {2}01 {2}notes/);
+	assert.match(rows.join("\n"), /ASSIGNMENT +PROJECT · MAIN/);
+	assert.match(rows.join("\n"), /MODEL +OPUS-5\.5 \/ HIGH/);
 	// Outside interactive mode Pi has not installed its app keybindings, so keyText cannot name the interrupt and clear
 	// keys; those hints are left out rather than guessed. No ctrl+o hint is ever shown.
-	assert.match(h.text().at(-1), /^ \/ commands · ! bash *$/);
+	assert.match(rows[6], /^ {18}\/ commands {11}! bash *$/);
 });
 
 test("a fresh session with only setting entries animates, as Pi records the thinking level before session_start", async () => {
@@ -124,8 +129,8 @@ test("resumed sessions, sessions with content, reloads and NO_MOTION render sett
 		await h.start();
 		assert.equal(h.clock.intervals(), 0, name);
 		assert.equal(h.state.inputListeners.size, 0, name);
-		assert.match(h.text()[0], /^┏━ DRD-C0DE ━+ ● ━┓$/, name);
-		assert.match(h.text()[4], /-\*-/, `${name}: the starburst rests`);
+		assert.match(h.text()[0], /^\+[─◢◤◥◣]+\+$/u, name);
+		assert.ok(settledText(h.text()), `${name}: settled at once`);
 	}
 });
 
@@ -140,7 +145,7 @@ test("the first keystroke, a submitted input or an agent start settles the intro
 		} else await h.emit(trigger);
 		assert.equal(h.clock.intervals(), 0, trigger);
 		assert.equal(h.state.inputListeners.size, 0, trigger);
-		assert.match(h.text()[4], /-\*-/, trigger);
+		assert.ok(settledText(h.text()), trigger);
 	}
 });
 
@@ -184,7 +189,7 @@ test("the manifest is built after the header is first drawn, with the prompts Pi
 	await h.start();
 	await turn();
 	assert.equal(requests.length, 0, "nothing before the header is drawn");
-	assert.match(h.text().join("\n"), /05 MOD {2}-- MODULES/);
+	assert.ok(pending(h.text()));
 	assert.equal(requests.length, 0, "nothing during the draw");
 	await turn();
 	assert.deepEqual(requests, [{ cwd, trusted: true, prompts: ["plan"] }]);
@@ -219,7 +224,7 @@ test("a header's manifest updates request a render, and a disposed header ignore
 	header.setManifest({ status: "unavailable", reason: "SETTINGS UNREADABLE: global" });
 	assert.match(component.render(104).map(tui.stripTerminalSequences).join("\n"), /MANIFEST UNAVAILABLE · SETTINGS UNREADABLE: global/);
 	header.setManifest({ status: "ready", context: [], skills: ["a"], prompts: [], extensions: [] });
-	assert.match(component.render(104).map(tui.stripTerminalSequences).join("\n"), /SKL {2}01 {6}▪ a/);
+	assert.match(component.render(104).map(tui.stripTerminalSequences).join("\n"), /SKILLS {6}01 {2}a/);
 	assert.equal(screen.renders, 2);
 	header.dispose();
 	header.setManifest({ status: "unavailable", reason: "late" });
@@ -231,10 +236,50 @@ test("rendered ANSI lines never exceed the width Pi passes, at every width and f
 	const h = harness();
 	await h.start();
 	await settleManifest(h);
-	for (let step = 0; step <= INTRO_MS + 100; step += 100) {
+	for (let step = 0; step <= 3600; step += 100) {
 		for (const width of [1, 20, 39, 40, 41, 72, 99, 100, 101, 104, 160, 240]) {
 			for (const line of h.state.header.render(width)) assert.ok(measure(line) <= width, `${width} cells at ${step} ms`);
 		}
 		h.clock.advance(100);
 	}
+});
+
+test("the Escape hint follows the manifest: steer once it shows claude-interrupt", () => {
+	const clock = manualClock();
+	const screen = { renders: 0, requestRender() { this.renders++; } };
+	const state = { unit: "C0DE", session: "0000BEEF", seed: 0x0000beef, core: "-- / --", version: "1.4.0", sector: "--", pane: "--", deployed: "00:00:00", assignment: "X", manifest: { status: "pending" }, hints: [["escape", "interrupt"], ["/", "commands"]] };
+	const header = new DroidHeader(state, false, clock);
+	const component = header.attach(screen, { getColorMode: () => "truecolor" });
+	const strip = () => tui.stripTerminalSequences(component.render(104)[6]);
+	assert.match(strip(), /escape interrupt/);
+	header.setManifest({ status: "ready", context: [], skills: [], prompts: [], extensions: ["industrial-os/claude-interrupt"] }, [["escape", "steer"], ["/", "commands"]]);
+	assert.match(strip(), /escape steer/);
+	// Without new hints the old ones stay.
+	header.setManifest({ status: "unavailable", reason: "x" });
+	assert.match(strip(), /escape steer/);
+});
+
+test("the intro ends when the frame drawn says, or at the backstop for a header Pi never draws", () => {
+	const state = { unit: "C0DE", session: "0000BEEF", seed: 0x0000beef, core: "-- / --", version: "1.4.0", sector: "--", pane: "--", deployed: "00:00:00", assignment: "X", manifest: { status: "pending" }, hints: [] };
+	assert.equal(INTRO_LIMIT_MS, 8000);
+	const end = introEnd(settledFrame(state, 104, measure));
+	assert.ok(end > 1000 && end < INTRO_LIMIT_MS, `${end} ms`);
+	// Drawn at 104 columns on every request: it settles on the first tick after its frame's end.
+	const drawn = manualClock();
+	const header = new DroidHeader(state, true, drawn);
+	const component = header.attach({ requestRender() { component.render(104); } }, { getColorMode: () => "truecolor" });
+	component.render(104);
+	drawn.advance(Math.ceil(end / FRAME_MS) * FRAME_MS - FRAME_MS);
+	assert.equal(header.animating, true);
+	drawn.advance(FRAME_MS);
+	assert.equal(header.animating, false);
+	// Never drawn: the 8 s backstop settles it.
+	const clock = manualClock();
+	const undrawn = new DroidHeader(state, true, clock);
+	undrawn.attach({ requestRender() {} }, { getColorMode: () => "truecolor" });
+	clock.advance(INTRO_LIMIT_MS - FRAME_MS);
+	assert.equal(undrawn.animating, true);
+	clock.advance(FRAME_MS);
+	assert.equal(undrawn.animating, false);
+	assert.equal(clock.intervals(), 0);
 });

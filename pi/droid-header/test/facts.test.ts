@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assignment, clock, contextPath, coreValue, extensionNames, herdrCodes, modelLabel, packageName, parseHead, type ResourceRef, sessionCodes } from "../src/facts.ts";
+import { assignment, clock, contextPath, coreValue, extensionNames, herdrCodes, interruptAction, isClaudeInterrupt, modelLabel, packageName, parseHead, type ResourceRef, sessionCodes } from "../src/facts.ts";
 
 test("droid codes come from the session ID: the same session keeps its ID, none is unknown", () => {
 	const id = "0000beef-0000-4000-8000-00000000c0de";
@@ -78,4 +78,19 @@ test("context files are shown as Pi lists them", () => {
 	assert.equal(contextPath(`${cwd}/AGENTS.md`, cwd, home), "AGENTS.md");
 	assert.equal(contextPath(`${home}/projects/AGENTS.md`, cwd, home), "~/projects/AGENTS.md");
 	assert.equal(contextPath("/etc/AGENTS.md", cwd, home), "/etc/AGENTS.md");
+});
+
+test("the Escape hint says steer once the manifest shows claude-interrupt, and interrupt otherwise", () => {
+	const ready = (extensions: string[], steering?: boolean) => ({ status: "ready", context: [], skills: [], prompts: [], extensions, steering });
+	assert.equal(interruptAction({ status: "pending" }), "interrupt");
+	assert.equal(interruptAction({ status: "unavailable", reason: "x" } as { status: string }), "interrupt");
+	assert.equal(interruptAction(ready([])), "interrupt");
+	assert.equal(interruptAction(ready(["industrial-os/claude-interrupt", "pi-goal"])), "steer");
+	assert.equal(interruptAction(ready(["claude-interrupt"])), "steer");
+	assert.equal(interruptAction(ready(["claude-interrupter", "my-claude-interrupt-fork", "industrial-os/claude-interrupt-old"])), "interrupt");
+	// A package contributing only claude-interrupt is listed by its package name; its path still shows it.
+	assert.equal(interruptAction(ready(["industrial-os"], true)), "steer");
+	assert.equal(interruptAction({ status: "pending", steering: true } as { status: string; steering: boolean }), "interrupt");
+	for (const path of ["/a/git/github.com/x/industrial-os/pi/claude-interrupt/src/index.ts", "/n/node_modules/pi-claude-interrupt/dist/index.js", "/e/claude-interrupt.ts", "C:\\e\\claude-interrupt\\index.ts"]) assert.ok(isClaudeInterrupt(path), path);
+	for (const path of ["/e/claude-interrupter/x.ts", "/e/my-claude-interrupt/x.ts", "/e/claude-interrupt-old.ts", "/e/notes.ts"]) assert.ok(!isClaudeInterrupt(path), path);
 });

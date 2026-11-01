@@ -66,11 +66,23 @@ test("against the installed Pi: skills as Pi loads them, Pi's prompts, extension
 	assert.deepEqual(await buildManifest(pi, { ...tree, trusted: false }), {
 		status: "ready", context: ["~/host/agent/AGENTS.md", "AGENTS.md"],
 		// Frontmatter names win over folders; no description and malformed frontmatter are rejected; one "review".
-		skills: ["renamed-skill", "review"], prompts: ["/explain", "/plan"], extensions: ["kit", "notes"],
+		skills: ["renamed-skill", "review"], prompts: ["/explain", "/plan"], extensions: ["kit", "notes"], steering: false,
 	});
 	const trusted = await buildManifest(pi, { ...tree, trusted: true });
 	assert.deepEqual(trusted.status === "ready" && trusted.skills, ["local-skill", "renamed-skill", "review"], "a trusted project's skills load");
 	assert.equal(existsSync(join(root, "host", "ran")), false, "no extension code ran");
+});
+
+test("against the installed Pi: an enabled claude-interrupt sets steering, by its path, without running it", async () => {
+	const tree = await fixtureTree("steer");
+	// A local package that contributes only claude-interrupt is listed by its folder; the path shows what it is.
+	await write("steer/agent/packages/kit-steer/package.json", JSON.stringify({ name: "kit-steer", pi: { extensions: ["./claude-interrupt/src/index.ts"] } }));
+	await write("steer/agent/packages/kit-steer/claude-interrupt/src/index.ts", `import { writeFileSync } from "node:fs";\nwriteFileSync(${JSON.stringify(join(root, "steer", "ran"))}, "");\nexport default function () {}\n`);
+	await write("steer/agent/settings.json", JSON.stringify({ packages: [join(root, "steer/agent/packages/kit-steer")] }));
+	const manifest = await buildManifest(pi, { ...tree, trusted: false });
+	assert.equal(manifest.status === "ready" && manifest.steering, true);
+	assert.deepEqual(manifest.status === "ready" && manifest.extensions, ["kit", "kit-steer", "notes"]);
+	assert.equal(existsSync(join(root, "steer", "ran")), false, "no extension code ran");
 });
 
 test("against the installed Pi: unreadable global or trusted project settings make the manifest unavailable", async () => {

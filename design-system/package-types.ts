@@ -279,3 +279,29 @@ crateBanner({ serial: 'X', tools: [{ id: 'a', label: 'A', state: 'hover' }] }, {
 crateBanner({ hold: 2 }, { width: 60 });
 // @ts-expect-error unknown form
 crateBanner({ serial: 'X' }, { width: 60, form: 'tall' });
+
+// The unit plate, the CRT boot and their shared plate furniture (the Pi droid header), through their package subpaths.
+import { barcode, BARCODE_BARS } from '@industrial-os/design-system/foundation/barcode';
+import { aluminiumAt } from '@industrial-os/design-system/foundation/surface';
+import { LETTER_FONT } from '@industrial-os/design-system/elements/pixel-numeral';
+import { UNIT_PLATE_ROWS, unitPlate } from '@industrial-os/design-system/elements/unit-plate';
+import { CRT_BOOT_TIMING, crtBoot, crtBootDuration } from '@industrial-os/design-system/motions/crt-boot';
+barcode(16, (count) => count - 1).length satisfies number;
+BARCODE_BARS.length satisfies number;
+aluminiumAt(0, 0, { width: 60 }).hair satisfies `#${string}`;
+LETTER_FONT.R.length satisfies number;
+const unit = unitPlate({ unit: 'DRD-C0DE', serial: '0000-BEEF', seed: 0xbeef }, { width: 104 });
+unit.lines.length satisfies number;
+UNIT_PLATE_ROWS satisfies 6;
+unitPlate({ unit: 'DRD-????', serial: '????-????', mark: null, division: ['A', 'B'] }, { width: 48, titleBlock: false });
+const booted = crtBoot(unit.lines, { time: 400, seed: 7, paint: unit.paint, ground: [{ row: 0, start: 0, end: 1 }], late: { row: 3, time: 200 }, measure });
+booted.length satisfies number;
+crtBootDuration(unit.lines, { paint: unit.paint }) satisfies number;
+CRT_BOOT_TIMING.bar[0] satisfies number;
+composeSurface([[{ text: ' ' }]], { width: 1, height: 1, dotClearance: 1, dotFloor: 9 });
+// @ts-expect-error the unit plate needs a unit and serial
+unitPlate({ serial: 'X' }, { width: 40 });
+// @ts-expect-error late arrival needs a time
+crtBoot(unit.lines, { time: 0, late: { row: 1 } });
+// @ts-expect-error dot clearance is 1 or 2 cells
+composeSurface([[{ text: ' ' }]], { width: 1, height: 1, dotClearance: 3 });

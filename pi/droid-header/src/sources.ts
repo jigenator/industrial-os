@@ -4,7 +4,7 @@ import { open, stat } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import type * as Pi from "@earendil-works/pi-coding-agent";
 import type { Manifest } from "./header.ts";
-import { type Branch, contextPath, extensionNames, parseHead, sortNames } from "./facts.ts";
+import { type Branch, contextPath, extensionNames, isClaudeInterrupt, parseHead, sortNames } from "./facts.ts";
 
 const MAX_DEPTH = 64, MAX_BYTES = 1024;
 
@@ -84,12 +84,14 @@ export async function buildManifest(
 		settingsManager.applyOverrides({ npmCommand: NO_NPM });
 		const resolved = await new pi.DefaultPackageManager({ cwd, agentDir, settingsManager }).resolve(async () => "skip");
 		const skillPaths = resolved.skills.filter((r) => r.enabled).map((r) => r.path);
+		const extensions = resolved.extensions.filter((r) => r.enabled);
 		return {
 			status: "ready",
 			context: pi.loadProjectContextFiles({ cwd, agentDir }).map((file) => contextPath(file.path, cwd, home)),
 			skills: sortNames(pi.loadSkills({ cwd, agentDir, skillPaths, includeDefaults: false }).skills.map((skill) => skill.name)),
 			prompts: sortNames(request.prompts.map((name) => `/${name}`)),
-			extensions: extensionNames(resolved.extensions.filter((r) => r.enabled)),
+			extensions: extensionNames(extensions),
+			steering: extensions.some((r) => isClaudeInterrupt(r.path)),
 		};
 	} catch (error) {
 		return failure(error);

@@ -1,6 +1,6 @@
 # pi-droid-header
 
-A [Pi](https://pi.dev) extension that replaces Pi's startup header with the Industrial OS droid details panel: this session's droid ID, model, Pi version, Herdr pane, start time and project, and a manifest of the context files, skills, prompts and extensions Pi's settings load. Everything shown is real; what is not known shows as `--`.
+A [Pi](https://pi.dev) extension that replaces Pi's startup header with the Industrial OS droid header: a brushed-aluminium unit plate with this session's droid ID and serial, key hints, and a ledger of the model, Pi version, Herdr pane, start time and project, and a manifest of the context files, skills, prompts and extensions Pi's settings load. Everything shown is real; what is not known shows as `--`.
 
 Status: new, unpublished. Offline tests run against the globally installed Pi 1.4.0, the installed-Pi load check passes, and a scripted terminal run of the installed Pi outside Herdr drew it without errors. Nobody has yet looked at it in an interactive Pi or Herdr session. See [verification records](CONTRIBUTING.md#verification-records).
 
@@ -15,7 +15,7 @@ Use one filtered settings entry for industrial-os, as described in [Pi installat
 }
 ```
 
-Merge this path into an existing industrial-os entry rather than adding a second source. For development use `pi install <industrial-os checkout>/pi/droid-header` after the root `npm install` in [setup](../../CONTRIBUTING.md#setup), which links the design system the header takes its colors and numerals from.
+Merge this path into an existing industrial-os entry rather than adding a second source. For development use `pi install <industrial-os checkout>/pi/droid-header` after the root `npm install` in [setup](../../CONTRIBUTING.md#setup), which links the design system the header takes its plate, colors, surface and intro from.
 
 Then set Pi's `quietStartup` to `"header"`, as the [recommended settings](../README.md#recommended-settings) do:
 
@@ -33,18 +33,17 @@ In Pi's interactive TUI only; in RPC, JSON and print modes it does nothing.
 
 | Field | Value |
 | --- | --- |
-| `DRD-C0DE` and the large unit number | The last four hex digits of the session ID; the same session keeps its ID |
-| `SES-` | The first eight hex digits of the session ID |
-| `02 COR` | The model and thinking level when the session started |
-| `03 FRM`, `PI-` | Pi's version |
-| `04 SCT`, `PNE-` | Herdr's workspace and tab, and its pane, from `HERDR_WORKSPACE_ID`, `HERDR_TAB_ID` and `HERDR_PANE_ID`; `--` outside Herdr |
-| `05 MOD`, `06 SKL` | How many extensions and skills the manifest lists |
+| `DRD-C0DE`, the plate's wordmark | The last four hex digits of the session ID; the same session keeps its ID |
+| `S/N` | The first eight hex digits of the session ID |
+| `MODEL` | The model and thinking level when the session started |
+| `FRAMEWORK` | Pi's version |
+| `SECTOR`, `PANE` | Herdr's workspace and tab, and its pane, from `HERDR_WORKSPACE_ID`, `HERDR_TAB_ID` and `HERDR_PANE_ID`; `--` outside Herdr |
 | `DEPLOYED` | The local time this Pi process started or opened the session; a `/reload` keeps it |
 | `ASSIGNMENT` | The working folder's name and its Git branch (or short commit when detached), read from `.git/HEAD` without running Git; just the folder outside a repository |
-| `MANIFEST` | Context files in Pi's load order; skills as Pi loads them, the prompts Pi has loaded, and the extensions Pi's settings enable, alphabetically; `MANIFEST UNAVAILABLE` and the reason when it cannot be built, such as `SETTINGS UNREADABLE` and the file |
-| Key hints | Interrupt and clear with the keys Pi has bound, then `/` commands and `!` bash |
+| `MANIFEST` | The total, then context files in Pi's load order; skills as Pi loads them, the prompts Pi has loaded, and the extensions Pi's settings enable, alphabetically; `MANIFEST UNAVAILABLE` and the reason when it cannot be built, such as `SETTINGS UNREADABLE` and the file |
+| Key hints | Pi's interrupt key with `steer` when the manifest shows claude-interrupt enabled, else `interrupt`; clear with the key Pi has bound; then `/` commands and `!` bash |
 
-A fresh, empty session plays a 2.9-second intro: the frame draws, values decode, the manifest prints. Your first keystroke, a submitted message or an agent start settles it at once, and keystrokes are never taken from the editor. Resumed, forked and reloaded sessions show the settled header straight away. Set `NO_MOTION` to any non-empty value to turn the intro off. The layout and rates are in [design](docs/design.md).
+From 100 columns the ledger hangs from a gutter; from 56 it is stacked; from 40 to 55 the plate keeps only the maker, ID and serial; below 40 the header is one line. A fresh, empty session plays a CRT boot intro of about 2–3.5 seconds: a power-on line, then each row typing in behind a cursor. Your first keystroke, a submitted message or an agent start settles it at once, and keystrokes are never taken from the editor. Resumed, forked and reloaded sessions show the settled header straight away. Set `NO_MOTION` to any non-empty value to turn the intro off. The layout and rates are in [design](docs/design.md).
 
 The extension adds no commands, keys, settings or files, and makes no network or model calls.
 
@@ -54,9 +53,10 @@ The extension adds no commands, keys, settings or files, and makes no network or
 - The header never starts a process, such as npm or Git, and never installs anything: it gives Pi an empty npm command, which Pi's own guard rejects before any process starts. Missing packages are left out. So are npm extensions installed the old way, in npm's global folder rather than under `~/.pi/agent/npm`: Pi finds those by running `npm root -g`, and loads them, but the manifest does not list them.
 - When a settings file Pi reads cannot be parsed, the manifest shows as unavailable rather than listing what Pi could load without it.
 - Project-scope skills, prompts and extensions are left out when the project is not trusted, as Pi leaves them out. Context files are listed regardless, because Pi loads them regardless.
-- `02 COR` is the model at session start; the footer shows the live model after a switch.
+- `MODEL` is the model at session start; the footer shows the live model after a switch.
 - The header is drawn in the design system's Acid / Black colors rather than the Pi theme's, so it does not follow a light theme.
-- The intro flashes the lamp about six times a second for 1.5 seconds and has no photosensitivity check; see [design](docs/design.md#motion).
+- The Escape hint reads the manifest, which lists what Pi's settings enable: a claude-interrupt loaded only with `-e` is not seen, so the hint says `interrupt` although Escape steers. It says `interrupt` until the manifest is ready.
+- The intro flickers the screen 10 times a second for its first 0.35 seconds, then twice more, and has no photosensitivity check; see [design](docs/design.md#motion).
 
 The extension has no license yet; see the [repository's license note](../../docs/architecture.md#evolution-and-known-limits).
 

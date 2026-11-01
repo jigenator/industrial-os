@@ -6,7 +6,7 @@ Purpose: replace Pi's startup header with the Industrial OS droid details panel 
 
 - Show only real values. Unknown is `--` (or `?` digits for a missing session ID), never zero, a guess or a placeholder name; a failed manifest says `MANIFEST UNAVAILABLE` with its reason and never throws. Check: `test/header.test.ts`, `test/facts.test.ts`, `test/sources.test.ts`.
 - Every rendered line is exactly the width Pi passes, at every width, state and intro time; Pi stops on a wider line. Check: the width sweeps in `test/header.test.ts` and `test/extension.test.ts`.
-- Colors and numerals come only from design-system exported subpaths; no hex value or Pi theme color in source. Check: review `src/header.ts` imports; the golden frame compares every cell's colors with the design system's values.
+- The plate, surface, intro and colors come only from design-system exported subpaths (`elements/unit-plate`, `foundation/surface`, `motions/crt-boot` and the color modules); no hex value, Pi theme color or local copy of a design-system drawing in source. Check: review `src/header.ts` imports; the 104- and 64-column goldens compare every cell's colors.
 - `src/header.ts` and `src/facts.ts` stay pure: no Pi, clock, timer or I/O. `src/sources.ts` holds the only I/O. The manifest never runs npm or Git and never installs: it uses Pi's package resolution with `"skip"` for missing packages and an empty npm command, which Pi's own guard rejects before any process starts; never `DefaultResourceLoader.reload()`, which reloads settings and installs. Check: their tests use no Pi context; `test/sources.test.ts` builds the manifest with every `child_process` function made to throw and asserts none was called.
 - TUI only; never consume or delay input. Bound the intro and dispose every timer and listener on settle, replacement, reload and shutdown. Check: `test/extension.test.ts` with a manual clock.
 - Tests stay offline in temporary directories; never touch real sessions, settings or `~/.pi`.
@@ -17,7 +17,7 @@ Purpose: replace Pi's startup header with the Industrial OS droid details panel 
 | --- | --- |
 | Code or tests | [Architecture](docs/architecture.md), [conventions](docs/conventions.md), then [validation](CONTRIBUTING.md#full-validation-sequence) |
 | Anything a user sees | Also [design](docs/design.md), the [root design](../../docs/design.md) and the design system's [motions](../../design-system/motions/README.md) |
-| A color or numeral | The [package decision](../../docs/decisions/in-repo-design-system-package.md); change the design system first |
+| A color, the plate or the intro motion | The [package decision](../../docs/decisions/in-repo-design-system-package.md); change the design system first |
 | Packaging or the Pi version | [Contributing](CONTRIBUTING.md), the [host seams](docs/architecture.md#host-seams), then the [Pi guide](../AGENTS.md) |
 | Scope | [Mission](docs/mission.md) and the [root mission](../../docs/mission.md) |
 | Guidance | The relevant canonical document, then the [root checks](../../CONTRIBUTING.md#repository-wide-checks) |
@@ -26,7 +26,7 @@ Purpose: replace Pi's startup header with the Industrial OS droid details panel 
 
 | Change | Start here | Boundary |
 | --- | --- | --- |
-| Layout, intro timeline, decode or colors | `src/header.ts` | Pure; state, width and time in, styled cells out; design-system subpaths only |
+| Layouts, the ledger, the intro's inputs or colors | `src/header.ts` | Pure; state, width and time in, styled cells out; design-system subpaths only. The plate and the boot itself change in the design system |
 | How a value is derived or named | `src/facts.ts` | Pure; the rules in [design values](docs/design.md#values) |
 | Reading the branch or building the manifest | `src/sources.ts` | Bounded reads; Pi's public exports only; never runs npm or Git, installs or loads extension code; resolves to a value, never throws |
 | Lifecycle, timers, settling and ANSI output | `src/extension.ts` | TUI only; one header per session; every timer disposed |

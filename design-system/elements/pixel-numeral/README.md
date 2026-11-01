@@ -1,6 +1,6 @@
 # Pixel numeral
 
-The status-bar context numeral: a 3×5 pixel font packed into three terminal rows with square half-block pixels. A reference renderer, not a percentage calculation or a clock. The same font with hex letters also draws short unit codes, such as the droid header's unit number.
+The status-bar context numeral: a 3×5 pixel font packed into three terminal rows with square half-block pixels. A reference renderer, not a percentage calculation or a clock. The same font with hex letters, and the few other letters unit codes need, also draws short unit codes, such as the droid header's `DRD-C0DE` wordmark.
 
 ## Usage
 
@@ -26,8 +26,8 @@ numeralLines(textGrid('C0DE'), { width: 15 });
 | `numeralGrid(value, { tone })` | `{ w, g }`: six pixel rows of colors/null, min 13 columns, one blank column between glyphs; exponent form returns `undefined` | one decimal |
 | `numeralLines(grid, { width })` | packs upper/lower pixels to spans; width must fit entire grid | width required |
 | `numeralAt(target, from, progress, seed)` | new grid with target shape/width; progress finite 0–1, seed integer; input grids never mutated | all explicit |
-| `textGrid(text, { ink, face })` | `{ w, g }`, exactly as wide as the glyphs (no 13-column minimum, no number formatting); for `numeralLines` and `numeralAt`. Face `instrument` (six pixel rows) draws 1–250 `FONT` or `HEX_FONT` characters; `dashboard` (six rows) the same characters with digits and `?` from `DASHBOARD_FONT`; `tall` (ten pixel rows) 1–250 `TALL_FONT` characters. Other characters, including lowercase hex, throw `RangeError`; a non-string `TypeError`; an invalid ink `TypeError`; another face `RangeError` | ink `primary`, face `instrument` |
-| `FONT`, `HEX_FONT`, `DASHBOARD_FONT`, `TALL_FONT`, `NUMERAL_TONES` | frozen digit/`.`/`-`/`?` font, frozen `A`–`F` hex letters, the dashboard face's rounded digits and `?`, the frozen tall face (digits, `:`, `-`, `?`) and tone ink table | exported references |
+| `textGrid(text, { ink, face })` | `{ w, g }`, exactly as wide as the glyphs (no 13-column minimum, no number formatting); for `numeralLines` and `numeralAt`. Face `instrument` (six pixel rows) draws 1–250 `FONT`, `HEX_FONT` or `LETTER_FONT` characters; `dashboard` (six rows) the same characters with digits and `?` from `DASHBOARD_FONT`; `tall` (ten pixel rows) 1–250 `TALL_FONT` characters. Other characters, including lowercase hex, throw `RangeError`; a non-string `TypeError`; an invalid ink `TypeError`; another face `RangeError` | ink `primary`, face `instrument` |
+| `FONT`, `HEX_FONT`, `LETTER_FONT`, `DASHBOARD_FONT`, `TALL_FONT`, `NUMERAL_TONES` | frozen digit/`.`/`-`/`?` font, frozen `A`–`F` hex letters, the frozen unit-code letters (`R`, with B's notched top corner so it never reads as `A`), the dashboard face's rounded digits and `?`, the frozen tall face (digits, `:`, `-`, `?`) and tone ink table | exported references |
 
 Grid validation requires `w` 1–1000, six (instrument and dashboard faces) or ten (tall face) rows each with exactly `w` entries, each a palette role/literal RGB or null. Invalid grids/text colors throw `TypeError`; invalid numbers, widths, tones, progress or seed throw `RangeError`.
 
@@ -55,8 +55,8 @@ status-bar now consumes `numeralGrid`, `numeralAt` and `numeralLines` through ex
 
 ## Checks
 
-[pixel-numeral.test.mjs](pixel-numeral.test.mjs): exact extension snapshots, hex text grids and their distinct shapes, tone thresholds, unknown/zero distinction, exponent/narrow fallback, grid validation, seeded reconstruction/new-shape-only/immutability, two-ink pixels, every width 1–160, glyph allowlist, plain/color equivalence and E2 source purity. From `design-system/`: `node --test elements/pixel-numeral/pixel-numeral.test.mjs`, then `node --test`. Automated evidence only; native Herdr checks not run.
+[pixel-numeral.test.mjs](pixel-numeral.test.mjs): exact extension snapshots, hex text grids, the `DRD-C0DE` wordmark and every glyph's distinct shape, tone thresholds, unknown/zero distinction, exponent/narrow fallback, grid validation, seeded reconstruction/new-shape-only/immutability, two-ink pixels, every width 1–160, glyph allowlist, plain/color equivalence and E2 source purity. From `design-system/`: `node --test elements/pixel-numeral/pixel-numeral.test.mjs`, then `node --test`. Automated evidence only; native Herdr checks not run.
 
 ## Dashboard face
 
-`DASHBOARD_FONT` holds the rounded 3×5 strokes the dispatch-feed type units use for counts: `2`, `3`, `5`, `6`, `7`, `9` and `?`; every other character keeps its `FONT` or `HEX_FONT` glyph. `textGrid(String(count), { face: 'dashboard', ink })` then `numeralLines(grid, { width: grid.w })` draws a natural-width integer, four cells per digit minus the final gap, with a pixel `?` for unknown, never zero. `FONT`, `numeralGrid` and `pixelNumeral` are unchanged.
+`DASHBOARD_FONT` holds the rounded 3×5 strokes the dispatch-feed type units use for counts: `2`, `3`, `5`, `6`, `7`, `9` and `?`; every other character keeps its `FONT`, `HEX_FONT` or `LETTER_FONT` glyph. `textGrid(String(count), { face: 'dashboard', ink })` then `numeralLines(grid, { width: grid.w })` draws a natural-width integer, four cells per digit minus the final gap, with a pixel `?` for unknown, never zero. `FONT`, `numeralGrid` and `pixelNumeral` are unchanged.

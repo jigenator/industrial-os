@@ -4,7 +4,7 @@
 import { ACID_BLACK } from './palette.mjs';
 
 // Curated structural glyphs: Narrow, Ambiguous or Neutral East Asian Width; the host must render each one cell wide.
-export const GLYPHS = '─│┌┐└┘╵╱▐▌█▏▎▍▋▊▉░○●▲✕…━┃┏┓┗┛┼▀▄▒▓▚▞■▪·•◆▴⌑⑂×╴╶┄├┬┤┴┸▤▣▸▾▼◇›┣┫┻▆□⏎◢◤◩▁▶↑↓–—↷◐✓®▦≡⟁' + Array.from({ length: 256 }, (_, i) => String.fromCodePoint(0x2800 + i)).join('');
+export const GLYPHS = '─│┌┐└┘╵╱▐▌█▏▎▍▋▊▉░○●▲✕…━┃┏┓┗┛┼▀▄▒▓▚▞■▪·•◆▴⌑⑂×╴╶┄├┬┤┴┸▤▣▸▾▼◇›┣┫┻▆□⏎◢◤◣◥◩▁▶↑↓–—↷◐✓®▦≡⟁' + Array.from({ length: 256 }, (_, i) => String.fromCodePoint(0x2800 + i)).join('');
 
 const PRINTABLE_ASCII = /[^\x20-\x7e]/gu;
 
