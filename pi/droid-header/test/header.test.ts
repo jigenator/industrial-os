@@ -422,3 +422,14 @@ test("a manifest that arrives mid-intro types its rows from its arrival; after t
 	assert.ok(text(frameAt(frame, 2600)).slice(head + 1).some((r) => /[a-z]/.test(r)));
 	assert.deepEqual(frameAt(frame, introEnd(frame)), renderHeader(MOCK, 104, Infinity, measure));
 });
+
+test("a prime column count still lays long holds out in several columns on the column lines", () => {
+	// 139 columns gives five table columns; spans used to be limited to whole divisors, so these names fell to one column.
+	const skills = ["apply-author-voice", "automating-physical-iphones", "designing-short-session-games", "guidelines-for-review-artifacts", "humanizer", "widget-design"];
+	const state: HeaderState = { ...MOCK, manifest: { ...MOCK.manifest, status: "ready", skills } as HeaderState["manifest"] };
+	const rows = text(renderHeader(state, 139, Infinity, measure));
+	const skillRow = rows.findIndex((row) => row.includes("SKILLS"));
+	assert.ok(rows[skillRow].includes("apply-author-voice") && rows[skillRow].includes("guidelines-for-review-artifacts"), rows.slice(skillRow, skillRow + 4).join("\n"));
+	assert.equal(rows[skillRow].indexOf("apply-author-voice"), 18);
+	assert.equal(rows[skillRow].indexOf("guidelines-for-review-artifacts"), 18 + 2 * 23, "the second column starts on the third column line");
+});

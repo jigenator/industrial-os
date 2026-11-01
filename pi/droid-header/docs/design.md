@@ -87,7 +87,7 @@ The extensions hold is cut short here; it continues for its 14 items. The floor'
 The plate is the design system's [unit plate](../../../design-system/elements/unit-plate/README.md); its geometry, the peak's room rules and the long-maker order are in its contract. The ledger's table is one set of equal columns per width, at least 20 cells each (two columns of 18–19 cells below 44 columns), from the gutter (hanging) or the left margin (stacked) to three cells before the right edge. Every value, hold item and hint starts on a column line:
 
 - A specification's label is on one column line and its value on the next; a value runs to two cells before the next group's label, or to the right margin, and is clipped there with `…`.
-- A hold's items, and the hints, flow top to bottom through the narrowest span of columns (one column, a whole divisor of the column count, or all of them) whose columns hold the longest item with two cells to spare. An item wider than the whole table is clipped to it with `…`.
+- A hold's items, and the hints, flow top to bottom through as many columns as hold the longest item with two cells to spare. With `n` table columns, `k` hold columns each span `⌊n ÷ k⌋` of them and start on every span-th column line, so five table columns can give two hold columns on the first and third lines; any column lines left over stay empty at the right. One hold column spans the whole table. An item wider than the whole table is clipped to it with `…`.
 - An empty hold shows its name and `00` and no items.
 
 Every line is exactly the terminal width at every width; above 1000 columns the 1000-column header is padded with the field. Layout never throws.
