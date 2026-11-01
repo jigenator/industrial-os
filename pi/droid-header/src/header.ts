@@ -127,17 +127,20 @@ function table(width: number): Table {
 }
 
 /**
- * The narrowest span (1 column, a whole divisor of the column count, or all of them) whose columns hold every item
- * with two cells to spare before the next column line. Items fill the spanned columns top to bottom; `room` is the
- * cells an item may use, and an item wider than the whole table is clipped to it.
+ * The most columns whose span holds every item with two cells to spare before the next column line: `cols` columns
+ * each `floor(n / cols)` column lines wide, starting on every span-th line (any lines left over stay empty at the
+ * right). One column always spans the whole table. Items fill the columns top to bottom; `room` is the cells an item
+ * may use, and an item wider than the whole table is clipped to it.
  */
 function fitColumns(widths: number[], t: Table) {
 	const n = t.stops.length;
 	const roomOf = (span: number) => span * t.colW - (span === n ? 0 : 2);
-	for (let span = 1; span <= n; span++) {
-		if (n % span || Math.max(0, ...widths) > roomOf(span)) continue;
-		const cols = Math.min(n / span, widths.length);
-		return { rows: cols ? Math.ceil(widths.length / cols) : 0, starts: Array.from({ length: cols }, (_, c) => t.stops[c * span]), room: roomOf(span) };
+	for (let cols = n; cols >= 1; cols--) {
+		const span = cols === 1 ? n : Math.floor(n / cols);
+		if (cols < n && cols > 1 && Math.floor(n / (cols + 1)) === span) continue; // more columns already tried this span
+		if (Math.max(0, ...widths) > roomOf(span)) continue;
+		const used = Math.min(cols, widths.length);
+		return { rows: used ? Math.ceil(widths.length / used) : 0, starts: Array.from({ length: used }, (_, c) => t.stops[c * span]), room: roomOf(span) };
 	}
 	return { rows: widths.length, starts: [t.stops[0]], room: roomOf(n) };
 }
