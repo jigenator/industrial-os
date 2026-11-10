@@ -62,7 +62,7 @@ the agent name; any other tool → `null`. A phase's `since` is when that phase 
 The `set_active_project` tool moves to the collector with the same name, parameters and persisted result details
 (`{ version: 1, path }`), so existing sessions restore unchanged.
 
-Out of scope for v1 (stay in status-bar): Ponytail, Tatsu and background-tasks status observation.
+Out of scope for v1 (stay in status-bar): Ponytail, install-status and background-tasks status observation.
 
 ### Pane visibility and deferred inspection
 

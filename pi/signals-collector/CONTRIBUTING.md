@@ -78,3 +78,5 @@ Final budget check: **45/45 collector and 135/135 consumer tests passed** after 
 - Interactive Pi/Herdr, a live source-collector engine, live CodexBar and Windows: **not run**.
 
 2026-10-31, macOS, Node 22.23.0, installed Pi 1.4.0 via explicit `PI_HOST_ROOT` (scoped watching and `nextAt`-timed usage polls): `npm test` **64/64 passed**, including the pure `nextPollDelay` vectors (earliest `nextAt` plus 5 s, running 10 s, the 12-poll running backoff to 60 s, clamps, ignored states, unreachable) and the timeout-chain lifecycle (start, show, hidden reply, one request at a time, dispose). status-bar **147/147** and herdr-sidebar **114/114** against this collector. Independent review: approve with nits, all addressed. Live engine with the new code and interactive Pi: **not run**.
+
+2026-11-10, macOS, Node v22.23.4, installed Pi 1.5.1 via explicit `PI_HOST_ROOT` (neutral wording for the status-bar-owned install-status observation in AGENTS, mission and contract; no source change): `npm test` **64/64 passed**; isolated RPC load with a temporary agent folder **exit 0**. Interactive Pi/Herdr: **not run**.

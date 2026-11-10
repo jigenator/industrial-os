@@ -7,7 +7,7 @@ Purpose: own TUI session signals and usage read from configured source-collector
 - The [v1 contract](docs/contract.md) is canonical. Request replies are synchronous; pushes coalesce without resetting the 100ms budget; ready repairs either load order. Validate live session ownership before all callbacks/publications. Check: real-loader `test/extension.test.ts`.
 - Non-TUI collects/publishes nothing. Replacement/shutdown disposes timers, fs.watch, RPC/request listeners and in-flight subprocesses. No stale session work. Check: extension/usage/cache tests.
 - Unknown is not zero/clean/absent. Preserve moved workspace/PR/usage unions, validate public fleet/private goal data and keep only allowed usage fields. Check: source-named tests and [conventions](docs/conventions.md).
-- No renderer, motion, Ponytail/Tatsu/background-task observer, Herdr token write or imports from another extension. The [architecture](docs/architecture.md) maps ownership.
+- No renderer, motion, Ponytail/install-status/background-task observer, Herdr token write or imports from another extension. The [architecture](docs/architecture.md) maps ownership.
 - Usage reads only the sources listed in `industrialOs.usageSources`, with one bounded scoped source-collector `get` per poll: no other RPC, no retry, no provider commands or provider names in code. The [contract](docs/contract.md#2-usage-via-source-collector-owned-by-pisignals-collector) holds the convention and state table. Check: `test/usage.test.ts`, `test/source-collector.test.ts`.
 - Context reserve settings are owned here. The approved duplicate pure percentage arithmetic/parity vectors in status-bar must change together without imports.
 
