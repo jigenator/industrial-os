@@ -1,0 +1,340 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tatsu.works/schemas/lesson/v1",
+  "title": "Lesson",
+  "description": "A lesson for Lesson Maker: the lesson plan, then sections of slides, each optionally split into subsections. Agents write it; people edit on top. Every field is always present, so each slide maps onto the same form whatever its layout; fields a layout does not show keep their text. Text is plain; new lines are allowed everywhere.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "plan",
+    "sections"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "maxLength": 300,
+      "description": "Optional pointer to this schema, for editors."
+    },
+    "schemaVersion": {
+      "const": 1,
+      "description": "Version of this schema the file follows."
+    },
+    "plan": {
+      "$ref": "#/$defs/plan"
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "items": {
+        "$ref": "#/$defs/section"
+      },
+      "description": "Sections in lesson order."
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "description": "Stable identifier, unique across all sections, subsections and slides in the lesson. Never shown to learners or used to refer to slides in prose."
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcomes",
+        "prerequisites",
+        "teachingPrinciples",
+        "progression"
+      ],
+      "description": "The lesson plan every slide follows. The chat never changes it unless asked to change the plan.",
+      "properties": {
+        "outcomes": {
+          "type": "string",
+          "maxLength": 20000,
+          "description": "What learners can do after the lesson."
+        },
+        "prerequisites": {
+          "type": "string",
+          "maxLength": 20000,
+          "description": "What learners must already know."
+        },
+        "teachingPrinciples": {
+          "type": "string",
+          "maxLength": 20000,
+          "description": "Rules every slide follows, e.g. one new idea per slide."
+        },
+        "progression": {
+          "type": "string",
+          "maxLength": 20000,
+          "description": "The first-principles steps the lesson builds through, in order."
+        }
+      }
+    },
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "titleSlide",
+        "slides",
+        "subsections"
+      ],
+      "description": "A section. Its name is its title slide's title.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "titleSlide": {
+          "$ref": "#/$defs/slide",
+          "description": "The section's linked title slide, always shown first; its title is the section's name."
+        },
+        "slides": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "$ref": "#/$defs/slide"
+          },
+          "description": "The section's own slides, after its title slide and before its subsections."
+        },
+        "subsections": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "$ref": "#/$defs/subsection"
+          },
+          "description": "Subsections in order. They do not nest further."
+        }
+      }
+    },
+    "subsection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "titleSlide",
+        "slides"
+      ],
+      "description": "A subsection of a section. Its name is its title slide's title.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "titleSlide": {
+          "$ref": "#/$defs/slide",
+          "description": "The subsection's linked title slide, always shown first; its title is the subsection's name."
+        },
+        "slides": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "$ref": "#/$defs/slide"
+          }
+        }
+      }
+    },
+    "slide": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "type",
+        "layout",
+        "text",
+        "imageSide",
+        "sentencePosition",
+        "image",
+        "afterImage",
+        "beforeCaption",
+        "afterCaption",
+        "purpose",
+        "speakerNotes"
+      ],
+      "description": "One slide. Layouts show: points-image = title, text (points), image; image-sentence = image, text (one sentence); title = title; title-image = title, text (subtitle), tagline, image; statement = text; before-after = image (before), afterImage, beforeCaption, afterCaption.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 20000,
+          "description": "The slide's title (shown by the title, title-image and points-image layouts) or, otherwise, its name in the outline."
+        },
+        "type": {
+          "enum": [
+            "Initial question",
+            "First principle",
+            "Worked example",
+            "Learner practice",
+            "Feedback",
+            "Transfer / recap",
+            "Section title"
+          ],
+          "description": "The slide's teaching role."
+        },
+        "layout": {
+          "enum": [
+            "points-image",
+            "image-sentence",
+            "title",
+            "title-image",
+            "statement",
+            "before-after"
+          ],
+          "description": "How the slide is drawn; see the slide description for the fields each layout shows."
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 20000,
+          "description": "Points (points-image, one per line, may start with '- '), the sentence (image-sentence, one sentence), the statement (statement) or the subtitle (title-image)."
+        },
+        "tagline": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "title-image: the short line under the subtitle, such as the session it opens. Optional."
+        },
+        "imageSide": {
+          "enum": [
+            "left",
+            "right"
+          ],
+          "description": "points-image and title-image: which side the image sits on."
+        },
+        "sentencePosition": {
+          "enum": [
+            "top",
+            "bottom"
+          ],
+          "description": "image-sentence: whether the sentence sits above or below the image."
+        },
+        "image": {
+          "$ref": "#/$defs/image",
+          "description": "The image (points-image, image-sentence) or the before image (before-after)."
+        },
+        "afterImage": {
+          "$ref": "#/$defs/image",
+          "description": "before-after: the after image."
+        },
+        "beforeCaption": {
+          "type": "string",
+          "maxLength": 20000,
+          "description": "before-after: caption under the before image."
+        },
+        "afterCaption": {
+          "type": "string",
+          "maxLength": 20000,
+          "description": "before-after: caption under the after image."
+        },
+        "purpose": {
+          "type": "string",
+          "maxLength": 20000,
+          "description": "Teaching plan: why the slide is here, e.g. which progression step it serves. Not shown to learners."
+        },
+        "speakerNotes": {
+          "type": "string",
+          "maxLength": 20000,
+          "description": "The presenter's script for this slide: the words they will say aloud, written as a short speech in the first person, in full spoken sentences and paragraphs. Not a list of points, no bullets and no headings such as 'Key points:'; a stage cue may go in [brackets]. Never shown to learners."
+        },
+        "comments": {
+          "type": "string",
+          "maxLength": 20000,
+          "description": "The author's review comments on this slide: changes they want, written while reviewing. Not shown to learners. When you make the change a comment asks for, clear the comment (an empty string); leave a comment you could not act on, so what is left is still to do. Never write comments of your own."
+        },
+        "locked": {
+          "type": "boolean",
+          "description": "Set by the author only. true freezes the slide: leave it exactly as it is, in the same section or subsection; never delete or move it, and never set or clear this field. Optional; written only when true."
+        }
+      }
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "concept",
+        "picture"
+      ],
+      "properties": {
+        "concept": {
+          "type": "string",
+          "maxLength": 20000,
+          "description": "What the image teaches and shows: the brief a picture is generated from."
+        },
+        "style": {
+          "enum": [
+            "generic",
+            "xiaohei"
+          ],
+          "description": "How a picture for this image is drawn: generic is a flat, clean diagram; xiaohei follows the Ian Xiaohei illustration skill (hand-drawn, white background, the Xiaohei character doing the idea). Optional; absent means generic. Lesson Maker always writes it."
+        },
+        "picture": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/generatedPicture"
+            },
+            {
+              "$ref": "#/$defs/attachedPicture"
+            }
+          ],
+          "description": "The picture file, or null when there is none yet. Agents keep existing pictures or set null; new pictures come from generation or attachment in the app."
+        }
+      }
+    },
+    "generatedPicture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "file",
+        "prompt",
+        "model"
+      ],
+      "properties": {
+        "source": {
+          "const": "generated"
+        },
+        "file": {
+          "$ref": "#/$defs/assetPath"
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "description": "The exact prompt the picture was generated from."
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "The image model that generated it."
+        }
+      }
+    },
+    "attachedPicture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "file"
+      ],
+      "properties": {
+        "source": {
+          "const": "attached"
+        },
+        "file": {
+          "$ref": "#/$defs/assetPath"
+        }
+      }
+    },
+    "assetPath": {
+      "type": "string",
+      "maxLength": 300,
+      "pattern": "^(?!.*(^|/)\\.\\.?(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*\\.png$",
+      "description": "A PNG path relative to the lesson file's folder, without '..', e.g. caching.lesson.assets/S-3-image.png."
+    }
+  }
+}
