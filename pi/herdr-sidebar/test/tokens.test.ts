@@ -16,8 +16,8 @@ const SESSION = "session-1";
 // A full v1 snapshot as the collector publishes it, then read through the same validation the extension uses.
 function raw(overrides: Record<string, unknown> = {}) {
 	return {
-		version: 1, sessionId: SESSION, seq: 1, launch: "/work/tatsu-cli", active: "/work/tatsu-cli",
-		workspace: { path: "/work/tatsu-cli", git: { kind: "repository", active: { path: "/work/tatsu-cli", branch: "main", revision: "abc", dirty: false }, main: null, isWorktree: false }, github: { kind: "repository", name: "o/tatsu-cli", url: "https://github.com/o/tatsu-cli" } },
+		version: 1, sessionId: SESSION, seq: 1, launch: "/work/probe-cli", active: "/work/probe-cli",
+		workspace: { path: "/work/probe-cli", git: { kind: "repository", active: { path: "/work/probe-cli", branch: "main", revision: "abc", dirty: false }, main: null, isWorktree: false }, github: { kind: "repository", name: "o/probe-cli", url: "https://github.com/o/probe-cli" } },
 		pr: { kind: "none" },
 		root: { working: false, lastSettledAt: null }, phase: null, question: null,
 		model: { provider: "anthropic", id: "claude-opus-5-5" }, thinking: "high",
@@ -41,7 +41,7 @@ test("the key list matches the canonical contract document", async () => {
 test("the spike's verified rows: state, fitted project and goal time; bar and CMP", () => {
 	const t = build({ units: 2, goal: { status: "active", usedSeconds: 9180 - 60, activeSince: NOW - 60_000 } });
 	assert.equal(t.g1, `◐ WRK${B}`);
-	assert.equal(t.proj, `tatsu-cli${B.repeat(6)}`);
+	assert.equal(t.proj, `probe-cli${B.repeat(6)}`);
 	assert.equal(t.gt, `${B}2h33m`);
 	assert.equal(t.bar, "━━━━━━━━─── 67%");
 	assert.equal(t.cmpx, "CMP×18");
@@ -60,13 +60,13 @@ test("row 1 state codes from Herdr, QNS whenever a question is pending, and the 
 	for (const [herdr, g1, key] of cases) {
 		const t = build({}, herdr);
 		assert.equal(t.g1, g1);
-		assert.equal(t[key], "tatsu-cli");
+		assert.equal(t[key], "probe-cli");
 		assert.equal(t[key === "proj" ? "proj_idle" : "proj"], undefined);
 	}
 	for (const herdr of ["idle", "blocked", "done", null]) {
 		const t = build({ question: { text: "Which?", more: 0, since: NOW } }, herdr);
 		assert.equal(t.g1, `× QNS${B}`);
-		assert.equal(t.proj, "tatsu-cli");
+		assert.equal(t.proj, "probe-cli");
 	}
 });
 
@@ -92,7 +92,7 @@ test("row 1 precedence: QNS, BLK, WRK, SUB, DNE (Herdr's or the subagents-finish
 	assert.equal(g1("idle", { units: null }), `○ IDL${B}`);
 	// SUB is a working state: the primary title and the zone bar.
 	const sub = buildTokens({ snapshot: snap({ units: 2, context: { usedPercent: 75 } }), herdr: "idle", now: NOW, home: HOME });
-	assert.equal(sub.proj, "tatsu-cli"); assert.equal(sub.proj_idle, undefined);
+	assert.equal(sub.proj, "probe-cli"); assert.equal(sub.proj_idle, undefined);
 	assert.equal(sub.bar_warn, "━━━━━━━━━── 75%"); assert.equal(sub.bar_idle, undefined);
 	assert.equal(sub.g2_au, "02AU"); assert.equal(sub.g5, undefined);
 });
@@ -134,12 +134,12 @@ test("row 1 flag: ● after the project, which gives up ` · ●` so the goal ti
 	assert.equal(at({ goal }).flag, undefined);
 	// Text area 24: project · ● · goal, or project · ● alone.
 	const withGoal = at({ goal }, { flagged: true });
-	assert.equal(withGoal.flag, "●"); assert.equal(withGoal.proj, `tatsu-cli${B.repeat(2)}`); assert.equal(withGoal.gt, `${B}2h33m`);
+	assert.equal(withGoal.flag, "●"); assert.equal(withGoal.proj, `probe-cli${B.repeat(2)}`); assert.equal(withGoal.gt, `${B}2h33m`);
 	assert.equal(width(withGoal.proj) + 3 + width(withGoal.flag) + 3 + width(withGoal.gt), 24);
 	// The goal time and the separator before it sit where they do unflagged.
 	assert.equal(width(withGoal.proj) + 3 + width(withGoal.flag), width(at({ goal }).proj));
 	const alone = at({}, { flagged: true });
-	assert.equal(alone.flag, "●"); assert.equal(alone.proj, "tatsu-cli");
+	assert.equal(alone.flag, "●"); assert.equal(alone.proj, "probe-cli");
 	// Long, wide and combining names are cut to at most 20 cells alone or fitted to exactly 11 beside the goal.
 	const cases: [string, string, string][] = [
 		["a-very-long-project-name-that-overflows", "a-very-long-project…", "a-very-lon…"],
@@ -156,7 +156,7 @@ test("row 1 flag: ● after the project, which gives up ` · ●` so the goal ti
 	}
 	// IDL/UNK use proj_idle with the same cells; a paused goal keeps the column too.
 	const idle = buildTokens({ snapshot: snap({ goal: { status: "paused", usedSeconds: 30, activeSince: null } }), herdr: "idle", flagged: true, now: NOW, home: HOME });
-	assert.equal(idle.proj_idle, `tatsu-cli${B.repeat(2)}`); assert.equal(idle.gt_off, `${B.repeat(3)}30s`); assert.equal(idle.flag, "●");
+	assert.equal(idle.proj_idle, `probe-cli${B.repeat(2)}`); assert.equal(idle.gt_off, `${B.repeat(3)}30s`); assert.equal(idle.flag, "●");
 	// Unknown project and no snapshot: the flag follows the state code.
 	assert.deepEqual(buildTokens({ snapshot: null, herdr: null, flagged: true, now: NOW, home: HOME }), { g1: `· UNK${B}`, flag: "●", g2_au0: "??AU", g2_bg0: "??BG", bar_unk: "─────────── --%", cmpx: "CMP×??" });
 	const noProject = at({ active: null, goal }, { flagged: true });
@@ -194,7 +194,7 @@ test("row 1 goal: active and paused keys, pi-goal's duration format, and no goal
 	assert.equal(build({ goal: { status: "budget_limited", usedSeconds: 61, activeSince: null } }).gt_off, `${B.repeat(4)}1m`);
 	const none = build();
 	assert.equal(none.gt, undefined); assert.equal(none.gt_off, undefined);
-	assert.equal(none.proj, "tatsu-cli");
+	assert.equal(none.proj, "probe-cli");
 	// A future activeSince adds nothing; the clock never runs backwards.
 	assert.equal(build({ goal: { status: "active", usedSeconds: 3, activeSince: NOW + 5_000 } }).gt, `${B.repeat(4)}3s`);
 });
@@ -251,7 +251,7 @@ test("no snapshot: the state row and row 2's unknowns only, never zeros", () => 
 });
 
 test("row 3: branch exactly when status-bar shows it, dirty star, otherwise the parent/current directory", () => {
-	const repo = (active: object, github: object = { kind: "repository", name: "o/r", url: "u" }) => ({ workspace: { path: "/work/tatsu-cli", git: { kind: "repository", active, main: null, isWorktree: false }, github } });
+	const repo = (active: object, github: object = { kind: "repository", name: "o/r", url: "u" }) => ({ workspace: { path: "/work/probe-cli", git: { kind: "repository", active, main: null, isWorktree: false }, github } });
 	let t = build(repo({ branch: "feature/x", dirty: false }));
 	assert.equal(t.g3, `ACT${B}`); assert.equal(t.br, "feature/x"); assert.equal(t.br_dirty, undefined); assert.equal(t.dir, undefined);
 	t = build(repo({ branch: "feature/x", dirty: null }));
@@ -261,7 +261,7 @@ test("row 3: branch exactly when status-bar shows it, dirty star, otherwise the 
 	// Detached HEAD, a GitHub repository not identified, no Git, or not inspected yet: the directory.
 	for (const overrides of [repo({ branch: null, dirty: false }), repo({ branch: "main", dirty: false }, { kind: "unknown", reason: "x" }), repo({ branch: "main", dirty: false }, { kind: "none", reason: "x" }), { workspace: { path: "/w", git: { kind: "none" }, github: { kind: "none", reason: "" } } }, { workspace: null }]) {
 		t = build(overrides);
-		assert.equal(t.dir, "/work/tatsu-cli"); assert.equal(t.br, undefined); assert.equal(t.br_dirty, undefined);
+		assert.equal(t.dir, "/work/probe-cli"); assert.equal(t.br, undefined); assert.equal(t.br_dirty, undefined);
 		assert.equal(t.g3, `ACT${B}`);
 	}
 	// status-bar's display: home is ~, a direct child ~/name, a path near the root in full.
@@ -386,7 +386,7 @@ test("row 5 subagents finished: RDY and finished with the age since the flag, ah
 	for (const herdr of ["idle", "done", "unknown", null]) {
 		const t = finished(herdr);
 		assert.equal(t.g1, `✓ DNE${B}`); assert.equal(t.g5, `RDY${B}`); assert.equal(t.ev_rdy_text, `finished${B.repeat(7)}`); assert.equal(t.ph_age, `${B.repeat(4)}1m`, `${herdr}`);
-		assert.equal(t.proj, "tatsu-cli");
+		assert.equal(t.proj, "probe-cli");
 	}
 	// Running units or the main agent working show no finished row.
 	for (const [herdr, units] of [["idle", 1], ["working", 0], ["blocked", 0]] as const) for (const key of ["g5", "ev_rdy_text", "ph_age"]) assert.equal(finished(herdr, { units })[key], undefined);
@@ -466,7 +466,7 @@ test("readSnapshot accepts only v1 snapshots for this session and treats malform
 	for (const value of [null, undefined, "x", []]) assert.equal(readSnapshot(value, SESSION), undefined);
 	const s = readSnapshot(raw({ extra: true, units: "2", compactions: -1, context: { usedPercent: Infinity }, model: { id: 5 }, thinking: "", goal: { status: "active", usedSeconds: "1" }, question: { text: 3 }, pr: { kind: "open", number: 0 }, workspace: { git: {}, github: {} }, root: { working: true, lastSettledAt: "x" }, phase: { kind: "tool", since: 1 } }), SESSION);
 	assert.deepEqual({ ...s, seq: undefined }, {
-		sessionId: SESSION, seq: undefined, active: "/work/tatsu-cli", workspace: { git: { kind: "other" }, githubRepository: false }, pr: { kind: "unavailable" },
+		sessionId: SESSION, seq: undefined, active: "/work/probe-cli", workspace: { git: { kind: "other" }, githubRepository: false }, pr: { kind: "unavailable" },
 		lastSettledAt: null, phase: null, question: null, model: null, thinking: null, usedPercent: null, compactions: null, units: null, goal: null,
 	});
 	const bounded = readSnapshot(raw({ question: { text: "q".repeat(500), more: 1 } }), SESSION);
@@ -491,7 +491,7 @@ test("row 1 uses the Herdr SPACE label, fits beside a goal, and falls back only 
 	const tokens = buildTokens({ ...input, workspaceLabel: "Release workspace with a long name" });
 	assert.equal(tokens.proj, "Release worksp…"); assert.equal(width(tokens.proj), 15);
 	assert.equal(buildTokens({ ...input, herdr: "idle", workspaceLabel: "SPACE" }).proj_idle, `SPACE${B.repeat(10)}`);
-	assert.equal(buildTokens({ ...input, workspaceLabel: null }).proj, `tatsu-cli${B.repeat(6)}`);
+	assert.equal(buildTokens({ ...input, workspaceLabel: null }).proj, `probe-cli${B.repeat(6)}`);
 	assert.equal(buildTokens({ ...input, workspaceLabel: "\u202eSPACE" }).proj, `SPACE${B.repeat(10)}`);
 	assert.equal(buildTokens({ ...input, snapshot: null, workspaceLabel: "SPACE" }).proj, "SPACE");
 });
@@ -606,7 +606,7 @@ test("RUN precedence, active token choices, access refresh and unseen-work-finis
 		const input = { ...base, herdr };
 		const t = buildTokens(input);
 		assert.equal(t.g1, `◐ RUN${B}`);
-		assert.equal(t.proj, "tatsu-cli"); assert.equal(t.proj_idle, undefined);
+		assert.equal(t.proj, "probe-cli"); assert.equal(t.proj_idle, undefined);
 		assert.equal(t.bar, "━━━━━━━━─── 67%"); assert.equal(t.bar_idle, undefined);
 		assert.equal(nextLastAccessAt(input), NOW); assert.equal(decayStage(input), 0);
 		assert.equal(t.g3, `ACT${B}`); assert.equal(t.g4, `MDL${B}`);

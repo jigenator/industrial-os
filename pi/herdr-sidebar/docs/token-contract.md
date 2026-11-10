@@ -102,7 +102,7 @@ These follow from the rules above and are pinned by `test/tokens.test.ts`; they 
 - **Sanitizing.** Control characters (C0, DEL and C1) and bidi controls (U+061C, U+200E/F, U+202A–U+202E, U+2066–U+2069) are removed and surrounding whitespace trimmed before a value is measured, so Herdr's own trim cannot shift alignment. In the question text, whitespace, including line breaks, separates words.
 - **Cutting.** A cut keeps whole grapheme clusters. When a wide character does not fit before the `…`, the fitted 15-cell value pads with U+2800 before the `…`, so the `…` stays in the last cell. A cut segment also keeps at most 60 code points, so no value reaches Herdr's 80-character cap.
 - **A right value over six cells,** such as a goal time of 100 hours or more or a PR number of seven digits, is cut to five cells and `…`.
-- **Directory.** As status-bar shows it: `~` for home, `~/name` for a folder directly under home, the full path when the parent is the filesystem root (`/work/tatsu-cli`), otherwise `parent/current`.
+- **Directory.** As status-bar shows it: `~` for home, `~/name` for a folder directly under home, the full path when the parent is the filesystem root (`/work/probe-cli`), otherwise `parent/current`.
 - **A cut dirty branch keeps its `*`** after the `…`, so dirtiness never rests on color alone.
 - **Short model.** `N` is one digit, so a dated ID such as `claude-sonnet-4-20250514` keeps its date. A thinking level outside the table is shown verbatim.
 - **Phase age.** Only the age remains, beside a known pane name while the snapshot says the root agent is working with a phase. Question and finished rows take precedence.

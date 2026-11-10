@@ -19,7 +19,7 @@ const UNKNOWN_ROWS = { g2_au0: "??AU", g2_bg0: "??BG", bar_unk: "─────
 const fakeCollector = `
 export default function (pi) {
 	let sessionId, seq = 0, fields = {};
-	const current = () => ({ version: 1, sessionId, seq, launch: "/work/tatsu-cli", active: "/work/tatsu-cli", workspace: null, pr: null,
+	const current = () => ({ version: 1, sessionId, seq, launch: "/work/probe-cli", active: "/work/probe-cli", workspace: null, pr: null,
 		root: { working: false, lastSettledAt: null }, phase: null, question: null, model: null, thinking: null, context: null,
 		compactions: 0, units: 0, goal: null, usage: {}, ...fields });
 	pi.events.on("signals-collector:v1:request", (request) => { if (sessionId) request.reply(current()); });
@@ -145,15 +145,15 @@ for (const order of ["before", "after"] as const) {
 		herdr.setStatus("idle", false);
 		const h = await harness(t, { collector: order });
 		await h.start();
-		await until(() => herdr.tokens.get("proj_idle") === "tatsu-cli" && herdr.tokens.get("g1") === `○ IDL${B}`, "first snapshot");
-		assert.deepEqual(tokens(herdr), sorted({ g1: `○ IDL${B}`, proj_idle: "tatsu-cli", g2_au0: "00AU", g2_bg0: "??BG", bar_unk: "─────────── --%", cmpx: "CMP×00", g3: `ACT${B}`, dir: "/work/tatsu-cli" }));
+		await until(() => herdr.tokens.get("proj_idle") === "probe-cli" && herdr.tokens.get("g1") === `○ IDL${B}`, "first snapshot");
+		assert.deepEqual(tokens(herdr), sorted({ g1: `○ IDL${B}`, proj_idle: "probe-cli", g2_au0: "00AU", g2_bg0: "??BG", bar_unk: "─────────── --%", cmpx: "CMP×00", g3: `ACT${B}`, dir: "/work/probe-cli" }));
 		h.set({ units: 3, compactions: 4, context: { tokens: 1, window: 1, reserve: null, usedPercent: 67 }, model: { provider: "anthropic", id: "claude-opus-5-5" }, thinking: "high" });
 		await until(() => herdr.tokens.get("mthink") === "opus-5.5/hi", "pushed snapshot");
 		assert.equal(herdr.tokens.get("g2_au"), "03AU");
 		assert.equal(herdr.tokens.get("g2_au0"), undefined, "a key that stopped applying is cleared");
 		// Running units while Herdr reports the main agent idle: SUB, a working state with the title and zone bar.
 		assert.equal(herdr.tokens.get("g1"), `◐ SUB${B}`);
-		assert.equal(herdr.tokens.get("proj"), "tatsu-cli");
+		assert.equal(herdr.tokens.get("proj"), "probe-cli");
 		assert.equal(herdr.tokens.get("bar"), "━━━━━━━━─── 67%");
 		assert.equal(herdr.tokens.has("bar_idle"), false);
 		assert.equal(herdr.tokens.get("cmpx"), "CMP×04");
@@ -263,7 +263,7 @@ test("Herdr status follows the subscription, is unknown while disconnected, and 
 	herdr.dropSubscribers();
 	await until(() => herdr.tokens.get("g1") === `· UNK${B}` || herdr.tokens.get("g1") === `○ IDL${B}`, "unknown or reconciled");
 	herdr.setStatus("idle", false);
-	await until(() => herdr.tokens.get("g1") === `○ IDL${B}` && herdr.tokens.get("proj_idle") === "tatsu-cli", "reconciled after reconnect");
+	await until(() => herdr.tokens.get("g1") === `○ IDL${B}` && herdr.tokens.get("proj_idle") === "probe-cli", "reconciled after reconnect");
 	assert.equal(herdr.tokens.get("ev_rdy_text"), undefined);
 });
 
@@ -319,7 +319,7 @@ test("SUB: the main agent working supersedes it; it shows while Herdr is idle, d
 	h.set({ units: 2, context: { usedPercent: 67 } });
 	await until(() => herdr.tokens.get("g2_au") === "02AU" && herdr.tokens.get("g1") === `◐ WRK${B}`, "WRK beats SUB");
 	herdr.setStatus("idle"); await until(() => herdr.tokens.get("g1") === `◐ SUB${B}`, "SUB while idle");
-	assert.equal(herdr.tokens.get("proj"), "tatsu-cli"); assert.equal(herdr.tokens.get("bar"), "━━━━━━━━─── 67%");
+	assert.equal(herdr.tokens.get("proj"), "probe-cli"); assert.equal(herdr.tokens.get("bar"), "━━━━━━━━─── 67%");
 	herdr.setStatus("done"); await new Promise((done) => setTimeout(done, 60));
 	assert.equal(herdr.tokens.get("g1"), `◐ SUB${B}`, "SUB beats Herdr's done"); assert.equal(herdr.tokens.has("ev_rdy_text"), false);
 	herdr.setStatus("unknown"); await new Promise((done) => setTimeout(done, 60)); assert.equal(herdr.tokens.get("g1"), `◐ SUB${B}`);
@@ -353,7 +353,7 @@ async function finishedUnseen(t: any) {
 test("subagents finishing unseen show DNE with RDY · finished and its age, cleared when tab focus makes the pane seen", async (t) => {
 	const { herdr, h } = await finishedUnseen(t);
 	assert.equal(herdr.tokens.get("g5"), `RDY${B}`); assert.equal(herdr.tokens.get("ev_rdy_text"), `finished${B.repeat(7)}`);
-	assert.equal(herdr.tokens.get("ph_age"), `${B.repeat(4)}0s`); assert.equal(herdr.tokens.get("proj"), "tatsu-cli");
+	assert.equal(herdr.tokens.get("ph_age"), `${B.repeat(4)}0s`); assert.equal(herdr.tokens.get("proj"), "probe-cli");
 	await until(() => herdr.tokens.get("ph_age") === `${B.repeat(4)}1s`, "the age ticks", 2500);
 	// Focus moves elsewhere without reaching the pane: still unseen.
 	herdr.focus("w3", "w3:t1", "w3:p1"); await new Promise((done) => setTimeout(done, 80));
@@ -551,7 +551,7 @@ async function piSession(t: any, options: { mode?: string; ui?: boolean } = {}) 
 
 const FLAG_WARNING = "warning: /flag needs Pi's terminal UI inside Herdr; nothing was flagged";
 // Waits for a complete report from the current runtime: `dir` is set after every flag key in the sender's order.
-const reported = (herdr: FakeHerdr) => until(() => herdr.tokens.get("dir") === "/work/tatsu-cli", "complete report");
+const reported = (herdr: FakeHerdr) => until(() => herdr.tokens.get("dir") === "/work/probe-cli", "complete report");
 
 test("/flag toggles the current session's flag at once and saves it; state, focus, work and completion never clear it", async (t) => {
 	const herdr = await startFakeHerdr(); t.after(() => herdr.close()); inside(t, herdr);
@@ -688,7 +688,7 @@ test("background status gives RUN, precedence, token choices, unseen completion 
 	await until(() => herdr.tokens.get("g1") === `◐ RUN${B}` && herdr.tokens.has("bar"), "RUN from status");
 	assert.equal(requests[0].schema_version, "pi-background-tasks.extension-request.v1");
 	assert.equal(requests[0].operation, "status"); assert.deepEqual(requests[0].payload, {});
-	assert.equal(herdr.tokens.get("proj"), "tatsu-cli"); assert.equal(herdr.tokens.has("proj_idle"), false);
+	assert.equal(herdr.tokens.get("proj"), "probe-cli"); assert.equal(herdr.tokens.has("proj_idle"), false);
 	assert.equal(herdr.tokens.has("bar_idle"), false); assert.equal(herdr.tokens.get("g2_au0"), "00AU", "background tasks do not invent subagent units");
 	assert.equal(herdr.tokens.get("g2_bg"), "01BG");
 	h.set({ units: 2 }); await until(() => herdr.tokens.get("g1") === `◐ SUB${B}`, "SUB beats RUN");

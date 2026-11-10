@@ -49,17 +49,17 @@ test("later reports send only what changed, clear keys that stopped applying, an
 	sender.update(FIRST);
 	await until(() => sender.state.synced, "first report");
 	const before = herdr.reports().length;
-	sender.update({ ...FIRST, bar_unk: undefined, bar: "━━━━━━━━─── 67%", proj: "tatsu-cli" });
+	sender.update({ ...FIRST, bar_unk: undefined, bar: "━━━━━━━━─── 67%", proj: "probe-cli" });
 	await until(() => herdr.reports().length === before + 1 && sender.state.synced, "diff");
-	assert.deepEqual(herdr.reports().at(-1)!.params.tokens, { bar_unk: null, bar: "━━━━━━━━─── 67%", proj: "tatsu-cli" });
-	sender.update({ ...FIRST, bar_unk: undefined, bar: "━━━━━━━━─── 67%", proj: "tatsu-cli" });
+	assert.deepEqual(herdr.reports().at(-1)!.params.tokens, { bar_unk: null, bar: "━━━━━━━━─── 67%", proj: "probe-cli" });
+	sender.update({ ...FIRST, bar_unk: undefined, bar: "━━━━━━━━─── 67%", proj: "probe-cli" });
 	await new Promise((resolve) => setTimeout(resolve, 50));
 	assert.equal(herdr.reports().length, before + 1);
-	assert.deepEqual(map(herdr.tokens), sorted({ g1: "◐ WRK⠀", g2_au0: "??AU", bar: "━━━━━━━━─── 67%", cmpx: "CMP×??", proj: "tatsu-cli" }));
+	assert.deepEqual(map(herdr.tokens), sorted({ g1: "◐ WRK⠀", g2_au0: "??AU", bar: "━━━━━━━━─── 67%", cmpx: "CMP×??", proj: "probe-cli" }));
 });
 
-const PLAIN = { g1: "◐ WRK⠀", proj: "tatsu-cli", gt: "⠀2h33m", g2_au: "02AU", g2_bg: "01BG", bar: "━━━━━━━━─── 67%", cmpx: "CMP×18", g3: "ACT⠀", br: "main", prn: "⠀⠀⠀#42", g4: "MDL⠀", mthink: "opus-5.5/hi", g5: "ASK⠀", ask_l1: "a", ask_l2: "b", ask_l3: "c" };
-const FLAGGED = { ...PLAIN, proj: "tatsu-cli⠀⠀", flag: "●" };
+const PLAIN = { g1: "◐ WRK⠀", proj: "probe-cli", gt: "⠀2h33m", g2_au: "02AU", g2_bg: "01BG", bar: "━━━━━━━━─── 67%", cmpx: "CMP×18", g3: "ACT⠀", br: "main", prn: "⠀⠀⠀#42", g4: "MDL⠀", mthink: "opus-5.5/hi", g5: "ASK⠀", ask_l1: "a", ask_l2: "b", ask_l3: "c" };
+const FLAGGED = { ...PLAIN, proj: "probe-cli⠀⠀", flag: "●" };
 
 test("the flag sets and clears as a minimal diff, and the maximal flagged map fits beside another reporter's 15 keys", async (t) => {
 	const { herdr, sender } = await setup(t);
@@ -70,12 +70,12 @@ test("the flag sets and clears as a minimal diff, and the maximal flagged map fi
 	let before = herdr.reports().length;
 	sender.update(FLAGGED);
 	await until(() => herdr.tokens.get("flag") === "●" && sender.state.synced, "flag set");
-	assert.deepEqual(herdr.reports().slice(before).map((r) => r.params.tokens), [{ proj: "tatsu-cli⠀⠀", flag: "●" }]);
+	assert.deepEqual(herdr.reports().slice(before).map((r) => r.params.tokens), [{ proj: "probe-cli⠀⠀", flag: "●" }]);
 	assert.equal(herdr.tokens.size, 32);
 	before = herdr.reports().length;
 	sender.update(PLAIN);
 	await until(() => !herdr.tokens.has("flag") && sender.state.synced, "flag cleared");
-	assert.deepEqual(herdr.reports().slice(before).map((r) => r.params.tokens), [{ flag: null, proj: "tatsu-cli" }]);
+	assert.deepEqual(herdr.reports().slice(before).map((r) => r.params.tokens), [{ flag: null, proj: "probe-cli" }]);
 	assert.equal(sender.state.lastError, undefined);
 });
 

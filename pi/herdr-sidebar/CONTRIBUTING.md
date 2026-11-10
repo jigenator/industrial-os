@@ -187,3 +187,11 @@ Record each run with its date, Node, Pi and Herdr versions and results, keeping 
 - Repository changed local links/anchors, 122-entry guidance inventory, 19 exact CLAUDE entrypoints, both whitespace checks, new-contributor document review and exact-file publication/import review: **passed**. Existing row-2 anchor preserved. No dependency, color, generated artifact or cross-project production import added.
 - Live Pi/Herdr, producer integration and interactive checks: **not run**, not authorized. Type check, formatter, linter and build: **not run**, none configured. Mermaid rendering: **not run**, diagrams unchanged. Every validation run unset inherited `HERDR_*`; only fake sockets and temporary parser files were used.
 - Adoption needs no sidebar row merge. Other reporters must leave room for the new always-present token: this reporter now uses at most 17 of Herdr's 32 stored slots. Background scope, observation lag and unknown semantics retain the existing architecture limits.
+
+### Neutral sample path (2026-11-10)
+
+macOS, Node v22.23.4, installed Pi 1.5.1 via explicit `PI_HOST_ROOT`. The test fixtures' sample workspace (and the token contract's example) is now `/work/probe-cli`, the same length as before, so every padded token is unchanged. No source changed.
+
+- `npm test`: **114/114 passed**.
+- Isolated non-interactive `pi --mode rpc --no-extensions --extension .` with a temporary agent folder and inherited `HERDR_*` unset: **exit 0**.
+- Live Pi/Herdr: **not run**.
