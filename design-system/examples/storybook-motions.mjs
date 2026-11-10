@@ -98,11 +98,11 @@ function revealBlock(width) {
 }
 
 // "TCLI ▲ UP×3   AWKS • OK": label 0-3, shape 5, code 7-10; label 14-17, shape 19, code 21-22.
-const TATSU = [{ label: 'TCLI', state: 'behind', commitsBehind: 3 }, { label: 'AWKS', state: 'current' }];
+const INSTALL_CHIPS = [{ label: 'TCLI', state: 'behind', commitsBehind: 3 }, { label: 'AWKS', state: 'current' }];
 const ATTENTION = [{ label: 'TCLI', state: 'behind', commitsBehind: 3 }, { label: 'AWKS', state: 'repair' }];
 const CHECKING = [{ label: 'TCLI', state: 'checking' }, { label: 'AWKS', state: 'checking' }];
 const chips = (inputs) => (width) => body(stateChips(inputs, { width }), call('stateChips', inputs, { width }));
-const TATSU_DELAYS = [
+const INSTALL_DELAYS = [
   { region: { left: 5, cols: 1 }, delay: 0 }, { region: { left: 7, cols: 4 }, delay: 100 }, { region: { left: 0, cols: 4 }, delay: 200 },
   { region: { left: 19, cols: 1 }, delay: 150 }, { region: { left: 21, cols: 2 }, delay: 250 }, { region: { left: 14, cols: 4 }, delay: 350 },
 ];
@@ -275,8 +275,8 @@ const WARM_UP = motionStory({
     'Motion-off is the settled block.',
   ],
   variants: [
-    { name: 'TATSU STAGGER', note: "status-bar's stagger: each part 150 ms after the last; shape, then code, then label. State cells opted in.", options: { delays: TATSU_DELAYS, stateCells: true }, body: chips(TATSU) },
-    { name: 'STATE EXEMPT', note: 'Defaults: everything warms at once, and the warning cells stay settled.', options: {}, body: chips(TATSU) },
+    { name: 'INSTALL STAGGER', note: "status-bar's stagger: each part 150 ms after the last; shape, then code, then label. State cells opted in.", options: { delays: INSTALL_DELAYS, stateCells: true }, body: chips(INSTALL_CHIPS) },
+    { name: 'STATE EXEMPT', note: 'Defaults: everything warms at once, and the warning cells stay settled.', options: {}, body: chips(INSTALL_CHIPS) },
   ],
 });
 
@@ -297,8 +297,8 @@ const LATCH = motionStory({
     'Motion-off is the settled block.',
   ],
   variants: [
-    { name: 'STATE CHANGE', note: "The shape, gap, and code of a behind chip, as status-bar latches them: 150 ms.", options: { region: { top: 0, left: 5, rows: 1, cols: 6 }, stateCells: true }, body: chips(TATSU) },
-    { name: 'SLOW', note: 'A longer lock and inversion on the OK chip, to see each phase.', options: { lock: 400, invert: 600, region: { top: 0, left: 19, rows: 1, cols: 4 } }, body: chips(TATSU) },
+    { name: 'STATE CHANGE', note: "The shape, gap, and code of a behind chip, as status-bar latches them: 150 ms.", options: { region: { top: 0, left: 5, rows: 1, cols: 6 }, stateCells: true }, body: chips(INSTALL_CHIPS) },
+    { name: 'SLOW', note: 'A longer lock and inversion on the OK chip, to see each phase.', options: { lock: 400, invert: 600, region: { top: 0, left: 19, rows: 1, cols: 4 } }, body: chips(INSTALL_CHIPS) },
   ],
 });
 
@@ -314,7 +314,7 @@ const BEACON = motionStory({
   frame: (o) => o.step,
   rules: [
     'Only the triangle size and ink change; a period never opens on a pulse, so time 0 is settled.',
-    'Tatsu triangles are warning cells, so pass stateCells: true.',
+    'Install-status triangles are warning cells, so pass stateCells: true.',
     'It targets every triangle in the region: pass only cells that need attention.',
     'Motion-off is the settled triangle.',
   ],

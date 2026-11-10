@@ -2,7 +2,7 @@ import { isTerminalDefault, resolveColor } from '../foundation/cells.mjs';
 import { mixOver } from '../foundation/signal-colors.mjs';
 import { MIN_PERIOD_MS, assertLines, assertMs, assertTime, copyLines, inRegion, resolveOptions, resolveRegion, restyleCells } from './frame.mjs';
 
-// status-bar's Tatsu attention beacon (pi/status-bar/src/footer.ts TATSU_BEACON_PERIOD_MS, TATSU_BEACON_STEP_MS).
+// status-bar's install-status attention beacon (pi/status-bar/src/footer.ts INSTALL_BEACON_PERIOD_MS, INSTALL_BEACON_STEP_MS).
 export const BEACON_DEFAULTS = Object.freeze({ period: 4000, step: 50, region: undefined, stateCells: false });
 
 const STEPS = 3;

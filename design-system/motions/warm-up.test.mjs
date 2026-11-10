@@ -22,25 +22,25 @@ function specimen(width) {
   ];
 }
 
-// A two-component Tatsu entry as status-bar paints it (footer.ts:1194-1204): dim label, shape, ink space, code.
-const TATSU = [[
+// A two-component install-status entry as status-bar paints it (footer.ts:1194-1204): dim label, shape, ink space, code.
+const INSTALL_CHIPS = [[
   span('TCLI', { fg: 'decorative' }), span(' '), span('▲', { fg: 'warning', bold: true }), span(' ', { fg: 'warning', bold: true }), span('UP×3', { fg: 'warning', bold: true }),
   span('   '),
   span('AWKS', { fg: 'decorative' }), span(' '), span('•', { fg: 'accent', bold: true }), span(' ', { fg: 'accent', bold: true }), span('OK', { fg: 'accent', bold: true }),
 ]];
-// Each part's start in ticks: component * TATSU_WARM_STAGGER (3) + TATSU_WARM_ROLE (shape 0, code 2, label 4); 50 ms ticks.
+// Each part's start in ticks: component * INSTALL_WARM_STAGGER (3) + INSTALL_WARM_ROLE (shape 0, code 2, label 4); 50 ms ticks.
 const PARTS = [
   { left: 0, cols: 4, ink: 'graphic', start: 4 }, { left: 5, cols: 1, ink: 'warn', start: 0 }, { left: 7, cols: 4, ink: 'warn', start: 2 },
   { left: 14, cols: 4, ink: 'graphic', start: 7 }, { left: 19, cols: 1, ink: 'primary', start: 3 }, { left: 21, cols: 2, ink: 'primary', start: 5 },
 ];
-const TATSU_DELAYS = PARTS.map(({ left, cols, start }) => ({ region: { left, cols }, delay: start * 50 }));
+const INSTALL_DELAYS = PARTS.map(({ left, cols, start }) => ({ region: { left, cols }, delay: start * 50 }));
 // status-bar's warm-up inks (footer.ts:120-125, 403-406), by its hue names; settled is the DS role.
 const INKS = {
   graphic: { steps: ['#1c1c1c', '#383838', '#555555'], settled: '#717171' },
   warn: { steps: ['#362814', '#6c4f29', '#a1763e'], settled: '#d79e52' },
   primary: { steps: ['#304001', '#607f02', '#90be03'], settled: '#c0fe04' },
 };
-// footer.ts:408-411 tatsuWarmInk, with the start already summed.
+// footer.ts:408-411 installWarmInk, with the start already summed.
 const reference = (ink, k, start) => {
   const step = Math.floor((k - start) / 2);
   return step < 0 ? '#000000' : step < 3 ? INKS[ink].steps[step] : INKS[ink].settled;
@@ -56,10 +56,10 @@ test('warmUp: motion-off returns the input and needs no time', () => {
   assert.deepEqual({ ...WARM_UP_DEFAULTS, delays: [...WARM_UP_DEFAULTS.delays] }, { step: 100, delays: [], stateCells: false });
 });
 
-test('warmUp: every tick of the Tatsu warm-up matches status-bar (footer.ts:396-411)', () => {
+test('warmUp: every tick of the install-status warm-up matches status-bar (footer.ts:396-411)', () => {
   for (let k = 0; k <= 14; k++) {
     for (const time of [k * 50, k * 50 + 49]) {
-      const cells = cellsOf(warmUp(TATSU, { time, delays: TATSU_DELAYS, stateCells: true })[0]);
+      const cells = cellsOf(warmUp(INSTALL_CHIPS, { time, delays: INSTALL_DELAYS, stateCells: true })[0]);
       assert.equal(cells.map((c) => c.ch).join(''), 'TCLI ▲ UP×3   AWKS • OK', 'characters are current from the first frame');
       for (const { left, cols, ink, start } of PARTS) {
         for (let x = left; x < left + cols; x++) {
@@ -67,14 +67,14 @@ test('warmUp: every tick of the Tatsu warm-up matches status-bar (footer.ts:396-
           // Deviation: an opted-in state cell starts at its first visible step, not the invisible field.
           const want = ink === 'warn' && expected === '#000000' ? INKS.warn.steps[0] : expected;
           assert.equal(hex(cells[x].fg), want, `tick ${k} t=${time} cell ${x}`);
-          assert.equal(cells[x].bold, TATSU[0].flatMap((s) => [...s.text].map(() => s.style.bold ?? false))[x], 'bold kept');
+          assert.equal(cells[x].bold, INSTALL_CHIPS[0].flatMap((s) => [...s.text].map(() => s.style.bold ?? false))[x], 'bold kept');
         }
       }
     }
   }
   // Settled once the last part (AWKS's label, tick 7) has stepped three times: 650 ms; status-bar holds 14 ticks (700 ms).
-  assert.equal(warmUpDuration({ delays: TATSU_DELAYS }), 650);
-  assert.deepEqual(color(warmUp(TATSU, { time: 650, delays: TATSU_DELAYS, stateCells: true })), color(TATSU));
+  assert.equal(warmUpDuration({ delays: INSTALL_DELAYS }), 650);
+  assert.deepEqual(color(warmUp(INSTALL_CHIPS, { time: 650, delays: INSTALL_DELAYS, stateCells: true })), color(INSTALL_CHIPS));
 });
 
 test('warmUp: warning and critical cells are exempt by default and readable when opted in', () => {

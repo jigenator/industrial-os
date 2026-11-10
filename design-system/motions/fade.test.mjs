@@ -21,7 +21,7 @@ function specimen(width) {
     ...statusRow({ label: 'PARSE', value: 'failed', status: 'error' }, { width }),
   ];
 }
-// status-bar's checking fade levels (footer.ts:103 TATSU_CHECK_FADE_LEVELS), copied here as the reference.
+// status-bar's checking fade levels (footer.ts:103 INSTALL_CHECK_FADE_LEVELS), copied here as the reference.
 const LEVELS = ['#717171', '#7b7b7b', '#868686', '#919191', '#9c9c9c', '#919191', '#868686', '#7b7b7b'];
 const CODE = [[span('TCLI ', { fg: 'decorative' }), span('· ', { fg: 'structural', bold: true }), span('CHK', { fg: 'decorative', bold: true })]];
 
@@ -37,8 +37,8 @@ test('fade: motion-off returns the input and needs no time', () => {
   assert.deepEqual([...FADE_DEFAULTS.roles], ['decorative']);
 });
 
-test('fade: the eight-step check fade, 150 ms a step, as Tatsu (footer.ts:390, 747, 1196)', () => {
-  // footer.ts:1196: TATSU_CHECK_FADE_INKS[tatsuCheck % 8], tatsuCheck = floor(elapsed / 150).
+test('fade: the eight-step check fade, 150 ms a step, as install status (footer.ts:390, 747, 1196)', () => {
+  // footer.ts:1196: INSTALL_CHECK_FADE_INKS[installCheck % 8], installCheck = floor(elapsed / 150).
   for (let k = 0; k < 24; k++) {
     for (const time of [k * 150, k * 150 + 149]) {
       const cells = cellsOf(fade(CODE, { time, region: { left: 7 } })[0]);

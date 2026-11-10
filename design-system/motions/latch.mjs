@@ -1,6 +1,6 @@
 import { assertLines, assertMs, assertTime, copyLines, inRegion, invertCell, resolveOptions, resolveRegion, restyleCells } from './frame.mjs';
 
-// status-bar's Tatsu state latch (pi/status-bar/src/footer.ts TATSU_LATCH_TICKS): tick 0 locked, ticks 1-2 inverted.
+// status-bar's install-status state latch (pi/status-bar/src/footer.ts INSTALL_LATCH_TICKS): tick 0 locked, ticks 1-2 inverted.
 export const LATCH_DEFAULTS = Object.freeze({ lock: 50, invert: 100, region: undefined, stateCells: false });
 
 // The path lock: bold black on acid. A full block shows only its foreground, so it locks as a solid acid block.

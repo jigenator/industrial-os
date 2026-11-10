@@ -91,9 +91,9 @@ Guarantees that hold for every motion:
 
 ## Status-bar host composition
 
-status-bar consumes scoped primitives beneath its existing state machine and single decoration scheduler: CMP polarity flash, calibration offset, pixel-element reconstruction, USG fill-in/edge pulse/burn-out, Tatsu cycle/fade/latch/beacon, PNYTL activity phase, BG RUN blink, and CTX threshold/tag flash. It preserves Pi paint boundaries, current-cell ownership and host timing. State colors enter motions as `warning`/`critical` roles, never literal RGB to evade the guard.
+status-bar consumes scoped primitives beneath its existing state machine and single decoration scheduler: CMP polarity flash, calibration offset, pixel-element reconstruction, USG fill-in/edge pulse/burn-out, install-status cycle/fade/latch/beacon, PNYTL activity phase, BG RUN blink, and CTX threshold/tag flash. It preserves Pi paint boundaries, current-cell ownership and host timing. State colors enter motions as `warning`/`critical` roles, never literal RGB to evade the guard.
 
-Footer boot plans, plate wipes, re-strikes, registration ghosts, fill glitches, PNYTL bursts, unit shuttle, Tatsu warm-up and USG row boot remain host-owned compatibility effects. In particular Tatsu warm-up can hide amber/red and USG row boot can hide stale/failure text; **the DS cue guard is not weakened to reproduce them**. Negative/manual frame pre-roll remains a host compatibility projection, not negative DS time. These are retained legacy behaviors, not endorsement of state hiding.
+Footer boot plans, plate wipes, re-strikes, registration ghosts, fill glitches, PNYTL bursts, unit shuttle, install-status warm-up and USG row boot remain host-owned compatibility effects. In particular the install-status warm-up can hide amber/red and USG row boot can hide stale/failure text; **the DS cue guard is not weakened to reproduce them**. Negative/manual frame pre-roll remains a host compatibility projection, not negative DS time. These are retained legacy behaviors, not endorsement of state hiding.
 
 ## `scan(lines, options)`
 
@@ -165,7 +165,7 @@ A one-shot phosphor warm-up. Each cell's foreground starts at the field (invisib
 | `delays` | array of up to 1000 `{ region, delay }`: `delay` in ms, `0`–`60000`; `region` as in [shared targeting](#shared-targeting). The first entry whose region holds a cell sets its delay; other cells start at once | `[]` |
 | `stateCells` | `true` to warm up warning and critical cells too | `false` |
 
-`warmUpDuration(options)` returns the longest delay plus three steps. `WARM_UP_DEFAULTS` is exported. Tatsu's stagger is plain data. Each component starts 150 ms after the one before; within one, the shape starts first, the code 100 ms later and the label 200 ms later:
+`warmUpDuration(options)` returns the longest delay plus three steps. `WARM_UP_DEFAULTS` is exported. The install-status stagger is plain data. Each component starts 150 ms after the one before; within one, the shape starts first, the code 100 ms later and the label 200 ms later:
 
 ```js
 // "TCLI ▲ UP×3   AWKS • OK": label 0-3, shape 5, code 7-10; label 14-17, shape 19, code 21-22.
@@ -180,7 +180,7 @@ warmUp(lines, { time, delays, stateCells: true });   // settled at warmUpDuratio
 - **Rate:** one-shot, four steps of 100 ms per cell.
 - **State cells:** exempt by default. With `stateCells: true` they warm up too, but start at their 25% step instead of the field, and a step that would match the cell's background keeps its settled color.
 - **Motion-off:** the settled block.
-- **Source:** [footer.ts](../../pi/status-bar/src/footer.ts) `TATSU_WARM_STEP_TICKS`, `TATSU_WARM_STAGGER`, `TATSU_WARM_ROLE`, `TATSU_WARM_INKS` and `tatsuWarmInk`; [status-bar design](../../pi/status-bar/docs/design.md) "Warm-up on appearance".
+- **Source:** [footer.ts](../../pi/status-bar/src/footer.ts) `INSTALL_WARM_STEP_TICKS`, `INSTALL_WARM_STAGGER`, `INSTALL_WARM_ROLE`, `INSTALL_WARM_INKS` and `installWarmInk`; [status-bar design](../../pi/status-bar/docs/design.md) "Warm-up on appearance".
 - **Differences from status-bar:** status-bar starts every part at the field, so its amber and red parts are invisible for a moment. Here an opted-in state cell starts at its first visible step, because a state cell must never be hidden. Any color steps through `mixOver`; status-bar ramps only its acid, amber, red and graphic inks and shows other inks settled at once. For those four inks every value is identical (graphic's 25% and 75% steps are surface `#1c1c1c` and structural `#555555`). The host passes the delays that status-bar derives from its layout. Status-bar holds the warm-up for 14 ticks (700 ms); its last tick is already settled, so the frames match the 650 ms here.
 
 ## `latch(lines, options)` and `latchDuration(options)`
@@ -197,9 +197,9 @@ A one-shot state-change latch on the cells of `region`. For `lock` ms they are l
 `latchDuration(options)` returns `lock + invert`. `LATCH_DEFAULTS` is exported.
 
 - **Rate:** one-shot, 150 ms.
-- **State cells:** Tatsu latches state-colored cells, so pass `stateCells: true`. The lock replaces the state color with acid for 50 ms; shape and word stay readable. A cell whose foreground and background are the same color keeps its look while inverted, because swapping would hide it.
+- **State cells:** The install-status entry latches state-colored cells, so pass `stateCells: true`. The lock replaces the state color with acid for 50 ms; shape and word stay readable. A cell whose foreground and background are the same color keeps its look while inverted, because swapping would hide it.
 - **Motion-off:** the settled block.
-- **Source:** [footer.ts](../../pi/status-bar/src/footer.ts) `TATSU_LATCH_TICKS` and the latch ink in `renderFooter`; [status-bar design](../../pi/status-bar/docs/design.md) "State-change latch".
+- **Source:** [footer.ts](../../pi/status-bar/src/footer.ts) `INSTALL_LATCH_TICKS` and the latch ink in `renderFooter`; [status-bar design](../../pi/status-bar/docs/design.md) "State-change latch".
 - **Differences from status-bar:** inversion swaps foreground and background; status-bar sets black on the state ink, which is the same for its cells on the field. Status-bar latches only the shape, the space after it and the code; pass those cells as `region`. Deciding when a change latches belongs to the host.
 
 ## `beacon(lines, options)`
@@ -217,9 +217,9 @@ A looping attention beacon on every `▲` cell in `region`. In the last three st
 
 - **Terminal defaults:** dimming a default foreground throws `TypeError` because it has no known RGB. Concrete ink over `bg: 'default'` is treated as distinct from the unknown background; this does not certify host contrast. Motion-off copies the input.
 - **Rate:** one 150 ms pulse every 4 s.
-- **State cells:** Tatsu's `▲` is amber, so pass `stateCells: true`. If the 50% mix would match the cell's background, only the glyph changes.
+- **State cells:** The install-status `▲` is amber, so pass `stateCells: true`. If the 50% mix would match the cell's background, only the glyph changes.
 - **Motion-off:** the settled `▲`.
-- **Source:** [footer.ts](../../pi/status-bar/src/footer.ts) `TATSU_BEACON_PERIOD_MS`, `TATSU_BEACON_STEP_MS`, `beaconAt` in `motionFrame` and the shape ink in `renderFooter`; [status-bar design](../../pi/status-bar/docs/design.md) "Attention beacon".
+- **Source:** [footer.ts](../../pi/status-bar/src/footer.ts) `INSTALL_BEACON_PERIOD_MS`, `INSTALL_BEACON_STEP_MS`, `beaconAt` in `motionFrame` and the shape ink in `renderFooter`; [status-bar design](../../pi/status-bar/docs/design.md) "Attention beacon".
 - **Differences from status-bar:** it targets every `▲` in the region instead of the shape of a behind or repair component; pass only lines or a region that need attention. The period counts from the host's time origin, as status-bar's counts from its motion epoch.
 
 ## `cycle(lines, options)`
@@ -237,7 +237,7 @@ A looping placeholder. Every cell in `region` whose character is one of `glyphs`
 - **Rate:** a step every 150 ms, 750 ms per cycle.
 - **State cells:** always exempt.
 - **Motion-off:** the input glyph, a steady `·` for a checking placeholder.
-- **Source:** [footer.ts](../../pi/status-bar/src/footer.ts) `TATSU_CHECK_STEP_MS` and `tatsuCheck`, which now take the glyphs from `CYCLE_DEFAULTS.glyphs`; [status-bar design](../../pi/status-bar/docs/design.md) "Checking scan and fade".
+- **Source:** [footer.ts](../../pi/status-bar/src/footer.ts) `INSTALL_CHECK_STEP_MS` and `installCheck`, which now take the glyphs from `CYCLE_DEFAULTS.glyphs`; [status-bar design](../../pi/status-bar/docs/design.md) "Checking scan and fade".
 - **Differences from status-bar:** it targets cells by glyph and region instead of a checking component's shape cell. A cell whose character is not in the sequence never changes, so letters and digits never do.
 
 ## `fade(lines, options)`
@@ -256,7 +256,7 @@ A looping ink wave. Every non-space cell in `region` whose foreground role is on
 - **Rate:** a step every 150 ms, 1200 ms per wave. Adjacent steps differ only slightly and there is no polarity change.
 - **State cells:** always exempt; `warning` and `critical` in `roles` throw, as in pulse.
 - **Motion-off:** the input, a steady `#717171`.
-- **Source:** [footer.ts](../../pi/status-bar/src/footer.ts) `TATSU_CHECK_FADE_LEVELS` and `TATSU_CHECK_FADE_INKS`; [status-bar design](../../pi/status-bar/docs/design.md) "Checking scan and fade".
+- **Source:** [footer.ts](../../pi/status-bar/src/footer.ts) `INSTALL_CHECK_FADE_LEVELS` and `INSTALL_CHECK_FADE_INKS`; [status-bar design](../../pi/status-bar/docs/design.md) "Checking scan and fade".
 - **Differences from status-bar:** it targets cells by role and region instead of the `CHK` code. Cells painted with a literal color never match.
 
 ## `blink(lines, options)`

@@ -21,7 +21,7 @@ function specimen(width) {
     [span('TCLI · CHK  AWKS · CHK'.slice(0, width), { fg: 'decorative' })],
   ];
 }
-// A checking Tatsu component (footer.ts:1194-1204): grey label, grey `·` shape, grey code.
+// A checking install-status component (footer.ts:1194-1204): grey label, grey `·` shape, grey code.
 const CHECKING = [[span('TCLI ', { fg: 'decorative' }), span('·', { fg: 'decorative', bold: true }), span(' CHK', { fg: 'decorative', bold: true })]];
 
 test('cycle: motion-off returns the input and needs no time', () => {
@@ -34,8 +34,8 @@ test('cycle: motion-off returns the input and needs no time', () => {
   assert.deepEqual({ ...CYCLE_DEFAULTS, glyphs: [...CYCLE_DEFAULTS.glyphs] }, { glyphs: ['·', '•', '•', '•', '·'], step: 150, region: undefined });
 });
 
-test('cycle: the checking placeholder steps every 150 ms, as Tatsu (footer.ts:391, 747, 1199)', () => {
-  // footer.ts:747: tatsuCheck = floor(elapsed / 150); the glyph is CYCLE_DEFAULTS.glyphs[tatsuCheck % 5].
+test('cycle: the checking placeholder steps every 150 ms, as install status (footer.ts:391, 747, 1199)', () => {
+  // footer.ts:747: installCheck = floor(elapsed / 150); the glyph is CYCLE_DEFAULTS.glyphs[installCheck % 5].
   const shapeAt = (time) => plain(cycle(CHECKING, { time }))[0][5];
   assert.deepEqual([0, 149, 150, 300, 450, 600, 749, 750, 900].map(shapeAt), ['·', '·', '•', '•', '•', '·', '·', '·', '•']);
   for (let time = 0; time < 1500; time += 50) {

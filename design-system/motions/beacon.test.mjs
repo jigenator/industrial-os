@@ -20,7 +20,7 @@ function specimen(width) {
     ...statusRow({ label: 'PARSE', value: 'failed', status: 'error' }, { width }),
   ];
 }
-// A behind Tatsu component (footer.ts:1194-1204): its amber `▲` beside an unchanging code.
+// A behind install-status component (footer.ts:1194-1204): its amber `▲` beside an unchanging code.
 const BEHIND = [[span('TCLI', { fg: 'decorative' }), span(' '), span('▲', { fg: 'warning', bold: true }), span(' UP×3', { fg: 'warning', bold: true })]];
 const shape = (time, o = {}) => {
   const c = cellsOf(beacon(BEHIND, { time, stateCells: true, ...o })[0])[5];
@@ -37,7 +37,7 @@ test('beacon: motion-off returns the input and needs no time', () => {
   assert.deepEqual({ ...BEACON_DEFAULTS }, { period: 4000, step: 50, region: undefined, stateCells: false });
 });
 
-test('beacon: the last 150 ms of each 4000 ms period, as Tatsu (footer.ts:748-749, 1198-1200)', () => {
+test('beacon: the last 150 ms of each 4000 ms period, as install status (footer.ts:748-749, 1198-1200)', () => {
   // footer.ts:748: beaconAt = elapsed % 4000 - 3850; 1199: ▴ while beacon < 2; 1200: warnDim while beacon > 0.
   assert.equal(shape(0), '▲ #d79e52', 'never opens on a pulse');
   assert.equal(shape(3849), '▲ #d79e52');

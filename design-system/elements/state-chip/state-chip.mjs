@@ -1,7 +1,7 @@
 import { GLYPHS, assertCells, fitLine, lineWidth, resolveColor, safeText, span, fitText } from '../../foundation/cells.mjs';
 
-// footer.ts:24-37: the complete Tatsu component vocabulary, not a check or a success inference.
-export const TATSU_STATES = Object.freeze(Object.fromEntries(Object.entries({
+// footer.ts:24-37: the complete install-status component vocabulary, not a check or a success inference.
+export const INSTALL_STATES = Object.freeze(Object.fromEntries(Object.entries({
   current: { shape: '•', code: 'OK', tone: 'accent' }, behind: { shape: '▲', code: 'UP', tone: 'warning' },
   repair: { shape: '▲', code: 'FIX', tone: 'warning' }, local_changes: { shape: '◆', code: 'EDIT', tone: 'warning' },
   missing: { shape: '✕', code: 'MISS', tone: 'critical' }, not_runnable: { shape: '✕', code: 'NRUN', tone: 'critical' },
@@ -9,7 +9,7 @@ export const TATSU_STATES = Object.freeze(Object.fromEntries(Object.entries({
   inactive: { shape: '·', code: 'OFF', tone: 'decorative' },
 }).map(([key, value]) => [key, Object.freeze(value)])));
 
-function renderChip({ label, state, commitsBehind, localChanges = false }, { preset = TATSU_STATES, maxWidth = Infinity } = {}, countPolicy = 'safe-integer') {
+function renderChip({ label, state, commitsBehind, localChanges = false }, { preset = INSTALL_STATES, maxWidth = Infinity } = {}, countPolicy = 'safe-integer') {
   if (!preset || !Object.hasOwn(preset, state)) throw new RangeError('unknown chip state');
   if (maxWidth !== Infinity && (!Number.isInteger(maxWidth) || maxWidth < 0 || maxWidth > 1000)) throw new RangeError('maxWidth must be 0–1000 or Infinity');
   if (commitsBehind !== undefined) {
@@ -22,8 +22,8 @@ function renderChip({ label, state, commitsBehind, localChanges = false }, { pre
   resolveColor(look.tone);
   let code = safeText(look.code);
   // Preset-specific count and edit grammar; custom presets keep their supplied safe code.
-  if (preset === TATSU_STATES && state === 'behind' && commitsBehind !== undefined) code += '×' + commitsBehind;
-  if (preset === TATSU_STATES && ['behind', 'repair'].includes(state) && localChanges) code += ' ◆ EDIT';
+  if (preset === INSTALL_STATES && state === 'behind' && commitsBehind !== undefined) code += '×' + commitsBehind;
+  if (preset === INSTALL_STATES && ['behind', 'repair'].includes(state) && localChanges) code += ' ◆ EDIT';
   const line = [span(safeText(label), { fg: 'decorative' }), span(' '), span(`${look.shape} ${code}`, { fg: look.tone, bold: true })];
   return fitLine(line, Math.min(maxWidth, lineWidth(line)));
 }
@@ -32,7 +32,7 @@ function renderChip({ label, state, commitsBehind, localChanges = false }, { pre
 export function stateChip(input, { form = 'chip', measure, ...options } = {}) {
   if (!['chip', 'word'].includes(form)) throw new RangeError('unknown chip form');
   if (form === 'chip') return renderChip(input, options);
-  const { preset = TATSU_STATES, maxWidth = Infinity } = options;
+  const { preset = INSTALL_STATES, maxWidth = Infinity } = options;
   if (!preset || !Object.hasOwn(preset, input.state)) throw new RangeError('unknown chip state');
   if (maxWidth !== Infinity && (!Number.isInteger(maxWidth) || maxWidth < 0 || maxWidth > 1000)) throw new RangeError('maxWidth must be 0–1000 or Infinity');
   const look = preset[input.state];
@@ -47,7 +47,7 @@ export function stateChip(input, { form = 'chip', measure, ...options } = {}) {
 }
 
 // footer.ts:1167-1180: three-cell gaps, whole parts wrap; only an oversized part splits at inner spaces.
-export function stateChips(inputs, { width, preset = TATSU_STATES } = {}) {
+export function stateChips(inputs, { width, preset = INSTALL_STATES } = {}) {
   assertCells(width, 'state chips width');
   if (!Array.isArray(inputs)) throw new TypeError('inputs must be an array');
   const lines = [], run = [];
@@ -72,8 +72,8 @@ export function stateChips(inputs, { width, preset = TATSU_STATES } = {}) {
 }
 
 // Natural role/emission pieces: separate gaps matter to hosts with opaque pre-styled text.
-// Generic counts use the same curated multiplication sign as the Tatsu preset, not caller Unicode code text.
-export function stateChipParts(input, { preset = TATSU_STATES, count, countPolicy = 'safe-integer' } = {}) {
+// Generic counts use the same curated multiplication sign as the install-status preset, not caller Unicode code text.
+export function stateChipParts(input, { preset = INSTALL_STATES, count, countPolicy = 'safe-integer' } = {}) {
   if (!['safe-integer', 'number-text'].includes(countPolicy)) throw new RangeError('countPolicy must be safe-integer or number-text');
   if (count !== undefined && (!Number.isSafeInteger(count) || count < 0)) throw new RangeError('count must be a non-negative safe integer');
   const [label, labelGap, state] = renderChip(input, { preset }, countPolicy);

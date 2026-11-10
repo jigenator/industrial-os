@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { stripVTControlCharacters } from 'node:util';
 import { GLYPHS, fitLine, lineWidth, paint } from '../../foundation/cells.mjs';
-import { stateChip, stateChips, TATSU_STATES } from './state-chip.mjs';
+import { stateChip, stateChips, INSTALL_STATES } from './state-chip.mjs';
 const text = (lines) => lines.map((line) => paint(line, 'none'));
 
-test('exact Tatsu snapshots in every state with dim labels and bold role-colored state text', () => {
+test('exact install-status snapshots in every state with dim labels and bold role-colored state text', () => {
   // footer.ts:24-37 and 1192-1203: label + field space + shape/code, no plate.
   const expected = ['• OK', '▲ UP', '▲ FIX', '◆ EDIT', '✕ MISS', '✕ NRUN', '✕ UNAV', '· CHK', '· OFF'];
-  Object.entries(TATSU_STATES).forEach(([state, look], i) => {
+  Object.entries(INSTALL_STATES).forEach(([state, look], i) => {
     const line = stateChip({ label: 'TCLI', state });
     assert.equal(paint(line, 'none'), `TCLI ${expected[i]}`);
     assert.deepEqual(line[0].style, { fg: 'decorative' });
@@ -36,7 +36,7 @@ test('generic preset and all caller text are control-safe', () => {
   assert.equal(paint(stateChip({ label: '界\x1b', state: 'busy' }, { preset }), 'none'), '?? ◆ GO?');
 });
 test('every state and combination, inline and line widths 1–160, glyphs and plain/color match', () => {
-  for (let width = 1; width <= 160; width++) for (const state of Object.keys(TATSU_STATES)) for (const localChanges of [false, true]) {
+  for (let width = 1; width <= 160; width++) for (const state of Object.keys(INSTALL_STATES)) for (const localChanges of [false, true]) {
     const input = { label: 'TCLI', state, commitsBehind: 12, localChanges };
     const piece = stateChip(input, { maxWidth: width });
     assert.ok(lineWidth(piece) <= width);
@@ -61,7 +61,7 @@ test('invalid states, count, flags, widths, preset and text throw', () => {
 
 import { stateChipParts } from './state-chip.mjs';
 test('stateChipParts exposes label/shape/gaps/code, with structural count suffixes', () => {
-  for (const state of Object.keys(TATSU_STATES)) {
+  for (const state of Object.keys(INSTALL_STATES)) {
     const input = { label: 'TCLI', state, commitsBehind: 3, localChanges: true }, p = stateChipParts(input);
     assert.equal(paint([...p.label, ...p.labelGap, ...p.shape, ...p.stateGap, ...p.code], 'truecolor'), paint(stateChip(input), 'truecolor'));
     assert.equal(p.stateGap[0].text, ' ');

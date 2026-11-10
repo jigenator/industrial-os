@@ -324,3 +324,13 @@ Node v22.23.4, macOS, branch `feature/droid-header-redesign`. For the Pi droid h
 - **Snapshots:** showcase 120/100/80/48/40/23 and storybook 120/80/48/24/12 at 24 rows: all exit 0. The UNIT PLATE and CRT BOOT specimens were reviewed as plain text at 80 cells, the boot at 60 and 900 ms.
 - **Consumers:** droid-header **38/38**, status-bar **147/147** and Pi theme **5/5** with the installed Pi host; Herdr configuration **20/20**.
 - **Not run:** dispatch-feed and automations-monitor suites (their locked installs are absent in this worktree; nothing was installed); claude-interrupt's suite (not installed); native Herdr storybook browsing; physical glyph, font or contrast review of `◣ ◥`, `⟁`, the peak and the barcode; Mermaid rendering (no diagram changed).
+
+## Neutral install-status names (2026-11-10)
+
+macOS, Node v22.23.4. The state chip's built-in preset and its state type are now exported as `INSTALL_STATES` and `InstallState`, and the README, storybook (the warm-up story is now `INSTALL STAGGER`), motion comments, tests and motion README name status-bar's entry "install status" and its constants `INSTALL_*`. Values, defaults, glyphs, colors and every frame are unchanged. The export rename is breaking for an outside consumer: Lunalee pins an earlier revision and keeps the old name until it moves its pin. The only in-repo caller, status-bar, changed in the same branch.
+
+- **Automated:** `node --test`: **669/669 passed**, none skipped or cancelled.
+- **Types:** strict NodeNext `package-types.ts`, `pi/status-bar/test/design-system-types.ts` and every `.d.mts` with TypeScript 7.0.2 from the automations monitor's locked install (claude-interrupt's compiler is not installed in this worktree): exit 0.
+- **Snapshots:** showcase 120/100/80/48/40/23 and storybook 120/80/48/24/12 at 24 rows: all exit 0.
+- **Consumers:** status-bar **147/147** with the installed Pi 1.5.1 host; lesson-maker **134/134** (it imports the state chip's word form only).
+- **Not run:** native Herdr storybook browsing (no visible change beyond the story name); Mermaid rendering (no diagram changed here).

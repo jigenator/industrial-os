@@ -158,7 +158,7 @@ AMBIENT LOAD demonstrates the exact v20 grid/dot/registration load clocks and in
 
 ## Board stories
 
-SECTION HEAD, BOARD MARKS, TIME LANE, READOUT, EVENT ROW and SCROLL RAIL show the automations monitor's board parts with synthetic fixtures: pipeline names, issue numbers, times and counts are examples, never live Tatsu data. TIME LANE places its pieces on a one-row `CellGrid`, as a host would, and leaves out a run label that would cover a bar at narrow widths (see the [time lane contract](../elements/time-lane/README.md)).
+SECTION HEAD, BOARD MARKS, TIME LANE, READOUT, EVENT ROW and SCROLL RAIL show the automations monitor's board parts with synthetic fixtures: pipeline names, issue numbers, times and counts are examples, never live automations data. TIME LANE places its pieces on a one-row `CellGrid`, as a host would, and leaves out a run label that would cover a bar at narrow widths (see the [time lane contract](../elements/time-lane/README.md)).
 
 ## Crate banner story
 

@@ -27,7 +27,7 @@ Evidence: design-system inventory with canonical Markdown guidance, `foundation/
 | `elements/instrument-frame/` | status-bar's framed footer geometry | `instrumentFrame()`, `frameGeometry()`, `frameStubs()`, `frameCenter()`, `wrapLine()`; [README](../elements/instrument-frame/README.md) | `foundation/` |
 | `elements/count-plate/` | Exact count plate (CMP, AU) | `countPlate()`, `COUNT_PLATES`; [README](../elements/count-plate/README.md) | `foundation/` |
 | `elements/mode-plate/` | Inline mode plate (PNYTL) | `modePlate()`, `pnytlPlate()`, `modePlateParts()`, `pnytlPlateParts()`; [README](../elements/mode-plate/README.md) | `foundation/` |
-| `elements/state-chip/` | Supplied-state chips (Tatsu) | `stateChip()`, `stateChips()`, `stateChipParts()`; [README](../elements/state-chip/README.md) | `foundation/` |
+| `elements/state-chip/` | Supplied-state chips (install status) | `stateChip()`, `stateChips()`, `stateChipParts()`; [README](../elements/state-chip/README.md) | `foundation/` |
 | `elements/lamp/` | One-cell root lamp | `lamp()`, `LAMP_BLINK`, `LAMP_DIM_STYLE`; [README](../elements/lamp/README.md) | `foundation/` |
 | `elements/status-row/` | Label/value/state row | `statusRow()`; [README](../elements/status-row/README.md) | `foundation/` |
 | `elements/gauge/` | Calibrated value reading, with opt-in zones and a tick-free scale | `gauge()`, `gaugeScale()`, `gaugeReading()`, `gaugeTrack()`, `gaugeParts()`, `gaugeScaleParts()`, `gaugeTick()`, `gaugeExtent()`, `gaugeZone()`, `READOUT_CHIP`; [README](../elements/gauge/README.md) | `foundation/` |

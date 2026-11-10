@@ -1,6 +1,6 @@
 # State chip
 
-The status-bar Tatsu entry part: a dim nonbold label, one field space and bold `<shape> <CODE>` in its state ink. A generic supplied-state display, not a status collector or check.
+The status-bar install-status entry part: a dim nonbold label, one field space and bold `<shape> <CODE>` in its state ink. A generic supplied-state display, not a status collector or check.
 
 ## Usage
 
@@ -19,14 +19,14 @@ TCLI ▲ UP×1   AWKS • OK
 
 | Input/API | Contract | Default |
 | --- | --- | --- |
-| `stateChip(input, { preset, maxWidth })` | inline spans no wider than maxWidth | Tatsu preset |
+| `stateChip(input, { preset, maxWidth })` | inline spans no wider than maxWidth | install-status preset |
 | `label`, `state` | caller label string; own key in preset | required |
-| `commitsBehind` | non-negative safe integer; only Tatsu behind appends `×N` | omitted: `UP` |
-| `localChanges` | boolean; Tatsu behind/repair appends ` ◆ EDIT` | `false` |
-| `preset` | state → `{ shape, code, tone }`; single curated/ASCII shape, safe caller code string and valid color | `TATSU_STATES` |
+| `commitsBehind` | non-negative safe integer; only install-status behind appends `×N` | omitted: `UP` |
+| `localChanges` | boolean; install-status behind/repair appends ` ◆ EDIT` | `false` |
+| `preset` | state → `{ shape, code, tone }`; single curated/ASCII shape, safe caller code string and valid color | `INSTALL_STATES` |
 | `maxWidth` | integer 0–1000 or Infinity | Infinity |
 | `stateChips(inputs, { width, preset })` | array of inputs → lines of exactly width (1–1000); empty inputs → `[]` | width required |
-| `TATSU_STATES` | frozen preset table | exported reference |
+| `INSTALL_STATES` | frozen preset table | exported reference |
 
 ## States
 
@@ -42,7 +42,7 @@ TCLI ▲ UP×1   AWKS • OK
 | `checking` | `· CHK` | decorative |
 | `inactive` | `· OFF` | decorative |
 
-Combined behind/repair + localChanges uses the same warning role throughout (`▲ UP×1 ◆ EDIT`, `▲ FIX ◆ EDIT`). Shape and code carry meaning without color. Unknown/unavailable is not current; there is no success-shaped fallback. Custom presets do not gain Tatsu count/edit grammar. Use role names for warning/critical custom states so motions can recognise them.
+Combined behind/repair + localChanges uses the same warning role throughout (`▲ UP×1 ◆ EDIT`, `▲ FIX ◆ EDIT`). Shape and code carry meaning without color. Unknown/unavailable is not current; there is no success-shaped fallback. Custom presets do not gain the install-status count/edit grammar. Use role names for warning/critical custom states so motions can recognise them.
 
 ## Width behavior
 
@@ -52,18 +52,18 @@ Natural part width is sanitized label length + one gap + shape + one gap + code 
 
 ## Glyph/color assumptions
 
-[Foundation](../../foundation/README.md) owns the one-cell glyph and truecolor requirements. Labels use decorative grey, not bold. Tatsu state colors use roles; `•`, `▲`, `◆`, `✕`, `·`, `×` are curated glyphs. Caller labels/custom codes use `safeText`. Invalid state/count/width throws `RangeError`; invalid text, shape, color, flag or inputs-array throws `TypeError`. This pure renderer has no timers, I/O or stored baseline; hosts own warm-up, checking fade, beacon and latch.
+[Foundation](../../foundation/README.md) owns the one-cell glyph and truecolor requirements. Labels use decorative grey, not bold. Install-status colors use roles; `•`, `▲`, `◆`, `✕`, `·`, `×` are curated glyphs. Caller labels/custom codes use `safeText`. Invalid state/count/width throws `RangeError`; invalid text, shape, color, flag or inputs-array throws `TypeError`. This pure renderer has no timers, I/O or stored baseline; hosts own warm-up, checking fade, beacon and latch.
 
 ## Natural emission pieces
 
-`stateChipParts(input, { preset = TATSU_STATES, count, countPolicy = 'safe-integer' })` returns `{ label, labelGap, shape, stateGap, code }`, each a span array, with no clipping. Joined output equals the original chip; its original renderer's grouping/defaults remain unchanged. Generic `count` appends the curated `×` and an exact non-negative safe integer to the code (invalid counts throw `RangeError`). It is independent of Tatsu's `commitsBehind` grammar.
+`stateChipParts(input, { preset = INSTALL_STATES, count, countPolicy = 'safe-integer' })` returns `{ label, labelGap, shape, stateGap, code }`, each a span array, with no clipping. Joined output equals the original chip; its original renderer's grouping/defaults remain unchanged. Generic `count` appends the curated `×` and an exact non-negative safe integer to the code (invalid counts throw `RangeError`). It is independent of the install-status `commitsBehind` grammar.
 
 `countPolicy` applies only to native `commitsBehind` display in these natural parts. Default `safe-integer` retains the non-negative safe integer contract. Explicit `number-text` requires a JS number, then displays `String(value)` including negatives, fractions, NaN, Infinity and unsafe integers. This exists so a renderer whose input type admits arbitrary numbers can retain exact output; callers that validate should keep the default. The complete `stateChip`/`stateChips` stay strict and unchanged, and the separate generic `count` suffix remains safe-integer-only. Invalid policies throw `RangeError`; a nonnumber under `number-text` throws `TypeError`.
 
-status-bar consumes these parts for Tatsu and generic background-task counts/update groups. Its producer adapter supplies only non-negative safe integer counts; `number-text` is renderer-contract compatibility, not producer admission. Producer grammar, activation, ordering and opaque hint text (`Shift↓`, measured by Pi rather than sanitized by this ASCII renderer) remain host-owned. Separate gaps let the host retain its exact paint/reset boundaries.
+status-bar consumes these parts for install status and generic background-task counts/update groups. Its producer adapter supplies only non-negative safe integer counts; `number-text` is renderer-contract compatibility, not producer admission. Producer grammar, activation, ordering and opaque hint text (`Shift↓`, measured by Pi rather than sanitized by this ASCII renderer) remain host-owned. Separate gaps let the host retain its exact paint/reset boundaries.
 ## Word form
 
-`stateChip({ state, label? }, { form: 'word', preset, maxWidth, measure? })` renders an optional nonempty label, a supplied word, then an optional trailing marker. Custom preset entries remain `{ code, shape, tone }`; in this form `shape:''` omits the marker and its gap, and `code`/`label` may be [measured slots](../../foundation/README.md#measured-text-slots). The default `form:'chip'`, Tatsu preset, wrapping helper and natural parts are unchanged. No Lunalee state is inferred or added to Tatsu semantics.
+`stateChip({ state, label? }, { form: 'word', preset, maxWidth, measure? })` renders an optional nonempty label, a supplied word, then an optional trailing marker. Custom preset entries remain `{ code, shape, tone }`; in this form `shape:''` omits the marker and its gap, and `code`/`label` may be [measured slots](../../foundation/README.md#measured-text-slots). The default `form:'chip'`, install-status preset, wrapping helper and natural parts are unchanged. No Lunalee state is inferred or added to install-status semantics.
 
 ```js
 const preset = {
@@ -78,7 +78,7 @@ Use caller presets likewise for answered (including an already-derived answer sl
 
 ## Differences from status-bar
 
-Settled Tatsu parts and three-cell gaps model `footer.ts:24–37,1167–1180,1192–1203`. This element accepts any label and a custom preset; it does not parse provider messages, retain completed checks across refreshes, supply component order, or draw decorations. The inline piece may clip to maxWidth; the layout helper keeps full parts whenever possible, like the footer. Inactive is an explicit component state, not the footer's raw-provider fallback for an inactive snapshot.
+Settled install-status parts and three-cell gaps model `footer.ts:24–37,1167–1180,1192–1203`. This element accepts any label and a custom preset; it does not parse provider messages, retain completed checks across refreshes, supply component order, or draw decorations. The inline piece may clip to maxWidth; the layout helper keeps full parts whenever possible, like the footer. Inactive is an explicit component state, not the footer's raw-provider fallback for an inactive snapshot.
 
 ## Checks
 

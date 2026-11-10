@@ -21,7 +21,7 @@ function specimen(width) {
     ...statusRow({ label: 'PARSE', value: 'failed', status: 'error' }, { width }),
   ];
 }
-// One Tatsu component (footer.ts:1194-1204): dim label, then shape, ink space and code in the state color.
+// One install-status component (footer.ts:1194-1204): dim label, then shape, ink space and code in the state color.
 const component = (ink) => [[span('TCLI', { fg: 'decorative' }), span(' '), span(ink === 'accent' ? '•' : '▲', { fg: ink, bold: true }), span(' ', { fg: ink, bold: true }), span(ink === 'accent' ? 'OK' : 'FIX', { fg: ink, bold: true })]];
 const STATE = { left: 5 };
 
@@ -37,7 +37,7 @@ test('latch: motion-off returns the input and needs no time', () => {
   assert.equal(latchDuration({ lock: 0, invert: 40 }), 40);
 });
 
-test('latch: tick 0 LOCKED, ticks 1-2 inverted, then settled, as Tatsu (footer.ts:1195, 741-745)', () => {
+test('latch: tick 0 LOCKED, ticks 1-2 inverted, then settled, as install status (footer.ts:1195, 741-745)', () => {
   for (const ink of ['accent', 'warning']) {
     const lines = component(ink);
     const at = (time) => looks(latch(lines, { time, region: STATE, stateCells: true })[0]);

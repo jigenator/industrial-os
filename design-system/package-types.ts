@@ -43,7 +43,7 @@ span('fixture', { underline: 'yes' });
 lamp('working', { appearance: 'circle' });
 // @ts-expect-error slot width is numeric
 textSlot([], '7', { measure });
-// @ts-expect-error word form does not accept a Tatsu count input
+// @ts-expect-error word form does not accept an install-status count input
 stateChip({ state: 'answered', commitsBehind: 1 }, { form: 'word' });
 // @ts-expect-error round lamps require explicit style
 lamp('working', { appearance: 'round' });

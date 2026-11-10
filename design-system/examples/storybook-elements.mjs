@@ -244,10 +244,10 @@ const CHIPS = {
 };
 const CHIP = element('state-chip', {
   title: 'STATE CHIP',
-  summary: "status-bar's Tatsu entry part: a dim label, then a bold shape and code in its state ink. It shows the state the caller supplies.",
+  summary: "status-bar's install-status entry part: a dim label, then a bold shape and code in its state ink. It shows the state the caller supplies.",
   rules: [
     'Shape and code carry the state without color; unknown or unavailable is never shown as current.',
-    'Only Tatsu behind appends a count (UP x N); behind and repair append EDIT for local changes.',
+    'Only install-status behind appends a count (UP x N); behind and repair append EDIT for local changes.',
     'stateChips separates parts by three cells and breaks only between whole parts when it can.',
     'Invalid state, count, or width throws RangeError.',
   ],

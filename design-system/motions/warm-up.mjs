@@ -2,7 +2,7 @@ import { isTerminalDefault, resolveColor } from '../foundation/cells.mjs';
 import { mixOver } from '../foundation/signal-colors.mjs';
 import { MIN_PERIOD_MS, assertLines, assertMs, assertTime, copyLines, inRegion, resolveOptions, resolveRegion, restyleCells } from './frame.mjs';
 
-// status-bar's Tatsu warm-up (pi/status-bar/src/footer.ts TATSU_WARM_STEP_TICKS): each step is two 50 ms ticks.
+// status-bar's install-status warm-up (pi/status-bar/src/footer.ts INSTALL_WARM_STEP_TICKS): each step is two 50 ms ticks.
 export const WARM_UP_DEFAULTS = Object.freeze({ step: 100, delays: Object.freeze([]), stateCells: false });
 
 const STEPS = [0.25, 0.5, 0.75];

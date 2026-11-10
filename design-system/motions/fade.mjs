@@ -3,7 +3,7 @@ import { ACID_BLACK } from '../foundation/palette.mjs';
 import { SIGNAL_COLORS } from '../foundation/signal-colors.mjs';
 import { MIN_PERIOD_MS, assertLines, assertMs, assertTime, copyLines, inRegion, resolveOptions, resolveRegion, restyleCells } from './frame.mjs';
 
-// status-bar's Tatsu checking fade (pi/status-bar/src/footer.ts TATSU_CHECK_FADE_INKS): eight 150 ms steps.
+// status-bar's install-status checking fade (pi/status-bar/src/footer.ts INSTALL_CHECK_FADE_INKS): eight 150 ms steps.
 const { checkLow, checkMid, checkHigh, checkPeak } = SIGNAL_COLORS;
 export const FADE_DEFAULTS = Object.freeze({
   levels: Object.freeze(['decorative', checkLow, checkMid, checkHigh, checkPeak, checkHigh, checkMid, checkLow]),
