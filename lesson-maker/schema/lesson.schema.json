@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://tatsu.works/schemas/lesson/v1",
+  "$id": "urn:industrial-os:lesson-maker:lesson:v1",
   "title": "Lesson",
   "description": "A lesson for Lesson Maker: the lesson plan, then sections of slides, each optionally split into subsections. Agents write it; people edit on top. Every field is always present, so each slide maps onto the same form whatever its layout; fields a layout does not show keep their text. Text is plain; new lines are allowed everywhere.",
   "type": "object",

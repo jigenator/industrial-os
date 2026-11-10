@@ -184,13 +184,13 @@ export function createScheduler(state, { lessonPath = null, onChange = () => {},
       return `Not run: the lesson's history copy could not be written (${error.code || error.message}); nothing changed`;
     }
   }
-  // Reference reading every request gets beside Pi's read-only file tools: documents and Tatsu artifacts.
+  // Reference reading every request gets beside Pi's read-only file tools: documents and artifacts.
   const readingTools = [
     {
       name: 'read_document',
       description:
-        'Read an HTML or Markdown document as plain text, a page at a time: a file path, or a Tatsu artifact link ' +
-        '(an artifacts.tatsu.systems link) or 12-character id. Use it for HTML, which read shows as raw markup.',
+        'Read an HTML or Markdown document as plain text, a page at a time: a file path, or an artifact link or ' +
+        '12-character id. Use it for HTML, which read shows as raw markup.',
       parameters: {
         type: 'object',
         properties: {
@@ -206,7 +206,7 @@ export function createScheduler(state, { lessonPath = null, onChange = () => {},
     },
     {
       name: 'list_artifacts',
-      description: "List the user's own Tatsu artifacts, newest first: link, file name, type and upload date.",
+      description: "List the user's own artifacts, newest first: link, file name, type and upload date.",
       parameters: { type: 'object', properties: { limit: { type: 'number' } } },
       execute: (params) => listArtifacts(params),
     },

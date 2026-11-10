@@ -17,12 +17,12 @@ test('imports: Node, local modules, exported design-system parts, Pi at run time
   for (const path of files) {
     const source = readFileSync(path, 'utf8');
     assert.ok(!/#[0-9a-f]{6}/i.test(source), path);
-    // Only the Pi bridge reaches models, only documents.mjs runs a program (the tatsu CLI, for artifacts), and only
+    // Only the Pi bridge reaches models, only documents.mjs runs a program (the configured artifact CLI), and only
     // the lesson file module writes files.
     // speech.mjs alone calls Google's speech endpoint (Pi has no speech models) and runs afplay, with its audio in a
     // temporary folder.
     if (path.endsWith('documents.mjs'))
-      assert.ok(!/fetch\(|http:/.test(source) && /execFile\('tatsu'/.test(source), path);
+      assert.ok(!/fetch\(|http:/.test(source) && /execFile\(artifactCli\(\), /.test(source) && !/execFile\('/.test(source), path);
     else if (path.endsWith('speech.mjs'))
       assert.ok(
         [...source.matchAll(/https?:\/\/[^\s`'"/]+/g)].every(

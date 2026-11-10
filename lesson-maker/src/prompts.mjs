@@ -79,8 +79,8 @@ const CLAIM_RULE =
 // What every request may look at, besides the lesson.
 const reading = (cwd) => [
   `Reference material: you may look at files on this computer, read-only, with ls, find, grep and read (the lesson's`,
-  `project is ${cwd}; relative paths start there), and read HTML or Markdown documents and Tatsu artifacts`,
-  "(artifacts.tatsu.systems links or ids) with read_document; list_artifacts lists the user's own",
+  `project is ${cwd}; relative paths start there), and read HTML or Markdown documents and artifacts (artifact`,
+  "links or ids) with read_document; list_artifacts lists the user's own",
   'artifacts. Use them only when the request names or points at a file, folder or artifact, and read only that;',
   'never browse or explore otherwise. The lesson is given in full below; do not look for it on disk.',
 ];

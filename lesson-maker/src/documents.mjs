@@ -1,12 +1,21 @@
-// Reading reference documents for the lesson agents: HTML or Markdown from a file or a Tatsu artifact, as plain
-// text a page at a time, and the caller's own artifacts. Artifacts come through the `tatsu` CLI, never the network.
+// Reading reference documents for the lesson agents: HTML or Markdown from a file or an artifact, as plain text a
+// page at a time, and the caller's own artifacts. Artifacts come through the artifact CLI named by
+// LESSON_MAKER_ARTIFACT_CLI, never the network; without it artifacts are unavailable. Links are accepted only for
+// LESSON_MAKER_ARTIFACT_HOST; a bare 12-character id always is.
 import { execFile } from 'node:child_process';
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { extname, join, resolve } from 'node:path';
 
 export const PAGE = 40000;
-const ARTIFACT = /^(?:https:\/\/artifacts\.tatsu\.systems\/)?([A-Za-z0-9]{12})(\/v\d+)?\/?$/;
+const artifactCli = () => process.env.LESSON_MAKER_ARTIFACT_CLI?.trim() || '';
+const UNAVAILABLE = 'artifacts are unavailable: LESSON_MAKER_ARTIFACT_CLI is not set';
+// An artifact id from a bare id or a link on the configured host (optionally /vN), else null.
+function artifactId(source) {
+  const host = process.env.LESSON_MAKER_ARTIFACT_HOST?.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const link = host ? `(?:https://${host}/)?` : '';
+  return new RegExp(`^${link}([A-Za-z0-9]{12})(/v\\d+)?/?$`).exec(source.trim());
+}
 const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', mdash: '—', ndash: '–', hellip: '…' };
 
 // Text an agent can read: no scripts, styles, inline images or tags; one block per line, list items as "- ". Pages
@@ -57,7 +66,7 @@ function markupText(html) {
 
 const run = (args) =>
   new Promise((done, fail) =>
-    execFile('tatsu', args, { timeout: 330000, maxBuffer: 4 << 20 }, (error, stdout, stderr) => {
+    execFile(artifactCli(), args, { timeout: 330000, maxBuffer: 4 << 20 }, (error, stdout, stderr) => {
       if (!error) return done(stdout);
       let message = stderr.trim() || error.message;
       try {
@@ -65,7 +74,7 @@ const run = (args) =>
       } catch {
         /* Not JSON: keep stderr. */
       }
-      fail(Error(error.code === 'ENOENT' ? 'the tatsu CLI is not installed' : message));
+      fail(Error(error.code === 'ENOENT' ? 'the artifact CLI was not found' : message));
     }),
   );
 
@@ -73,8 +82,9 @@ const run = (args) =>
 // shortcut: an artifact changed during the session keeps its first text, restart the app to see a new version.
 const cache = new Map();
 async function load(source, cwd) {
-  const artifact = ARTIFACT.exec(source.trim());
+  const artifact = artifactId(source);
   if (artifact) {
+    if (!artifactCli()) throw Error(UNAVAILABLE);
     const dir = await mkdtemp(join(tmpdir(), 'lesson-artifact-')),
       file = join(dir, artifact[1]);
     const out = JSON.parse(await run(['artifacts', 'download', source.trim(), '--output', file, '--json']));
@@ -97,7 +107,7 @@ async function load(source, cwd) {
 export async function readDocument({ source, offset = 0 }, cwd = process.cwd()) {
   if (typeof source !== 'string' || !source.trim()) return 'Not read: give a file path or an artifact link or id';
   try {
-    const key = ARTIFACT.test(source.trim()) ? source.trim() : resolve(cwd, source);
+    const key = artifactId(source) ? source.trim() : resolve(cwd, source);
     if (!cache.has(key)) cache.set(key, load(source, cwd));
     const doc = await cache.get(key).catch((error) => {
       cache.delete(key);
@@ -114,9 +124,10 @@ export async function readDocument({ source, offset = 0 }, cwd = process.cwd()) 
   }
 }
 
-// The caller's own artifacts, newest first: what `tatsu artifacts list` shows.
+// The caller's own artifacts, newest first: what the artifact CLI's `artifacts list` shows.
 export async function listArtifacts({ limit = 30 } = {}) {
   try {
+    if (!artifactCli()) throw Error(UNAVAILABLE);
     const n = String(Math.max(1, Math.min(100, Math.floor(Number(limit) || 30))));
     const files =
       JSON.parse(await run(['artifacts', 'list', '--no-expired', '--json', '--limit', n])).data?.files || [];

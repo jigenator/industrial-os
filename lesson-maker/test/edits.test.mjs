@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { exampleDoc } from '../src/seed.mjs';
@@ -18,7 +18,7 @@ import {
 } from '../src/model.mjs';
 import { createScheduler } from '../src/scheduler.mjs';
 import { lessonPrompt, slidePrompt } from '../src/prompts.mjs';
-import { htmlText, readDocument } from '../src/documents.mjs';
+import { htmlText, listArtifacts, readDocument } from '../src/documents.mjs';
 import { samplePng } from '../src/png.mjs';
 import { connect, settle } from './fake-ai.mjs';
 
@@ -240,6 +240,45 @@ test('documents: HTML becomes readable text, with slide text kept from scripts; 
   assert.match(await readDocument({ source: 'long.md', offset: 40000 }, dir), /characters 40000-45000 of 45000/);
   assert.match(await readDocument({ source: 'missing.html' }, dir), /^Not read: no such file/);
   assert.match(await readDocument({ source: '' }, dir), /^Not read: give a file path/);
+  rmSync(dir, { recursive: true });
+});
+
+test('documents: artifacts need the configured artifact CLI; links only on the configured host', async (t) => {
+  const saved = { cli: process.env.LESSON_MAKER_ARTIFACT_CLI, host: process.env.LESSON_MAKER_ARTIFACT_HOST };
+  t.after(() => {
+    for (const [key, value] of [['LESSON_MAKER_ARTIFACT_CLI', saved.cli], ['LESSON_MAKER_ARTIFACT_HOST', saved.host]])
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+  });
+  delete process.env.LESSON_MAKER_ARTIFACT_CLI;
+  delete process.env.LESSON_MAKER_ARTIFACT_HOST;
+  assert.match(await readDocument({ source: 'AbCdEf123456' }), /^Not read: artifacts are unavailable/);
+  assert.match(await listArtifacts(), /^Not listed: artifacts are unavailable/);
+  // A fake CLI answering the two subcommands Lesson Maker uses, logging its argv.
+  const dir = mkdtempSync(join(tmpdir(), 'lesson-artifact-cli-')),
+    cli = join(dir, 'artifact-cli'),
+    log = join(dir, 'argv');
+  writeFileSync(
+    cli,
+    [
+      '#!/bin/sh',
+      `echo "$*" >> '${log}'`,
+      'if [ "$2" = download ]; then printf "# Notes from the artifact" > "$5"; echo \'{"data":{"contentType":"text/markdown"}}\';',
+      'else echo \'{"data":{"files":[{"hostedUrl":"https://files.example/XyZ123456789","filename":"a.md","fileType":"md","uploadedAt":"2026-11-01T00:00:00Z"}]}}\'; fi',
+    ].join('\n'),
+    { mode: 0o755 },
+  );
+  process.env.LESSON_MAKER_ARTIFACT_CLI = cli;
+  assert.match(await readDocument({ source: 'AbCdEf123456' }), /^\[AbCdEf123456: characters 0-25 of 25\. This is the end\.\]\n# Notes from the artifact$/);
+  assert.equal(await listArtifacts({ limit: 5 }), 'https://files.example/XyZ123456789  a.md  md  2026-11-01');
+  // Without a host a link is a file path; with it, the link is the artifact.
+  assert.match(await readDocument({ source: 'https://files.example/QwErTy123456' }, dir), /^Not read: no such file/);
+  process.env.LESSON_MAKER_ARTIFACT_HOST = 'files.example';
+  assert.match(await readDocument({ source: 'https://files.example/QwErTy123456/v2' }), /# Notes from the artifact$/);
+  const calls = readFileSync(log, 'utf8').trim().split('\n');
+  assert.match(calls[0], /^artifacts download AbCdEf123456 --output \S+\/AbCdEf123456 --json$/);
+  assert.equal(calls[1], 'artifacts list --no-expired --json --limit 5');
+  assert.match(calls[2], /^artifacts download https:\/\/files\.example\/QwErTy123456\/v2 --output \S+ --json$/);
   rmSync(dir, { recursive: true });
 });
 
