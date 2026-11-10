@@ -1,0 +1,349 @@
+{
+  "$schema": "../schema/lesson.schema.json",
+  "schemaVersion": 1,
+  "plan": {
+    "outcomes": "After this lesson you can:\n- predict whether a browser reuses its saved copy or asks the server\n- choose a sensible Cache-Control max-age for a given file",
+    "prerequisites": "- Know that a browser requests files from a server over HTTP\n- No prior knowledge of caching",
+    "teachingPrinciples": "- Start from a question learners can answer by intuition\n- One new idea per slide\n- Learners attempt before they see the answer\n- Images are teaching diagrams, not decoration",
+    "progression": "1. A nearby copy is faster than a trip to a far server.\n2. A copy can go stale.\n3. So something must decide how long to trust the copy (freshness).\n4. When trust expires, ask cheaply (validation)."
+  },
+  "sections": [
+    {
+      "id": "SEC-1",
+      "titleSlide": {
+        "id": "title-SEC-1",
+        "title": "Why browsers keep copies",
+        "type": "Section title",
+        "layout": "title-image",
+        "text": "How a browser decides when its saved copy of a page is still good enough.",
+        "tagline": "Lesson 1 · Browser caching",
+        "imageSide": "right",
+        "sentencePosition": "top",
+        "image": {
+          "concept": "A browser holding a stack of saved page copies, reaching past a far-away server to the nearest copy.",
+          "style": "generic",
+          "picture": null
+        },
+        "afterImage": {
+          "concept": "",
+          "style": "generic",
+          "picture": null
+        },
+        "beforeCaption": "",
+        "afterCaption": "",
+        "purpose": "",
+        "speakerNotes": ""
+      },
+      "slides": [
+        {
+          "id": "S-1",
+          "title": "Why is the second visit faster?",
+          "type": "Initial question",
+          "layout": "statement",
+          "text": "You open a page, close it, and reopen it a minute later. Why does it appear much faster the second time?",
+          "tagline": "",
+          "imageSide": "right",
+          "sentencePosition": "top",
+          "image": {
+            "concept": "",
+            "style": "generic",
+            "picture": null
+          },
+          "afterImage": {
+            "concept": "",
+            "style": "generic",
+            "picture": null
+          },
+          "beforeCaption": "",
+          "afterCaption": "",
+          "purpose": "Hook: surface the question the lesson answers (before progression step 1).",
+          "speakerNotes": "Key points:\nLearner predicts from intuition; no jargon yet"
+        },
+        {
+          "id": "S-2",
+          "title": "A nearby copy beats a faraway trip",
+          "type": "First principle",
+          "layout": "points-image",
+          "text": "- Fetching from a distant server takes time\n- A saved copy lets the browser skip the trip\n- A copy can go out of date\n- So something must decide how long to trust it",
+          "tagline": "",
+          "imageSide": "right",
+          "sentencePosition": "top",
+          "image": {
+            "concept": "Browser, a small box labelled \"saved copy\" beside it, and a far-away server; a short arrow vs a long arrow.",
+            "style": "generic",
+            "picture": {
+              "source": "attached",
+              "file": "browser-caching.lesson.assets/S-2-image.png"
+            }
+          },
+          "afterImage": {
+            "concept": "",
+            "style": "generic",
+            "picture": null
+          },
+          "beforeCaption": "",
+          "afterCaption": "",
+          "purpose": "Progression steps 1 and 2.",
+          "speakerNotes": "Key points:\nCopies are fast; copies go stale"
+        }
+      ],
+      "subsections": []
+    },
+    {
+      "id": "SEC-2",
+      "titleSlide": {
+        "id": "title-SEC-2",
+        "title": "How the browser decides",
+        "type": "Section title",
+        "layout": "title",
+        "text": "",
+        "tagline": "",
+        "imageSide": "right",
+        "sentencePosition": "top",
+        "image": {
+          "concept": "",
+          "style": "generic",
+          "picture": null
+        },
+        "afterImage": {
+          "concept": "",
+          "style": "generic",
+          "picture": null
+        },
+        "beforeCaption": "",
+        "afterCaption": "",
+        "purpose": "",
+        "speakerNotes": ""
+      },
+      "slides": [],
+      "subsections": [
+        {
+          "id": "SUB-3",
+          "titleSlide": {
+            "id": "title-SUB-3",
+            "title": "Worked examples",
+            "type": "Section title",
+            "layout": "title",
+            "text": "",
+            "tagline": "",
+            "imageSide": "right",
+            "sentencePosition": "top",
+            "image": {
+              "concept": "",
+              "style": "generic",
+              "picture": null
+            },
+            "afterImage": {
+              "concept": "",
+              "style": "generic",
+              "picture": null
+            },
+            "beforeCaption": "",
+            "afterCaption": "",
+            "purpose": "",
+            "speakerNotes": ""
+          },
+          "slides": [
+            {
+              "id": "S-3",
+              "title": "Trusting a copy for one hour",
+              "type": "Worked example",
+              "layout": "image-sentence",
+              "text": "With max-age=3600 the browser reuses its copy for one hour without asking.",
+              "tagline": "",
+              "imageSide": "right",
+              "sentencePosition": "bottom",
+              "image": {
+                "concept": "Timeline from 0 s to 3600 s labelled \"reuse copy\", then \"must check\".",
+                "style": "generic",
+                "picture": {
+                  "source": "attached",
+                  "file": "browser-caching.lesson.assets/S-3-image.png"
+                }
+              },
+              "afterImage": {
+                "concept": "",
+                "style": "generic",
+                "picture": null
+              },
+              "beforeCaption": "",
+              "afterCaption": "",
+              "purpose": "Progression step 3: freshness decides how long to trust.",
+              "speakerNotes": "Key points:\nmax-age sets a freshness window\n\nPause and ask learners what they expect at second 3601."
+            },
+            {
+              "id": "S-4",
+              "title": "Asking cheaply when the copy expires",
+              "type": "Worked example",
+              "layout": "image-sentence",
+              "text": "If the file is unchanged, a tiny 304 reply replaces a full download.",
+              "tagline": "",
+              "imageSide": "right",
+              "sentencePosition": "top",
+              "image": {
+                "concept": "Request carrying an ETag; two replies: a tiny 304 or a full 200.",
+                "style": "generic",
+                "picture": {
+                  "source": "attached",
+                  "file": "browser-caching.lesson.assets/S-4-image.png"
+                }
+              },
+              "afterImage": {
+                "concept": "",
+                "style": "generic",
+                "picture": null
+              },
+              "beforeCaption": "",
+              "afterCaption": "",
+              "purpose": "Progression step 4: validation makes expiry cheap.",
+              "speakerNotes": "Key points:\nValidation is cheaper than a full download"
+            }
+          ]
+        },
+        {
+          "id": "SUB-4",
+          "titleSlide": {
+            "id": "title-SUB-4",
+            "title": "Learner practice and feedback",
+            "type": "Section title",
+            "layout": "title",
+            "text": "",
+            "tagline": "",
+            "imageSide": "right",
+            "sentencePosition": "top",
+            "image": {
+              "concept": "",
+              "style": "generic",
+              "picture": null
+            },
+            "afterImage": {
+              "concept": "",
+              "style": "generic",
+              "picture": null
+            },
+            "beforeCaption": "",
+            "afterCaption": "",
+            "purpose": "",
+            "speakerNotes": ""
+          },
+          "slides": [
+            {
+              "id": "S-5",
+              "title": "Your turn: pick a setting",
+              "type": "Learner practice",
+              "layout": "points-image",
+              "text": "- A site logo changes about once a year\n- Its news feed changes every minute\n- Choose a max-age for each and write why\n- Answer before moving on",
+              "tagline": "",
+              "imageSide": "left",
+              "sentencePosition": "top",
+              "image": {
+                "concept": "Two file icons (logo, news feed) with empty boxes for max-age.",
+                "style": "generic",
+                "picture": {
+                  "source": "attached",
+                  "file": "browser-caching.lesson.assets/S-5-image.png"
+                }
+              },
+              "afterImage": {
+                "concept": "",
+                "style": "generic",
+                "picture": null
+              },
+              "beforeCaption": "",
+              "afterCaption": "",
+              "purpose": "Learner applies steps 2 to 4 before seeing an answer.",
+              "speakerNotes": "Key points:\nApply staleness cost to a real choice"
+            },
+            {
+              "id": "S-6",
+              "title": "Compare with a reasoned answer",
+              "type": "Feedback",
+              "layout": "before-after",
+              "text": "",
+              "tagline": "",
+              "imageSide": "right",
+              "sentencePosition": "top",
+              "image": {
+                "concept": "Logo and news-feed icons with the same max-age of one day.",
+                "style": "generic",
+                "picture": {
+                  "source": "attached",
+                  "file": "browser-caching.lesson.assets/S-6-image.png"
+                }
+              },
+              "afterImage": {
+                "concept": "Logo with max-age one year; news feed with validate on every visit.",
+                "style": "generic",
+                "picture": {
+                  "source": "attached",
+                  "file": "browser-caching.lesson.assets/S-6-after.png"
+                }
+              },
+              "beforeCaption": "Before: one setting for everything, so the feed goes stale.",
+              "afterCaption": "After: trust time matches how fast each file changes.",
+              "purpose": "Closes the loop on practice; ties back to staleness (step 2).",
+              "speakerNotes": "Key points:\nMatch trust time to change rate"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SEC-3",
+      "titleSlide": {
+        "id": "title-SEC-3",
+        "title": "Transfer",
+        "type": "Section title",
+        "layout": "title",
+        "text": "",
+        "tagline": "",
+        "imageSide": "right",
+        "sentencePosition": "top",
+        "image": {
+          "concept": "",
+          "style": "generic",
+          "picture": null
+        },
+        "afterImage": {
+          "concept": "",
+          "style": "generic",
+          "picture": null
+        },
+        "beforeCaption": "",
+        "afterCaption": "",
+        "purpose": "",
+        "speakerNotes": ""
+      },
+      "slides": [
+        {
+          "id": "S-7",
+          "title": "Same idea elsewhere",
+          "type": "Transfer / recap",
+          "layout": "points-image",
+          "text": "- Copies are fast; copies go stale\n- Freshness sets how long to trust\n- Validation makes expiry cheap\n- Offline phone maps and a pantry make the same trade-off",
+          "tagline": "",
+          "imageSide": "right",
+          "sentencePosition": "top",
+          "image": {
+            "concept": "Four-step chain recap plus two small examples (phone map, pantry).",
+            "style": "generic",
+            "picture": {
+              "source": "attached",
+              "file": "browser-caching.lesson.assets/S-7-image.png"
+            }
+          },
+          "afterImage": {
+            "concept": "",
+            "style": "generic",
+            "picture": null
+          },
+          "beforeCaption": "",
+          "afterCaption": "",
+          "purpose": "Consolidates the progression and transfers it.",
+          "speakerNotes": "Key points:\nFour-step chain; same trade-off elsewhere"
+        }
+      ],
+      "subsections": []
+    }
+  ]
+}

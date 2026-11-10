@@ -19,6 +19,7 @@ Scan the supporting-documents map and read every document whose condition applie
 
 | Task | Route |
 | --- | --- |
+| Work on Lesson Maker or its lesson schema | [Lesson Maker guide](lesson-maker/AGENTS.md) and its routes |
 | Work in the design system | [The design-system guide](design-system/AGENTS.md) and its routes |
 | Work on a Pi extension | [The Pi guide](pi/AGENTS.md), then the extension's own guide, for example [claude-interrupt](pi/claude-interrupt/AGENTS.md), [signals-collector](pi/signals-collector/AGENTS.md), [status-bar](pi/status-bar/AGENTS.md) or [herdr-sidebar](pi/herdr-sidebar/AGENTS.md) |
 | Work on the Pi theme | [The Pi guide](pi/AGENTS.md), then [the theme guide](pi/theme/AGENTS.md) |
@@ -35,6 +36,7 @@ Scan the supporting-documents map and read every document whose condition applie
 
 | Change | Start here | Boundary |
 | --- | --- | --- |
+| Lesson Maker workbench, lesson files, AI requests or pictures | `lesson-maker/`; [architecture](lesson-maker/docs/architecture.md), [design](lesson-maker/docs/design.md) | Node 22 stdlib only; lessons are JSON files validated against its schema before every write; models, imagegen and the Xiaohei skill only through the installed Pi, loaded at run time (reading aloud alone calls Google's speech endpoint, with Pi's stored key); AI requests read files and Tatsu artifacts (read-only tools and the `tatsu` CLI) but never write them; design-system exported subpaths |
 | An element, motion, storybook story, or terminal host | `design-system/`; placement in [its architecture](design-system/docs/architecture.md#where-the-next-change-belongs), rules in [its conventions](design-system/docs/conventions.md) | Standard library only; imports no other project; elements and motions never own I/O; a new module gets an export entry |
 | claude-interrupt behavior or marker | `pi/claude-interrupt/`; placement in [its architecture](pi/claude-interrupt/docs/architecture.md) | Pi peer packages and the design-system package only; never block streaming, input, or focus |
 | status-bar footer, motion, or status integrations | `pi/status-bar/`; placement in [its architecture](pi/status-bar/docs/architecture.md) | Display-only snapshot consumer; no collection I/O; Pi/design-system exported subpaths only |
@@ -265,3 +267,10 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [herdr-plugins/dispatch-feed/docs/design.md](herdr-plugins/dispatch-feed/docs/design.md) | Dashboard geometry, states, motion exception and focus | Changing anything a dispatch-feed user sees |
 | [herdr-plugins/dispatch-feed/docs/mission.md](herdr-plugins/dispatch-feed/docs/mission.md) | Goals and non-goals | Choosing dispatch-feed scope |
 | [docs/decisions/dispatch-feed-runtime.md](docs/decisions/dispatch-feed-runtime.md) | Why the pane uses Bun and plain TypeScript, without Effect | Changing the pane runtime or packaging |
+| [lesson-maker/README.md](lesson-maker/README.md) | Lesson Maker run, flags, lesson file, AI, keys, mouse and limits | Using Lesson Maker or changing its public surface |
+| [lesson-maker/AGENTS.md](lesson-maker/AGENTS.md) | Lesson Maker boundaries, routes and placement | Working anywhere in lesson-maker |
+| [lesson-maker/CLAUDE.md](lesson-maker/CLAUDE.md) | Runtime import of the Lesson Maker guide | Checking agent entry points |
+| [lesson-maker/CONTRIBUTING.md](lesson-maker/CONTRIBUTING.md) | Offline, PNG/protocol, PTY, real-Pi and native-check sequence/evidence | Making or verifying a Lesson Maker change |
+| [lesson-maker/docs/architecture.md](lesson-maker/docs/architecture.md) | Lesson file, schema validator, model, AI requests, Pi bridge, render, input and terminal/image seams | Changing behavior, state, the file, dependencies or lifecycle |
+| [lesson-maker/docs/conventions.md](lesson-maker/docs/conventions.md) | Node conventions, the schema validator rule and authorized composition gaps | Writing or reviewing Lesson Maker code |
+| [lesson-maker/docs/design.md](lesson-maker/docs/design.md) | Column layout, visual grammar, slide preview and form editing, outline, chat, mouse, images, file states and limits | Changing anything a Lesson Maker user sees |
