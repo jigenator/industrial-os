@@ -33,6 +33,7 @@ Each top-level project folder, and each project under `pi/` or `herdr-plugins/`,
 industrial-os/
 ├── source-collector/         local scheduled sources, shared snapshots and triage
 ├── design-system/            terminal design system and its guides
+├── lesson-maker/             terminal lesson editor: schema-validated lesson files, chat and pictures through Pi
 ├── pi/                       Pi extensions and the Pi theme, each its own project
 │   ├── claude-interrupt/     interrupt-and-continue with the DIRECTIVE UPDATED marker
 │   ├── signals-collector/    TUI session signals and configured usage sources
