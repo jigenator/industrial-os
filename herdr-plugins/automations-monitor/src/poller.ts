@@ -3,7 +3,7 @@
 // a read is dropped, never queued. Time comes from Effect's Clock, so tests drive it with TestClock.
 import { Effect, Queue, Result, Stream } from 'effect';
 import type { PipelinesData, SchedulesData } from './contract.ts';
-import { TatsuReader, type ReadFailure } from './reader.ts';
+import { AutomationsReader, type ReadFailure } from './reader.ts';
 
 export const POLL_INTERVAL_MS = 10_000;
 
@@ -19,9 +19,9 @@ export type PollEvent =
     readonly schedules: ReadOutcome<SchedulesData>;
   };
 
-export const pollEvents = (refresh: Queue.Queue<void>, intervalMs = POLL_INTERVAL_MS): Stream.Stream<PollEvent, never, TatsuReader> =>
+export const pollEvents = (refresh: Queue.Queue<void>, intervalMs = POLL_INTERVAL_MS): Stream.Stream<PollEvent, never, AutomationsReader> =>
   Stream.unwrap(Effect.gen(function* () {
-    const reader = yield* TatsuReader;
+    const reader = yield* AutomationsReader;
     const cycle = Stream.concat(
       Stream.succeed<PollEvent>({ _tag: 'Reading' }),
       Stream.fromEffect(Effect.gen(function* () {

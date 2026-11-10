@@ -1,6 +1,6 @@
 # Mission
 
-Let the person running Tatsu automations on this machine see, at a glance and from a Herdr pane, what the runner is doing: which pipelines are working on which issues right now, what finished and failed in the last three hours, what needs them, and when schedules last ran and run next. It reads only what the Tatsu CLI reports and says plainly when that is unknown, stale or unreadable.
+Let the person running automations on this machine see, at a glance and from a Herdr pane, what the runner is doing: which pipelines are working on which issues right now, what finished and failed in the last three hours, what needs them, and when schedules last ran and run next. It reads only what the automations CLI reports and says plainly when that is unknown, stale or unreadable.
 
 ## Non-goals
 

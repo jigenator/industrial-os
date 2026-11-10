@@ -13,6 +13,7 @@ import { logShown, type AppState, type Feed } from '../ui.ts';
 import { L, layout, tooSmall, type Layout } from './layout.ts';
 import { runModal } from './modal.ts';
 import { ago, chip, describeFailure, eventLog, message, pad2 } from './parts.ts';
+import { DEFAULT_COMMAND } from '../reader.ts';
 import { pipelineList, pipelineReadouts } from './pipelines.ts';
 import { scheduleList, scheduleReadouts } from './schedules.ts';
 
@@ -164,7 +165,7 @@ function noData(c: Canvas, area: { x: number; y: number; w: number; h: number },
   if (feed.failure) {
     const { title, detail } = describeFailure(feed.failure, state.intervalMs);
     message(c, area, title, detail, 'crit');
-  } else message(c, area, 'READING', [`tatsu automations ${state.ui.screen} --json`], 'idle');
+  } else message(c, area, 'READING', [`${DEFAULT_COMMAND} automations ${state.ui.screen} --json`], 'idle');
 }
 
 // The middle footer tier: the screen and selection keys explain themselves, the rest keep a short word.

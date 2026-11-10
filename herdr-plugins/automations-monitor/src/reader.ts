@@ -1,4 +1,4 @@
-// The only I/O with Tatsu. Each read runs one of two fixed argvs, bounded in time and output size, in its own
+// The only I/O with the automations CLI. Each read runs one of two fixed argvs, bounded in time and output size, in its own
 // process group; stderr is discarded because it can hold local paths. A read finishes only once the process
 // group is gone, so the next read never starts beside an orphan. Bounds: ../docs/architecture.md#data-contract.
 import { Context, Duration, Effect, Layer, Schema, SchemaIssue, Stream } from 'effect';
@@ -24,12 +24,15 @@ export type ReadFailure =
   | { readonly kind: 'unsupported'; readonly version: number | null }
   | { readonly kind: 'garbage'; readonly at: string | null };
 
-export class TatsuReader extends Context.Service<TatsuReader, {
+export class AutomationsReader extends Context.Service<AutomationsReader, {
   readonly pipelines: Effect.Effect<PipelinesData, ReadFailure>;
   readonly schedules: Effect.Effect<SchedulesData, ReadFailure>;
-}>()('automations-monitor/TatsuReader') {}
+}>()('automations-monitor/AutomationsReader') {}
 
-export const tatsuCommand = (env: Record<string, string | undefined> = process.env): string => env.AUTOMATIONS_MONITOR_TATSU || 'tatsu';
+// The CLI the monitor runs from the pane's PATH, and the variable that names another executable instead.
+export const DEFAULT_COMMAND = 'tatsu';
+export const COMMAND_ENV = 'AUTOMATIONS_MONITOR_TATSU';
+export const automationsCommand = (env: Record<string, string | undefined> = process.env): string => env[COMMAND_ENV] || DEFAULT_COMMAND;
 
 export interface ReaderOptions {
   readonly command?: string;
@@ -116,16 +119,16 @@ function runCli<S extends Schema.Decoder<unknown>>(args: ReadonlyArray<string>, 
 export const makeReader = (options: ReaderOptions = {}) => Effect.gen(function* () {
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
   const opts: Required<ReaderOptions> = {
-    command: options.command ?? tatsuCommand(),
+    command: options.command ?? automationsCommand(),
     timeoutMs: options.timeoutMs ?? READ_TIMEOUT_MS,
     maxBytes: options.maxBytes ?? MAX_OUTPUT_BYTES,
     killGraceMs: options.killGraceMs ?? KILL_GRACE_MS,
   };
   const provide = Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner);
-  return TatsuReader.of({
+  return AutomationsReader.of({
     pipelines: runCli(PIPELINES_ARGS, PipelinesData, opts).pipe(provide),
     schedules: runCli(SCHEDULES_ARGS, SchedulesData, opts).pipe(provide),
   });
 });
 
-export const readerLayer = (options: ReaderOptions = {}) => Layer.effect(TatsuReader, makeReader(options));
+export const readerLayer = (options: ReaderOptions = {}) => Layer.effect(AutomationsReader, makeReader(options));

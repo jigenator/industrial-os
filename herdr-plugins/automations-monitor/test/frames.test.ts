@@ -4,7 +4,7 @@
 import { describe, expect, test } from 'bun:test';
 import { GLYPHS, lineWidth, paint } from '@industrial-os/design-system/foundation/cells';
 import { EXTRA_GLYPHS } from '../src/canvas.ts';
-import type { ReadFailure } from '../src/reader.ts';
+import { COMMAND_ENV, type ReadFailure } from '../src/reader.ts';
 import { initialState, type AppState } from '../src/ui.ts';
 import { renderFrame } from '../src/view/frame.ts';
 import { stateAt } from './support.ts';
@@ -90,13 +90,13 @@ describe('frames', () => {
 
   test('each failure has its own honest wording', () => {
     const titles = FAILURES.map((f) => text(stateAt(NOW, { failure: f }), 120, 40).join('\n'));
-    expect(titles[0]).toContain('TATSU NOT FOUND');
-    expect(titles[0]).toContain('AUTOMATIONS_MONITOR_TATSU');
+    expect(titles[0]).toContain('CLI NOT FOUND');
+    expect(titles[0]).toContain(COMMAND_ENV);
     expect(titles[2]).toContain('TIMED OUT');
     expect(titles[3]).toContain('TOO LARGE');
-    expect(titles[4]).toContain('TATSU ERROR AUTOMATIONS_RUNNER_UNAVAILABLE');
+    expect(titles[4]).toContain('CLI ERROR AUTOMATIONS_RUNNER_UNAVAILABLE');
     expect(titles[4]).toContain('runner state at <path> is unreadable');
-    expect(titles[5]).toContain('TATSU EXITED 3');
+    expect(titles[5]).toContain('CLI EXITED 3');
     expect(titles[6]).toContain('UNSUPPORTED SCHEMA');
     expect(titles[7]).toContain('UNREADABLE OUTPUT');
     expect(titles[8]).toContain('data.runs.3.phase');

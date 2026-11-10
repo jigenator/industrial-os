@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
-// A stand-in `tatsu` for tests, frames and the isolated Herdr check; it never runs the real CLI.
-// FAKE_TATSU_SCENARIO picks the reply (default `floor`). FAKE_TATSU_LOG, when set, receives one JSON line per
+// A stand-in automations CLI for tests, frames and the isolated Herdr check; it never runs the real CLI.
+// FAKE_AUTOMATIONS_SCENARIO picks the reply (default `floor`). FAKE_AUTOMATIONS_LOG, when set, receives one JSON line per
 // call with the argv, start and end times and pids, so tests can check the argv and that calls never overlap.
-// FAKE_TATSU_DELAY_MS delays the answer.
-// Teardown scenarios (they need FAKE_TATSU_LOG, where each process logs its pid once it is ready):
+// FAKE_AUTOMATIONS_DELAY_MS delays the answer.
+// Teardown scenarios (they need FAKE_AUTOMATIONS_LOG, where each process logs its pid once it is ready):
 //   stubborn     ignores SIGTERM, starts a descendant that ignores it too, and never answers
 //   leaves-child exits on SIGTERM but its SIGTERM-ignoring descendant does not; never answers
 //   orphan-exit  starts a SIGTERM-ignoring descendant, then answers and exits normally, leaving it behind
@@ -13,12 +13,12 @@ import { envelope, PIPELINES_URL, pipelinesData, SCHEDULES_URL, schedulesData } 
 
 const started = Date.now();
 const argv = process.argv.slice(2);
-const logFile = process.env.FAKE_TATSU_LOG;
+const logFile = process.env.FAKE_AUTOMATIONS_LOG;
 const log = (extra: Record<string, unknown> = {}) => {
   if (logFile) appendFileSync(logFile, JSON.stringify({ argv, started, ended: Date.now(), pid: process.pid, ...extra }) + '\n');
 };
-const scenario = process.env.FAKE_TATSU_SCENARIO ?? 'floor';
-const delay = Number(process.env.FAKE_TATSU_DELAY_MS ?? 0);
+const scenario = process.env.FAKE_AUTOMATIONS_SCENARIO ?? 'floor';
+const delay = Number(process.env.FAKE_AUTOMATIONS_DELAY_MS ?? 0);
 const schedules = argv[1] === 'schedules';
 const now = Date.now();
 

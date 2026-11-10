@@ -1,4 +1,4 @@
-// Shared test helpers: the Bun platform layers, the fake `tatsu`, its call log, process liveness, and app
+// Shared test helpers: the Bun platform layers, the fake automations CLI, its call log, process liveness, and app
 // states built from the fixtures.
 import { BunChildProcessSpawner, BunFileSystem, BunPath } from '@effect/platform-bun';
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
@@ -10,7 +10,7 @@ import { PipelinesData, SchedulesData } from '../src/contract.ts';
 import { classify, type ReadFailure } from '../src/reader.ts';
 import { applyPoll, initialState, type AppState } from '../src/ui.ts';
 
-export const FAKE = resolve(import.meta.dir, '..', 'fixtures', 'fake-tatsu.ts');
+export const FAKE = resolve(import.meta.dir, '..', 'fixtures', 'fake-automations-cli.ts');
 export const platform = BunChildProcessSpawner.layer.pipe(Layer.provide(Layer.mergeAll(BunFileSystem.layer, BunPath.layer)));
 
 export interface Call {
@@ -36,9 +36,9 @@ export function fakeLog() {
 }
 
 export function use(scenario: string, log: string, delayMs = 0): void {
-  process.env.FAKE_TATSU_SCENARIO = scenario;
-  process.env.FAKE_TATSU_LOG = log;
-  process.env.FAKE_TATSU_DELAY_MS = String(delayMs);
+  process.env.FAKE_AUTOMATIONS_SCENARIO = scenario;
+  process.env.FAKE_AUTOMATIONS_LOG = log;
+  process.env.FAKE_AUTOMATIONS_DELAY_MS = String(delayMs);
 }
 
 // Alive and not a zombie: a killed descendant whose parent died first stays a zombie until init reaps it.

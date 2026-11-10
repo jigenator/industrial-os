@@ -2,7 +2,7 @@ id = "industrial-os.automations-monitor"
 name = "Industrial OS Automations Monitor"
 version = "0.1.0"
 min_herdr_version = "0.9.3"
-description = "Read-only dashboard of this machine's Tatsu automation pipelines and schedules"
+description = "Read-only dashboard of this machine's automation pipelines and schedules"
 platforms = ["linux", "macos"]
 
 [[build]]

@@ -1,15 +1,16 @@
-// The terminal check: runs the live pane in a real pseudo-terminal against the fake `tatsu` and checks, for
+// The terminal check: runs the live pane in a real pseudo-terminal against the fake automations CLI and checks, for
 // quitting with `q`, SIGTERM, an uncaught error and a defect in the loop, that the pane was in raw mode
 // while running, that the terminal settings (`stty -g`) are identical before and after, that the alternate
 // screen was left and the cursor shown, and that the pane exits only once the fake's process group is gone.
-// Run from the plugin directory: `bun test/pty-check.ts`. It never touches Herdr or the real `tatsu`.
+// Run from the plugin directory: `bun test/pty-check.ts`. It never touches Herdr or the real CLI.
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { COMMAND_ENV } from '../src/reader.ts';
 import { alive, FAKE } from './support.ts';
 
 const ROOT = dirname(import.meta.dir);
-// Only this bun and the system tools: no version-manager shim, and never the real `tatsu`.
+// Only this bun and the system tools: no version-manager shim, and never the real CLI.
 const PATH = [dirname(process.execPath), '/usr/bin', '/bin'].join(':');
 const ENTER = '\x1b[?1049h', LEAVE = '\x1b[?1049l', SHOW = '\x1b[?25h';
 
@@ -61,7 +62,7 @@ async function run(c: Case): Promise<string[]> {
   let out = '';
   const proc = Bun.spawn(['sh', '-c', script], {
     cwd: ROOT,
-    env: { PATH, HOME: dir, TERM: 'xterm-256color', AUTOMATIONS_MONITOR_TATSU: FAKE, FAKE_TATSU_SCENARIO: c.scenario, FAKE_TATSU_LOG: f('log') },
+    env: { PATH, HOME: dir, TERM: 'xterm-256color', [COMMAND_ENV]: FAKE, FAKE_AUTOMATIONS_SCENARIO: c.scenario, FAKE_AUTOMATIONS_LOG: f('log') },
     terminal: { cols: 120, rows: 40, data: (_t, d) => void (out += new TextDecoder().decode(d)) },
   });
   const problems: string[] = [];

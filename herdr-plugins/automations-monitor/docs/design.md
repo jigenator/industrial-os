@@ -1,6 +1,6 @@
 # Design
 
-The automations monitor is a terminal port of the approved mockup (v5): a dark-field, read-only dashboard of this machine's Tatsu pipelines and schedules on one time axis. It follows the [shared visual language](../../../docs/design.md); this document records what it shows, what each mark means and where it departs from the mockup.
+The automations monitor is a terminal port of the approved mockup (v5): a dark-field, read-only dashboard of this machine's automation pipelines and schedules on one time axis. It follows the [shared visual language](../../../docs/design.md); this document records what it shows, what each mark means and where it departs from the mockup.
 
 ## Layout
 
@@ -95,13 +95,13 @@ Only live heads, verifying segments in the modal and firing schedules blink, at 
 | `R` | Read now (ignored while a read is in flight) |
 | `Q`, `Ctrl-C`, `Ctrl-D` | Quit |
 
-The footer lists the keys; on narrow panes the labels shorten, then all but `QUIT` drop, and the keys stay. Nothing in the monitor changes Tatsu, Herdr or any file. After a Herdr restart the pane comes back running the monitor, not as a shell ([restore](architecture.md#restore-after-a-restart)).
+The footer lists the keys; on narrow panes the labels shorten, then all but `QUIT` drop, and the keys stay. Nothing in the monitor changes the CLI's data, Herdr or any file. After a Herdr restart the pane comes back running the monitor, not as a shell ([restore](architecture.md#restore-after-a-restart)).
 
 ## Truthfulness
 
 - Unknown is never zero: counts, numerals and times show `?` or `--:--` until read.
 - The header shows the age of the screen's last good read (`READ 8S AGO`). After three intervals without a new one it reads `STALE · READ 45S AGO` and the machine row says `STALE`. After a failed read the last good data stays, labelled `LAST KNOWN` with the failure, and the header reads `READ FAILED · LAST OK 1M AGO`.
-- With no data, the list area names the failure: `TATSU NOT FOUND` (with what to do), `CANNOT START TATSU`, `READ TIMED OUT`, `OUTPUT TOO LARGE`, `TATSU ERROR <CODE>` with the redacted message and exit code, `TATSU EXITED n`, `UNSUPPORTED SCHEMA`, or `UNREADABLE OUTPUT` with the first mismatching field. Each says it is retrying.
+- With no data, the list area names the failure: `CLI NOT FOUND` (with what to do), `CANNOT START CLI`, `READ TIMED OUT`, `OUTPUT TOO LARGE`, `CLI ERROR <CODE>` with the redacted message and exit code, `CLI EXITED n`, `UNSUPPORTED SCHEMA`, or `UNREADABLE OUTPUT` with the first mismatching field. Each says it is retrying. Titles call the program "the CLI"; only the `CLI NOT FOUND` detail names the default command and the variable that overrides it, and `READING` shows the default command line.
 - No local path, run ID, log reference or description is decoded, so none can be shown. The one free-text value, an error message, is redacted: path- and URL-shaped words become `<path>`.
 - A runner that is not reporting live keeps its last-known runs grey and stops the NEXT POLL countdown.
 

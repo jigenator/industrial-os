@@ -9,6 +9,7 @@
 import { availableParallelism, tmpdir } from 'node:os';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { COMMAND_ENV } from '../../src/reader.ts';
 
 const HERE = import.meta.dir;
 const MONITOR = resolve(HERE, '..', '..');
@@ -45,14 +46,14 @@ async function render(monitor: string, out: string): Promise<void> {
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
   const env: Record<string, string | undefined> = {
-    ...process.env, TZ: 'UTC', GOLDEN_NOW: String(NOW), GOLDEN_BUN: BUN, GOLDEN_FAKE: join(monitor, 'fixtures', 'fake-tatsu.ts'),
-    AUTOMATIONS_MONITOR_TATSU: join(HERE, 'fake-tatsu.sh'), FAKE_TATSU_LOG: undefined, FAKE_TATSU_DELAY_MS: undefined,
+    ...process.env, TZ: 'UTC', GOLDEN_NOW: String(NOW), GOLDEN_BUN: BUN, GOLDEN_FAKE: join(monitor, 'fixtures', 'fake-automations-cli.ts'),
+    [COMMAND_ENV]: join(HERE, 'fake-automations-cli.sh'), FAKE_AUTOMATIONS_LOG: undefined, FAKE_AUTOMATIONS_DELAY_MS: undefined,
   };
   let next = 0;
   const worker = async () => {
     for (let job = jobs[next++]; job; job = jobs[next++]) {
       const p = Bun.spawn([BUN, '--preload', join(HERE, 'freeze.ts'), join(monitor, 'bin', 'automations-monitor.ts'), ...job.args], {
-        cwd: monitor, env: { ...env, FAKE_TATSU_SCENARIO: job.s }, stdout: 'pipe', stderr: 'pipe',
+        cwd: monitor, env: { ...env, FAKE_AUTOMATIONS_SCENARIO: job.s }, stdout: 'pipe', stderr: 'pipe',
       });
       const [stdout, stderr, code] = await Promise.all([new Response(p.stdout).arrayBuffer(), new Response(p.stderr).text(), p.exited]);
       writeFileSync(join(out, `${job.name}.ansi`), new Uint8Array(stdout));

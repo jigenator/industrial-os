@@ -8,7 +8,7 @@ import { hex, T, type Color } from './theme.ts';
 // Box-drawing ticks, a dashed rule, hollow, half-filled and framed squares, a hollow diamond, a low bar, the
 // selection pointer, arrows and en and em dashes. These retain the approved monitor glyph contract.
 export const EXTRA_GLYPHS = '┬┴┄□◩▣◇▁▶↑↓–—';
-// Keep upstream GLYPHS additions from widening what external Tatsu text can display.
+// Keep upstream GLYPHS additions from widening what external CLI text can display.
 const BASE_GLYPHS = '─│┌┐└┘╵╱▐▌█▏▎▍▋▊▉░○●▲✕…━┃┏┓┗┛┼▀▄▒▓▚▞■▪·•◆▴⌑⑂×';
 const ALLOWED = new Set([...BASE_GLYPHS, ...EXTRA_GLYPHS]);
 export const cleanText = (value: string): string =>

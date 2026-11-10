@@ -4,6 +4,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
+import { COMMAND_ENV, DEFAULT_COMMAND } from '../src/reader.ts';
 
 const ROOT = resolve(import.meta.dir, '..');
 const REPO = resolve(ROOT, '..', '..');
@@ -58,11 +59,11 @@ describe('source', () => {
     expect(pkg.devDependencies).toEqual({ '@types/bun': '1.4.4', typescript: '7.0.2' });
   });
 
-  test('only the reader runs tatsu and only the restore hook runs herdr', () => {
+  test('only the reader runs the automations CLI and only the restore hook runs herdr', () => {
     const spawns = code.filter((f) => f.includes(`${ROOT}/src/`) || f.includes(`${ROOT}/bin/`))
       .filter((f) => /ChildProcess\.make|Bun\.spawn|child_process|execFile/.test(readFileSync(f, 'utf8')))
       .map((f) => relative(ROOT, f)).sort();
     expect(spawns).toEqual(['src/reader.ts', 'src/restore.ts']);
-    expect(readFileSync(join(ROOT, 'src/restore.ts'), 'utf8')).not.toMatch(/tatsu/i);
+    expect(readFileSync(join(ROOT, 'src/restore.ts'), 'utf8')).not.toMatch(new RegExp(`${DEFAULT_COMMAND}|${COMMAND_ENV}`, 'i'));
   });
 });

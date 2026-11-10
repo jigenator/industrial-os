@@ -1,10 +1,10 @@
 # Industrial OS Automations Monitor
 
-A Herdr 0.9.3+ plugin: a read-only terminal dashboard of this machine's Tatsu automation pipelines and schedules, in Acid / Black. It shows which pipelines are running which issues now, three hours of finished runs on one time axis, what needs attention, and when schedules last ran and run next. It opens in a split beside the pane you are in, or in its own tab.
+A Herdr 0.9.3+ plugin: a read-only terminal dashboard of this machine's automation pipelines and schedules, in Acid / Black. It shows which pipelines are running which issues now, three hours of finished runs on one time axis, what needs attention, and when schedules last ran and run next. It opens in a split beside the pane you are in, or in its own tab.
 
-It only reads: it runs `tatsu automations pipelines --json` and `tatsu automations schedules --json`, nothing else, and never changes Tatsu, Herdr or a file. After Herdr restarts, its startup hook starts the monitor again in the panes where it was open.
+It only reads: it runs `tatsu automations pipelines --json` and `tatsu automations schedules --json`, nothing else, and never changes the CLI's data, Herdr or a file. After Herdr restarts, its startup hook starts the monitor again in the panes where it was open.
 
-Status: built and checked against an invented fake `tatsu`, rendered at five sizes, run in an isolated Herdr 0.9.5 and read against this machine's real CLI, and linked in the maintainer's live Herdr. See the [verification records](CONTRIBUTING.md#verification-records).
+Status: built and checked against an invented fake automations CLI, rendered at five sizes, run in an isolated Herdr 0.9.5 and read against this machine's real CLI, and linked in the maintainer's live Herdr. See the [verification records](CONTRIBUTING.md#verification-records).
 
 ## Requirements
 
@@ -64,7 +64,7 @@ The monitor reads every 10 seconds, one command at a time. The header shows how 
 
 - Only the fields listed in the [data contract](docs/architecture.md#data-contract) are decoded. Paths, run IDs, log references and descriptions are never read, so they never reach the screen; error messages are redacted.
 - This machine only. The CLI does not report a per-pipeline dispatch time, which slot a run used, or schedule fire history, so the monitor shows the next queue poll instead, packs lanes by time, and draws only each schedule's last, active and next run.
-- Each read is bounded by 8 seconds and 4 MiB; a slow or runaway `tatsu` is stopped with its whole process group.
+- Each read is bounded by 8 seconds and 4 MiB; a slow or runaway CLI is stopped with its whole process group.
 - Panes smaller than 60×16 show only a short notice.
 - Not tested on Linux, in terminals other than xterm.js and Herdr's client, or over a long run.
 

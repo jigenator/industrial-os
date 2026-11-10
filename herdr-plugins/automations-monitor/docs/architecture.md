@@ -1,6 +1,6 @@
 # Architecture
 
-Status: current. Evidence: the source and tests in this directory, the manifest as accepted by `herdr plugin link` on Herdr 0.9.5, Tatsu's published `automations-pipelines.v2.json` and `automations-schedules.v2.json` schemas, and the locked Effect 4.0.6 and Bun 1.4.4. The stack is recorded in the [stack decision](../../../docs/decisions/automations-monitor-stack.md).
+Status: current. Evidence: the source and tests in this directory, the manifest as accepted by `herdr plugin link` on Herdr 0.9.5, the automations CLI's published `automations-pipelines.v2.json` and `automations-schedules.v2.json` schemas, and the locked Effect 4.0.6 and Bun 1.4.4. The stack is recorded in the [stack decision](../../../docs/decisions/automations-monitor-stack.md).
 
 ## Modules
 
@@ -12,7 +12,7 @@ Status: current. Evidence: the source and tests in this directory, the manifest 
 | `src/app.ts` | The live loop: merges terminal events, poll events and frame ticks, folds them through `ui`, and writes the rows that changed | `terminal`, `poller`, `ui`, `view/frame` |
 | `src/terminal.ts` | The scoped `Terminal` service: raw mode, alternate screen, SGR mouse, input parsing, resize, signal and error handlers, restoration | Node `process` streams in Bun |
 | `src/poller.ts` | Polling as a `Stream`: one read cycle at a time, the interval after each cycle, refresh requests | `reader` |
-| `src/reader.ts` | The `TatsuReader` service: the two fixed argvs, bounds, process-group teardown, classification of every reply | `contract`, `redact`, `effect/process` |
+| `src/reader.ts` | The `AutomationsReader` service: the two fixed argvs, bounds, process-group teardown, classification of every reply | `contract`, `redact`, `effect/process` |
 | `bin/restore.ts`, `src/restore.ts` | The startup hook: find the panes Herdr restored from the monitor and start it in each ([below](#restore-after-a-restart)) | `effect/process`, the Herdr CLI |
 | `src/contract.ts` | Effect Schemas for the fields shown, and the error envelope | `effect` |
 | `src/redact.ts` | Redaction of the one free-text value, an error message | — |
@@ -21,7 +21,7 @@ Status: current. Evidence: the source and tests in this directory, the manifest 
 | `src/theme.ts` | Exact colours for the canvas: the roles, the board inks, the board tones' inks and cells, the category colours, and the lamp cadence, all from the design system | `@industrial-os/design-system` |
 | `src/canvas.ts` | A cell grid with text, design-system lines laid in by `blit`, and hit regions, emitted as design-system lines | `@industrial-os/design-system` |
 | `src/view/*.ts` | Pure placement of design-system parts and plain text: `frame` (header, machine row, footer, failures), `layout`, `list` (scrolling), `pipelines`, `schedules`, `modal`, `parts` (the shared calls into the design system) | `canvas`, `model`, `theme`, `ui` types, `@industrial-os/design-system` elements |
-| `fixtures/` | Invented replies, the fake `tatsu` with its scenarios, and the fake `herdr` for the restore hook | — |
+| `fixtures/` | Invented replies, the fake automations CLI with its scenarios, and the fake `herdr` for the restore hook | — |
 | `test/golden/` | The golden-frame harness: every fast fake scenario's `--frame` output under a frozen clock, captured at a git ref and compared with this checkout ([how](../CONTRIBUTING.md#golden-frames)) | `bin/automations-monitor.ts`, `fixtures/`, Git |
 
 Runtime dependencies are `effect` and `@effect/platform-bun`, both exactly 4.0.6; development dependencies are `typescript` 7.0.2 and `@types/bun` 1.4.4. All are locked in `bun.lock`. `@industrial-os/design-system` is not in the manifest: Bun resolves it from the repository root's `node_modules`, which the root `npm install` links, and it is imported only through exported subpaths. Every consumed subpath ships colocated `.d.mts` declarations in the design system; no local ambient shim or `allowJs` is needed.
@@ -34,7 +34,7 @@ Runtime dependencies are `effect` and `@effect/platform-bun`, both exactly 4.0.6
 
 **The loop.** Three streams merge into one: terminal events, poll events, and ticks timed to the next visible change (the next lamp edge while something blinks, else the next second). Each event folds through `ui.update` or `ui.applyPoll`; the frame is rendered from the state and the pane size, and only the rows that differ from the last frame are written. The frame also settles the scroll position, which goes back into the state. `R` offers to the refresh queue.
 
-**Polling.** A cycle runs `pipelines`, then `schedules`, sequentially, so at most one `tatsu` process exists at a time. The next cycle starts `POLL_INTERVAL_MS` (10 s) after the previous one finished, or at once on a refresh while idle; refresh requests made during a read are cleared after it, not queued. Each cycle reports both results separately, so one failing command does not hide the other's data.
+**Polling.** A cycle runs `pipelines`, then `schedules`, sequentially, so at most one CLI process exists at a time. The next cycle starts `POLL_INTERVAL_MS` (10 s) after the previous one finished, or at once on a refresh while idle; refresh requests made during a read are cleared after it, not queued. Each cycle reports both results separately, so one failing command does not hide the other's data.
 
 **Exit.** `Q` restores the terminal synchronously, then ends the stream; leaving the scope interrupts the read in flight, whose own scope terminates its process group and waits for it. A signal restores at once and asks the loop to quit the same way; `runMain` also interrupts on `SIGINT` and `SIGTERM`. An error thrown outside the fibers restores at once and fails the program with a defect. Only after every scope has closed does the `runMain` teardown exit, with 0 for quitting and signals and 1 for a failure, after writing a redacted one-line message. Restoration is idempotent.
 
@@ -49,7 +49,7 @@ tatsu automations pipelines --json
 tatsu automations schedules --json
 ```
 
-The executable is `$AUTOMATIONS_MONITOR_TATSU` when set and non-empty, else `tatsu` from the pane's `PATH`.
+The executable is `$AUTOMATIONS_MONITOR_TATSU` when set and non-empty, else `tatsu` from the pane's `PATH` (`COMMAND_ENV` and `DEFAULT_COMMAND` in `src/reader.ts`).
 
 **Bounds.** Each read has an 8 s timeout and a 4 MiB output cap. Each runs as its own process-group leader. On a timeout, the cap, or an interrupt, the group receives `SIGTERM`, then `SIGKILL` after 1 s if any member remains; the read returns only when the group is empty (Effect's spawner waits up to one more second). After a normal exit the group is cleared the same way, so a descendant left behind never outlives its read.
 
@@ -77,7 +77,7 @@ The alternative, reporting a resume command as an agent does ([Herdr agent suppo
 ## Invariants
 
 - Observe only: the monitor runs no command other than the two reads, writes no files and makes no Herdr calls. Only the startup hook calls Herdr, and it types into a restored pane only while that pane's own shell is alone in the foreground.
-- One `tatsu` process at a time, and none outlives its read or the pane.
+- One CLI process at a time, and none outlives its read or the pane.
 - The terminal is restored on every exit path: `q`, `Ctrl-C`, `SIGTERM`, `SIGHUP`, an interrupt, and an uncaught error.
 - Rendering is pure: state, size, wall clock and motion time in; exactly `rows` lines of exactly `cols` cells out, each glyph single-cell by the design system's text contract.
 - No colour value is written in this project; every colour is a design-system value.

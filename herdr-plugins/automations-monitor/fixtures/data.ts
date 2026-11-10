@@ -1,4 +1,4 @@
-// Invented Tatsu replies for tests, frames and the fake `tatsu`. Every name, issue key, machine and path here
+// Invented automations CLI replies for tests, frames and the fake CLI. Every name, issue key, machine and path here
 // is made up; the shapes follow schema version 2. Paths sit in fields the monitor ignores, so tests can check
 // that none reaches the screen. Times are relative to `now`.
 const MIN = 60_000;

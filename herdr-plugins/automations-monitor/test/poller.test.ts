@@ -1,4 +1,4 @@
-// Polling against the fake `tatsu`: one read in flight, the interval measured after each read, and refresh
+// Polling against the fake automations CLI: one read in flight, the interval measured after each read, and refresh
 // requests during a read satisfied by that read rather than queued.
 import { describe, expect, test } from 'bun:test';
 import { Effect, Fiber, Queue, Result, Stream } from 'effect';

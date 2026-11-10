@@ -1,5 +1,5 @@
-// The data contract: Effect Schemas for the parts of `tatsu automations pipelines --json` and
-// `tatsu automations schedules --json` (schema version 2) that the monitor shows. Fields not declared here,
+// The data contract: Effect Schemas for the parts of the automations CLI's `automations pipelines --json` and
+// `automations schedules --json` (schema version 2) that the monitor shows. Fields not declared here,
 // including every path, run ID and log reference, are never decoded and so can never reach the screen.
 // Contract and field list: ../docs/architecture.md#data-contract.
 import { Schema, SchemaTransformation } from 'effect';

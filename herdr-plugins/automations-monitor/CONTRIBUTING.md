@@ -14,7 +14,7 @@ bun install --frozen-lockfile                 # effect, @effect/platform-bun, ty
 
 ## Commands
 
-Run from this directory. Everything below uses the fake `tatsu` in `fixtures/fake-tatsu.ts`, never the real CLI.
+Run from this directory. Everything below uses the fake automations CLI in `fixtures/fake-automations-cli.ts`, never the real CLI.
 
 | Command | What it does |
 | --- | --- |
@@ -22,10 +22,10 @@ Run from this directory. Everything below uses the fake `tatsu` in `fixtures/fak
 | `bun test` | Reader, poller, model, frames, keys, restore-hook and source tests |
 | `bun test/pty-check.ts` (`bun run pty-check`) | The live pane in a real pseudo-terminal: raw mode, `stty -g` restored, alternate screen left and cursor shown, and no fake process left, for `q`, SIGTERM, an uncaught error, a defect in the loop, and `q` and SIGTERM during a read that ignores SIGTERM |
 | `sh -n bin/automations-monitor.sh`; `sh bin/automations-monitor.sh bad` | Launcher syntax; usage on stderr and exit 2 |
-| `AUTOMATIONS_MONITOR_TATSU=$PWD/fixtures/fake-tatsu.ts FAKE_TATSU_SCENARIO=floor bun bin/automations-monitor.ts --frame 160x51 --plain` | One frame to stdout; add `--screen schedules`, `--log`, `--modal`, `--no-motion` or `--time MS`, and drop `--plain` for colour |
-| `AUTOMATIONS_MONITOR_TATSU=$PWD/fixtures/fake-tatsu.ts bun bin/automations-monitor.ts` | The live pane against the fake, in your terminal |
+| `AUTOMATIONS_MONITOR_TATSU=$PWD/fixtures/fake-automations-cli.ts FAKE_AUTOMATIONS_SCENARIO=floor bun bin/automations-monitor.ts --frame 160x51 --plain` | One frame to stdout; add `--screen schedules`, `--log`, `--modal`, `--no-motion` or `--time MS`, and drop `--plain` for colour |
+| `AUTOMATIONS_MONITOR_TATSU=$PWD/fixtures/fake-automations-cli.ts bun bin/automations-monitor.ts` | The live pane against the fake, in your terminal |
 
-Fake scenarios (`FAKE_TATSU_SCENARIO`): `floor` (default), `empty`, `stopped`, `unreachable`, `no-schedules`, `schedules-error`, `error`, `garbage`, `exit`, `unsupported`, `invalid`, `no-lists`, `big`, `stubborn`, `leaves-child`, `orphan-exit` and `hang`. `FAKE_TATSU_LOG` records each call's argv, times and process IDs as JSON lines; `FAKE_TATSU_DELAY_MS` delays the answer.
+Fake scenarios (`FAKE_AUTOMATIONS_SCENARIO`): `floor` (default), `empty`, `stopped`, `unreachable`, `no-schedules`, `schedules-error`, `error`, `garbage`, `exit`, `unsupported`, `invalid`, `no-lists`, `big`, `stubborn`, `leaves-child`, `orphan-exit` and `hang`. `FAKE_AUTOMATIONS_LOG` records each call's argv, times and process IDs as JSON lines; `FAKE_AUTOMATIONS_DELAY_MS` delays the answer.
 
 The restore hook's tests use `fixtures/fake-herdr.ts`: `FAKE_HERDR_STATE` names a JSON file of panes and a list of process-info replies per pane, and `FAKE_HERDR_LOG` records each call's argv.
 
@@ -49,7 +49,7 @@ Then the [repository-wide checks](../../CONTRIBUTING.md#repository-wide-checks).
 
 ### Golden frames
 
-`test/golden/golden.ts` draws the monitor's `--frame` output, with colour, for 13 fake scenarios. Each is drawn at eight sizes from 200×50 to 30×5, on both screens, with five flag sets (none, `--log`, `--modal`, `--no-motion`, and all three), at `--time 0` and `600` (lamp lit and dim): 2080 frames. The wall clock is frozen by the `test/golden/freeze.ts` preload in both the monitor and the fake (`test/golden/fake-tatsu.sh`), with `TZ=UTC`. No baseline is stored. `compare <base-ref> <out-dir>` draws the base ref from a temporary `git archive` of its monitor and design system into `<out-dir>/base`, then draws this checkout into `<out-dir>/head`. It compares every frame and its stderr byte for byte and exits 1 on any difference. `capture <out-dir> [--ref <ref>]` and `diff <base-dir> <out-dir>` do the two halves separately. Each run spawns Bun about 6,000 times, and takes about two minutes on an Apple-silicon laptop. Keep `<out-dir>` outside the repository, for example under `/tmp`; the harness empties it first, so it refuses a folder inside the repository or one holding anything but earlier frames.
+`test/golden/golden.ts` draws the monitor's `--frame` output, with colour, for 13 fake scenarios. Each is drawn at eight sizes from 200×50 to 30×5, on both screens, with five flag sets (none, `--log`, `--modal`, `--no-motion`, and all three), at `--time 0` and `600` (lamp lit and dim): 2080 frames. The wall clock is frozen by the `test/golden/freeze.ts` preload in both the monitor and the fake (`test/golden/fake-automations-cli.sh`), with `TZ=UTC`. No baseline is stored. `compare <base-ref> <out-dir>` draws the base ref from a temporary `git archive` of its monitor and design system into `<out-dir>/base`, then draws this checkout into `<out-dir>/head`. It compares every frame and its stderr byte for byte and exits 1 on any difference. `capture <out-dir> [--ref <ref>]` and `diff <base-dir> <out-dir>` do the two halves separately. Each run spawns Bun about 6,000 times, and takes about two minutes on an Apple-silicon laptop. Keep `<out-dir>` outside the repository, for example under `/tmp`; the harness empties it first, so it refuses a folder inside the repository or one holding anything but earlier frames.
 
 The `stubborn`, `leaves-child`, `hang` and `orphan-exit` scenarios are left out. Their reads end only through the reader's timeout or its TERM-to-KILL grace, which the frozen clock stops, and `orphan-exit` would draw the `floor` frame. `bun test` and the PTY check cover them.
 
@@ -59,7 +59,7 @@ Render `--frame` output (with colour) through xterm.js in headless Chrome, outsi
 
 ### Isolated Herdr check
 
-Use a throwaway Herdr that shares nothing with a live session, as in the [Spaces procedure](../spaces/CONTRIBUTING.md#throwaway-server-check): run every `herdr` command under `env -i` with a temporary `HOME`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, an explicit `HERDR_SOCKET_PATH` in a short directory, a `PATH` with Bun and Herdr but not `tatsu`, and `AUTOMATIONS_MONITOR_TATSU` pointing at the fake. Never pass inherited `HERDR_*` variables. Record SHA-256 checksums of the live `config.toml` and `plugins.json` first.
+Use a throwaway Herdr that shares nothing with a live session, as in the [Spaces procedure](../spaces/CONTRIBUTING.md#throwaway-server-check): run every `herdr` command under `env -i` with a temporary `HOME`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, an explicit `HERDR_SOCKET_PATH` in a short directory, a `PATH` with Bun and Herdr but not the automations CLI, and `AUTOMATIONS_MONITOR_TATSU` pointing at the fake. Never pass inherited `HERDR_*` variables. Record SHA-256 checksums of the live `config.toml` and `plugins.json` first.
 
 1. Start `herdr server`, `herdr plugin link` this directory, then `herdr workspace create`.
 2. Attach a client (`herdr`) in a pseudo-terminal of a known size; dismiss the welcome with Enter and the first-run settings dialog with Esc.
@@ -72,11 +72,21 @@ Use a throwaway Herdr that shares nothing with a live session, as in the [Spaces
 
 ## Verification records
 
+### 2026-11-10 · neutral CLI names · Bun 1.4.4, TypeScript 7.0.2, Effect 4.0.6, macOS
+
+The reader service is `AutomationsReader`; the default command and its override variable are defined once, as `DEFAULT_COMMAND` and `COMMAND_ENV` in `src/reader.ts`, and the views take them from there. The fakes are `fixtures/fake-automations-cli.ts` and `test/golden/fake-automations-cli.sh`, with `FAKE_AUTOMATIONS_*` variables. Visible change: the failure titles read `CLI NOT FOUND`, `CANNOT START CLI`, `CLI ERROR <CODE>` and `CLI EXITED n`, and the unreadable-output detail says "The CLI printed…"; the not-found detail and the `READING` line still name the default command ([design](docs/design.md#truthfulness)). The commands run, their bounds and the override are unchanged.
+
+**Automated — passed.** `bun install --frozen-lockfile`: 11 packages, no changes. `tsc --noEmit -p .`: clean. `bun test`: 68 pass, 0 fail, 19,813 expectations. `sh -n` and the usage exit (2) pass. `bun test/pty-check.ts`: all 6 cases passed, no fake process left.
+
+**Golden frames — differ only in the failure wording, as intended.** The base `cb64f2b` cannot be drawn by this harness, since it looks for the renamed fake, so the base was captured from a `git archive` in a throwaway repository under `/tmp` with this harness and fake copied in, then `diff` against this checkout: 350 of 2080 frames differ, all in the `error`, `exit`, `garbage` and `schedules-error` scenarios, and the plain text of those frames differs only in the renamed titles and the re-centred message; every stderr file matches.
+
+**Not run:** the rendered check (a wording change only), the isolated and live Herdr checks (no change to the manifest's entrypoints or the lifecycle), and the real CLI.
+
 ### 2026-10-29 · restore after a Herdr restart · Bun 1.4.4, TypeScript 7.0.2, Effect 4.0.6, macOS, Herdr 0.9.5
 
 A monitor pane came back after a Herdr or Ghostty restart as a shell labelled `Automations` in this directory: Herdr restores a pane's folder and label, not a plugin pane's command. The new `[[startup]]` hook starts the monitor again in such panes ([restore](docs/architecture.md#restore-after-a-restart)).
 
-**Automated — passed.** `bun install --frozen-lockfile` unchanged; `tsc --noEmit -p .` clean; `bun test`: 67 pass, 0 fail (eight restore tests, and the source test now allows `src/restore.ts` to run `herdr` and only the reader to run `tatsu`); `sh -n` and the usage exit pass.
+**Automated — passed.** `bun install --frozen-lockfile` unchanged; `tsc --noEmit -p .` clean; `bun test`: 67 pass, 0 fail (eight restore tests, and the source test now allows `src/restore.ts` to run `herdr` and only the reader to run the automations CLI); `sh -n` and the usage exit pass.
 
 **Isolated Herdr 0.9.5 — passed** (step 7, under `env -i` with a temporary home, XDG directories and socket, and a 2 s `.zshrc`). Before the restart: a monitor split, a monitor tab, a decoy shell in this directory labelled `Decoy`, and the first shell. After `herdr server stop` no process remained; after the restart both monitor panes drew the monitor, the decoy and the first shell stayed shells, and the plugin log showed the startup hook succeeded with `started in 2 of 2 monitor panes`. Running the hook again with the monitors up printed `started in 0 of 2`; `q` in the restored tab closed that pane. A second probe linked a copy without the hook, added it to the manifest and restarted: the hook ran without a relink. The live Herdr `config.toml`, `plugins.json` and `session.json` checksums were unchanged.
 
@@ -100,7 +110,7 @@ The views now place design-system elements (section head, label plates, board ma
 
 **Rendered — not re-run.** The frames are byte-identical to those before the change, so their renders are unchanged.
 
-**Isolated Herdr 0.9.5 — passed.** Every command ran under `env -i` with a temporary home, XDG directories and socket, and a `PATH` without `tatsu`. `plugin link` accepted the manifest; `open` split the shell pane and the monitor drew at the pane's size. Through an attached 200×50 client, `m` showed `MOTION OFF`, `2` the schedules, and `r` a fresh read (`READ 0S AGO`). Resizing wider added `OBSERVE ONLY`; resizing to 52 columns drew `AUTOMATIONS 50x47: TOO SMALL`. `open-tab` drew the tall-readout layout at full width. `q` in the split closed only the monitor's pane, leaving the shell, and `q` in the tab closed that tab. `herdr plugin log list` showed both actions succeeded with exit 0 and empty stderr. After `herdr server stop` no process remained under the temporary directory, which was deleted, and the live `config.toml` and `plugins.json` SHA-256 checksums were unchanged.
+**Isolated Herdr 0.9.5 — passed.** Every command ran under `env -i` with a temporary home, XDG directories and socket, and a `PATH` without the automations CLI. `plugin link` accepted the manifest; `open` split the shell pane and the monitor drew at the pane's size. Through an attached 200×50 client, `m` showed `MOTION OFF`, `2` the schedules, and `r` a fresh read (`READ 0S AGO`). Resizing wider added `OBSERVE ONLY`; resizing to 52 columns drew `AUTOMATIONS 50x47: TOO SMALL`. `open-tab` drew the tall-readout layout at full width. `q` in the split closed only the monitor's pane, leaving the shell, and `q` in the tab closed that tab. `herdr plugin log list` showed both actions succeeded with exit 0 and empty stderr. After `herdr server stop` no process remained under the temporary directory, which was deleted, and the live `config.toml` and `plugins.json` SHA-256 checksums were unchanged.
 
 **Not run:** the real CLI and live Herdr.
 
@@ -125,7 +135,7 @@ The views now place design-system elements (section head, label plates, board ma
 
 **Rendered — passed, compared by eye.** 21 frames under `/tmp/automations-monitor-shots/` (not committed): pipelines at 200×50, 160×51 (default, log, modal, motion off), 120×40 and 80×24; schedules at 160×51 and 80×24; the modal at 80×24; a 50×10 notice; stopped, unreachable, empty, no schedules, an error envelope, an unsupported schema, garbage and a schedules-only error; and two renders of this machine's real CLI, which are private. Against the mockup's `v5`, `v4-modal` and `v3b` shots the layout, groups, lanes, bars, NOW line, modal and schedule rows match, apart from the deviations listed in [design](docs/design.md#deviations-from-the-mockup).
 
-**Real CLI — read only.** `--frame 160x51` against this machine's `tatsu` decoded both commands (4 pipelines, 70 runs; 0 schedules) and drew them; nothing was committed from it.
+**Real CLI — read only.** `--frame 160x51` against this machine's real automations CLI decoded both commands (4 pipelines, 70 runs; 0 schedules) and drew them; nothing was committed from it.
 
 **Isolated Herdr 0.9.5 — passed.** Every command ran under `env -i` with a temporary home, XDG directories and socket. `plugin link` accepted the manifest (pane `monitor`, actions `open` and `open-tab`, the `bun install --frozen-lockfile` build listed). `open` split the shell pane into two 87×49 panes and the monitor drew its compact layout at the pane's width. Through an attached 200×50 client, `m` changed the footer to `MOTION OFF`, `r` started a fresh read (`READ 1S AGO` where the previous read would have been 4 s old), and `2` showed the schedules. Resizing wider redrew it with `OBSERVE ONLY` in the header and `NEXT READ` in the footer; resizing to 50 columns drew `AUTOMATIONS 50x47: TOO SMALL`. `open-tab` drew the tall-readout layout at full width; `q` there closed only that tab, and `q` in the split closed it, leaving the shell pane. `herdr plugin log list` showed both actions succeeded with exit 0 and empty stderr. After `herdr server stop` no fake or monitor process remained, and the live `config.toml` and `plugins.json` SHA-256 checksums were unchanged.
 
@@ -149,4 +159,4 @@ After DS-1 added the colocated `foundation/industrialos-colors.d.mts`, the redun
 
 **Passed — automated.** Bun 1.4.4, TypeScript 7.0.2, Node v22.23.4, macOS: `bun install --frozen-lockfile`, `./node_modules/.bin/tsc --noEmit -p .`, and `bun test` (**55 passed**, 0 failed, 19,335 expectations across six files). Strict types now resolve the package declaration directly. Whitespace and changed-document links/anchors passed.
 
-**Not run:** PTY, native Herdr, live Tatsu or installation. This declaration-only cleanup changes none of those runtime paths.
+**Not run:** PTY, native Herdr, the live automations CLI or installation. This declaration-only cleanup changes none of those runtime paths.

@@ -4,7 +4,7 @@
 import { paint } from '@industrial-os/design-system/foundation/cells';
 import { Clock, Effect, Queue, Ref, Stream } from 'effect';
 import { pollEvents, type PollEvent } from './poller.ts';
-import type { TatsuReader } from './reader.ts';
+import type { AutomationsReader } from './reader.ts';
 import { Terminal, type TermEvent } from './terminal.ts';
 import { toLampEdge } from './theme.ts';
 import { applyPoll, initialState, update, type AppState } from './ui.ts';
@@ -62,7 +62,7 @@ export const runApp = (options: { motion: boolean }) => Effect.gen(function* () 
     yield* Effect.sleep(frameDelay(yield* Ref.get(stateRef), now, now - started));
     return { _tag: 'Tick' } as const;
   }));
-  const events = Stream.mergeAll<Event, never, TatsuReader>([
+  const events = Stream.mergeAll<Event, never, AutomationsReader>([
     term.events,
     pollEvents(refresh).pipe(Stream.map((event): Event => ({ _tag: 'Poll', event }))),
     ticks,

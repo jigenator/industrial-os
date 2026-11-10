@@ -1,4 +1,4 @@
-// Preloaded by the golden harness into the monitor and the fake tatsu: `Date.now()` and `new Date()` return
+// Preloaded by the golden harness into the monitor and the fake automations CLI: `Date.now()` and `new Date()` return
 // GOLDEN_NOW, so a frame does not depend on when it is drawn. Dates built from a value, and timers, are unchanged.
 const fixed = Number(process.env.GOLDEN_NOW);
 if (!Number.isInteger(fixed)) throw new Error('GOLDEN_NOW must be epoch milliseconds');

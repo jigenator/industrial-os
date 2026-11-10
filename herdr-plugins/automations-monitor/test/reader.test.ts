@@ -1,8 +1,8 @@
-// The reader against the fake `tatsu`: the exact argv, decoding, every failure kind, and that a read never
+// The reader against the fake automations CLI: the exact argv, decoding, every failure kind, and that a read never
 // returns while any process of its group is alive, including one that ignores SIGTERM.
 import { describe, expect, test } from 'bun:test';
 import { Effect, Fiber, Result } from 'effect';
-import { classify, makeReader, PIPELINES_ARGS, SCHEDULES_ARGS, tatsuCommand, type ReadFailure } from '../src/reader.ts';
+import { automationsCommand, classify, COMMAND_ENV, DEFAULT_COMMAND, makeReader, PIPELINES_ARGS, SCHEDULES_ARGS, type ReadFailure } from '../src/reader.ts';
 import { PipelinesData, type SchedulesData } from '../src/contract.ts';
 import { alive, FAKE, fakeLog, platform, use } from './support.ts';
 import { envelope, PIPELINES_URL, pipelinesData } from '../fixtures/data.ts';
@@ -36,10 +36,11 @@ describe('reader', () => {
     expect(schedules.schedules.length).toBe(7);
   });
 
-  test('the executable is tatsu on PATH unless overridden', () => {
-    expect(tatsuCommand({})).toBe('tatsu');
-    expect(tatsuCommand({ AUTOMATIONS_MONITOR_TATSU: '' })).toBe('tatsu');
-    expect(tatsuCommand({ AUTOMATIONS_MONITOR_TATSU: '/opt/t' })).toBe('/opt/t');
+  test('the executable is the default command on PATH unless the documented variable overrides it', () => {
+    expect([DEFAULT_COMMAND, COMMAND_ENV]).toEqual(['tatsu', 'AUTOMATIONS_MONITOR_TATSU']);
+    expect(automationsCommand({})).toBe(DEFAULT_COMMAND);
+    expect(automationsCommand({ [COMMAND_ENV]: '' })).toBe(DEFAULT_COMMAND);
+    expect(automationsCommand({ [COMMAND_ENV]: '/opt/t' })).toBe('/opt/t');
   });
 
   test('an error envelope is an error, with its message redacted', async () => {
@@ -62,7 +63,7 @@ describe('reader', () => {
   });
 
   test('a missing executable is missing', async () => {
-    expect(await failureOf('pipelines', { command: '/nonexistent/automations-monitor/tatsu' })).toEqual({ kind: 'missing' });
+    expect(await failureOf('pipelines', { command: '/nonexistent/automations-monitor/cli' })).toEqual({ kind: 'missing' });
   });
 
   test('output over the cap is too large, and the process is gone', async () => {

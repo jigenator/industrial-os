@@ -10,7 +10,7 @@ import { sectionHead } from '@industrial-os/design-system/elements/section-head'
 import { verticalRule } from '@industrial-os/design-system/elements/tab-rule';
 import { cleanText, CUT, measure, type Canvas } from '../canvas.ts';
 import { age, clock, type LogEvent } from '../model.ts';
-import type { ReadFailure } from '../reader.ts';
+import { COMMAND_ENV, DEFAULT_COMMAND, type ReadFailure } from '../reader.ts';
 import { cell, T, type Color, type Tone } from '../theme.ts';
 import { LOG_WIDTH, type Layout } from './layout.ts';
 
@@ -98,14 +98,14 @@ export function eventLog(c: Canvas, lay: Layout, title: string, events: readonly
 export function describeFailure(f: ReadFailure, intervalMs: number): { title: string; detail: string[] } {
   const every = `RETRYING EVERY ${Math.round(intervalMs / 1000)}S`;
   switch (f.kind) {
-    case 'missing': return { title: 'TATSU NOT FOUND', detail: ['`tatsu` is not on this pane\'s PATH.', 'Start Herdr from a shell where `tatsu` runs,', 'or set AUTOMATIONS_MONITOR_TATSU.', every] };
-    case 'spawn-failed': return { title: 'CANNOT START TATSU', detail: [`The system refused to run it (${f.code}).`, every] };
+    case 'missing': return { title: 'CLI NOT FOUND', detail: [`\`${DEFAULT_COMMAND}\` is not on this pane's PATH.`, `Start Herdr from a shell where \`${DEFAULT_COMMAND}\` runs,`, `or set ${COMMAND_ENV}.`, every] };
+    case 'spawn-failed': return { title: 'CANNOT START CLI', detail: [`The system refused to run it (${f.code}).`, every] };
     case 'timeout': return { title: 'READ TIMED OUT', detail: [`No answer within ${Math.round(f.timeoutMs / 1000)}s; the read was stopped.`, every] };
     case 'too-large': return { title: 'OUTPUT TOO LARGE', detail: [`More than ${Math.round(f.maxBytes / 1048576)} MiB; the read was stopped.`, every] };
-    case 'error-envelope': return { title: `TATSU ERROR ${f.code}`, detail: [f.message ?? 'No message.', `Exit ${f.exitCode ?? '?'}.`, every] };
-    case 'exit': return { title: `TATSU EXITED ${f.exitCode ?? '?'}`, detail: ['No readable answer was printed.', every] };
+    case 'error-envelope': return { title: `CLI ERROR ${f.code}`, detail: [f.message ?? 'No message.', `Exit ${f.exitCode ?? '?'}.`, every] };
+    case 'exit': return { title: `CLI EXITED ${f.exitCode ?? '?'}`, detail: ['No readable answer was printed.', every] };
     case 'unsupported': return { title: 'UNSUPPORTED SCHEMA', detail: [`schema_version ${f.version ?? '?'}; this monitor reads 2.`, every] };
-    case 'garbage': return { title: 'UNREADABLE OUTPUT', detail: [f.at ? `The reply does not match schema 2 at ${f.at}.` : 'Tatsu printed something that is not the JSON envelope.', every] };
+    case 'garbage': return { title: 'UNREADABLE OUTPUT', detail: [f.at ? `The reply does not match schema 2 at ${f.at}.` : 'The CLI printed something that is not the JSON envelope.', every] };
   }
 }
 
