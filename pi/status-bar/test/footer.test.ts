@@ -57,6 +57,7 @@ const { createJiti } = require("jiti");
 const jiti = createJiti(import.meta.url, { moduleCache: false, fsCache: false, alias: { "@earendil-works/pi-tui": require.resolve("@earendil-works/pi-tui") } });
 const footer = await jiti.import(resolve("src/footer.ts"));
 const { renderFooter, safeText, startMotion, advanceMotion, motionFrame, nextMotionDelay, usageRepaintDelay, SETTLED_FRAME, MOTION_TICK_MS, USAGE_BOOT_TICKS, USAGE_SWEEP_CELLS_PER_TICK } = footer;
+const { INSTALL_STATUS_KEY, INSTALL_COMPONENTS: [INSTALL_CLI] } = footer;
 const { visibleWidth: hostVisibleWidth, stripTerminalSequences: hostStripTerminalSequences, sliceByColumn, styleText } = await import(pathToFileURL(require.resolve("@earendil-works/pi-tui")).href);
 const strippedLines = new Map<string, string>();
 const stripTerminalSequences = (line: string) => {
@@ -123,7 +124,7 @@ const session = (percent: number | null = 41.8, activity: FooterSnapshot["activi
 	contextUsage: { tokens: percent === null ? null : Math.round(percent * 2_720), contextWindow: 272_000, percent },
 	model: { provider: "openai-codex", id: "gpt-6-astra", contextWindow: 272_000 },
 	thinking: "xhigh",
-	statuses: new Map([["tatsu", "tatsu-cli: current | agent-workspace: update available (3)"]]),
+	statuses: new Map([["probe", "probe-cli: current | agent-workspace: update available (3)"]]),
 	activity,
 	compactions: 4,
 });
@@ -139,9 +140,9 @@ const PALETTE: Record<string, string> = {
 	// GPT's lit white is the text white, so it reads as `text` here; its used tint is the ghost grey, so `usageGhost`.
 	"#333333": "usageGhost", "#808080": "codexMid", "#ff5c00": "claude", "#331200": "claudeUsed", "#802e00": "claudeMid",
 	"#2555fc": "kimi", "#071132": "kimiUsed", "#132b7e": "kimiMid",
-	// Tatsu checking fade (above graphic grey) and beacon dim.
+	// Install-status checking fade (above graphic grey) and beacon dim.
 	"#7b7b7b": "checkLow", "#868686": "checkMid", "#919191": "checkHigh", "#9c9c9c": "checkPeak", "#6c4f29": "warnDim",
-	// Tatsu warm-up steps (warn 50% is warnDim; grey's are surface and plate).
+	// Install-status warm-up steps (warn 50% is warnDim; grey's are surface and plate).
 	"#304001": "primary25", "#607f02": "primary50", "#90be03": "primary75", "#362814": "warn25", "#a1763e": "warn75",
 	"#3c1209": "high25", "#792412": "high50", "#b6351a": "high75", "#383838": "graphic50",
 };
@@ -206,7 +207,7 @@ test("wide v9 snapshot: numbered 8-cell plates, inline readout, scale, numeral a
 		"   02 CTX   114k/272k ███████████████                ┃           ┃                            ▐ ▀▀█  █    █▀█ USED      ",
 		"           0     10    20    30    40    50    60    70    80    90   100                     ▐   ▀ ▀▀▀ ▀ ▀▀▀ of 272k   ",
 		"┃  03 MDL  openai-codex/gpt-6-astra · thinking xhigh                                                                   ┃",
-		"┗━ 05 EXT  tatsu-cli: current | agent-workspace: update available (3)                                                 ━┛",
+		"┗━ 05 EXT  probe-cli: current | agent-workspace: update available (3)                                                 ━┛",
 	]);
 	const g = grid(lines);
 	for (const line of lines) assert.ok(line.includes(bg("#000000")), "every row sits on the black field");
@@ -827,7 +828,7 @@ test("live values: context unknown after compaction, current model/thinking, sta
 
 test("decoration is a pure function of supplied time, seed and memory; values stay current in every frame", () => {
 	const f = session(41.8);
-	const tokens = ["⑂ main", "modified", " 114k/272k ", "openai-codex/gpt-6-astra", "thinking xhigh", "tatsu-cli: current | agent-workspace: update available (3)", "CMP×04  ■ jigenator/pi-status-bar"];
+	const tokens = ["⑂ main", "modified", " 114k/272k ", "openai-codex/gpt-6-astra", "thinking xhigh", "probe-cli: current | agent-workspace: update available (3)", "CMP×04  ■ jigenator/pi-status-bar"];
 	const lit = Math.ceil(41.8 * 60 / 100);
 	let frames = 0;
 	simulate(f, 99, 30_000, (state, now) => {
@@ -1509,7 +1510,7 @@ test("USG snapshot: real samples at 100/48/30 columns, row order, collapse, plat
 		"   03 MDL  openai-codex/gpt-6-astra · thinking xhigh                                                ",
 		"   04 USG  GPT ■■■■■■□□   CLD ■■■■■■■□ ■■■■■■■■   KMI ■■■■■■■■ ■■■■■■■■                             ",
 		"┃              6d2h           1h15m    5d15h          3h09m    6d12h                               ┃",
-		"┗━ 05 EXT  tatsu-cli: current | agent-workspace: update available (3)                             ━┛",
+		"┗━ 05 EXT  probe-cli: current | agent-workspace: update available (3)                             ━┛",
 	]);
 	assert.deepEqual(rows(f, 48).slice(6), [
 		"  03 MDL  openai-codex/gpt-6-astra · thinking   ",
@@ -1518,7 +1519,7 @@ test("USG snapshot: real samples at 100/48/30 columns, row order, collapse, plat
 		"              6d2h           1h15m    5d15h     ",
 		"          KMI ■■■■■■■■ ■■■■■■■■                 ",
 		"              3h09m    6d12h                    ",
-		"┃ 05 EXT  tatsu-cli: current | agent-workspace:┃",
+		"┃ 05 EXT  probe-cli: current | agent-workspace:┃",
 		"┗         update available (3)                 ┛",
 	]);
 	const minimal = rows(f, 30), first = minimal.findIndex((line) => line.includes("04 USG"));
@@ -1530,7 +1531,7 @@ test("USG snapshot: real samples at 100/48/30 columns, row order, collapse, plat
 		"    1h15m    5d15h            ",
 		"KMI ■■■■■■■■ ■■■■■■■■         ",
 		"    3h09m    6d12h            ",
-		" 05 EXT  tatsu-cli: current | ",
+		" 05 EXT  probe-cli: current | ",
 	]);
 	// Absent usage (CodexBar missing or not yet detected) and an empty provider list render no row.
 	assert.doesNotMatch(rows(session()).join("\n"), /USG/);
@@ -1704,7 +1705,7 @@ test("USG states: pending, failed/timeout, none, unknown or blank window, stale 
 	assert.deepEqual(state({ provider: "claude", failure: "timeout" }), ["CLD ????????", "    timeout"]);
 	assert.deepEqual(state({ provider: "kimi", failure: "failed" }), ["KMI ????????", "    failed"]);
 	// A successful sample without 5h/week windows: grey `none`, no squares and no text row.
-	assert.deepEqual(state({ provider: "kimi", data: { windows: {}, updatedAt: NOW, fetchedAt: NOW } }), ["KMI none", "tatsu-cli: current | agent-workspace: update available (3)"]);
+	assert.deepEqual(state({ provider: "kimi", data: { windows: {}, updatedAt: NOW, fetchedAt: NOW } }), ["KMI none", "probe-cli: current | agent-workspace: update available (3)"]);
 	assert.deepEqual(state(single("claude", { "5h": null, wk: 30 })), ["CLD ???????? ■■■■■■□□", "    ?        1h00m"]);
 	const noReset = single("claude", { "5h": 30 }); noReset.data!.windows["5h"]!.resetsAt = null;
 	assert.deepEqual(state(noReset), ["CLD ■■■■■■□□", "    ?"], "an unreported window takes no slot");
@@ -2225,19 +2226,19 @@ test("USG fill-in when a provider's data first arrives: per cell grey, white for
 	assert.deepEqual(startMotion(after, 9000, 5, false).usageFill, {});
 });
 
-/* Public Tatsu v1 classifications, rendered as one sorted EXT entry of plain text: a dim label, then a coloured state. */
-const tatsuFixture = (cli: string = "current", wks: string = "current", options: object = {}): FooterSnapshot => ({
-	...session(), statuses: new Map(), tatsu: { phase: cli === "checking" && wks === "checking" ? "checking" : "completed", components: [
-		{ component: "tatsu-cli", state: cli, ...options }, { component: "agent-workspace", state: wks, ...options },
-	] } as FooterSnapshot["tatsu"],
+/* Public install-status v1 classifications, rendered as one sorted EXT entry of plain text: a dim label, then a coloured state. */
+const installFixture = (cli: string = "current", wks: string = "current", options: object = {}): FooterSnapshot => ({
+	...session(), statuses: new Map(), install: { phase: cli === "checking" && wks === "checking" ? "checking" : "completed", components: [
+		{ component: INSTALL_CLI, state: cli, ...options }, { component: "agent-workspace", state: wks, ...options },
+	] } as FooterSnapshot["install"],
 });
-const tatsuCells = (f: FooterSnapshot, frame?: FooterFrame) => {
+const installCells = (f: FooterSnapshot, frame?: FooterFrame) => {
 	const lines = renderFooter(f, 100, theme, frame), at = lines.findIndex((line: string) => stripTerminalSequences(line).includes("05 EXT"));
 	return cellsOf(lines[at]).slice(11).slice(0, 85);
 };
-const tatsuPlain = (f: FooterSnapshot, frame?: FooterFrame) => text(tatsuCells(f, frame)).trimEnd();
+const installPlain = (f: FooterSnapshot, frame?: FooterFrame) => text(installCells(f, frame)).trimEnd();
 // Cell ranges of `TCLI <shape> <code>   AWKS <shape> <code>`: label, state (shape, space, code), then the three-cell gap.
-const tatsuSpans = (cliCode: number, wksCode: number) => {
+const installSpans = (cliCode: number, wksCode: number) => {
 	const b = 7 + cliCode + 3;
 	return { cliLabel: [0, 4], cliState: [5, 7 + cliCode], gap: [7 + cliCode, b], wksLabel: [b, b + 4], wksState: [b + 5, b + 7 + wksCode] } as const;
 };
@@ -2245,7 +2246,7 @@ const span = (cells: TestCell[], [from, to]: readonly [number, number]) => cells
 const labelText = (cells: TestCell[]) => cells.length === 4 && cells.every((c) => c.fg === "graphic" && !c.bold && c.bg === "field");
 const stateText = (cells: TestCell[], fg: string, bg = "field") => cells.length > 0 && cells.every((c) => c.fg === fg && c.bg === bg && c.bold);
 
-test("Tatsu: every state's dim label, coloured shape and code; three-cell separator; glyphs are single-width", () => {
+test("Install status: every state's dim label, coloured shape and code; three-cell separator; glyphs are single-width", () => {
 	for (const glyph of "▲◆✕·•▴×") assert.equal(visibleWidth(glyph), 1, glyph);
 	for (const [state, options, expected, ink] of [
 		["current", {}, "• OK", "primary"],
@@ -2259,56 +2260,56 @@ test("Tatsu: every state's dim label, coloured shape and code; three-cell separa
 		["not_runnable", {}, "✕ NRUN", "high"], ["unavailable", {}, "✕ UNAV", "high"],
 		["checking", {}, "· CHK", "graphic"], ["inactive", {}, "· OFF", "graphic"],
 	] as const) {
-		const f = tatsuFixture(state, state, options), cells = tatsuCells(f), code = expected.length - 2, at = tatsuSpans(code, code);
-		assert.equal(tatsuPlain(f), `TCLI ${expected}   AWKS ${expected}`);
+		const f = installFixture(state, state, options), cells = installCells(f), code = expected.length - 2, at = installSpans(code, code);
+		assert.equal(installPlain(f), `TCLI ${expected}   AWKS ${expected}`);
 		assert.ok(labelText(span(cells, at.cliLabel)) && labelText(span(cells, at.wksLabel)), "dim labels start at the content column");
 		assert.ok(stateText(span(cells, at.cliState), ink) && stateText(span(cells, at.wksState), ink), `${state} is bold ${ink}`);
 		assert.ok(span(cells, at.gap).every((c) => c.ch === " " && c.bg === "field"), "three field cells separate the components");
 		assert.ok(cells.slice(at.wksState[1]).every((c) => c.ch === " " && c.bg === "field"), "nothing after the entry");
 	}
 	// An inactive component inside an active snapshot keeps its own grey state beside a real result.
-	const mixed = tatsuFixture("current", "inactive"), cells = tatsuCells(mixed), at = tatsuSpans(2, 3);
-	assert.equal(tatsuPlain(mixed), "TCLI • OK   AWKS · OFF");
+	const mixed = installFixture("current", "inactive"), cells = installCells(mixed), at = installSpans(2, 3);
+	assert.equal(installPlain(mixed), "TCLI • OK   AWKS · OFF");
 	assert.ok(stateText(span(cells, at.cliState), "primary") && stateText(span(cells, at.wksState), "graphic"));
 });
 
-test("Tatsu: sorted placement, raw inactive fallback, breaks between components, width bounds 1–280 settled and one frame per decoration", () => {
-	const f = tatsuFixture("repair", "unavailable", { localChanges: true });
-	f.statuses = new Map([["z-status", "last"], ["tatsu-status", "raw fallback"], ["a-status", "first"]]);
+test("Install status: sorted placement, raw inactive fallback, breaks between components, width bounds 1–280 settled and one frame per decoration", () => {
+	const f = installFixture("repair", "unavailable", { localChanges: true });
+	f.statuses = new Map([["z-status", "last"], [INSTALL_STATUS_KEY, "raw fallback"], ["a-status", "first"]]);
 	const lines = rows(f), first = lines.findIndex((line) => line.includes("first")), segment = lines.findIndex((line) => line.includes("TCLI")), last = lines.findIndex((line) => line.includes("last"));
 	assert.ok(first < segment && segment < last); assert.match(lines[first], /05 EXT/); assert.doesNotMatch(lines[segment], /05 EXT|raw fallback/);
-	const inactive = { ...f, tatsu: { ...f.tatsu!, phase: "inactive" as const } };
+	const inactive = { ...f, install: { ...f.install!, phase: "inactive" as const } };
 	assert.match(rows(inactive).join("\n"), /raw fallback/); assert.doesNotMatch(rows(inactive).join("\n"), /TCLI/);
 	// Components break only between each other: 48 framed columns fit both, 30 minimal columns put each on its own line.
 	assert.ok(rows(f, 48).some((line) => line.includes("TCLI ▲ FIX ◆ EDIT   AWKS ✕ UNAV")));
 	const narrow = rows(f, 30), cli = narrow.findIndex((line) => line.includes("TCLI"));
 	assert.equal(narrow[cli].trimEnd(), "TCLI ▲ FIX ◆ EDIT"); assert.equal(narrow[cli + 1].trimEnd(), "AWKS ✕ UNAV");
 	// Alone in EXT, the first component sits beside the label when it fits.
-	const alone = rows(tatsuFixture("behind", "current", { commitsBehind: 1 }), 30), label = alone.findIndex((line) => line.includes("05 EXT"));
+	const alone = rows(installFixture("behind", "current", { commitsBehind: 1 }), 30), label = alone.findIndex((line) => line.includes("05 EXT"));
 	assert.equal(alone[label].trimEnd(), " 05 EXT  TCLI ▲ UP×1"); assert.equal(alone[label + 1].trimEnd(), "AWKS • OK");
-	const frames: FooterFrame[] = [SETTLED_FRAME, { ...SETTLED_FRAME, tatsuWarm: 2 }, { ...SETTLED_FRAME, tatsuWarm: -3 }, { ...SETTLED_FRAME, tatsuCheck: 4 }, { ...SETTLED_FRAME, tatsuLatches: { "tatsu-cli": 1 } }, { ...SETTLED_FRAME, tatsuBeacon: 1 }];
-	for (const f of [tatsuFixture("behind", "repair", { commitsBehind: Number.MAX_SAFE_INTEGER, localChanges: true }), tatsuFixture("checking", "checking"), tatsuFixture("missing", "not_runnable"), tatsuFixture("inactive", "local_changes")]) {
+	const frames: FooterFrame[] = [SETTLED_FRAME, { ...SETTLED_FRAME, installWarm: 2 }, { ...SETTLED_FRAME, installWarm: -3 }, { ...SETTLED_FRAME, installCheck: 4 }, { ...SETTLED_FRAME, installLatches: { [INSTALL_CLI]: 1 } }, { ...SETTLED_FRAME, installBeacon: 1 }];
+	for (const f of [installFixture("behind", "repair", { commitsBehind: Number.MAX_SAFE_INTEGER, localChanges: true }), installFixture("checking", "checking"), installFixture("missing", "not_runnable"), installFixture("inactive", "local_changes")]) {
 		for (const frame of frames) for (let width = 1; width <= 280; width++) {
 			const lines = renderFooter(f, width, theme, frame);
 			assert.ok(lines.length > 0);
-			assert.ok(lines.every((line: string) => visibleWidth(line) <= width), `Tatsu width ${width}`);
+			assert.ok(lines.every((line: string) => visibleWidth(line) <= width), `install-status width ${width}`);
 		}
 	}
 });
 
-test("Tatsu: warm-up brightens each part out of the field, colour only; appearance/reappearance, reload and resume", () => {
-	const absent = { ...tatsuFixture(), tatsu: undefined }, f = tatsuFixture("behind", "current", { commitsBehind: 1 }), at = tatsuSpans(4, 2);
-	const settledCells = tatsuCells(f), settled = text(settledCells);
-	assert.equal(footer.TATSU_WARM_TICKS, 14, "700 ms for both components");
+test("Install status: warm-up brightens each part out of the field, colour only; appearance/reappearance, reload and resume", () => {
+	const absent = { ...installFixture(), install: undefined }, f = installFixture("behind", "current", { commitsBehind: 1 }), at = installSpans(4, 2);
+	const settledCells = installCells(f), settled = text(settledCells);
+	assert.equal(footer.INSTALL_WARM_TICKS, 14, "700 ms for both components");
 	let state = startMotion(absent, 0, 14, false);
 	state = advanceMotion(state, f, 2000);
-	assert.equal(state.tatsuWarm, 2000);
+	assert.equal(state.installWarm, 2000);
 	// Steps: field, 25%, 50%, 75%, then the settled colour, two ticks each; shape, code (+2), label (+4); AWKS 3 ticks later.
 	const steps = { warn: ["field", "warn25", "warnDim", "warn75", "warn"], primary: ["field", "primary25", "primary50", "primary75", "primary"], graphic: ["field", "surface", "graphic50", "plate", "graphic"] } as const;
 	const expect = (ink: keyof typeof steps, k: number, component: number, role: number) => steps[ink][Math.min(4, Math.max(0, Math.floor((k - component * 3 - role) / 2) + 1))];
-	for (let k = 0; k < footer.TATSU_WARM_TICKS; k++) {
-		const frame = motionFrame(state, 2000 + k * 50), cells = tatsuCells(f, frame);
-		assert.equal(frame.tatsuWarm, k);
+	for (let k = 0; k < footer.INSTALL_WARM_TICKS; k++) {
+		const frame = motionFrame(state, 2000 + k * 50), cells = installCells(f, frame);
+		assert.equal(frame.installWarm, k);
 		assert.equal(text(cells), settled, `tick ${k}: every character is current`);
 		assert.ok(cells.every((c) => c.bg === "field"), "colour only, no background");
 		for (const [component, label, state, ink] of [[0, at.cliLabel, at.cliState, "warn"], [1, at.wksLabel, at.wksState, "primary"]] as const) {
@@ -2318,35 +2319,35 @@ test("Tatsu: warm-up brightens each part out of the field, colour only; appearan
 			assert.ok(half.slice(2).every((c) => c.fg === expect(ink, k, component, 2)), `tick ${k}: code`);
 		}
 	}
-	state = advanceMotion(state, f, 2000 + footer.TATSU_WARM_TICKS * 50);
-	assert.equal(state.tatsuWarm, undefined); assert.deepEqual(tatsuCells(f, motionFrame(state, 2700)), settledCells);
+	state = advanceMotion(state, f, 2000 + footer.INSTALL_WARM_TICKS * 50);
+	assert.equal(state.installWarm, undefined); assert.deepEqual(installCells(f, motionFrame(state, 2700)), settledCells);
 	// Reappearance warms up again; motion off and resume draw everything immediately.
 	state = advanceMotion(state, absent, 4100); state = advanceMotion(state, f, 4200);
-	assert.equal(motionFrame(state, 4200).tatsuWarm, 0);
+	assert.equal(motionFrame(state, 4200).installWarm, 0);
 	const resumed = startMotion(f, 5000, 14, false);
-	assert.equal(resumed.tatsuWarm, undefined); assert.deepEqual(resumed.tatsuLatches, {});
-	assert.deepEqual(tatsuCells(f), settledCells, "motion off draws everything immediately");
+	assert.equal(resumed.installWarm, undefined); assert.deepEqual(resumed.installLatches, {});
+	assert.deepEqual(installCells(f), settledCells, "motion off draws everything immediately");
 	// A reload: present at the footer boot, the entry stays dark until the boot reaches EXT, then warms up.
 	const reload = startMotion(f, 0, 14, true), extAt = 14 * 50;
-	assert.equal(reload.tatsuWarm, extAt);
-	const before = motionFrame(reload, 100), dark = tatsuCells(f, before);
-	assert.ok(before.tatsuWarm! < 0); assert.equal(text(dark), settled); assert.ok(dark.filter((c) => c.ch !== " ").every((c) => c.fg === "field"));
-	assert.equal(tatsuCells(f, motionFrame(reload, extAt + 50))[at.cliState[0]].fg, "warn25");
-	assert.deepEqual(tatsuCells(f, motionFrame(reload, extAt + footer.TATSU_WARM_TICKS * 50)), settledCells, "settled once warm, even inside the footer boot");
+	assert.equal(reload.installWarm, extAt);
+	const before = motionFrame(reload, 100), dark = installCells(f, before);
+	assert.ok(before.installWarm! < 0); assert.equal(text(dark), settled); assert.ok(dark.filter((c) => c.ch !== " ").every((c) => c.fg === "field"));
+	assert.equal(installCells(f, motionFrame(reload, extAt + 50))[at.cliState[0]].fg, "warn25");
+	assert.deepEqual(installCells(f, motionFrame(reload, extAt + footer.INSTALL_WARM_TICKS * 50)), settledCells, "settled once warm, even inside the footer boot");
 	assert.ok(nextMotionDelay(reload, 100) <= 50);
 	// Appearing mid-boot also waits for EXT; appearing after it has passed starts at once.
 	const early = advanceMotion(startMotion(absent, 0, 14, true), f, 100), late = advanceMotion(startMotion(absent, 0, 14, true), f, 900);
-	assert.equal(early.tatsuWarm, extAt); assert.equal(late.tatsuWarm, 900);
+	assert.equal(early.installWarm, extAt); assert.equal(late.installWarm, 900);
 });
 
-test("Tatsu: checking glyph cadence and gentle eight-step code fade share epoch and scheduler; off is steady", () => {
-	const f = tatsuFixture("checking", "checking"), epoch = 123, state = startMotion(f, epoch, 2, false), at = tatsuSpans(3, 3);
-	const shapes = ["·", "•", "•", "•", "·"], levels = footer.TATSU_CHECK_FADE_LEVELS;
+test("Install status: checking glyph cadence and gentle eight-step code fade share epoch and scheduler; off is steady", () => {
+	const f = installFixture("checking", "checking"), epoch = 123, state = startMotion(f, epoch, 2, false), at = installSpans(3, 3);
+	const shapes = ["·", "•", "•", "•", "·"], levels = footer.INSTALL_CHECK_FADE_LEVELS;
 	assert.deepEqual([...levels], ["#717171", "#7b7b7b", "#868686", "#919191", "#9c9c9c", "#919191", "#868686", "#7b7b7b"]);
 	for (let step = 0; step <= 16; step++) {
 		for (const offset of [0, 149]) {
-			const now = epoch + step * 150 + offset, frame = motionFrame(state, now), cells = tatsuCells(f, frame), shape = shapes[step % 5];
-			assert.equal(tatsuPlain(f, frame), `TCLI ${shape} CHK   AWKS ${shape} CHK`);
+			const now = epoch + step * 150 + offset, frame = motionFrame(state, now), cells = installCells(f, frame), shape = shapes[step % 5];
+			assert.equal(installPlain(f, frame), `TCLI ${shape} CHK   AWKS ${shape} CHK`);
 			const level = PALETTE[levels[step % 8]];
 			for (const [from, to] of [at.cliState, at.wksState]) {
 				assert.ok(stateText(cells.slice(from, from + 2), "graphic"), `step ${step}: the shape stays graphic grey`);
@@ -2357,58 +2358,58 @@ test("Tatsu: checking glyph cadence and gentle eight-step code fade share epoch 
 		}
 	}
 	for (let i = 1; i < levels.length; i++) assert.ok(contrast("field", PALETTE[levels[i]]) > contrast("field", "graphic"), "the fade only lightens");
-	const off = tatsuCells(f);
+	const off = installCells(f);
 	assert.equal(text(off).trimEnd(), "TCLI · CHK   AWKS · CHK");
 	assert.ok(stateText(span(off, at.cliState), "graphic") && stateText(span(off, at.wksState), "graphic"));
 });
 
-test("Tatsu: completed-result latches the state only, no first/unchanged/checking/inactive replay", () => {
-	const current = tatsuFixture(), changed = tatsuFixture("behind", "current", { commitsBehind: 1 }), at = tatsuSpans(4, 2);
+test("Install status: completed-result latches the state only, no first/unchanged/checking/inactive replay", () => {
+	const current = installFixture(), changed = installFixture("behind", "current", { commitsBehind: 1 }), at = installSpans(4, 2);
 	let state = startMotion(current, 0, 2, false);
 	state = advanceMotion(state, changed, 1000);
-	assert.equal(state.tatsuLatches["tatsu-cli"], 1000);
+	assert.equal(state.installLatches[INSTALL_CLI], 1000);
 	// Options apply to both fixture components: the count is part of each component's comparison key.
 	for (const [elapsed, fg, bg] of [[0, "field", "primary"], [50, "field", "warn"], [100, "field", "warn"], [150, "warn", "field"]] as const) {
-		const cells = tatsuCells(changed, motionFrame(state, 1000 + elapsed));
-		assert.equal(tatsuPlain(changed, motionFrame(state, 1000 + elapsed)), "TCLI ▲ UP×1   AWKS • OK");
+		const cells = installCells(changed, motionFrame(state, 1000 + elapsed));
+		assert.equal(installPlain(changed, motionFrame(state, 1000 + elapsed)), "TCLI ▲ UP×1   AWKS • OK");
 		assert.ok(stateText(span(cells, at.cliState), fg, bg), `latch ${elapsed} ms`);
 		assert.ok(labelText(span(cells, at.cliLabel)), "the label never latches");
 	}
 	state = advanceMotion(state, changed, 1200);
-	state = advanceMotion(state, tatsuFixture("checking", "checking"), 1300);
-	state = advanceMotion(state, changed, 1500); assert.deepEqual(state.tatsuLatches, {});
-	const count = tatsuFixture("behind", "current", { commitsBehind: 2 });
-	state = advanceMotion(state, count, 1700); assert.equal(state.tatsuLatches["tatsu-cli"], 1700);
-	const local = tatsuFixture("behind", "current", { commitsBehind: 2, localChanges: true });
-	state = advanceMotion(state, local, 1900); assert.equal(state.tatsuLatches["tatsu-cli"], 1900);
-	state = advanceMotion(state, { ...local, tatsu: { ...local.tatsu!, phase: "inactive" } }, 2000);
-	state = advanceMotion(state, current, 2200); assert.deepEqual(state.tatsuLatches, {});
-	const first = advanceMotion(startMotion({ ...current, tatsu: undefined }, 0, 2, false), current, 2500);
-	assert.deepEqual(first.tatsuLatches, {});
+	state = advanceMotion(state, installFixture("checking", "checking"), 1300);
+	state = advanceMotion(state, changed, 1500); assert.deepEqual(state.installLatches, {});
+	const count = installFixture("behind", "current", { commitsBehind: 2 });
+	state = advanceMotion(state, count, 1700); assert.equal(state.installLatches[INSTALL_CLI], 1700);
+	const local = installFixture("behind", "current", { commitsBehind: 2, localChanges: true });
+	state = advanceMotion(state, local, 1900); assert.equal(state.installLatches[INSTALL_CLI], 1900);
+	state = advanceMotion(state, { ...local, install: { ...local.install!, phase: "inactive" } }, 2000);
+	state = advanceMotion(state, current, 2200); assert.deepEqual(state.installLatches, {});
+	const first = advanceMotion(startMotion({ ...current, install: undefined }, 0, 2, false), current, 2500);
+	assert.deepEqual(first.installLatches, {});
 	// CHK -> first result latches each component that was shown as CHK, after a reload or a later appearance.
-	const checking = tatsuFixture("checking", "checking");
+	const checking = installFixture("checking", "checking");
 	let fromChk = advanceMotion(startMotion(checking, 0, 2, true), checking, 5000);
 	fromChk = advanceMotion(fromChk, changed, 20_000);
-	assert.deepEqual(fromChk.tatsuLatches, { "tatsu-cli": 20_000, "agent-workspace": 20_000 });
-	const later = advanceMotion(advanceMotion(startMotion({ ...current, tatsu: undefined }, 0, 2, false), checking, 3000), changed, 9000);
-	assert.deepEqual(later.tatsuLatches, { "tatsu-cli": 9000, "agent-workspace": 9000 });
+	assert.deepEqual(fromChk.installLatches, { [INSTALL_CLI]: 20_000, "agent-workspace": 20_000 });
+	const later = advanceMotion(advanceMotion(startMotion({ ...current, install: undefined }, 0, 2, false), checking, 3000), changed, 9000);
+	assert.deepEqual(later.installLatches, { [INSTALL_CLI]: 9000, "agent-workspace": 9000 });
 	// Only components shown as CHK latch: a mixed snapshot's real component has no baseline yet and settles.
-	const partial = tatsuFixture("checking", "current"), half = { ...partial, tatsu: { ...partial.tatsu!, phase: "checking" as const } };
-	const mixed = advanceMotion(advanceMotion(startMotion({ ...current, tatsu: undefined }, 0, 2, false), half, 3000), tatsuFixture("behind", "current"), 9000);
-	assert.deepEqual(mixed.tatsuLatches, { "tatsu-cli": 9000 });
+	const partial = installFixture("checking", "current"), half = { ...partial, install: { ...partial.install!, phase: "checking" as const } };
+	const mixed = advanceMotion(advanceMotion(startMotion({ ...current, install: undefined }, 0, 2, false), half, 3000), installFixture("behind", "current"), 9000);
+	assert.deepEqual(mixed.installLatches, { [INSTALL_CLI]: 9000 });
 	// A result arriving during the warm-up or the footer boot settles; the warm-up already covers it.
-	const warming = advanceMotion(advanceMotion(startMotion({ ...current, tatsu: undefined }, 0, 2, false), checking, 3000), changed, 3300);
-	assert.deepEqual(warming.tatsuLatches, {});
+	const warming = advanceMotion(advanceMotion(startMotion({ ...current, install: undefined }, 0, 2, false), checking, 3000), changed, 3300);
+	assert.deepEqual(warming.installLatches, {});
 	const reloading = advanceMotion(startMotion(checking, 0, 2, true), changed, 1000);
-	assert.deepEqual(reloading.tatsuLatches, {});
-	const resumed = startMotion(local, 2600, 2, false); assert.deepEqual(resumed.tatsuLatches, {}); assert.equal(resumed.tatsuWarm, undefined);
+	assert.deepEqual(reloading.installLatches, {});
+	const resumed = startMotion(local, 2600, 2, false); assert.deepEqual(resumed.installLatches, {}); assert.equal(resumed.installWarm, undefined);
 });
 
-test("Tatsu: attention beacon changes only the ▲ cell at most once per four seconds, code/count unchanged; ambient excluded", () => {
-	const f = tatsuFixture("behind", "repair", { commitsBehind: 1 }), epoch = 100, state = startMotion(f, epoch, 2, false), at = tatsuSpans(4, 3);
+test("Install status: attention beacon changes only the ▲ cell at most once per four seconds, code/count unchanged; ambient excluded", () => {
+	const f = installFixture("behind", "repair", { commitsBehind: 1 }), epoch = 100, state = startMotion(f, epoch, 2, false), at = installSpans(4, 3);
 	for (const [elapsed, shape, ink] of [[0, "▲", "warn"], [3849, "▲", "warn"], [3850, "▴", "warn"], [3900, "▴", "warnDim"], [3950, "▲", "warnDim"], [4000, "▲", "warn"], [7850, "▴", "warn"]] as const) {
-		const frame = motionFrame(state, epoch + elapsed), cells = tatsuCells(f, frame);
-		assert.equal(tatsuPlain(f, frame), `TCLI ${shape} UP×1   AWKS ${shape} FIX`);
+		const frame = motionFrame(state, epoch + elapsed), cells = installCells(f, frame);
+		assert.equal(installPlain(f, frame), `TCLI ${shape} UP×1   AWKS ${shape} FIX`);
 		for (const [from, to] of [at.cliState, at.wksState]) {
 			assert.equal(cells[from].fg, ink); assert.equal(cells[from].bg, "field");
 			assert.ok(stateText(cells.slice(from + 1, to), "warn"), "code and count never change");
@@ -2416,13 +2417,13 @@ test("Tatsu: attention beacon changes only the ▲ cell at most once per four se
 	}
 	let onsets = 0, previous = false;
 	for (let elapsed = 0; elapsed < 12_000; elapsed += 50) {
-		const active = motionFrame(state, epoch + elapsed).tatsuBeacon !== undefined;
+		const active = motionFrame(state, epoch + elapsed).installBeacon !== undefined;
 		if (active && !previous) onsets++; previous = active;
 	}
 	assert.equal(onsets, 3);
-	assert.equal(tatsuPlain(f), "TCLI ▲ UP×1   AWKS ▲ FIX");
+	assert.equal(installPlain(f), "TCLI ▲ UP×1   AWKS ▲ FIX");
 	const ghost: FooterFrame = { ...SETTLED_FRAME, ghosts: { k: 0, items: [{ fam: "ghost", start: 0, at: { row: "ext", col: 8, colFrom: "plate" }, frames: [{ ch: "?", fg: "high" }] }] } };
-	assert.deepEqual(tatsuCells(f, ghost), tatsuCells(f));
+	assert.deepEqual(installCells(f, ghost), installCells(f));
 });
 
 // pi-background-tasks 2.6.9's footer status: its light-blue chip around a padded label.
@@ -2516,9 +2517,9 @@ test("Background tasks: grey BG label on the first part, bold coloured counts, g
 	assert.doesNotMatch(indexed, /\x1b\[(38|48);2;/); assert.match(plain(renderFooter(f, 120, hostTheme("256color"))).join("\n"), /BG ◆ RUN×2   ✕ FAIL×1/);
 });
 
-test("Background tasks: sorted before Tatsu; exact layouts at 100, 48 and 30 columns break only between parts", () => {
-	const tatsu = tatsuFixture("current", "current");
-	const f: FooterSnapshot = { ...tatsu, statuses: new Map([["z-status", "last"], ["tatsu-status", "raw tatsu"], ["background-tasks", bgRaw(BG_FULL)], ["a-status", "first"]]) };
+test("Background tasks: sorted before install status; exact layouts at 100, 48 and 30 columns break only between parts", () => {
+	const install = installFixture("current", "current");
+	const f: FooterSnapshot = { ...install, statuses: new Map([["z-status", "last"], [INSTALL_STATUS_KEY, "raw status"], ["background-tasks", bgRaw(BG_FULL)], ["a-status", "first"]]) };
 	const ext = (width: number) => { const lines = rows(f, width); return lines.slice(lines.findIndex((line) => line.includes("05 EXT"))); };
 	assert.deepEqual(ext(100), [
 		"   05 EXT  first                                                                                    ",
@@ -2543,7 +2544,7 @@ test("Background tasks: sorted before Tatsu; exact layouts at 100, 48 and 30 col
 		"TCLI • OK   AWKS • OK         ",
 		"last                          ",
 	]);
-	// Alone in EXT, the minimal layout puts the first parts beside the label, like Tatsu; a part wider than its line wraps.
+	// Alone in EXT, the minimal layout puts the first parts beside the label, like install status; a part wider than its line wraps.
 	const alone = rows(bgFixture(BG_FULL), 30), at = alone.findIndex((line) => line.includes("05 EXT"));
 	assert.deepEqual(alone.slice(at).map((line) => line.trimEnd()), [" 05 EXT  BG ◆ RUN×2   ✕ FAIL×1", "■ STOP×1   • DONE×3", "Shift↓ /bg-clear", "▲ v2.7.0 /bg-update"]);
 	assert.deepEqual(rows(bgFixture("bg 1 running · Shift↓ · ⬆ v2.7.0 /bg-update"), 12).slice(-4).map((line) => line.trimEnd()), ["BG ◆ RUN×1", "Shift↓", "▲ v2.7.0", "/bg-update"]);
@@ -2566,7 +2567,7 @@ test("Background tasks: every line fits widths 1..280 for each label and frame, 
 	const ghost: FooterFrame = { ...SETTLED_FRAME, pulse: 3, ghosts: { k: 0, items: [{ fam: "ghost", start: 0, at: { row: "ext", col: 8, colFrom: "plate" }, frames: [{ ch: "?", fg: "high" }] }] } };
 	const frames: FooterFrame[] = [SETTLED_FRAME, { ...SETTLED_FRAME, pulse: 0 }, { ...SETTLED_FRAME, pulse: 12 }, { ...SETTLED_FRAME, boot: 3, pulse: 3 }, ghost];
 	for (const label of labels) {
-		const f = bgFixture(label, { working: true, units: 2 }, [["tatsu-status", "raw"], ["a", "first"]]);
+		const f = bgFixture(label, { working: true, units: 2 }, [[INSTALL_STATUS_KEY, "raw"], ["a", "first"]]);
 		for (const frame of frames) for (const width of sweepWidths(1, 280)) {
 			const lines = renderFooter(f, width, theme, frame);
 			assert.ok(lines.length > 0);

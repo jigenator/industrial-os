@@ -38,12 +38,15 @@ export type FooterActivity = { working: boolean; units: number | null };
 export type { UsageSample, UsageProviderState } from "./signals.ts";
 /** Supplied once the configured usage engine has answered. `now` is wall-clock epoch ms from the adapter. */
 export type FooterUsage = { now: number; providers: readonly UsageProviderState[] };
-/** Minimal validated public Tatsu v1 data; no provider prose or identifiers. */
-export type TatsuComponent = { component: "tatsu-cli" | "agent-workspace"; state: "inactive" | "checking" | "current" | "behind" | "repair" | "local_changes" | "missing" | "not_runnable" | "unavailable"; commitsBehind?: number; localChanges?: boolean };
-export type TatsuSnapshot = { phase: "inactive" | "checking" | "completed"; components: readonly TatsuComponent[] };
-const activeTatsu = (snapshot: FooterSnapshot) => snapshot.tatsu && snapshot.tatsu.phase !== "inactive" ? snapshot.tatsu : undefined;
-const tatsuKey = (c: TatsuComponent) => `${c.state}/${c.commitsBehind ?? "?"}/${c.localChanges ?? "?"}`;
-// Pre-styled EXT parts (Tatsu components, background-task groups) sit three field cells apart.
+// The external install-status provider's public v1 contract: its raw status key and its two component ids, in display order.
+export const INSTALL_STATUS_KEY = "tatsu-status";
+export const INSTALL_COMPONENTS = ["tatsu-cli", "agent-workspace"] as const;
+/** Minimal validated public install-status v1 data; no provider prose or identifiers. */
+export type InstallComponent = { component: typeof INSTALL_COMPONENTS[number]; state: "inactive" | "checking" | "current" | "behind" | "repair" | "local_changes" | "missing" | "not_runnable" | "unavailable"; commitsBehind?: number; localChanges?: boolean };
+export type InstallSnapshot = { phase: "inactive" | "checking" | "completed"; components: readonly InstallComponent[] };
+const activeInstall = (snapshot: FooterSnapshot) => snapshot.install && snapshot.install.phase !== "inactive" ? snapshot.install : undefined;
+const installKey = (c: InstallComponent) => `${c.state}/${c.commitsBehind ?? "?"}/${c.localChanges ?? "?"}`;
+// Pre-styled EXT parts (install-status components, background-task groups) sit three field cells apart.
 const PART_GAP = 3;
 /** pi-background-tasks 2.6.9's `background-tasks` footer status, parsed; absent fields were not in the label. */
 export type BackgroundTasks = Readonly<{
@@ -96,8 +99,8 @@ export type FooterSnapshot = {
 	model?: { id: string; provider: string; contextWindow: number };
 	thinking: string;
 	statuses: ReadonlyMap<string, string>;
-	/** Active validated Tatsu status replaces only its EXT entry, at the same sorted key. */
-	tatsu?: TatsuSnapshot;
+	/** Active validated install status replaces only its EXT entry, at the same sorted key. */
+	install?: InstallSnapshot;
 	activity?: FooterActivity;
 	/** Optional for renderer compatibility; the native adapter always supplies a state. */
 	ponytail?: PonytailState;
@@ -170,7 +173,7 @@ const COLORS = {
 } as const;
 const piColor = (hex: string) => rgbColor(...[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number]);
 const C = Object.fromEntries(Object.entries(COLORS).map(([alias, hex]) => [alias, piColor(hex)])) as Record<keyof typeof COLORS, ReturnType<typeof rgbColor>>;
-export const TATSU_CHECK_FADE_LEVELS = [ACID_BLACK.decorative, SIGNAL_COLORS.checkLow, SIGNAL_COLORS.checkMid, SIGNAL_COLORS.checkHigh, SIGNAL_COLORS.checkPeak, SIGNAL_COLORS.checkHigh, SIGNAL_COLORS.checkMid, SIGNAL_COLORS.checkLow] as const;
+export const INSTALL_CHECK_FADE_LEVELS = [ACID_BLACK.decorative, SIGNAL_COLORS.checkLow, SIGNAL_COLORS.checkMid, SIGNAL_COLORS.checkHigh, SIGNAL_COLORS.checkPeak, SIGNAL_COLORS.checkHigh, SIGNAL_COLORS.checkMid, SIGNAL_COLORS.checkLow] as const;
 type Hue = keyof typeof C;
 const confirmedPonytail = (value: PonytailState | undefined): PonytailMode | undefined =>
 	value === "checking" || value === "unknown" ? undefined : value;
@@ -356,26 +359,26 @@ export const USAGE_SWEEP_CELLS_PER_TICK = 3;
 // Long rows may finish at the cutoff; configuration must never create an unbounded state-hiding boot.
 export const USAGE_BOOT_TICKS = 27;
 
-export const TATSU_CHECK_STEP_MS = 150;
-export const TATSU_LATCH_TICKS = 3;
-export const TATSU_BEACON_PERIOD_MS = 4000;
-export const TATSU_BEACON_STEP_MS = 50;
-export const TATSU_BEACON_MS = 3 * TATSU_BEACON_STEP_MS;
-// Warm-up on appearance: each part brightens out of the field in four steps of TATSU_WARM_STEP_TICKS, shape first, then
-// code, then label; each component starts TATSU_WARM_STAGGER ticks after the one before. Colour only: every character
+export const INSTALL_CHECK_STEP_MS = 150;
+export const INSTALL_LATCH_TICKS = 3;
+export const INSTALL_BEACON_PERIOD_MS = 4000;
+export const INSTALL_BEACON_STEP_MS = 50;
+export const INSTALL_BEACON_MS = 3 * INSTALL_BEACON_STEP_MS;
+// Warm-up on appearance: each part brightens out of the field in four steps of INSTALL_WARM_STEP_TICKS, shape first, then
+// code, then label; each component starts INSTALL_WARM_STAGGER ticks after the one before. Colour only: every character
 // is the current one from the first frame. 14 ticks (700 ms) for the two components.
-export const TATSU_WARM_STEP_TICKS = 2;
-export const TATSU_WARM_STAGGER = 3;
-const TATSU_WARM_ROLE = { shape: 0, code: 2, label: 4 } as const;
-export const TATSU_WARM_TICKS = TATSU_WARM_STAGGER + TATSU_WARM_ROLE.label + 3 * TATSU_WARM_STEP_TICKS + 1;
-const TATSU_WARM_INKS: Partial<Record<Hue, readonly [Hue, Hue, Hue]>> = {
+export const INSTALL_WARM_STEP_TICKS = 2;
+export const INSTALL_WARM_STAGGER = 3;
+const INSTALL_WARM_ROLE = { shape: 0, code: 2, label: 4 } as const;
+export const INSTALL_WARM_TICKS = INSTALL_WARM_STAGGER + INSTALL_WARM_ROLE.label + 3 * INSTALL_WARM_STEP_TICKS + 1;
+const INSTALL_WARM_INKS: Partial<Record<Hue, readonly [Hue, Hue, Hue]>> = {
 	primary: ["primary25", "primary50", "primary75"], warn: ["warn25", "warnDim", "warn75"],
 	high: ["high25", "high50", "high75"], graphic: ["surface", "graphic50", "plate"],
 };
 /** One cell group's warm-up colour on tick `k` (negative before it starts): the field, a 25/50/75% step, then `ink`. */
-const tatsuWarmInk = (ink: Hue, k: number, component: number, role: keyof typeof TATSU_WARM_ROLE): Hue => {
-	const step = Math.floor((k - component * TATSU_WARM_STAGGER - TATSU_WARM_ROLE[role]) / TATSU_WARM_STEP_TICKS);
-	return step < 0 ? "field" : step < 3 ? TATSU_WARM_INKS[ink]?.[step] ?? ink : ink;
+const installWarmInk = (ink: Hue, k: number, component: number, role: keyof typeof INSTALL_WARM_ROLE): Hue => {
+	const step = Math.floor((k - component * INSTALL_WARM_STAGGER - INSTALL_WARM_ROLE[role]) / INSTALL_WARM_STEP_TICKS);
+	return step < 0 ? "field" : step < 3 ? INSTALL_WARM_INKS[ink]?.[step] ?? ink : ink;
 };
 
 type StrikeKind = "heavy" | "void" | "flash" | "mid" | "light" | "worn";
@@ -393,11 +396,11 @@ type MotionEvent = { at: number; dur: number; items: MotionItem[] };
 
 /** Decoration memory only. Displayed values always come from the current snapshot. */
 export type MotionState = Readonly<{
-	tatsu?: TatsuSnapshot;
+	install?: InstallSnapshot;
 	/** Last completed result survives checking, but not invalid/inactive transitions. */
-	tatsuCompleted?: TatsuSnapshot;
-	tatsuWarm?: number;
-	tatsuLatches: Readonly<Partial<Record<TatsuComponent["component"], number>>>;
+	installCompleted?: InstallSnapshot;
+	installWarm?: number;
+	installLatches: Readonly<Partial<Record<InstallComponent["component"], number>>>;
 	cursor: number;
 	epoch: number;
 	boot?: { at: number; seed: number };
@@ -439,10 +442,10 @@ export type UsageEffect = Readonly<{ edge?: number; burn?: { from: number; to: n
 /** Everything the renderer needs for one decoration frame; values are never part of it. */
 export type FooterFrame = Readonly<{
 	/** Warm-up tick, negative while it waits for the footer boot to reach EXT. */
-	tatsuWarm?: number;
-	tatsuCheck?: number;
-	tatsuBeacon?: number;
-	tatsuLatches?: Readonly<Partial<Record<TatsuComponent["component"], number>>>;
+	installWarm?: number;
+	installCheck?: number;
+	installBeacon?: number;
+	installLatches?: Readonly<Partial<Record<InstallComponent["component"], number>>>;
 	boot: number;
 	bootSeed: number;
 	cal: number;
@@ -510,9 +513,9 @@ export function startMotion(snapshot: FooterSnapshot, now: number, seed: number,
 	const quiet = boot ? now + (BOOT_TICKS + 1) * TICK : now, row = usageRow(snapshot);
 	const state: MotionState = {
 		cursor: 0, epoch: now, windowText, percent, crossed: {},
-		tatsu: activeTatsu(snapshot), tatsuCompleted: activeTatsu(snapshot)?.phase === "completed" ? snapshot.tatsu : undefined, tatsuLatches: {},
-		// Present at the footer boot (a reload), Tatsu warms up as the boot reaches EXT; resuming replays nothing.
-		tatsuWarm: boot && activeTatsu(snapshot) ? now + BOOT_AT.ext * TICK : undefined,
+		install: activeInstall(snapshot), installCompleted: activeInstall(snapshot)?.phase === "completed" ? snapshot.install : undefined, installLatches: {},
+		// Present at the footer boot (a reload), install status warms up as the boot reaches EXT; resuming replays nothing.
+		installWarm: boot && activeInstall(snapshot) ? now + BOOT_AT.ext * TICK : undefined,
 		ponytail: snapshot.ponytail, ponytailKnown: confirmedPonytail(snapshot.ponytail), ponytailGuardUntil,
 		boot: boot ? { at: now, seed: seedFrom(r) } : undefined,
 		numeral: boot ? { from: emptyGrid(13), at: now + NUM_BOOT_T0 * TICK, dur: NUM_MS, seed: seedFrom(r) } : undefined,
@@ -571,32 +574,32 @@ export function advanceMotion(state: MotionState, snapshot: FooterSnapshot, now:
 		set("ponytail", snapshot.ponytail);
 	}
 
-	// Tatsu is push-driven data; this memory owns decoration only. Checking retains the last completed baseline.
-	const tatsu = activeTatsu(snapshot);
-	if (next.tatsuWarm !== undefined && ticksSince(next.tatsuWarm, now) >= TATSU_WARM_TICKS) set("tatsuWarm", undefined);
-	const latches: Partial<Record<TatsuComponent["component"], number>> = {};
-	for (const [component, at] of Object.entries(next.tatsuLatches) as [TatsuComponent["component"], number][]) if (ticksSince(at, now) < TATSU_LATCH_TICKS) latches[component] = at;
-	if (!tatsu) { set("tatsuWarm", undefined); set("tatsuCompleted", undefined); }
+	// Install status is push-driven data; this memory owns decoration only. Checking retains the last completed baseline.
+	const install = activeInstall(snapshot);
+	if (next.installWarm !== undefined && ticksSince(next.installWarm, now) >= INSTALL_WARM_TICKS) set("installWarm", undefined);
+	const latches: Partial<Record<InstallComponent["component"], number>> = {};
+	for (const [component, at] of Object.entries(next.installLatches) as [InstallComponent["component"], number][]) if (ticksSince(at, now) < INSTALL_LATCH_TICKS) latches[component] = at;
+	if (!install) { set("installWarm", undefined); set("installCompleted", undefined); }
 	else {
 		// Appearing during the footer boot waits for the boot to reach EXT, like a reload.
-		if (!state.tatsu) set("tatsuWarm", booting(next, now) ? Math.max(now, next.boot!.at + BOOT_AT.ext * TICK) : now);
-		if (tatsu.phase === "completed") {
-			for (const c of tatsu.components) {
+		if (!state.install) set("installWarm", booting(next, now) ? Math.max(now, next.boot!.at + BOOT_AT.ext * TICK) : now);
+		if (install.phase === "completed") {
+			for (const c of install.components) {
 				// Compare with the last completed result; with none yet, a component shown as CHK is the baseline, so its
 				// first result latches too. First discovery straight from absent/inactive still settles without playing.
-				const previous = state.tatsuCompleted?.components.find((p) => p.component === c.component)
-					?? state.tatsu?.components.find((p) => p.component === c.component && p.state === "checking");
-				if (previous && tatsuKey(previous) !== tatsuKey(c)) {
+				const previous = state.installCompleted?.components.find((p) => p.component === c.component)
+					?? state.install?.components.find((p) => p.component === c.component && p.state === "checking");
+				if (previous && installKey(previous) !== installKey(c)) {
 					delete latches[c.component];
-					if (c.state !== "inactive" && previous.state !== "inactive" && !booting(next, now) && next.tatsuWarm === undefined) latches[c.component] = now;
+					if (c.state !== "inactive" && previous.state !== "inactive" && !booting(next, now) && next.installWarm === undefined) latches[c.component] = now;
 				}
 			}
-			set("tatsuCompleted", tatsu);
+			set("installCompleted", install);
 		}
 	}
-	if (!tatsu || tatsu.phase !== "completed") for (const key of Object.keys(latches) as TatsuComponent["component"][]) delete latches[key];
-	if (["tatsu-cli", "agent-workspace"].some((key) => latches[key as TatsuComponent["component"]] !== next.tatsuLatches[key as TatsuComponent["component"]])) set("tatsuLatches", latches);
-	set("tatsu", tatsu);
+	if (!install || install.phase !== "completed") for (const key of Object.keys(latches) as InstallComponent["component"][]) delete latches[key];
+	if (INSTALL_COMPONENTS.some((key) => latches[key] !== next.installLatches[key])) set("installLatches", latches);
+	set("install", install);
 
 	// Observe the real context value.
 	const { percent, windowText } = contextOf(snapshot);
@@ -706,19 +709,19 @@ export function motionFrame(state: MotionState, now: number): FooterFrame {
 		const k = event ? ticksSince(event.at, now) : -1;
 		if (event && k >= 0 && k < event.dur) frame[key] = { k, items: event.items };
 	}
-	if (state.tatsuWarm !== undefined) {
-		const k = ticksSince(state.tatsuWarm, now);
-		if (k < TATSU_WARM_TICKS) frame.tatsuWarm = k;
+	if (state.installWarm !== undefined) {
+		const k = ticksSince(state.installWarm, now);
+		if (k < INSTALL_WARM_TICKS) frame.installWarm = k;
 	}
-	const tatsuLatches: Partial<Record<TatsuComponent["component"], number>> = {};
-	for (const [component, at] of Object.entries(state.tatsuLatches) as [TatsuComponent["component"], number][]) {
+	const installLatches: Partial<Record<InstallComponent["component"], number>> = {};
+	for (const [component, at] of Object.entries(state.installLatches) as [InstallComponent["component"], number][]) {
 		const k = ticksSince(at, now);
-		if (k >= 0 && k < TATSU_LATCH_TICKS) tatsuLatches[component] = k;
+		if (k >= 0 && k < INSTALL_LATCH_TICKS) installLatches[component] = k;
 	}
-	if (Object.keys(tatsuLatches).length) frame.tatsuLatches = tatsuLatches;
-	frame.tatsuCheck = Math.floor(Math.max(0, now - state.epoch) / TATSU_CHECK_STEP_MS);
-	const beaconAt = Math.max(0, now - state.epoch) % TATSU_BEACON_PERIOD_MS - (TATSU_BEACON_PERIOD_MS - TATSU_BEACON_MS);
-	if (beaconAt >= 0) frame.tatsuBeacon = Math.floor(beaconAt / TATSU_BEACON_STEP_MS);
+	if (Object.keys(installLatches).length) frame.installLatches = installLatches;
+	frame.installCheck = Math.floor(Math.max(0, now - state.epoch) / INSTALL_CHECK_STEP_MS);
+	const beaconAt = Math.max(0, now - state.epoch) % INSTALL_BEACON_PERIOD_MS - (INSTALL_BEACON_PERIOD_MS - INSTALL_BEACON_MS);
+	if (beaconAt >= 0) frame.installBeacon = Math.floor(beaconAt / INSTALL_BEACON_STEP_MS);
 	if (state.usageBoot !== undefined) {
 		const k = ticksSince(state.usageBoot, now);
 		if (k >= 0 && k < USAGE_BOOT_TICKS) frame.usageBoot = k;
@@ -794,12 +797,12 @@ export function nextMotionDelay(state: MotionState, now: number): number {
 		const step = BURN_STEPS.find((at) => at > now - burn.at);
 		if (step !== undefined) due = Math.min(due, burn.at + step);
 	}
-	if (state.tatsuWarm !== undefined) tickOf(state.tatsuWarm, TATSU_WARM_TICKS);
-	for (const at of Object.values(state.tatsuLatches)) if (at !== undefined) tickOf(at, TATSU_LATCH_TICKS);
-	if (state.tatsu?.components.some((c) => c.state === "checking")) due = Math.min(due, state.epoch + (Math.floor((now - state.epoch) / TATSU_CHECK_STEP_MS) + 1) * TATSU_CHECK_STEP_MS);
-	if (state.tatsu?.components.some((c) => c.state === "behind" || c.state === "repair")) {
-		const phase = Math.max(0, now - state.epoch) % TATSU_BEACON_PERIOD_MS, start = TATSU_BEACON_PERIOD_MS - TATSU_BEACON_MS;
-		const at = [start, start + TATSU_BEACON_STEP_MS, start + 2 * TATSU_BEACON_STEP_MS, TATSU_BEACON_PERIOD_MS].find((at) => at > phase)!;
+	if (state.installWarm !== undefined) tickOf(state.installWarm, INSTALL_WARM_TICKS);
+	for (const at of Object.values(state.installLatches)) if (at !== undefined) tickOf(at, INSTALL_LATCH_TICKS);
+	if (state.install?.components.some((c) => c.state === "checking")) due = Math.min(due, state.epoch + (Math.floor((now - state.epoch) / INSTALL_CHECK_STEP_MS) + 1) * INSTALL_CHECK_STEP_MS);
+	if (state.install?.components.some((c) => c.state === "behind" || c.state === "repair")) {
+		const phase = Math.max(0, now - state.epoch) % INSTALL_BEACON_PERIOD_MS, start = INSTALL_BEACON_PERIOD_MS - INSTALL_BEACON_MS;
+		const at = [start, start + INSTALL_BEACON_STEP_MS, start + 2 * INSTALL_BEACON_STEP_MS, INSTALL_BEACON_PERIOD_MS].find((at) => at > phase)!;
 		due = Math.min(due, now + at - phase);
 	}
 	// USG row-boot front and fill-in latch on 50 ms ticks.
@@ -1128,7 +1131,7 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 		const before = truncateToWidth(text, settled, ""), start = visibleWidth(before);
 		return before + paint(sliceByColumn(stripTerminalSequences(text), start, Math.max(0, front - x - start), true), LOCKED);
 	};
-	// Pre-styled entries (Tatsu components, background-task groups) break only between parts, so one never splits while
+	// Pre-styled entries (install-status components, background-task groups) break only between parts, so one never splits while
 	// it fits a line; one wider than its line wraps like any other status. The first line holds `first` cells after any
 	// `lead` (the minimal layout's label).
 	const partLines = (parts: string[], first: number, rest: number, lead: boolean) => {
@@ -1145,30 +1148,30 @@ export function renderFooter(snapshot: FooterSnapshot, width: number, theme: Foo
 	};
 	const mode = theme.getColorMode();
 	// Keep every status and its own colors; sorting keeps row order stable. Boot settles statuses one after another.
-	const tatsu = activeTatsu(snapshot), statusMap = new Map(snapshot.statuses);
-	if (tatsu) statusMap.set("tatsu-status", "");
+	const install = activeInstall(snapshot), statusMap = new Map(snapshot.statuses);
+	if (install) statusMap.set(INSTALL_STATUS_KEY, "");
 	const entries = [...statusMap].sort(([a], [b]) => a.localeCompare(b));
 	const statuses = entries.map(([key, status], g) => {
 		const at = BOOT_AT.ext + g * 3, value = at + 3;
 		const base: Style = !inBoot || k > value + 1 ? {} : k < at ? { fg: "secondary" } : k < at + 2 ? { bold: true } : k === value ? { fg: "primary", bold: true } : k === value + 1 ? { bold: true } : {};
 		const fg = foregroundAnsi(C[base.fg ?? "text"], mode) + (base.bold ? "\x1b[1m" : ""), bg = backgroundAnsi(C.field, mode);
-		if (key === "tatsu-status" && tatsu) {
-			const warm = frame.tatsuWarm, held = inBoot || warm !== undefined;
-			const parts = tatsu.components.map((c, p) => {
-				const pieces = stateChipParts({ label: c.component === "tatsu-cli" ? "TCLI" : "AWKS", ...c }, { countPolicy: "number-text" });
-				const latch = held ? undefined : frame.tatsuLatches?.[c.component], checking = c.state === "checking" && !held;
+		if (key === INSTALL_STATUS_KEY && install) {
+			const warm = frame.installWarm, held = inBoot || warm !== undefined;
+			const parts = install.components.map((c, p) => {
+				const pieces = stateChipParts({ label: c.component === INSTALL_COMPONENTS[0] ? "TCLI" : "AWKS", ...c }, { countPolicy: "number-text" });
+				const latch = held ? undefined : frame.installLatches?.[c.component], checking = c.state === "checking" && !held;
 				// Checking fades only the code's colour; the label and grey shape stay put.
 				const latchPieces = (part: Span[]) => latch === 0 || latch === 1 || latch === 2 ? stateLatch([part], { time: latch * TICK, stateCells: true })[0] : part;
 				const ink = elementStyle(latchPieces(pieces.stateGap)[0].style);
-				let codeInk: Style = checking && latch === undefined && frame.tatsuCheck !== undefined && Number.isInteger(frame.tatsuCheck) && frame.tatsuCheck >= 0 ? elementStyle(fade([pieces.code], { time: frame.tatsuCheck * TATSU_CHECK_STEP_MS })[0][0].style) : ink;
-				const beacon = held || latch !== undefined ? undefined : frame.tatsuBeacon;
+				let codeInk: Style = checking && latch === undefined && frame.installCheck !== undefined && Number.isInteger(frame.installCheck) && frame.installCheck >= 0 ? elementStyle(fade([pieces.code], { time: frame.installCheck * INSTALL_CHECK_STEP_MS })[0][0].style) : ink;
+				const beacon = held || latch !== undefined ? undefined : frame.installBeacon;
 				const attention = c.state === "behind" || c.state === "repair";
-				const shapePart = checking && (frame.tatsuCheck === undefined || Number.isInteger(frame.tatsuCheck)) ? cycle([latchPieces(pieces.shape)], { time: Math.max(0, frame.tatsuCheck ?? 0) * TATSU_CHECK_STEP_MS })[0]
-					: attention && beacon !== undefined ? attentionBeacon([pieces.shape], { time: TATSU_BEACON_PERIOD_MS - TATSU_BEACON_MS + Math.max(0, Math.min(2, beacon)) * TICK, stateCells: true })[0] : latchPieces(pieces.shape);
-				if (checking && latch === undefined && frame.tatsuCheck !== undefined && (frame.tatsuCheck < 0 || !Number.isInteger(frame.tatsuCheck))) codeInk = { ...ink, fg: undefined };
-				const shape = checking && frame.tatsuCheck !== undefined && (frame.tatsuCheck < 0 || !Number.isInteger(frame.tatsuCheck)) ? "" : shapePart[0].text, shapeInk = elementStyle(shapePart[0].style);
+				const shapePart = checking && (frame.installCheck === undefined || Number.isInteger(frame.installCheck)) ? cycle([latchPieces(pieces.shape)], { time: Math.max(0, frame.installCheck ?? 0) * INSTALL_CHECK_STEP_MS })[0]
+					: attention && beacon !== undefined ? attentionBeacon([pieces.shape], { time: INSTALL_BEACON_PERIOD_MS - INSTALL_BEACON_MS + Math.max(0, Math.min(2, beacon)) * TICK, stateCells: true })[0] : latchPieces(pieces.shape);
+				if (checking && latch === undefined && frame.installCheck !== undefined && (frame.installCheck < 0 || !Number.isInteger(frame.installCheck))) codeInk = { ...ink, fg: undefined };
+				const shape = checking && frame.installCheck !== undefined && (frame.installCheck < 0 || !Number.isInteger(frame.installCheck)) ? "" : shapePart[0].text, shapeInk = elementStyle(shapePart[0].style);
 				// The dim label leaves the coloured state to carry the reading. The warm-up replaces EXT's boot treatment.
-				const tone = (style: Style, role: keyof typeof TATSU_WARM_ROLE): Style => warm === undefined ? style : { ...style, fg: tatsuWarmInk(style.fg ?? "text", warm, p, role) };
+				const tone = (style: Style, role: keyof typeof INSTALL_WARM_ROLE): Style => warm === undefined ? style : { ...style, fg: installWarmInk(style.fg ?? "text", warm, p, role) };
 				return paint(pieces.label[0].text, tone(elementStyle(pieces.label[0].style), "label")) + paintElement(pieces.labelGap) + paint(shape, tone(shapeInk, "shape")) + paint(pieces.stateGap[0].text, ink) + paint(pieces.code[0].text, tone(codeInk, "code"));
 			});
 			return { parts, text: "" };
