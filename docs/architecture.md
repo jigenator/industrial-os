@@ -25,8 +25,8 @@ Industrial OS is one repository holding several independent projects. A project 
 | `herdr-plugins/spaces/` | Plain Node 22 ES modules, standard library only, no build/dependencies | `herdr-plugin.toml`; `bin/spaces.mjs ensure/run/status` | Node; Herdr 0.9.3 Unix socket; consumes Pi AU tokens over the protocol, no imports from Pi | [README](../herdr-plugins/spaces/README.md), [AGENTS](../herdr-plugins/spaces/AGENTS.md), [architecture](../herdr-plugins/spaces/docs/architecture.md), [contract](../herdr-plugins/spaces/docs/token-contract.md), [contributing](../herdr-plugins/spaces/CONTRIBUTING.md) |
 | `herdr-plugins/dispatch-feed/` | Bun 1.4.4, strict TypeScript, locked development tools; no runtime dependencies | `herdr-plugin.toml`; `bin/dispatch-feed.ts`; split/tab actions | Design-system exported subpaths; source-collector over Unix JSON-RPC, never source imports | [README](../herdr-plugins/dispatch-feed/README.md), [AGENTS](../herdr-plugins/dispatch-feed/AGENTS.md), [architecture](../herdr-plugins/dispatch-feed/docs/architecture.md), [contributing](../herdr-plugins/dispatch-feed/CONTRIBUTING.md) |
 | `herdr-plugins/whiteboard/` | Rust 2024 with Cargo and ratatui; a Node 22 palette check and a Python 3 PTY check | `herdr-plugin.toml`: `[[build]]` `cargo build`, the `board` pane (a split by default) and the `open` and `open-tab` actions, through `bin/whiteboard.sh` | Locked crates (ratatui, serde, serde_json, unicode-width); Herdr's plugin environment; mirrors the Acid / Black palette, which its check imports by package name | [README](../herdr-plugins/whiteboard/README.md), [AGENTS](../herdr-plugins/whiteboard/AGENTS.md), [architecture](../herdr-plugins/whiteboard/docs/architecture.md), [contributing](../herdr-plugins/whiteboard/CONTRIBUTING.md) |
-| `herdr-plugins/automations-monitor/` | TypeScript run directly by Bun 1.4.4, with Effect 4.0.6; `tsc --noEmit` (TypeScript 7.0.2), `bun test` and a Bun PTY check | `herdr-plugin.toml`: `[[build]]` `bun install --frozen-lockfile`, the `monitor` pane (a split by default) and the `open` and `open-tab` actions, through `bin/automations-monitor.sh` | `effect` and `@effect/platform-bun`, locked in `bun.lock`; runs `tatsu automations pipelines --json` and `schedules --json`; imports exported design-system subpaths by package name, resolved from the root install | [README](../herdr-plugins/automations-monitor/README.md), [AGENTS](../herdr-plugins/automations-monitor/AGENTS.md), [architecture](../herdr-plugins/automations-monitor/docs/architecture.md), [contributing](../herdr-plugins/automations-monitor/CONTRIBUTING.md) |
-| `lesson-maker/` | Plain Node.js 22 ES modules (`.mjs`), standard library only; a private `package.json` with no dependencies | `main.mjs` (linkable onto `PATH` as `lesson`); lesson files following `schema/lesson.schema.json` | Imports exported design-system element and foundation subpaths by package name, resolved from the root install. Loads the installed Pi SDK at run time, never as a dependency, for models, imagegen, the Xiaohei skill and pi-typesafe's aim check; runs the `tatsu` CLI read-only for artifacts and `afplay` for reading aloud, and calls Google's speech endpoint with Pi's stored key | [README](../lesson-maker/README.md), [AGENTS](../lesson-maker/AGENTS.md), [architecture](../lesson-maker/docs/architecture.md), [contributing](../lesson-maker/CONTRIBUTING.md) |
+| `herdr-plugins/automations-monitor/` | TypeScript run directly by Bun 1.4.4, with Effect 4.0.6; `tsc --noEmit` (TypeScript 7.0.2), `bun test` and a Bun PTY check | `herdr-plugin.toml`: `[[build]]` `bun install --frozen-lockfile`, the `monitor` pane (a split by default) and the `open` and `open-tab` actions, through `bin/automations-monitor.sh` | `effect` and `@effect/platform-bun`, locked in `bun.lock`; runs the automations CLI's `automations pipelines --json` and `schedules --json`; imports exported design-system subpaths by package name, resolved from the root install | [README](../herdr-plugins/automations-monitor/README.md), [AGENTS](../herdr-plugins/automations-monitor/AGENTS.md), [architecture](../herdr-plugins/automations-monitor/docs/architecture.md), [contributing](../herdr-plugins/automations-monitor/CONTRIBUTING.md) |
+| `lesson-maker/` | Plain Node.js 22 ES modules (`.mjs`), standard library only; a private `package.json` with no dependencies | `main.mjs` (linkable onto `PATH` as `lesson`); lesson files following `schema/lesson.schema.json` | Imports exported design-system element and foundation subpaths by package name, resolved from the root install. Loads the installed Pi SDK at run time, never as a dependency, for models, imagegen, the Xiaohei skill and pi-typesafe's aim check; runs a configured artifact CLI read-only for artifacts and `afplay` for reading aloud, and calls Google's speech endpoint with Pi's stored key | [README](../lesson-maker/README.md), [AGENTS](../lesson-maker/AGENTS.md), [architecture](../lesson-maker/docs/architecture.md), [contributing](../lesson-maker/CONTRIBUTING.md) |
 | `herdr/` | TOML read by Herdr; a Node 22 check | `sidebar.toml`, `spaces.toml` and `theme.toml`, merged by hand into Herdr's `config.toml` | Herdr's config schema; its check imports design-system palette, signal and Herdr chrome colors by package name and reads herdr-sidebar's and Spaces' token contract documents | [README](../herdr/README.md), [AGENTS](../herdr/AGENTS.md), [architecture](../herdr/docs/architecture.md), [contributing](../herdr/CONTRIBUTING.md) |
 
 `pi/` groups the Pi extensions and holds the rules they share: [its guide](../pi/AGENTS.md). `herdr/` holds Herdr configuration. `herdr-plugins/` groups independently installable Herdr plugins with [shared rules](../herdr-plugins/AGENTS.md).
@@ -67,7 +67,8 @@ flowchart LR
     Herdr["Herdr terminal"]
     TypeSafe["pi-typesafe / TypeSafe SDK<br/>Jev external service"]
     Models["Selected model providers"]
-    Tatsu["Tatsu CLI<br/>automations --json"]
+    AutomationsCLI["Automations CLI<br/>automations --json"]
+    ArtifactCLI["Configured artifact CLI<br/>artifacts --json"]
 
     PN -->|imports| Node
     PN -->|imports, peer| PiHost
@@ -103,11 +104,11 @@ flowchart LR
     WB -.->|check imports colors| DS
     AM -->|imports exported cells, palette, colors, lamp, numerals| DS
     AM ==>|split or tab pane; startup hook restores it| Herdr
-    AM ==>|two read-only JSON CLI commands| Tatsu
+    AM ==>|two read-only JSON CLI commands| AutomationsCLI
     LM -->|imports| Node
     LM -->|imports exported elements, cells, palette, surface| DS
     LM -.->|loads installed SDK at run time, not a dependency| PiHost
-    LM ==>|read-only artifact CLI| Tatsu
+    LM ==>|read-only artifact CLI| ArtifactCLI
     SP ==>|workspace tokens, quiet block moves| Herdr
     Herdr -.->|Pi AU pane tokens| SP
     HC -.->|check reads Spaces contract| SP

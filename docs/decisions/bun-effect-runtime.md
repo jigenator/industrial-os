@@ -17,7 +17,7 @@ plumbing. TypeScript's native checker plus Effect diagnostics, oxlint and oxfmt
 provide the project's checks. Exact commands live in its contributing guide.
 
 The service, execution, exclusion and bounded-log rules were adapted from the
-local tatsu-cli automations implementation with the maintainer's explicit approval
+local automations CLI implementation with the maintainer's explicit approval
 to port generic engine code into this public repository. Company process,
 configuration, pipeline logic, identities and private paths were not ported.
 Native job-target probing and inlined migration SQL retain the earlier real-host

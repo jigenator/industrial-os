@@ -4,7 +4,7 @@ Status: current. Date: 2026-10-23; the stack was set by the maintainer when the 
 
 ## Problem
 
-The monitor is an interactive, full-screen Herdr pane that runs a child process every few seconds, decodes a versioned JSON contract, polls without overlapping reads, and must restore the terminal and leave no `tatsu` process behind on every exit path, including signals and defects. The earlier pipeline-floor attempt, plain Node 22 with the standard library, carried that lifecycle in hand-written promise and timer code, and its terminal and process-teardown checks needed Python. The design system it draws with is JavaScript, so the monitor should stay in that ecosystem to import it.
+The monitor is an interactive, full-screen Herdr pane that runs a child process every few seconds, decodes a versioned JSON contract, polls without overlapping reads, and must restore the terminal and leave no CLI process behind on every exit path, including signals and defects. The earlier pipeline-floor attempt, plain Node 22 with the standard library, carried that lifecycle in hand-written promise and timer code, and its terminal and process-teardown checks needed Python. The design system it draws with is JavaScript, so the monitor should stay in that ecosystem to import it.
 
 ## Choice
 

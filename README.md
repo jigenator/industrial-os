@@ -50,7 +50,7 @@ industrial-os/
 │   ├── spaces/              workspace tokens, quiet history and ordering daemon
 │   ├── dispatch-feed/       source-collector dashboard and task triage in Bun
 │   ├── whiteboard/          sticky notes and text in a Herdr pane, in Rust
-│   └── automations-monitor/ read-only Tatsu pipelines and schedules dashboard, in Bun and Effect
+│   └── automations-monitor/ read-only automation pipelines and schedules dashboard, in Bun and Effect
 ├── docs/
 │   ├── mission.md            product scope and constraints
 │   ├── design.md             the shared visual and interaction language
