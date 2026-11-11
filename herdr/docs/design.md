@@ -1,159 +1,101 @@
 # Design
 
-The agents sidebar in Herdr, as this configuration draws it: layout "B", one block of up to seven rows per Pi pane, in the [shared language](../../docs/design.md). The extension's side, what each value means and when it is unknown, is in [herdr-sidebar's design](../../pi/herdr-sidebar/docs/design.md); the exact token values are in [the token contract](../../pi/herdr-sidebar/docs/token-contract.md). The [Spaces](#spaces) rows and the [chrome theme](#theme) follow.
+Industrial OS in the Herdr desktop app: the [sidebar](#sidebar) mod and the [chrome theme](#theme), in the [shared language](../../docs/design.md).
 
-## Layout B
+## Sidebar
+
+The `industrial-os` mod fills the main layout's sidebar lists with two sections, spaces then agents, in one scrolling block. It carries the information the herdr-tui agents sidebar and Spaces rows showed, with their rules, but not their geometry: no fixed 36-column fitting, no padding cells, no per-stage keys.
+
+**Visual design is deferred.** This first version is plain text in the layout's monospace font with theme colors, so the information can be judged before a layout and visual treatment are chosen. Nothing here is a design decision beyond what is needed to be readable; the colors below are the herdr-tui roles carried over through `theme()` names.
+
+### Spaces
+
+One row per space, in Herdr's order. Click a row to show that space (`space.select`).
 
 ```text
- ◐ WRK  · release        ·  2h33m
-   02AU · ━━━━━━━━─── 67% · CMP×18
-   ACT  · feat/sidebar*   ·    #42
-   MDL  · opus-5.5/hi
-   PNE  · Updating sideb… ·    12s
+◐ 03PN · industrial-os ↓7
+  02AG · 05AU
+○ 01PN · harness-engine · 3d
 ```
 
-| Row | Gutter | Left value | Right slot |
-| --- | --- | --- | --- |
-| 1 | `g1` state | `proj` / `proj_idle`, then `flag` | `gt` / `gt_off` |
-| 2 | `g2_au` / `g2_au0` | `bar` / `bar_warn` / `bar_crit` / `bar_idle` / `bar_unk` | `cmpx` |
-| 3 | `g3` | `br` / `br_dirty` / `dir` | `prn` / `prn_off` |
-| 4 | `g4` | `mthink` | |
-| 5 | `g5` | `pane` / `ask_l1` / `ev_rdy_text` | `ph_age` |
-| 6 | | `ask_l2` | |
-| 7 | | `ask_l3` | |
+| Value | Meaning |
+| --- | --- |
+| State icon | The space's most urgent pane state in Herdr's order: `×` blocked, `✓` done, `◐` working, `○` idle, `·` unknown. A Pi showing `SUB` or `RUN` counts as working while Herdr reports it idle or done, because Herdr follows only Pi's root agent. Panes without an agent are unknown; a space without panes is unknown. |
+| `NNPN` | Panes in the space's tabs (terminals and mod panes), capped `99PN`. |
+| `NNAG` | Panes whose program reports an agent status, capped `99AG`. |
+| `NNAU` | The sum of its Pi agents' units (subagents), capped `99AU`. No Pi is `00AU`; any Pi without known units (no label, or unknown) makes `??AU`. Other agents add nothing. |
+| Name | Herdr's space name; the shown space is in the foreground color. |
+| `↑N` / `↓N` | Commits ahead of and behind the upstream, from `git rev-list --left-right --count HEAD...@{upstream}` in the folder of the space's first terminal (else the space's folder), on its machine. Absent at zero, without an upstream, or outside a repository. |
+| `Nd` | Quiet: the space is not shown and has had no activity for 48 hours or more. Floor days, capped `99d`. A quiet space drops its second row; ahead/behind stays. |
 
-Herdr draws ` · ` between present values and drops a row whose tokens are all absent, so most blocks are four or five rows; a pending question can take seven. The rows override only `[ui.sidebar.agents.rows_by_agent] pi`; global `rows` is not set, so other agents retain their own/default layouts. `row_gap = 1` is panel-wide and leaves one blank row between all agents, including non-Pi agents. IDL and UNK use a decorative-grey, non-bold `bar_idle` with unchanged shape/used percentage, regardless of zone. Unknown context always uses `bar_unk`. Row 5 shows the known pane label in every state, including IDL/UNK, unless ASK or DNE's RDY wins. No label means no pane-name row. Phase age is present only with a working phase; ASK/RDY are unchanged. Herdr 0.9.3 pane.rename emits no event, so its name update can lag by one 20-second renewal cycle; pane_updated triggers an immediate read (see [client inputs](../../pi/herdr-sidebar/docs/architecture.md#inputs)). Row 1 names the Herdr SPACE (Active basename while unknown), followed by the `/flag` reminder `●` in critical red when the session is flagged (` ○ IDL  · rpiv-mono · ●`); Herdr's own ` · ` separates it, and the reporter shortens the name by those four cells so a goal time keeps its column. Row 2 shows context used, warning from 70% and critical from 90%, not remaining context.
+Activity is: being shown; a change in its pane or agent count (a pane opened or closed, an agent detected); any pane working or blocked, Pi `SUB`/`RUN` included; any Pi reporting units. A space first seen has no history and starts at now, never an inferred old age; a clock step backwards clamps to now. Activity is remembered per mod copy and forgotten 30 days after a space is gone.
 
-## Width
+### Agents
 
-The sidebar is locked at 36 columns (`sidebar_width`, `sidebar_min_width` and `sidebar_max_width`), because every token is cut and padded to fixed cells. The live check on 2026-10-08 found that when the agent list is longer than the sidebar, Herdr draws a scrollbar in the rightmost column, leaving 34. The contract's 24-cell text area is sized for that narrower case: with indent and gutter, row 1 and rows 2+ end at column 34, and the right slot stays aligned whether or not the scrollbar shows.
+One block per agent in Herdr's order (space, tab, pane). Click one to focus its pane (`pane.focus`); the list is the order for `agent.next` / `agent.prev` (`setAgentOrder`). The focused agent's row has the selected background.
 
-## Colors
+A Pi agent whose terminal carries a valid `io.signals.v1` label gets a block:
 
-Every color is a design-system value. Bold marks the readings that matter most.
+```text
+◐ WRK · release ● · 2h33m
+  02AU · ━━━━━━━━─── 67% · CMP×18
+  ACT · feat/sidebar* · #42
+  MDL · opus-5.5/hi
+  PNE · Updating sidebar · 12s
+```
 
-| Role | Value | Used for |
+| Row | Shows |
+| --- | --- |
+| 1 | State code; the SPACE name (Active's basename while Herdr's is unknown); `●` while the session is flagged with `/flag`; the goal's time in pi-goal's format (`Ns`, `Nm`, `HhMm`), running while the goal is active. |
+| 2 | Units `NNAU` (`??AU` unknown, capped `99AU`); context used as an 11-cell bar, lit = ceil(used × 11 / 100), and two-digit percent (`99%` means 99% or more; `─────────── --%` unknown); compactions `CMP×NN` (`CMP×??` unknown, capped). |
+| 3 | `ACT`: the branch, with `*` when it has changes, exactly when status-bar's footer shows a branch (Git and GitHub known, HEAD on a branch); otherwise Active's directory as status-bar shows it (`~`, `~/name`, `/top/level`, `parent/current`). Then `#N` for an open PR or `#?` when the lookup is unavailable. |
+| 4 | `MDL`: short model (`claude-` dropped, a trailing `-N-N` as `-N.N`), then `/` and the short thinking level (`off`, `mn`, `lo`, `md`, `hi`, `xh`, `mx`; others verbatim). |
+| 5 | The first that applies: `ASK` and the pending question's text, with ` (+N)` for further questions; `RDY finished` and the time since the unseen work finished, else since the root agent last settled; `PNE` and the pane name, with the working phase's age while the root agent works. |
+
+The pane name follows the shipped agents list: the tab's name when someone named it, else the terminal's title when it says something (not the program's name, a path or `user@host`); with several agents in one tab, each uses its own title. An automatic tab number is no name, and then row 5 is absent outside `ASK` and `RDY`.
+
+#### States
+
+The first that applies:
+
+| Code | When | Color |
 | --- | --- | --- |
-| Decorative | `#717171` | Gutters (`ACT`, `MDL`, `PNE`), `IDL` and `UNK` states, `00AU`/`??AU`, IDL/UNK context bars, ages |
-| Primary | `#ffffff` | The working SPACE name (bold), `DNE`, `finished` |
-| Secondary | `#cfcfcf` | The idle SPACE name (bold), goal time, branch, directory, PR, model, pane label |
-| Ghost (signal color) | `#333333` | A paused goal's time, `#?`, the unknown context bar |
-| Accent | `#c0fe04` | `WRK`, `SUB`, `RUN`, the context bar, active units ≥ 1 (bold) |
-| Warning | `#d79e52` | The context bar from 70% used, a branch with changes |
-| Critical | `#f24723` | `QNS`, `BLK`, the context bar from 90% used (bold), the question text (bold), the `/flag` dot `●` |
-| Structural, violet, pink, critical | `#555555`, `#5200ff`, `#ff15bd`, `#f24723` | `CMP×00` and `CMP×??`; `01`–`02`; `03`–`04`; `05` and more; all bold |
+| `× QNS` | The snapshot has a pending question | `blocked` |
+| `× BLK` | Herdr reports blocked | `blocked` |
+| `◐ WRK` | Herdr reports working | `working` |
+| `◐ SUB` | Units ≥ 1 | `working` |
+| `◐ RUN` | Background tasks ≥ 1 (unknown never selects RUN) | `working` |
+| `✓ DNE` | Herdr reports done, or work finished unseen | `done` |
+| `○ IDL` / `· UNK` | Herdr reports idle / anything else | `idle` / `unknown` |
 
-The theme block sets the sidebar field black (`sidebar_bg`) and the focused and selected rows to the surface grey (`active_row_bg`, `selection_bg`).
+**Work finished unseen.** Herdr makes `done` only from Pi's root agent. The block also shows `DNE` when units or background tasks fall from ≥ 1 to 0 between consecutive observations while Herdr does not report working and the agent is not seen. Seen means its tab is the shown tab of the shown space. Unknown counts, including a missing label, never count as zero, so a drop through unknown is no completion. Seeing it, Herdr working, or either count returning to ≥ 1 clears it.
 
-## Access decay
+**Access decay.** `ACT` and `MDL` alone fade by time since the agent was last accessed: seen, or showing `WRK`, `SUB` or `RUN` (`QNS` and `BLK` alone do not count; an unknown Herdr status stays fresh). The text never changes, only its color:
 
-ACT and MDL alone fade by time since last access, as
-[the contract](../../pi/herdr-sidebar/docs/token-contract.md#act--mdl-access-decay)
-defines. Visible panes and WRK/SUB/RUN refresh access; unknown stays d0.
-`/reload` or Pi restart resets the memory-only timestamp.
+| Stage | Age | Labels | Values |
+| --- | --- | --- | --- |
+| 0 | < 1 h | `dim` | `muted`; a changed branch `ansi3` |
+| 1 | ≥ 1 h | `input` | `dim` |
+| 2 | ≥ 4 h | `border` | `input` |
+| 3 | ≥ 1 d | `border` | `border` |
 
-| Stage | Age | Labels `g3`/`g4` | Values `br`/`dir`/`prn`/`mthink` | `br_dirty` | `prn_off` |
-| --- | --- | --- | --- | --- | --- |
-| d0 | < 1h | decorative `#717171` | secondary `#cfcfcf` | warning `#d79e52` | ghost `#333333` |
-| d1 | ≥ 1h | structural `#555555` | decorative `#717171` | decorative `#717171` | ghost |
-| d2 | ≥ 4h | ghost `#333333` | structural `#555555` | structural `#555555` | ghost |
-| d3 | ≥ 1d | ghost `#333333` | ghost `#333333` | ghost `#333333` | ghost |
+Both rules keep their state in the mod's `localStorage`, saved when it changes (timestamps alone at most once a minute), so they survive a reload of the mod or the app. Entries for agents gone 30 days are forgotten.
 
-At d0 the unchanged base keys retain today's rendering. Later stages use
-`_d1`/`_d2`/`_d3`; absent variants disappear with their separators.
-Text, padding, width and the dirty star do not change. Everything on these
-rows fades, including dirty-branch amber; Herdr's ` · ` stays theme overlay0.
-The state/title/SPACE/goal, AU/context/CMP and pane-name/question/finished rows
-never decay. Faint ACT/MDL values are historical detail, not a new state code.
-
-Herdr 0.9.3 permits at most 16 configured entries per row, so the ACT logical
-row has two mutually exclusive physical rows: d0+d1 and d2+d3 (12 entries
-each). MDL has eight entries in one physical row. The Pi override has eight
-configured rows but still at most seven rendered rows: Herdr drops empty rows
-before rendering. There is no extra blank row or gap for the inactive ACT
-alternative. Source: `src/ui/sidebar/tokens.rs::agent_rows` filters empties;
-`src/client/shell/agent_sidebar.rs` applies `row_gap` between pane blocks,
-not between configured token rows. Native parser checks and modeled row
-resolution tests are recorded separately from live rendering evidence.
-
-## States
-
-Every state is readable without color: the state code and shape in row 1 (`× QNS`, `× BLK`, `◐ WRK`, `◐ SUB`, `◐ RUN`, `✓ DNE`, `○ IDL`, `· UNK`; `SUB` and `RUN` share `WRK`'s shape and accent, and their codes tell them apart), `*` on a changed branch, `●` for a flagged session, `--%`, `??` and `#?` for unknowns. Color adds emphasis only. The meanings are in [herdr-sidebar's design](../../pi/herdr-sidebar/docs/design.md#states).
-
-## Accessibility and limits
-
-- Ghost grey on black is deliberately faint, for paused, unavailable or decayed ACT/MDL values; it is not used for anything that needs reading at a glance.
-- Pi panes without herdr-sidebar show no Industrial OS rows; other agents retain their configured/default layouts.
-- The collapsed and mobile sidebars keep Herdr's compact layouts.
-- Checked: Herdr's parser accepts the file. Not checked: this file in a running Herdr, other color depths, or ambiguous-width glyph settings.
-
-## Spaces
-
-[spaces.toml](../spaces.toml) renders the
-[plugin tokens](../../herdr-plugins/spaces/docs/token-contract.md):
+**Other agents.** An agent without a valid label (another program, or a Pi without the publication) is one line: Herdr's status as icon and word, the space and the title.
 
 ```text
- ◐ 05PN · industrial-os
-   03AG · 07AU ↓7
- × 01PN · tooling
-   01AG · 02AU ↑2
- ○ 01PN · harness-engine… ·   2d
- ○ 02PN · general-purpose ·   3d
+× blocked · tooling · Fixing tests
 ```
 
-The same 36-column lock applies; space rows are sized for the 31 cells Herdr
-gives them when a scrollbar shows. Row 1 uses the plugin's state icon and
-pane-count gutter as one token, then the name. The whole `◐ 05PN` takes the
-state's color: accent working (including Pi SUB and RUN), critical blocked,
-primary done, decorative idle and unknown. Focused name is primary white/bold,
-current names secondary/bold, quiet names and ages decorative grey. Row 2 uses
-agent-count gutter, bold accent AU and built-in git_status (no branch name).
-Zero agent counts become decorative, zero AU also loses bold. Unknown AU remains
-`??AU`, never zero. Quiet names fit 15 cells with U+2800 padding; ages align
-right in four cells. No motion or new keyboard/mouse behavior.
+**Label rules.** The label is the frozen `io.signals.v1` publication: SignalsSnapshot v1 without `usage`, plus `backgroundTasks` and `flag`. It counts only with `version` 1, on a live terminal whose agent status `app` is `pi`; otherwise it is stale and ignored. Each field is validated; a missing or malformed value is unknown, shown as `??`, `--%` or absent, never as zero or clean. Free text is cut to 200 code units, and terminal and bidi controls are removed.
 
-Quiet spaces (48 h or more, not focused) send only `$sp_panes`, `$sp_name_stale`
-and `$sp_quiet`, so their second row drops **unless they are ahead or behind**.
-Then Herdr's built-in git_status retains a second row with only those counts;
-indented worktree children suppress git details. Quiet worktree families move
-as units, oldest last, and re-sink when a space is created or closed. Other
-units keep user order; otherwise unchanged quiet membership/order does not undo
-a manual drag. Number keys follow position.
-If the reporter stops, TTL counts/ages expire; names have no TTL and freeze.
-Checked in an isolated Herdr 0.9.3 server rendered by xterm.js: rows, colors,
-quiet collapse and age alignment with and without the scrollbar, and ordering,
-before the state icon moved into `sp_panes`; that change was not re-rendered.
-Not checked: the user's own terminal, other fonts or ambiguous-width settings.
+### Colors and readability
 
-### Spaces theme scope
+Only `theme()` names, so the sidebar follows the theme (with Acid / Black, the herdr-tui roles): state icons and codes in `working`, `blocked`, `done`, `idle` and `unknown`; values in `muted`; labels, separators, ages and zero or unknown counts in `dim`; active units and an ok context bar in `working`, the bar in `ansi3` from 70% and `blocked` from 90%, `dim` for idle and unknown agents; the `/flag` dot and question text in `blocked`. Every state is readable without color: codes, icons, `*`, `●`, `??`, `--%` and `#?` carry it. Long names and titles are cut with an ellipsis by the row's width; a question wraps.
 
-The Spaces rows no longer use `state_icon`, but Herdr's state icons elsewhere
-have no per-state style; `[theme.custom]` maps yellow to accent
-working, red to critical blocked, teal to primary done, green to decorative
-idle and overlay0 to decorative unknown/separators/header. These are **global**
-theme keys, not Spaces-only colors. Source grep against Herdr 0.9.3
-`palette.yellow/red/teal/green/overlay0` found these concrete wider effects:
+### Timing
 
-- `client/shell.rs`: agent and workspace state icons across shell panels.
-- `client/shell/endpoints.rs`: connecting/reconnecting yellow, online green,
-  attention red and disabled overlay0 endpoint indicators.
-- `client/shell/settings_overlay.rs`: installed green, update-available yellow
-  and not-found overlay0 integration status markers.
-- `client/shell/notifications.rs`, `endpoint_notices.rs`: needs-attention red,
-  endpoint warning yellow, notification separators/borders/dim text overlay0.
-- `client/shell/sidebar.rs`, `agent_sidebar.rs`, `endpoint_sidebar.rs`,
-  `endpoint_agents.rs`, `tabs.rs`, `composition.rs`, `render.rs`, `mobile.rs`,
-  `scroll.rs`: panel headings, separators, empty/secondary text, tabs, mobile
-  presentation and chrome/scroll detail use overlay0; mobile close control red.
-- `ui/sidebar.rs`: built-in git ahead green and behind red unless a token fg
-  overrides them (Spaces overrides both with secondary).
-- `ui/status.rs`: status border/online dot green and status indicator background
-  yellow; `ui/scrollbar.rs`: scrollbar track/thumb detail overlay0;
-  `ui/panes.rs`: inactive border/title detail overlay0.
-
-Teal's direct state-color use is done state via `client/shell.rs`. Configured
-custom token styles still override defaults. These consequences are intentional
-for the approved palette mapping, not a claim of panel-local theming.
+Herdr's live data redraws the mod when it changes. A one-second data timer redraws only when a shown time would change: a running goal or age (each second under a minute, then each minute), an access-decay boundary, or a quiet boundary. No animation.
 
 ## Theme
 

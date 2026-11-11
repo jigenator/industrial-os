@@ -1,0 +1,5 @@
+{
+  "//": "Marks the mods' plain JavaScript as ES modules for the Node tests in ../test; not copied into Herdr.",
+  "private": true,
+  "type": "module"
+}
