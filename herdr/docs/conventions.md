@@ -4,26 +4,29 @@ The [repository-wide conventions](../../docs/conventions.md) apply. This guide a
 
 ## Project profile
 
-Hand-merged Herdr configuration in TOML, checked with Node's test runner. Scope reviewed: the whole project at the revision that added it, and Herdr 0.9.3's configuration reference and config sources.
+Herdr desktop app files: a mod in plain JavaScript for herdr-app's gpui-kit runtime, a layout and a theme in JSON, checked with Node's test runner and `herdr-app check`. Scope reviewed: the whole project at the revision that added the mod, against Herdr app 0.1.15's documentation in `~/.config/herdr-app`.
 
 ## Rules
 
-**Each file is a complete, valid Herdr config by itself.** Herdr has no includes, so a fragment must parse alone and merge by table. Check: `herdr config check` on the file.
+**A mod imports only inside its folder.** `main.js` may import the app's `gpui-kit`, `gpui-base` and `herdr`; everything else is a relative `./name.js` in the same folder. No repository paths and no npm packages: the folder is copied into `~/.config/herdr-app/mods/` as it is. Check: `test/industrial-os-layout.test.mjs`.
 
-**Colors are design-system values with their role in a comment.** TOML cannot import, so a color is restated as its lowercase `#rrggbb` value, and the check proves it is an exported palette, signal or Herdr terminal color. JSON cannot import either, so the desktop theme restates its values the same way, without comments. A color the design system does not export is added there first. Check: `test/sidebar.test.mjs`, `test/spaces.test.mjs`, `test/app-theme.test.mjs`.
+**Rules live in pure modules.** Parsing, state, formats, decay, the finished rule and aggregation are plain modules with no `gpui-kit` or `herdr` import, so Node tests run them. `main.js` keeps only reading Herdr, remembered state, `git` lookups, commands and drawing. Check: the same test; review.
 
-**Tokens come from the contract.** An agents row references only keys in [the token contract](../../pi/herdr-sidebar/docs/token-contract.md), and every rendered key has exactly one entry; the contract’s BG data tokens stay unrendered. Check: `test/sidebar.test.mjs`.
+**Use only what the runtime has.** No `setTimeout`/`setInterval` (use `cx.timer`), no `Intl`, `TextDecoder` or `WebSocket`, no top-level `await`, and never keep a `cx` for later; each callback gets its own. Timers are for data and redraw only when shown text changes. Check: the layout test rejects the missing globals; review for the rest.
 
-Spaces rows follow [the Spaces contract](../../herdr-plugins/spaces/docs/token-contract.md), checked by `test/spaces.test.mjs`; built-in git_status remains host-owned, and the plugin's `sp_panes` replaces state_icon.
+**Unknown is never zero.** A missing, malformed or stale label value is unknown and shown as unknown (`??`, `--%` or absent), never as `00`, clean or a completion. Check: `test/industrial-os.test.mjs`.
 
-**State is never color alone.** A rule may color a token by its text, but the text itself must carry the state, as the contract's codes do.
+**State is never color alone.** Codes, icons and marks (`*`, `●`, `#?`) carry every state; color only adds emphasis.
 
-**Checks never touch a live Herdr.** They read files, and the parser check uses `HERDR_CONFIG_PATH` on a file in the checkout or a temporary copy.
+**Colors are theme names or design-system values.** The mod uses `theme()` names only, so it follows the selected theme. A theme file restates design-system values (JSON cannot import), each checked against the package. A color the design system does not export is added there first. Check: `test/app-theme.test.mjs`; review the mod for hex values.
+
+**Checks never touch a live Herdr.** Tests read files; `herdr-app check` loads the mod with in-memory state. Installing, `herdr-app do`, `layout.*` and `mod.*` commands change the running app and belong to an operator.
 
 ## Adoption gaps
 
 | Gap | Next change | Verification |
 | --- | --- | --- |
-| No interactive record of this file in Herdr | Merge, reload and watch the states listed in [design](design.md) | Manual; not run |
-| The parser check needs an installed Herdr and is not part of `node --test` | Keep it a separate, read-only step | Step 2 in [contributing](../CONTRIBUTING.md#validation-sequence) |
+| The sidebar's visual design is deferred, and it draws no design-system elements | Decide the layout and treatment, then bring the design-system elements into the mod folder in a way the rule allows | Review, `herdr-app check`, live look |
+| No live record of the sidebar in the app | Install as in the README, switch layout and watch every state | Manual; not run |
+| `herdr-app check` renders only the empty state with in-memory data | Keep it, and exercise populated rendering by hand or in the live app | Step 2 in [contributing](../CONTRIBUTING.md#validation-sequence) |
 | No license | Resolve with the repository's open license decision | Review the folder |
