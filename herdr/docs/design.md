@@ -157,60 +157,51 @@ for the approved palette mapping, not a claim of panel-local theming.
 
 ## Theme
 
-[theme.toml](../theme.toml) sets the 11 `[theme.custom]` keys that the agents
-and Spaces fragments leave unset, "Acid & Orange": white focus and selection on
-a black field, acid detail and signal-orange secondary chrome. Herdr 0.9.3 has
-exactly 19 keys (`src/config/theme.rs`, `CustomThemeColors`); with all three
-fragments each is set once, so no color of the `[theme] name` base theme shows
-and the name and `auto_switch` stay the user's. Herdr assigns each key on its
-own: `accent` does not recolor `mauve` or `blue`
-(`src/app/state.rs`). Uses below are from Herdr 0.9.3 source; paths are
-relative to the Herdr repository.
+[themes/acid-black.json](../themes/acid-black.json) is the Herdr desktop app's
+theme. It replaces the herdr-tui `theme.toml` fragment and keeps that theme's
+roles where the desktop app has an equivalent: a black field, white focus and
+buttons with black ink, and acid for work in progress. herdr-tui's
+signal-orange chrome has no desktop counterpart and is dropped.
+Color names are herdr-app's (`theme()` in `~/.config/herdr-app/herdr.d.ts`);
+herdr-app derives any panel color a theme leaves unset, so the file sets every
+name the shipped mods use.
 
-| Key | Value | Role | What it colors |
+| Name | Value | Role | What it colors |
 | --- | --- | --- | --- |
-| `accent` | `#ffffff` | Primary | Focused pane border and title (`ui/panes.rs`), active tab (`client/shell/tabs.rs`), selected menu, settings and navigator items and buttons, dialog and menu frames (`client/shell/overlays.rs`, `settings_overlay.rs`), mode badges (`client/shell/render.rs`), attention marks, the current copy-mode match |
-| `panel_bg` | `#000000` | Field | Tab bar, mode bar, menus, dialogs and toasts; also the **text on colored controls**: Herdr uses `panel_bg` itself as the contrast ink (`client/shell.rs`, `ui/widgets.rs`) |
-| `surface0` | `#1c1c1c` | Surface | Inactive tabs and tab arrows, inputs and Cancel buttons, inline code (`ui/release_notes.rs`), the settings divider |
-| `surface1` | `#4d1c00` | Herdr chrome `signalOrange30`: 30% of the signal orange over the field | The other (non-current) copy-mode search matches (`client/shell/composition.rs`), a dragged Space, fenced code, navigator and picker dividers |
-| `surface_dim` | `#333333` | Ghost (signal color) | The sidebar edge and the Spaces/Agents divider (`client/shell/render.rs`, `sidebar.rs`, `agent_sidebar.rs`), list and unfocused pane scrollbar tracks (`client/shell/scroll.rs`, `ui/scrollbar.rs`); the focused agent, Space and tab background in the mobile layout (`client/shell/mobile.rs`) |
-| `overlay1` | `#ff5c00` | Herdr chrome `signalOrange`, the Marathon signal orange | Tab-bar status, hostname and clock segments, custom-label inactive tabs and enabled arrows (`client/shell/tabs.rs`), help and settings secondary text, the focused pane scrollbar thumb |
-| `text` | `#ffffff` | Primary | Focused Space and agent names, dialog, menu and body text |
-| `subtext0` | `#cfcfcf` | Secondary | Unfocused Space and agent names, dialog hints |
-| `mauve` | `#c0fe04` | Accent | Focused Space branch and secondary tokens, help keybindings, the Resize mode badge background (black ink) |
-| `blue` | `#c0fe04` | Accent | The finished-notification dot (`client/shell/notifications.rs`), the leading Done category in the mobile summary |
-| `peach` | `#d79e52` | Warning | Stored but read by no Herdr 0.9.3 UI; set so no base value remains |
+| `background` | `#000000` | Field | Terminals and cards |
+| `foreground` | `#ffffff` | Primary | Terminal text |
+| `ansi` 0–15, `cursor`, `selection` | Terminal Basic Dark | `HERDR_TERMINAL` | Program colors, the terminal cursor and selection, as Ghostty showed them under herdr-tui |
+| `canvas`, `chrome` | `#000000` | Field | Behind cards; sidebars and bars |
+| `surface`, `popover`, `raised`, `selected` | `#1c1c1c` | Surface | Panels, menus, raised and selected rows (herdr-tui's `active_row_bg`) |
+| `hover`, `border` | `#333333` | Ghost (signal color) | Hovered rows, borders and dividers |
+| `input` | `#555555` | Structural | Input borders, a stronger border |
+| `foreground` (panels), `muted`, `dim` | `#ffffff`, `#cfcfcf`, `#717171` | Primary, secondary, decorative | Panel text by emphasis |
+| `accent`, `solid` | `#ffffff` | Primary | Focus, the primary button |
+| `accent_foreground`, `solid_foreground` | `#000000` | Field | Ink on those controls |
+| `working` | `#c0fe04` | Accent | Agents at work |
+| `blocked` | `#f24723` | Critical | Agents that need the person |
+| `done` | `#ffffff` | Primary | Finished while unseen |
+| `idle`, `unknown` | `#717171` | Decorative | Quiet agents and unreported status |
 
-The sidebar fragment's `sidebar_bg`, `active_row_bg` and `selection_bg` and the
-Spaces fragment's five state keys are unchanged; see
-[Spaces theme scope](#spaces-theme-scope) for their wider effects.
+These are the same state colors herdr-tui's agents sidebar used.
 
 ### Theme trade-offs
 
-- Acid is the working color (`yellow`). `mauve` and `blue` reuse it for chrome
-  that does not mean working: branch tokens, help keys, the Resize badge and the
-  finished dot. Each keeps its own shape or text, so state is never read from
-  acid alone.
-- The signal orange is close in hue to critical `#f24723`, so the finished dot
-  stays acid rather than orange, apart from the red attention dot.
-- Pane text selection is computed by Herdr from the terminal background, or
-  from `panel_bg` when the terminal reports none (about `#474747` on black
-  either way, `ui/panes.rs`); no key sets it directly; `selection_bg`
-  is the sidebar cursor only.
-- `panel_bg` must stay dark: it is the ink on white, acid and red controls.
-- Programs in panes and the host terminal keep their own colors.
+- `selected` and `raised` are both the surface, so hovering a selected row
+  changes nothing; `hover` is the brighter ghost.
+- Terminal selection keeps Terminal Basic Dark's blue rather than an Acid /
+  Black role, so programs look as they did; panels use the same `selection`.
+- `dim` `#717171` is 4.3:1 on black and 3.5:1 on the surface: it is for quiet
+  secondary text, not for anything the person must read to act.
 
 ### Theme contrast
 
-WCAG contrast ratios of the values, computed from the hex values, not measured
-on a display:
+WCAG contrast ratios computed from the hex values, not measured on a display:
 
 | Pair | Ratio |
 | --- | --- |
-| `overlay1` `#ff5c00` on black / on `#1c1c1c` | 6.8:1 / 5.5:1 |
-| Black ink on the acid Resize badge | 17.4:1 |
-| White text on `surface1` `#4d1c00` | 14.2:1 |
-| `surface_dim` `#333333` on black | 1.7:1, decorative only: edges, dividers and tracks |
-
-Checked: the automated tests and Herdr's parser. Not checked: the theme in a
-running Herdr, other color depths, or the mobile layout.
+| `dim` `#717171` on black / on `#1c1c1c` | 4.3:1 / 3.5:1 |
+| White text on `selection` `#3f638a` | 6.2:1 |
+| `blocked` `#f24723` on black | 5.7:1 |
+| Black ink on acid `#c0fe04` | 17.4:1 |
+| `border` `#333333` on black | 1.7:1, decorative only: edges and dividers |

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GLYPHS, paint, resolveColor, span } from './cells.mjs';
 import { ACID_BLACK } from './palette.mjs';
-import { BOARD_INKS, HERDR_CHROME, PI_CHROME, SIGNAL_COLORS, mixOver } from './signal-colors.mjs';
+import { BOARD_INKS, HERDR_TERMINAL, PI_CHROME, SIGNAL_COLORS, mixOver } from './signal-colors.mjs';
 
 test('signal colors are frozen lowercase #rrggbb values that paint as literal RGB', () => {
   assert.ok(Object.isFrozen(SIGNAL_COLORS));
@@ -32,27 +32,27 @@ test('mixOver mixes channels over black with ties up, and returns mirrored mixes
   for (const bad of ['acid', '#fff', 42, null]) assert.throws(() => mixOver(bad, 0.5), TypeError, String(bad));
 });
 
-test('Herdr chrome colors are frozen lowercase values: the signal orange equals cld, and its 30% mix over the field', () => {
-  assert.ok(Object.isFrozen(HERDR_CHROME));
-  assert.deepEqual(Object.keys(HERDR_CHROME), ['signalOrange', 'signalOrange30']);
-  for (const [name, hex] of Object.entries(HERDR_CHROME)) {
-    assert.match(hex, /^#[0-9a-f]{6}$/, name);
+test('Herdr terminal colors are frozen lowercase values: 16 ANSI colors, a cursor and a selection', () => {
+  assert.ok(Object.isFrozen(HERDR_TERMINAL) && Object.isFrozen(HERDR_TERMINAL.ansi));
+  assert.deepEqual(Object.keys(HERDR_TERMINAL), ['ansi', 'cursor', 'selection']);
+  assert.equal(HERDR_TERMINAL.ansi.length, 16);
+  for (const hex of [...HERDR_TERMINAL.ansi, HERDR_TERMINAL.cursor, HERDR_TERMINAL.selection]) {
+    assert.match(hex, /^#[0-9a-f]{6}$/, hex);
     assert.equal(resolveColor(hex), hex);
-    assert.ok(!Object.hasOwn(ACID_BLACK, name) && !Object.hasOwn(SIGNAL_COLORS, name), name);
   }
-  assert.equal(HERDR_CHROME.signalOrange, SIGNAL_COLORS.cld);
-  assert.equal(mixOver(HERDR_CHROME.signalOrange, 0.3), HERDR_CHROME.signalOrange30);
-  assert.equal(HERDR_CHROME.signalOrange30, '#4d1c00'); // 255 × 0.3 = 76.5 -> 0x4d, 92 × 0.3 = 27.6 -> 0x1c
+  // Ghostty's Terminal Basic Dark, pinned: a change here changes every program's colors in Herdr.
+  assert.deepEqual(HERDR_TERMINAL.ansi.slice(0, 2), ['#000000', '#c65339']);
+  assert.equal(HERDR_TERMINAL.selection, '#3f638a');
 });
 
-test('Pi chrome colors are frozen lowercase values that shadow no role, signal or Herdr chrome name', () => {
+test('Pi chrome colors are frozen lowercase values that shadow no role, signal or Herdr terminal name', () => {
   assert.ok(Object.isFrozen(PI_CHROME));
   assert.deepEqual(PI_CHROME, { bone: '#e2dccb', lamp: '#ff5c00' });
-  assert.equal(PI_CHROME.lamp, HERDR_CHROME.signalOrange);
+  assert.equal(PI_CHROME.lamp, SIGNAL_COLORS.cld);
   for (const [name, hex] of Object.entries(PI_CHROME)) {
     assert.match(hex, /^#[0-9a-f]{6}$/, name);
     assert.equal(resolveColor(hex), hex);
-    for (const other of [ACID_BLACK, SIGNAL_COLORS, HERDR_CHROME]) assert.ok(!Object.hasOwn(other, name), name);
+    for (const other of [ACID_BLACK, SIGNAL_COLORS, HERDR_TERMINAL]) assert.ok(!Object.hasOwn(other, name), name);
   }
 });
 

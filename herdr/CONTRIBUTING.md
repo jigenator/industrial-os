@@ -10,7 +10,7 @@ The maintained content is TOML read by Herdr. The checks use Node.js 22 with its
 
 | Order | Directory | Command | Prerequisites/effects | Coverage |
 | --- | --- | --- | --- | --- |
-| 1 | `herdr/` | `node --test` | Root install; reads `sidebar.toml`, `spaces.toml`, `theme.toml`, `../pi/herdr-sidebar/docs/token-contract.md` and `../herdr-plugins/spaces/docs/token-contract.md`; no writes | Every color is an exported palette or signal color; every token is in the contract's key list and every rendered key has one row entry (excluding BG data tokens); width lock, row gap and theme values; decay ladder, mutually exclusive ACT alternatives and native row/entry limits; Spaces and theme checks below |
+| 1 | `herdr/` | `node --test` | Root install; reads `sidebar.toml`, `spaces.toml`, `themes/acid-black.json`, `../pi/herdr-sidebar/docs/token-contract.md` and `../herdr-plugins/spaces/docs/token-contract.md`; no writes | Every color is an exported palette or signal color; every token is in the contract's key list and every rendered key has one row entry (excluding BG data tokens); width lock, row gap and theme values; desktop theme values; decay ladder, mutually exclusive ACT alternatives and native row/entry limits; Spaces and theme checks below |
 | 2 | `herdr/` | `HERDR_CONFIG_PATH="$PWD/sidebar.toml" herdr config check` | Installed Herdr; reads only that file; contacts no server and writes nothing | Herdr's own parser and validation accept the fragment as a config: prints `config: ok`, exit 0 |
 | 3 | Herdr | Manual: merge into a config as in the [README](README.md#install), reload, and watch Pi panes running herdr-sidebar | Changes the live Herdr configuration | Rendering, colors, alignment with and without the scrollbar, every state |
 
@@ -139,13 +139,22 @@ Live session merge and reload: **not run**.
 
 From `herdr/`, in order:
 
-1. `node --test`: `test/theme.test.mjs` checks that every `theme.toml` color is an exported palette, signal or Herdr chrome color; that `theme.toml`, `sidebar.toml` and `spaces.toml` together set each of Herdr 0.9.3's 19 `[theme.custom]` keys exactly once (the key list is restated in the test from Herdr's `src/config/theme.rs`); each key's approved value; `panel_bg` the field, because Herdr draws it as the ink on colored controls; and the other fragments' eight theme keys unchanged.
-2. `node check-config.mjs`: read-only `HERDR_CONFIG_PATH=<temporary copy> herdr config check` on `theme.toml` alone and on all three fragments merged into one config with a single `[theme.custom]`, besides the Spaces/sidebar cases above. A copy with a misspelled theme key must be rejected (`unknown config key`, exit 1), so the theme copy's `config: ok` shows Herdr knows all 11 keys. The parser does not validate theme color strings; step 1 does.
-3. Manual, by an operator: merge as in the [README](README.md#theme), reload, and look at tabs, menus, dialogs, the mode bar, copy-mode search and scrollbars. Changes the live configuration.
+1. `node --test`: `test/app-theme.test.mjs` checks that every color in `themes/acid-black.json` is its approved value: field and primary for the terminal background and foreground, `HERDR_TERMINAL` for the ANSI colors, cursor and selection, and design-system roles or `SIGNAL_COLORS.ghost` for each panel color.
+2. Manual, by an operator or with their permission: install as in the [README](README.md#theme), then `herdr-app status` must show no `settings.error`, and `herdr-app shot` shows the sidebar, tab bar, a terminal and an agent's status in the theme. Changes the live app configuration.
 
-A Herdr version change rechecks the 19-key list against that version's `src/config/theme.rs` first.
+### Acid / Black desktop theme
 
-### Acid & Orange theme
+2026-11-12, macOS, Herdr desktop 0.1.14, herdr-core 0.1.19.
+
+- `cd herdr && node --test`: **18/18**: 11 sidebar, 4 Spaces and 3 new desktop theme checks. Mutation: `working` set to `#c0fe05` failed 1 of 3, restored.
+- `cd herdr && node check-config.mjs`: spaces, sidebar and their merge **`config: ok`, exit 0**; the unknown-token copy **rejected, exit 1**.
+- `cd design-system && node --test`: **669/669**, including the new `HERDR_TERMINAL` check. With `PI_HOST_ROOT` set to the installed Pi: `pi/theme` **5/5**, `pi/status-bar` `test/footer-colors.test.ts` **1/1**, `pi/droid-header` **39/39**.
+- Live, with the operator's permission: copied into `~/.config/herdr-app/themes/`, `"theme": "acid-black"` set in `settings.json` (backed up first). `herdr-app status`: `errors: []`, no `*.error` file. `herdr-app shot`: black sidebar and chrome, the selected space on the surface, the Working header and spinner in acid, a white focus border.
+- Not checked: the light appearance (the theme is dark only), other layouts (`terminals`, `win98` set their own themes), and the blocked and done colors on screen.
+
+### Acid & Orange theme (herdr-tui, removed)
+
+This record is for the herdr-tui `theme.toml` fragment and `HERDR_CHROME`, both since removed.
 
 2026-10-09, macOS, Node 22.23.0, installed Herdr 0.9.3. Inherited `HERDR_*` variables were unset before every shell, test and parser run.
 
