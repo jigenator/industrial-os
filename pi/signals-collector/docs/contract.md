@@ -1,10 +1,10 @@
 # Signals collector contract v1
 
-Status: current. Section 1 preserves the frozen 2026-10-08 handoff; section 2 replaces the CodexBar cache with configured source-collector sources (2026-10-31, a compatible v1 widening); section 3 adds shared PR lookup; `visible` is an additive v1 snapshot field. Herdr token/blocked-event/configuration sections belong to other projects. This collector is also the data source for future in-session panels and dashboards.
+Status: current. Section 1 preserves the frozen 2026-10-08 handoff; section 2 replaces the CodexBar cache with configured source-collector sources (2026-10-31, a compatible v1 widening); section 3 adds shared PR lookup; `visible` is an additive v1 snapshot field; `backgroundTasks` and `flag` are additive v1 fields (2026-11-12); section 4 publishes the snapshot to herdr-core as the `io.signals.v1` label. Herdr configuration and Herdr desktop mods belong to other projects. This collector is also the data source for future in-session panels and dashboards.
 
 ## 1. Snapshot contract v1 (owned by `pi/signals-collector`)
 
-Transport: Pi's in-process `pi.events` bus. Only validated GitHub PR lookups (section 3) cross sessions through a private cache; usage (section 2) is read from the local source-collector engine; snapshots and local Git inspection remain session-owned.
+Transport: Pi's in-process `pi.events` bus. Only validated GitHub PR lookups (section 3) cross sessions through a private cache; usage (section 2) is read from the local source-collector engine; snapshots and local Git inspection remain session-owned. Inside a Herdr desktop terminal each pushed snapshot is also published, without `usage`, as a herdr-core label (section 4).
 
 | Channel | Direction | Payload |
 | --- | --- | --- |
@@ -41,6 +41,9 @@ interface SignalsSnapshot {
                                      // window − reserve when the reserve is usable, held at 100), null when unknown
   compactions: number | null;        // CMP, status-bar's existing definition
   units: number | null;              // AU, status-bar's existing definition; null = unknown
+  backgroundTasks: number | null;    // running tasks in this session's pi-background-tasks registry; null = unknown
+                                     // (never zero when unknown). See "Background tasks and the manual flag".
+  flag: boolean;                     // the session's manual /flag reminder: latest valid saved entry on the active branch
   goal: { status: string; usedSeconds: number; activeSince: number | null } | null;
                                      // from pi-goal's latest `goal-state` custom entry on the selected branch
                                      // (data.goal: status, timeUsedSeconds, activeStartedAt); null = no goal, a
@@ -62,7 +65,15 @@ the agent name; any other tool → `null`. A phase's `since` is when that phase 
 The `set_active_project` tool moves to the collector with the same name, parameters and persisted result details
 (`{ version: 1, path }`), so existing sessions restore unchanged.
 
-Out of scope for v1 (stay in status-bar): Ponytail, Tatsu and background-tasks status observation.
+Out of scope for v1 (stay in status-bar): Ponytail and Tatsu status observation, and the footer's background-task groups parsed from pi-background-tasks' own footer status. The running count `backgroundTasks` is collected here.
+
+### Background tasks and the manual flag
+
+Both moved into the collector unchanged in meaning; the [decision](../../../docs/decisions/signals-collector-herdr-core.md) records why.
+
+`backgroundTasks` uses pi-background-tasks 2.6.9's public EventBus API: a `status` request with payload `{}` on `pi-background-tasks:request:v1` (`schema_version: "pi-background-tasks.extension-request.v1"`, a unique `request_id`), answered on `pi-background-tasks:response:v1`. Only the current id is accepted; the response schema, operation, success, task list, unique non-empty ids and known statuses (`running`, `completed`, `failed`, `killed`) are validated and only `running` tasks are counted. No producer, a 1.5 s timeout, an error, a malformed or unknown-schema response is null, never zero. One request is in flight; a trigger during it marks its answer stale and coalesces one follow-up, and a stale answer never supplies a count. The exact refusal `pi-background-tasks EventBus service is unavailable before session_start` schedules one 1 s retry per session start; other failures do not retry. Triggers: session start/restore, valid `pi-background-tasks:terminal:v1` events (an invalidation, never a decrement), `tool_execution_end` for `bg_run`, `bg_run_pi_attested`, `bg_delegate`, `fusion_reason`, `fusion_investigate`, `fusion_research` and `fusion_validate`, and an unref'd 20 s re-query. The producer has no start event, so `/bg`, `/fusion`, UI and EventBus `run` starts can wait up to 20 s plus response time. Pane visibility does not pause it. Task snapshots carry no session id; scope rests on the producer's per-activation registry.
+
+`flag` is a user preference, not an observed signal: only `/flag` changes it. The command takes no arguments (any argument only warns `Usage: /flag`), toggles the value, saves `pi.appendEntry("industrial-os:herdr-sidebar:flag", { flagged })` and notifies `Flagged` or `Flag cleared`. The entry type keeps its original name so existing sessions restore. The value is the latest entry of that type on the active branch whose `data.flagged` is a boolean (malformed entries are ignored; none means false), read at session start/restore and `session_tree`, so `/tree`, `/fork` and `/clone` follow the branch and a new session starts false. It works in any TUI session; outside TUI mode nothing is saved and, where Pi has a UI, it warns `/flag needs Pi's terminal UI; nothing was flagged`.
 
 ### Pane visibility and deferred inspection
 
@@ -72,7 +83,7 @@ The TUI session owns an event subscription, not a visibility poll. Subscribe bef
 
 While known hidden, stop the 15s Git interval and defer tool-end/Active-selection inspection and PR lookup; abort pending Git/PR work. Selection still validates and records the path. Usage polling stops; a request already in flight may finish and publish. Root, phase, AU, context, questions, goals, model and all other lifecycle signals continue. On false → true/null, immediately inspect the latest Active path (including PR freshness), poll usage at once, and resume the Git interval. Asynchronous inspection results publish when ready, not as fabricated fresh data in the visibility snapshot.
 
-Limits: server focus follows the last client that navigated when several Herdr clients exist. Detached clients and minimized terminal windows still count as visible. The Herdr sidebar's Git token for a hidden pane is stale until shown again. Visible but unfocused split panes intentionally keep animating. This is server layout visibility, not operating-system window visibility.
+Limits: server focus follows the last client that navigated when several Herdr clients exist. Detached clients and minimized terminal windows still count as visible. A hidden pane's Git and PR values are stale until shown again. Visible but unfocused split panes intentionally keep animating. This is server layout visibility, not operating-system window visibility.
 
 ## 2. Usage via source-collector (owned by `pi/signals-collector`)
 
@@ -211,3 +222,17 @@ Auth isolation follows [gh's environment contract](https://cli.github.com/manual
 Application cache directories are checked for symlinks/ownership and secured to 0700; files are exclusively created 0600 and atomically renamed. Cache reads refuse symlinks, nonregular files, wrong ownership/mode and oversized data. `refresh.lock` is a global exclusive `wx` lock, deliberately serializing different keys too. A winner rechecks freshness under lock before invoking the existing bounded 10s gh API command ([explicit GET/raw fields](https://cli.github.com/manual/gh_api)). Losers retry only lock/cache access with 50–99ms unref'd abortable backoff for at most 12s, then return unavailable; they never fall back to uncoordinated gh. Cache/permission/write failures remain unavailable, not absent. Successful/failure lookup results are shared for 60s; cache infrastructure failures retain per-session retry caching only.
 
 Locks older than 30s (above the 10s command budget plus write/cleanup margin) may be removed after inode/mtime recheck, followed by another exclusive `wx` attempt. Simultaneous stale takers have a narrow accepted extra-fetch race because stat/unlink is not atomic; ordinary fresh-lock contention has one winner. A paused holder or clock jump can look stale. Waiters remain bounded even when a crash has not yet reached the stale threshold; a subsequent refresh recovers automatically. Disposal/Active/session change abort waiting/gh, releases an owned lock and suppresses pending writes before rename; an already committed atomic cache entry may remain useful to other sessions, but stale work never publishes to the replaced session. There is no watcher, daemon, background polling loop or unbounded retry queue for PRs.
+
+## 4. Herdr desktop publication: `io.signals.v1`
+
+Herdr desktop (herdr-app with herdr-core, CLI `hc`) gives every terminal string labels, visible to its mods through `terminals()[i].labels` and to any local program through `hc get <t> --json`, `hc ls` and `hc events --json`. The collector publishes its snapshot as one label on its own terminal. The [decision](../../../docs/decisions/signals-collector-herdr-core.md) records why.
+
+- **Gate.** Only in Pi's interactive TUI mode and only when `HC_TERMINAL_ID` is a non-empty string. Otherwise nothing is published and nothing is spawned.
+- **Key and value.** Key `io.signals.v1` on `$HC_TERMINAL_ID`. Value: `JSON.stringify` of the pushed snapshot with the `usage` field omitted (usage is not per session). Everything else, including `question.text` and `phase.target`, is published as is, bounded by section 1.
+- **Transport.** `hc label <HC_TERMINAL_ID> io.signals.v1=<json>` from `hc` on PATH, inheriting the environment so it reaches the same machine's herdr-core through `HC_TERMINAL_SOCKET`. Nothing is sent anywhere else. Each call has a 2 s timeout, after which it is killed. A missing `hc` or a failed call is silent; the next change tries again; there is no retry loop.
+- **Rate.** Fed by the coalesced snapshot push. Latest wins, at most one call in flight, at most one call started per 1000 ms, and a value identical to the last successfully published value is skipped. Because `seq` changes with every snapshot, a usage-only change still publishes.
+- **Shutdown and replacement.** One publisher per extension instance, so a replaced session's queued value is superseded and its pushes are fenced by session ownership. On `session_shutdown` a write in flight is killed and the label is cleared best effort with `hc label <HC_TERMINAL_ID> io.signals.v1=` and a 1 s timeout, so shutdown adds at most about 1 s. Known, self-healing race: a killed write that herdr-core had already received can land after the clear or after the next instance's first write; the next instance's following publish (a new `seq`) replaces it within the 1000 ms cap, and a label whose terminal no longer runs Pi is stale for consumers anyway.
+
+Consumer rules: read `labels["io.signals.v1"]`, parse defensively, require `version === 1`, ignore unknown fields and treat a missing or invalid label as no signals. A label on a terminal that is not live, or whose agent status `app` is not `pi`, is stale. Unknown is never zero: null counts display as unknown (`??`), not `00`.
+
+Privacy: labels are readable by any local process that can reach herdr-core, including Active and Launch paths, model ids, question text and phase targets. They are written only to the same machine's herdr-core and are never sent over a network by the collector.

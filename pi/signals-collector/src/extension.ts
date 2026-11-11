@@ -4,8 +4,10 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { Type } from "typebox";
 import { watchVisibility } from "./herdr.ts";
 import { collectActivity } from "./activity.ts";
+import { BACKGROUND_START_TOOLS, collectBackgroundTasks } from "./background-tasks.ts";
+import { labelPublisher, signalsTerminal } from "./herdr-core.ts";
 import { compactionReserve, contextSnapshot } from "./context.ts";
-import { goalSnapshot, pendingQuestion, phaseTarget, READY, REQUEST, SNAPSHOT } from "./snapshot.ts";
+import { FLAG_ENTRY, goalSnapshot, pendingQuestion, phaseTarget, READY, REQUEST, savedFlag, SNAPSHOT } from "./snapshot.ts";
 import type { Phase, SignalsSnapshot } from "./snapshot.ts";
 import { collectUsage, pendingUsage, usageSources } from "./usage.ts";
 import type { UsageSnapshot } from "./usage.ts";
@@ -21,9 +23,9 @@ type SessionState = {
 	prCache: Map<string, { at: number; value: PullRequestInfo }>;
 	localAbort?: AbortController; prAbort?: AbortController; refreshPending: boolean;
 	timer?: ReturnType<typeof setInterval>; pushTimer?: ReturnType<typeof setTimeout>;
-	activity?: ReturnType<typeof collectActivity>; usageCollector?: ReturnType<typeof collectUsage>; offRequest?: () => void;
+	activity?: ReturnType<typeof collectActivity>; background?: ReturnType<typeof collectBackgroundTasks>; usageCollector?: ReturnType<typeof collectUsage>; offRequest?: () => void;
 	visible: boolean | null; visibility?: ReturnType<typeof watchVisibility>;
-	units: number | null; usage: UsageSnapshot; phase: Phase | null; lastSettledAt: number | null;
+	units: number | null; backgroundTasks: number | null; flagged: boolean; usage: UsageSnapshot; phase: Phase | null; lastSettledAt: number | null;
 	tools: Map<string, Extract<Phase, { kind: "tool" }>>;
 	questions: Map<string, NonNullable<SignalsSnapshot["question"]>>;
 	snapshot: SignalsSnapshot; publishedSeq?: number;
@@ -34,6 +36,8 @@ const toolPath = (value: string) => value.replace(/[\x00-\x1f\x7f-\x9f\u202a-\u2
 
 export default function (pi: ExtensionAPI) {
 	let session: SessionState | undefined, seq = 0, lastPush = -Infinity;
+	// One per extension instance, so a replaced session's queued value is superseded, never written after the new one.
+	let publisher: ReturnType<typeof labelPublisher> | undefined;
 	const current = (s: SessionState) => session === s && !s.disposed && s.ctx.mode === "tui" && s.ctx.sessionManager.getSessionId() === s.id;
 	function sample(s: SessionState) {
 		const ctx = s.ctx, working = !ctx.isIdle();
@@ -45,7 +49,7 @@ export default function (pi: ExtensionAPI) {
 			model: ctx.model ? { provider: ctx.model.provider, id: ctx.model.id } : null, thinking: pi.getThinkingLevel() ?? null,
 			context: contextSnapshot(ctx.getContextUsage(), ctx.model, compactionReserve(pi.getSettings(), ctx.model)),
 			compactions: ctx.sessionManager.getBranch().filter((e) => e.type === "compaction").length,
-			units: s.units, goal: goalSnapshot(ctx.sessionManager.getBranch()), usage: s.usage,
+			units: s.units, backgroundTasks: s.backgroundTasks, flag: s.flagged, goal: goalSnapshot(ctx.sessionManager.getBranch()), usage: s.usage,
 		};
 		if (JSON.stringify(next) !== JSON.stringify(s.snapshot)) { next.seq = ++seq; s.snapshot = next; return true; }
 		return false;
@@ -67,6 +71,7 @@ export default function (pi: ExtensionAPI) {
 			if (s.publishedSeq === s.snapshot.seq) return;
 			const snapshot = structuredClone(s.snapshot);
 			s.publishedSeq = snapshot.seq; lastPush = performance.now();
+			publisher?.publish(snapshot); // serialized before consumers can touch the shared object
 			pi.events.emit(SNAPSHOT, snapshot);
 		};
 		s.pushTimer = setTimeout(flush, delay);
@@ -76,7 +81,7 @@ export default function (pi: ExtensionAPI) {
 		s.disposed = true;
 		if (s.timer) clearInterval(s.timer);
 		if (s.pushTimer) clearTimeout(s.pushTimer);
-		s.visibility?.dispose(); s.offRequest?.(); s.activity?.dispose(); s.usageCollector?.dispose();
+		s.visibility?.dispose(); s.offRequest?.(); s.activity?.dispose(); s.background?.dispose(); s.usageCollector?.dispose();
 		s.localAbort?.abort(); s.prAbort?.abort();
 	}
 
@@ -157,15 +162,18 @@ export default function (pi: ExtensionAPI) {
 		}
 		const s: SessionState = { ctx, id, disposed: false, launch, active, selection: 0, pr: null,
 			prCache: previous?.id === id ? previous.prCache : new Map(), refreshPending: false,
-			visible: null, units: null, usage: pendingUsage(sources), phase: ctx.isIdle() ? null : { kind: "waiting", since: Date.now() },
+			visible: null, units: null, backgroundTasks: null, flagged: savedFlag(ctx.sessionManager.getBranch()), usage: pendingUsage(sources), phase: ctx.isIdle() ? null : { kind: "waiting", since: Date.now() },
 			lastSettledAt: previous?.id === id ? previous.lastSettledAt : null, tools: new Map(), questions: new Map(), snapshot: undefined! };
 		session = s; sample(s);
+		const terminal = publisher ? undefined : signalsTerminal();
+		if (terminal) publisher = labelPublisher(terminal);
 		s.offRequest = pi.events.on(REQUEST, (request) => {
 			if (!current(s) || !record(request) || typeof request.reply !== "function") return;
 			if (sample(s)) changed(s);
 			request.reply(structuredClone(s.snapshot)); // synchronous: absence is detectable before emit returns
 		});
 		s.activity = collectActivity(pi, id, () => current(s), (units) => { if (current(s) && s.units !== units) { s.units = units; changed(s); } });
+		s.background = collectBackgroundTasks(pi, () => current(s), (running) => { if (current(s) && s.backgroundTasks !== running) { s.backgroundTasks = running; changed(s); } });
 		s.usageCollector = collectUsage(sources, (usage) => { if (current(s)) { s.usage = usage; changed(s); } });
 		s.visibility = watchVisibility((visible) => {
 			if (!current(s) || s.visible === visible) return;
@@ -193,7 +201,12 @@ export default function (pi: ExtensionAPI) {
 	};
 	pi.on("session_start", (_e, ctx) => restore(ctx));
 	pi.on("session_tree", (_e, ctx) => restore(ctx));
-	pi.on("session_shutdown", () => { if (session) stopWork(session); session = undefined; });
+	pi.on("session_shutdown", async () => {
+		if (session) stopWork(session);
+		session = undefined;
+		const closing = publisher; publisher = undefined;
+		await closing?.close();
+	});
 	pi.on("agent_start", (_e, ctx) => { const s = live(ctx); if (s) { phase(s, { kind: "waiting", since: Date.now() }); changed(s); s.activity?.refresh(); } });
 	pi.on("turn_start", (_e, ctx) => { const s = live(ctx); if (s) { phase(s, { kind: "waiting", since: Date.now() }); changed(s); } });
 	pi.on("message_update", (e, ctx) => {
@@ -221,6 +234,7 @@ export default function (pi: ExtensionAPI) {
 		s.tools.delete(e.toolCallId); s.questions.delete(e.toolCallId);
 		phase(s, [...s.tools.values()].at(-1) ?? { kind: "waiting", since: Date.now() });
 		changed(s); void refreshLocal(s); s.activity?.refresh();
+		if (BACKGROUND_START_TOOLS.includes(e.toolName)) s.background?.refresh();
 	});
 	pi.on("agent_settled", (_e, ctx) => {
 		const s = live(ctx); if (!s) return;
@@ -230,6 +244,26 @@ export default function (pi: ExtensionAPI) {
 	for (const event of ["agent_end", "turn_end", "message_end", "session_compact", "model_select", "thinking_level_select", "input"] as const) {
 		pi.on(event, (_e, ctx) => { const s = live(ctx); if (s) { changed(s); if (event === "agent_end") s.activity?.refresh(); } });
 	}
+
+	pi.registerCommand("flag", {
+		description: "Toggle this session's reminder flag shown by Industrial OS displays",
+		async handler(args, ctx) {
+			if (args.trim()) {
+				if (ctx.hasUI) ctx.ui.notify("Usage: /flag", "warning");
+				return;
+			}
+			const s = live(ctx);
+			// Only a collecting TUI session saves the flag, so nothing is saved where it cannot show.
+			if (!s) {
+				if (ctx.hasUI) ctx.ui.notify("/flag needs Pi's terminal UI; nothing was flagged", "warning");
+				return;
+			}
+			s.flagged = !s.flagged;
+			pi.appendEntry(FLAG_ENTRY, { flagged: s.flagged });
+			changed(s);
+			ctx.ui.notify(s.flagged ? "Flagged" : "Flag cleared", "info");
+		},
+	});
 
 	pi.registerTool({
 		name: "set_active_project", label: "Set active project",

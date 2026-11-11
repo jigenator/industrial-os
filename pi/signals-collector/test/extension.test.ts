@@ -79,6 +79,8 @@ async function fixtures(t: any) {
 	await Promise.all(["git", "gh"].map((name) => symlink(join(fakes, name), join(bin, name))));
 	const saved = { ...process.env };
 	// SOURCE_COLLECTOR_HOME keeps every collector away from a live engine socket; tests that poll point it at a fake.
+	// No inherited herdr-core terminal: tests that publish set a fake HC_TERMINAL_ID and a fake `hc` in `bin`.
+	for (const key of ["HC_TERMINAL_ID", "HC_TERMINAL_SOCKET", "HC_SCOPE"]) delete process.env[key];
 	Object.assign(process.env, { HERDR_ENV: "0", PATH: bin, PI_FOOTER_FIXTURE: root, XDG_CACHE_HOME: join(root, "cache"), SOURCE_COLLECTOR_HOME: join(root, "source-collector"), ...gitIsolation });
 	const gitLog = join(root, "git.log"), ghLog = join(root, "gh.log");
 	t.after(async () => {
@@ -111,7 +113,8 @@ async function harness(f: any, manager: any, mode = "tui") {
 		getActiveTools: () => [tool.name], getAllTools: () => [tool], getSettings: () => structuredClone(settings), setActiveTools() {}, refreshTools() {}, getCommands: () => [], setModel: async () => true,
 		getThinkingLevel: () => thinking, setThinkingLevel: (v: string) => { thinking = v; },
 	}, { getModel: () => model, getScopedModels: () => [], isIdle: () => idle, isProjectTrusted: () => false, getSignal: () => undefined, abort() {}, hasPendingMessages: () => false, shutdown() {}, getContextUsage: () => usage, compact() {}, getSystemPrompt: () => "" });
-	runner.setUIContext({ setFooter() { throw new Error("collector must not install a display"); } }, mode);
+	const notes: string[] = [];
+	runner.setUIContext({ setFooter() { throw new Error("collector must not install a display"); }, notify: (message: string, type = "info") => notes.push(`${type}: ${message}`) }, mode);
 	const pushed: any[] = [], ready: any[] = [], requests: any[] = [];
 	events.on("signals-collector:v1:snapshot", (s: unknown) => pushed.push(s));
 	events.on("signals-collector:v1:ready", (s: unknown) => ready.push(s));
@@ -124,7 +127,11 @@ async function harness(f: any, manager: any, mode = "tui") {
 		manager.appendMessage({ role: "toolResult", toolName: tool.name, toolCallId: id, content: result.content, details: result.details, timestamp: Date.now(), isError: false });
 		return result;
 	};
-	return { events, runner, tool, pushed, ready, requests, errors, read, select,
+	const command = async (text: string) => {
+		const [name, ...args] = text.slice(1).split(" ");
+		await runner.getCommand(name).handler(args.join(" "), runner.createCommandContext());
+	};
+	return { events, runner, tool, pushed, ready, requests, errors, read, select, notes, command,
 		start: (reason = "startup") => runner.emit({ type: "session_start", reason }), stop: () => runner.emit({ type: "session_shutdown", reason: "quit" }),
 		idle: (v: boolean) => { idle = v; }, model: (v: any) => { model = v; }, thinking: (v: string) => { thinking = v; }, settings: (v: any) => { settings = v; }, usage: (v: any) => { usage = v; },
 		rpc: (handler: (r: any) => void) => { rpc = handler; },
@@ -391,4 +398,97 @@ test("configured usage sources: scoped socket get in Pi-settings order; replacem
 		non.settings({ industrialOs: { usageSources: ["usage-cld"] } }); await non.start(); await sleep(100); await non.stop();
 	}
 	assert.equal(sc.requests.length, polled, "non-TUI sessions never connect"); assert.deepEqual(h.errors, []);
+});
+
+const flags = (manager: any) => manager.getBranch().filter((entry: any) => entry.type === "custom" && entry.customType === "industrial-os:herdr-sidebar:flag").map((entry: any) => entry.data.flagged);
+test("/flag toggles and saves the session's flag, follows the active branch and restores on resume/fork; new sessions start false", async (t) => {
+	const f = await fixtures(t), manager = host.SessionManager.create(f.launch, join(f.root, "sessions")), h = await harness(f, manager); t.after(() => h.stop());
+	manager.appendMessage({ role: "user", content: "first", timestamp: Date.now() }); const before = manager.getLeafId();
+	await h.start(); assert.equal(h.read().flag, false);
+	await h.command("/flag");
+	assert.deepEqual(h.notes, ["info: Flagged"]); assert.deepEqual(flags(manager), [true]); assert.equal(h.read().flag, true);
+	await until(() => h.pushed.at(-1)?.flag === true);
+	h.idle(false); await h.runner.emit({ type: "agent_start" }); await h.runner.emit(toolEnd()); h.idle(true); await h.runner.emit({ type: "agent_settled" });
+	assert.equal(h.read().flag, true, "work and settlement never change it");
+	await h.command("/flag off"); assert.deepEqual(h.notes.at(-1), "warning: Usage: /flag"); assert.deepEqual(flags(manager), [true], "arguments neither toggle nor save");
+	manager.appendMessage({ role: "user", content: "second", timestamp: Date.now() }); const flagged = manager.getLeafId();
+	await h.command("/flag"); assert.deepEqual(h.notes.at(-1), "info: Flag cleared"); assert.equal(h.read().flag, false);
+	manager.branch(flagged); await h.runner.emit({ type: "session_tree", newLeafId: flagged, oldLeafId: null }); assert.equal(h.read().flag, true, "tree navigation rewinds");
+	manager.branch(before); await h.runner.emit({ type: "session_tree", newLeafId: before, oldLeafId: flagged }); assert.equal(h.read().flag, false, "before any /flag");
+	manager.branch(flagged); await h.runner.emit({ type: "session_tree", newLeafId: flagged, oldLeafId: before });
+	manager.appendCustomEntry("persist-leaf", {}); await h.stop(); h.runner.invalidate();
+	for (const restoredManager of [host.SessionManager.open(manager.getSessionFile()), host.SessionManager.forkFrom(manager.getSessionFile(), f.launch, join(f.root, "forks"))]) {
+		const restored = await harness(f, restoredManager); await restored.start("resume"); assert.equal(restored.read().flag, true); await restored.stop(); assert.deepEqual(restored.errors, []);
+	}
+	const next = await harness(f, manager); t.after(() => next.stop()); manager.newSession(); await next.start("new"); assert.equal(next.read().flag, false);
+	for (const mode of ["print", "json", "rpc"]) {
+		const non = await harness(f, host.SessionManager.inMemory(f.launch), mode); t.after(() => non.stop()); await non.start();
+		await non.command("/flag");
+		assert.deepEqual(non.notes, ["warning: /flag needs Pi's terminal UI; nothing was flagged"], mode); assert.deepEqual(flags(non.runner.createContext().sessionManager), [], mode);
+	}
+	assert.deepEqual(h.errors, []);
+});
+
+const BG_REQUEST = "pi-background-tasks:request:v1", BG_RESPONSE = "pi-background-tasks:response:v1";
+const bgResponse = (request: any, statuses: string[]) => ({ schema_version: "pi-background-tasks.extension-response.v1", request_id: request.request_id, operation: "status", ok: true, result: { tasks: statuses.map((status, n) => ({ id: `task-${n}`, status })) } });
+test("background-task count: unknown without a producer, re-queried by start tools, published in the snapshot; TUI only", async (t) => {
+	const f = await fixtures(t), h = await harness(f, host.SessionManager.inMemory(f.launch)); t.after(() => h.stop());
+	const requests: any[] = []; let statuses: string[] | undefined;
+	h.events.on(BG_REQUEST, (request: any) => { requests.push(request); if (statuses) h.events.emit(BG_RESPONSE, bgResponse(request, statuses)); });
+	await h.start(); assert.equal(requests.length, 1); assert.equal(h.read().backgroundTasks, null, "no answer yet is unknown, never zero");
+	statuses = ["running", "completed"];
+	await h.runner.emit(toolEnd("a", "read")); assert.equal(requests.length, 1, "other tools do not re-query");
+	await sleep(1600); await h.runner.emit(toolEnd("b", "bg_run")); assert.equal(requests.length, 2);
+	assert.equal(h.read().backgroundTasks, 1); await until(() => h.pushed.at(-1)?.backgroundTasks === 1);
+	statuses = []; h.events.emit("pi-background-tasks:terminal:v1", { schema_version: "pi-background-tasks.extension-terminal.v1", task: { id: "task-0", status: "completed" } });
+	assert.equal(h.read().backgroundTasks, 0);
+	await h.stop(); const count = requests.length;
+	await h.runner.emit(toolEnd("c", "bg_delegate")); h.events.emit("pi-background-tasks:terminal:v1", { schema_version: "pi-background-tasks.extension-terminal.v1", task: { id: "task-0", status: "failed" } });
+	assert.equal(requests.length, count, "no requests after shutdown");
+	for (const mode of ["print", "json", "rpc"]) {
+		const non = await harness(f, host.SessionManager.inMemory(f.launch), mode); t.after(() => non.stop());
+		const seen: any[] = []; non.events.on(BG_REQUEST, (request: any) => seen.push(request));
+		await non.start(); await non.runner.emit(toolEnd("d", "bg_run")); assert.deepEqual(seen, [], mode);
+	}
+	assert.deepEqual(h.errors, []);
+});
+
+// A fake `hc` in the fixture-only PATH; the real CLI and any live herdr-core terminal are never reached.
+const fakeHc = `#!/bin/sh
+printf '%s\\t%s\\t%s\\n' "$1" "$2" "$3" >> "$PI_FOOTER_FIXTURE/hc.log"
+`;
+test("io.signals.v1: TUI with HC_TERMINAL_ID labels its own terminal with the snapshot minus usage; shutdown clears; replacement wins", async (t) => {
+	const f = await fixtures(t), manager = host.SessionManager.inMemory(f.launch), log = join(f.root, "hc.log");
+	await writeFile(join(f.root, "bin", "hc"), fakeHc); await chmod(join(f.root, "bin", "hc"), 0o755);
+	const labels = async () => (await lines(log)).map((line) => line.split("\t"));
+	// undefined: never written; null: cleared.
+	const latest = async () => {
+		const value = (await labels()).at(-1)?.[2];
+		return value === undefined ? undefined : value === "io.signals.v1=" ? null : JSON.parse(value.slice("io.signals.v1=".length));
+	};
+	// No terminal id: nothing spawned even in TUI.
+	const without = await harness(f, host.SessionManager.inMemory(f.launch)); await without.start(); await sleep(200); await without.stop();
+	process.env.HC_TERMINAL_ID = "";
+	const empty = await harness(f, host.SessionManager.inMemory(f.launch)); await empty.start(); await sleep(200); await empty.stop();
+	assert.deepEqual(await labels(), []);
+	process.env.HC_TERMINAL_ID = "t9";
+	for (const mode of ["print", "json", "rpc"]) {
+		const non = await harness(f, host.SessionManager.inMemory(f.launch), mode);
+		const spawns = t.mock.method(ChildProcess.prototype, "spawn"); await non.start(); await sleep(150); await non.stop();
+		assert.equal(spawns.mock.callCount(), 0, mode); spawns.mock.restore();
+	}
+	const h = await harness(f, manager); t.after(() => h.stop());
+	h.settings({ industrialOs: { usageSources: ["usage-cld"] } });
+	await h.start(); await until(async () => (await latest())?.sessionId === manager.getSessionId());
+	const first = await latest();
+	assert.deepEqual((await labels())[0].slice(0, 2), ["label", "t9"]);
+	assert.equal(first.version, 1); assert.equal(first.flag, false); assert.equal(first.backgroundTasks, null); assert.equal("usage" in first, false);
+	await h.command("/flag"); await until(async () => (await latest())?.flag === true);
+	const oldId = manager.getSessionId(); manager.newSession(); await h.start("new");
+	await until(async () => (await latest())?.sessionId === manager.getSessionId());
+	await sleep(1200); assert.notEqual((await latest()).sessionId, oldId, "the replaced session never writes after the new one");
+	await h.stop(); assert.equal(await latest(), null, "shutdown clears the label before returning");
+	const written = (await labels()).length; await sleep(1200); assert.equal((await labels()).length, written);
+	assert.ok((await labels()).every(([command, terminal]) => command === "label" && terminal === "t9"));
+	assert.deepEqual(h.errors, []);
 });

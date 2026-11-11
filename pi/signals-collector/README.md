@@ -1,10 +1,10 @@
 # Pi Signals Collector
 
-One TUI-only, in-session data producer for Industrial OS displays. It collects Launch/agent-reported Active, Git/worktree/PR state, ROOT/settlement, current phase and pending question, model/thinking, context reserve/usage, selected-branch CMP, optional pi-subagents AU, validated private pi-goal records and optional provider usage read from configured [source-collector](../../source-collector/README.md) sources. It does not install a footer or write Herdr tokens.
+One TUI-only, in-session data producer for Industrial OS displays. It collects Launch/agent-reported Active, Git/worktree/PR state, ROOT/settlement, current phase and pending question, model/thinking, context reserve/usage, selected-branch CMP, optional pi-subagents AU, the running pi-background-tasks count, the manual `/flag` reminder, validated private pi-goal records and optional provider usage read from configured [source-collector](../../source-collector/README.md) sources. Inside a Herdr desktop terminal it also publishes each snapshot, without usage, as the herdr-core label `io.signals.v1` for Herdr desktop mods. It does not install a footer or write herdr-tui tokens.
 
 ## Install
 
-Node.js 22.19+ and an installed Pi host are required (verified with Pi 1.0.4). Git, authenticated `gh`, a running source-collector engine and pi-subagents are optional. Missing/failed collection means unknown/unavailable, never clean or zero. No collection runs in print/JSON/RPC child processes.
+Node.js 22.19+ and an installed Pi host are required (verified with Pi 1.0.4). Git, authenticated `gh`, a running source-collector engine, pi-subagents, pi-background-tasks and Herdr desktop's `hc` are optional. Missing/failed collection means unknown/unavailable, never clean or zero. No collection runs in print/JSON/RPC child processes.
 
 Select the collector alongside any displays in the one repository entry in Pi's `packages` array; see [Pi install](../README.md#install):
 
@@ -21,6 +21,8 @@ Usage is off until Pi settings list the source-collector sources to show, in dis
 ```
 
 Each id is one source-collector source per provider. The [contract](docs/contract.md#usage-item-convention) gives the item convention and a fake CodexBar source with its jq transform. The setting is read at session start, so `/reload` applies a change.
+
+`/flag` toggles this session's reminder flag (`flag` in the snapshot). It is saved in the session, follows the active branch on `/tree`, `/fork` and `/clone`, and changes only by `/flag`; it needs Pi's terminal UI. Sessions flagged before this collector owned the command restore unchanged.
 
 `set_active_project({ path })` belongs here. It signals before a deliberate project/worktree move and again when switching back, not for incidental reads. Relative paths resolve from Launch. Successful `{ version: 1, path }` tool-result details restore unchanged on the selected session branch (including existing status-bar sessions). It changes only the display: never cwd, tool behavior or loaded instructions/resources. See [the decision](docs/decisions/agent-reported-active-workspace.md).
 
@@ -44,17 +46,21 @@ request(); // after subscribing, on start; also on ready
 
 `accept` must validate version 1 and the **live** session ID, ignore unknown fields/stale samples, and sanitize raw bounded free text for its own sink. Absence means unknown, not zero/clean. Replies are synchronous and consumer-owned copies; do not retain a callback as a future subscription. Consumers format durations with their own clock, not a collector-formatted string.
 
+Outside the Pi session, a Herdr desktop mod or any local program reads `labels["io.signals.v1"]` of a terminal (`terminals()` in a mod, or `hc get <terminal> --json`, `hc ls`, `hc events --json`): the same snapshot without `usage`, at most one update per second. Parse it defensively, require `version === 1`, ignore unknown fields, treat a missing or invalid label, or one on a terminal that is not live or whose agent `app` is not `pi`, as no signals, and show null counts as unknown (`??`), never `00`. [Contract section 4](docs/contract.md#4-herdr-desktop-publication-iosignalsv1) is canonical.
+
 Future panels/dashboards in the same Pi session use this contract. Add a signal in a cohesive collector module, extend the snapshot field and its boundary/contract tests; do not add a speculative registry/plugin system. Additive optional fields stay v1; remove/rename/meaning changes need v2 channels while retaining v1 until migration. A dashboard outside the Pi session is a concrete reason to revisit a daemon, not to create one now.
 
 ## Limits
 
-- Herdr off-screen panes defer Git/PR inspection and usage polling, not session/activity reporting. Showing them resumes current inspection. Unknown visibility keeps normal behavior; see the [visibility contract and multi-client/window/sidebar limits](docs/contract.md#pane-visibility-and-deferred-inspection).
+- Herdr off-screen panes defer Git/PR inspection and usage polling, not session/activity reporting. Showing them resumes current inspection. Unknown visibility keeps normal behavior; see the [visibility contract and multi-client/window limits](docs/contract.md#pane-visibility-and-deferred-inspection).
 - Git refresh is per session, every 15 seconds and after tools while not known hidden. PR lookup shares a private bounded 60-second repository/branch cache across interactive processes; explicit auth/config overrides retain session-local caching only. See [auth isolation and failure limits](docs/contract.md#3-shared-github-pr-lookup). No render does I/O.
 - Usage polls the source-collector socket while visible with one scoped `get` for the configured sources, timed just after each source's next planned run (`nextAt`); the engine fetches providers on each source's own schedule. When the engine is not running and has not answered this session, the row is hidden; after an earlier answer the last data stays, marked failed. While a polling session is visible, only the usage sources count as watched, so they run at their `every` interval; other sources are unaffected. See the [state table](docs/contract.md#state-table). The former `$XDG_CACHE_HOME/industrial-os/signals-collector/usage.json` and `usage.lock` (default `~/.cache`) are no longer used and may be deleted.
 - AU is active work including pending/workflow containers, **not** an exact running-agent count. Optional RPC timeouts cannot cancel work already started inside its owner.
 - pi-goal collection validates the inspected private 0.54.10 record on observed lifecycle/message/tool/input boundaries. An idle `/goal` command-only update can wait until another boundary. No general public goal-change event is claimed.
+- The background-task count waits for its next trigger after `/bg`, `/fusion`, UI or EventBus starts: up to the 20-second re-query. Tasks that start and finish between observations may never show.
+- The `io.signals.v1` label is readable by any local process that can reach herdr-core, including paths, model ids, question text and phase targets. It goes only to the same machine's herdr-core. A crash leaves the last label until the terminal ends; consumers treat a terminal no longer running Pi as stale.
 - Active can be stale if the agent forgets its declaration. No automatic tool-path inference, daemon or cross-session fleet/goal data.
-- Live providers, interactive Pi/Herdr and Windows are unverified; automated fixtures are offline.
+- Live providers, interactive Pi/Herdr, a real `hc`/herdr-core and Windows are unverified; automated fixtures are offline.
 
 ## Project guides
 

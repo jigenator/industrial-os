@@ -1,20 +1,22 @@
 # Architecture
 
-One collector per TUI session, independent of footer/component lifetime. No UI or extension-to-extension imports. Consumers see only the [v1 event contract](contract.md). The [collection ownership decision](../../../docs/decisions/session-signals-collection.md) explains the boundary.
+One collector per TUI session, independent of footer/component lifetime. No UI or extension-to-extension imports. Consumers see only the [v1 event contract](contract.md) and, inside Herdr desktop, its `io.signals.v1` herdr-core label ([contract section 4](contract.md#4-herdr-desktop-publication-iosignalsv1)). The [collection ownership decision](../../../docs/decisions/session-signals-collection.md) explains the boundary.
 
 ## Module map
 
 | Module | Owns | Dependencies/check |
 | --- | --- | --- |
-| `src/extension.ts` | Lifecycle, session identity, immutable request/push snapshots, coalescing, Active restoration/tool, 15s local refresh and 60s per-repository/branch PR TTL (including original shared receipt time) | Public Pi/TypeBox + modules below; `test/extension.test.ts` real installed loader/runner/session/bus |
+| `src/extension.ts` | Lifecycle, session identity, immutable request/push snapshots, coalescing, Active restoration/tool, `/flag` and its restore, 15s local refresh and 60s per-repository/branch PR TTL (including original shared receipt time), one label publisher per extension instance | Public Pi/TypeBox + modules below; `test/extension.test.ts` real installed loader/runner/session/bus |
 | `src/workspace.ts` | Existing path/Git/worktree/remote/PR unions and read-only inspection, moved unchanged from status-bar | Node filesystem/path/child process; original `test/workspace.test.ts` moved unchanged |
 | `src/pr-cache.ts` | Bounded shared PR cache, default-auth isolation/bypass, 60s freshness, exclusive/stale lock and abortable contention | Node stdlib + workspace PR boundary; `test/pr-cache.test.ts` independent processes/fake gh |
 | `src/usage.ts` | `industrialOs.usageSources` setting, usage DTOs, the usage-item validator and state table, one visibility-gated poll timed from the engine's `nextAt` | source-collector client; `test/usage.test.ts` settings/table/validation/lifecycle vectors with an injected request and mock timers |
 | `src/source-collector.ts` | Socket path resolution and one bounded scoped `get` over newline-delimited JSON-RPC, with a locally described wire shape | Node net/os/path; `test/source-collector.test.ts` fake socket |
 | `src/herdr.ts` | Session-owned event-driven Herdr visibility, bounded request sockets/reconnect and zoom resolution | Node net; `test/herdr.test.ts` fake sockets, plus lifecycle gating in extension tests |
+| `src/background-tasks.ts` | pi-background-tasks 2.6.9 channel/schema names, start-tool names, response/refusal/terminal validators and the running-count request (one in flight, stale coalescing, one startup retry, 20s re-query) | Public Pi events, crypto; `test/background-tasks.test.ts` validators and timers, plus real-loader integration |
+| `src/herdr-core.ts` | `HC_TERMINAL_ID` gate, `hc label` runner with a kill timeout, and the coalesced/rate-capped/identical-skipping `io.signals.v1` publisher with its shutdown clear | Node child process; `test/herdr-core.test.ts` injected runner and a fake `hc` on a fixture-only PATH, plus a real-loader test |
 | `src/activity.ts` | Public pi-subagents v1 ping/status/ready validation, native total and optional-owner timeout | Public Pi events, crypto; real-loader integration tests |
 | `src/context.ts` | Pi settings → reserve and percentage policy | Host types only; `test/context.test.ts` policy/parity vectors |
-| `src/snapshot.ts` | Wire DTO/channels, whitelisted tool targets/questions, validated private goal record | Types + pure validators; `test/snapshot.test.ts` |
+| `src/snapshot.ts` | Wire DTO/channels, whitelisted tool targets/questions, validated private goal record, saved `/flag` entry | Types + pure validators; `test/snapshot.test.ts` |
 
 ## Session and publish flow
 
@@ -42,9 +44,19 @@ The [contract](contract.md#2-usage-via-source-collector-owned-by-pisignals-colle
 
 The wire fields read are described in `usage.ts` from source-collector's documented contract and validated there, not imported. Only the PR lookup cache crosses sessions through files. No daemon, renderer or registry lives here; source-collector is the cross-session engine for usage.
 
+## Background tasks and the manual flag
+
+The [contract](contract.md#background-tasks-and-the-manual-flag) is canonical for both. `collectBackgroundTasks` follows `collectActivity`'s shape: it starts with each restore, publishes through an ownership-checked callback into the normal coalesced push, and its disposal clears the request deadline, startup retry and 20s interval and removes both bus listeners. The extension re-queries it on the seven start tools' `tool_execution_end`. It never depends on visibility. The producer's evidence: pi-background-tasks 2.6.9 `src/core/extension-api.ts` (request/response schemas, status, the startup refusal), `src/core/common.ts` (statuses, task snapshot), `src/core/registry.ts::allTasks` and `src/extension.ts` (per-activation registry, session binding); tool names from its tool registrations, `src/core/delegate/types.ts` and `src/fusion-extension.ts`. That producer keeps every request id in an unpruned set: the 20s re-query adds about 4,320 ids a day per long-lived activation (roughly 0.4 MB/day, implementation-dependent); pruning belongs to the producer.
+
+`/flag` follows Pi's documented state pattern (`docs/extensions.md` "State"): a custom entry appended at the current leaf, reconstructed from `ctx.sessionManager.getBranch()` by `savedFlag` on every restore, which includes `session_tree`. Custom entries do not enter the model context, and Pi alone writes the session file; a new session's file is written only after its first message, so a flag set before that is lost if Pi exits first.
+
+## Herdr desktop publication
+
+`labelPublisher` exists only after a TUI restore with a non-empty `HC_TERMINAL_ID`, one per extension instance. The push flush hands it each published snapshot before emitting it on the bus; it stringifies without `usage`, keeps only the latest pending value, and starts at most one `hc label` per 1000ms with one in flight, skipping a value equal to the last success. `runHc` spawns `hc` from PATH with the inherited environment and `stdio` ignored, resolves true only on exit 0, and SIGKILLs a child that outlives its timeout; it signals only a started child. Pi 1.5.2 awaits `session_shutdown` before the next instance's `session_start` (`AgentSessionRuntime.teardownCurrent`), so the shutdown handler kills a write in flight, then awaits the clear with a 1s timeout; nothing is written after it. The accepted race is in [contract section 4](contract.md#4-herdr-desktop-publication-iosignalsv1). Tests never run the real `hc`: fixtures remove `HC_*` and use a fixture-only PATH.
+
 ## Herdr visibility flow and evidence
 
-`watchVisibility` starts only for a TUI session with the required Herdr environment. It mirrors the socket approach, not an import, of herdr-sidebar. One long-lived subscription uses separate short-lived RPC connections: Herdr does not answer RPCs on an already subscribed connection. Requests/acknowledgements have a 1.5s deadline, lines a 1MiB bound, and reconnect backs off from 250ms to 30s. Reconciliation coalesces overlapping events and discards invalidated/obsolete reads. Session replacement/shutdown disposes every owned socket/timer. No status reporting/token writes occur here.
+`watchVisibility` starts only for a TUI session with the required Herdr environment. One long-lived subscription uses separate short-lived RPC connections: Herdr does not answer RPCs on an already subscribed connection. Requests/acknowledgements have a 1.5s deadline, lines a 1MiB bound, and reconnect backs off from 250ms to 30s. Reconciliation coalesces overlapping events and discards invalidated/obsolete reads. Session replacement/shutdown disposes every owned socket/timer. No status reporting or Herdr token writes occur here.
 
 The [visibility contract](contract.md#pane-visibility-and-deferred-inspection) owns gating, catch-up and limits. `extension.ts` includes visibility in normal sampling/pushes, pauses Git/PR and calls usage's `setVisible`, which clears the poll timeout and polls again on show; activity and lifecycle sampling never depend on visibility.
 
