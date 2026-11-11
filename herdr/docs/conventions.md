@@ -10,13 +10,11 @@ Hand-merged Herdr configuration in TOML, checked with Node's test runner. Scope 
 
 **Each file is a complete, valid Herdr config by itself.** Herdr has no includes, so a fragment must parse alone and merge by table. Check: `herdr config check` on the file.
 
-**Colors are design-system values with their role in a comment.** TOML cannot import, so a color is restated as its lowercase `#rrggbb` value, and the check proves it is an exported palette, signal or Herdr chrome color. A color the design system does not export is added there first. Check: `test/sidebar.test.mjs`, `test/spaces.test.mjs`, `test/theme.test.mjs`.
+**Colors are design-system values with their role in a comment.** TOML cannot import, so a color is restated as its lowercase `#rrggbb` value, and the check proves it is an exported palette, signal or Herdr terminal color. JSON cannot import either, so the desktop theme restates its values the same way, without comments. A color the design system does not export is added there first. Check: `test/sidebar.test.mjs`, `test/spaces.test.mjs`, `test/app-theme.test.mjs`.
 
 **Tokens come from the contract.** An agents row references only keys in [the token contract](../../pi/herdr-sidebar/docs/token-contract.md), and every rendered key has exactly one entry; the contract’s BG data tokens stay unrendered. Check: `test/sidebar.test.mjs`.
 
 Spaces rows follow [the Spaces contract](../../herdr-plugins/spaces/docs/token-contract.md), checked by `test/spaces.test.mjs`; built-in git_status remains host-owned, and the plugin's `sp_panes` replaces state_icon.
-
-**Each theme key is set by exactly one fragment.** Herdr 0.9.3 has 19 `[theme.custom]` keys; `sidebar.toml`, `spaces.toml` and `theme.toml` split them with no overlap, all merged into one table. A key moves between fragments only with the test's ownership updated. Check: `test/theme.test.mjs`.
 
 **State is never color alone.** A rule may color a token by its text, but the text itself must carry the state, as the contract's codes do.
 

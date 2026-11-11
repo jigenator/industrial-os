@@ -1,6 +1,6 @@
 # Industrial OS Herdr configuration
 
-Herdr configuration that belongs to Industrial OS. The agents fragment is [sidebar.toml](sidebar.toml): the [Herdr](https://github.com/herdrdev/herdr) Pi agents-sidebar rows that draw the tokens the [herdr-sidebar](../pi/herdr-sidebar/README.md) Pi extension reports, in Acid / Black layout "B", with the theme colors and the width lock that layout needs. [spaces.toml](spaces.toml) adds the Spaces rows, and [theme.toml](theme.toml) the rest of Herdr's chrome colors. The experience is in [the design](docs/design.md).
+Herdr configuration that belongs to Industrial OS. The agents fragment is [sidebar.toml](sidebar.toml): the [Herdr](https://github.com/herdrdev/herdr) Pi agents-sidebar rows that draw the tokens the [herdr-sidebar](../pi/herdr-sidebar/README.md) Pi extension reports, in Acid / Black layout "B", with the theme colors and the width lock that layout needs. [spaces.toml](spaces.toml) adds the Spaces rows. These two TOML fragments are for herdr-tui and are being replaced as Industrial OS moves to the Herdr desktop app; [themes/acid-black.json](themes/acid-black.json) is the desktop app's theme. The experience is in [the design](docs/design.md).
 
 Status: checked by its own test and by Herdr 0.9.3's config parser; no interactive check of this file in a running Herdr has been recorded. The layout was verified live on 2026-10-08 with an equivalent spike configuration.
 
@@ -62,15 +62,13 @@ unprefixed frozen keys are not cleared automatically and are no longer rendered.
 
 ## Theme
 
-[theme.toml](theme.toml) is the "Acid & Orange" chrome theme: the 11 `[theme.custom]` keys the agents and Spaces fragments leave unset. Together the three fragments set each of Herdr 0.9.3's 19 theme keys once, so no color of the base theme remains: white focus and selection, a black field, acid detail and signal-orange secondary chrome. What each key colors is in [the design](docs/design.md#theme).
+[themes/acid-black.json](themes/acid-black.json) is the Acid / Black theme for the Herdr desktop app (herdr-app). It replaces the herdr-tui `theme.toml` fragment. Panels get the roles herdr-tui used: a black field for canvas and chrome, white focus and solid buttons with black ink, surface rows, ghost borders, acid working, critical blocked, white done and decorative idle. Terminals keep the colors they had under herdr-tui: Ghostty's Terminal Basic Dark ANSI palette, cursor and selection, on a black background. What each color is for is in [the design](docs/design.md#theme).
 
-1. Back up your config.
-2. Merge the 11 keys into your **existing** `[theme.custom]` table, beside the agents and Spaces fragments' keys; TOML rejects a second `[theme.custom]`. Do not change a key another fragment sets.
-3. Leave `[theme] name` and `auto_switch` as they are in your config; this fragment does not set them. With every key set, the name no longer changes any color. With `auto_switch` on, `[theme.custom.light]` or `[theme.custom.dark]` keys could still override these.
-4. Check a temporary copy with `HERDR_CONFIG_PATH=<copy> herdr config check` before replacing your config. It prints `config: ok` and exits 0; a misspelled key prints `unknown config key` and exits 1.
-5. Reload with `herdr server reload-config`, or `reload config` in Herdr's global menu.
+1. Copy it into the app's home: `cp themes/acid-black.json ~/.config/herdr-app/themes/`.
+2. Select it in the app's theme menu, or set `"theme": "acid-black"` in `~/.config/herdr-app/settings.json`. A layout's own `theme` and the theme picker take precedence over settings.json; Herdr's `main` layout sets none.
+3. Run `herdr-app status` and check that it reports no `settings.error`.
 
-The theme keys are global: they color every panel, dialog, menu and bar, not one panel. Its checks are automated tests and Herdr's parser; it has been merged into a live config and reloaded without diagnostics, but its rendering has not been checked by an agent.
+The theme colors every layout that does not set its own theme, including every mod that uses `theme()` colors.
 
 ## Limitations
 

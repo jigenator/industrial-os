@@ -45,15 +45,6 @@ export const SIGNAL_COLORS = Object.freeze({
   kmiMid: '#132b7e',
 });
 
-// Herdr chrome colors: product colors herdr/theme.toml restates, kept apart from SIGNAL_COLORS because status-bar
-// maps every SIGNAL_COLORS value to a footer alias and does not use these. Contract: README.md#herdr-chrome-colors.
-export const HERDR_CHROME = Object.freeze({
-  // The Marathon signal orange: theme.custom overlay1. The same value as SIGNAL_COLORS.cld, a separate role.
-  signalOrange: '#ff5c00',
-  // mixOver(signalOrange, 0.3), 30% over the field: theme.custom surface1.
-  signalOrange30: '#4d1c00',
-});
-
 // Herdr terminal colors: Ghostty's "Terminal Basic Dark" ANSI palette, cursor and selection, the terminal colors Herdr
 // showed before the move to the Herdr desktop app, restated by herdr/themes/acid-black.json. Kept apart from
 // SIGNAL_COLORS because status-bar maps every SIGNAL_COLORS value to a footer alias and does not use these.
@@ -69,12 +60,12 @@ export const HERDR_TERMINAL = Object.freeze({
 });
 
 // Pi chrome colors: product colors the Pi theme (../../pi/theme/industrial-os.json) and the Pi extensions use that are
-// neither roles nor status-bar colors, kept apart from SIGNAL_COLORS for the same reason as HERDR_CHROME.
+// neither roles nor status-bar colors, kept apart from SIGNAL_COLORS for the same reason as HERDR_TERMINAL.
 // Contract: README.md#pi-chrome-colors.
 export const PI_CHROME = Object.freeze({
   // A warm off-white: the editor border at every thinking level.
   bone: '#e2dccb',
-  // The droid header's signal lamp (../../pi/droid-header). The same value as HERDR_CHROME.signalOrange, a separate role.
+  // The droid header's signal lamp (../../pi/droid-header). The same value as SIGNAL_COLORS.cld, a separate role.
   lamp: '#ff5c00',
 });
 
