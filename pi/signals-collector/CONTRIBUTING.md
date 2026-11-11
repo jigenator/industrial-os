@@ -4,7 +4,7 @@ Follow the [root workflow](../../CONTRIBUTING.md). Commands below run from `pi/s
 
 ## Setup
 
-Node.js 22.19+, an **existing** installed Pi (validated baseline 1.0.4), Git and POSIX fixture utilities are required. Tests use Node's built-in runner/type stripping and resolve Pi peers through the host, with no local dependency install/lockfile. No live source-collector engine, gh, provider account or network is used; fake executables, a fake source-collector socket (`SOURCE_COLLECTOR_HOME` always set to a fixture), temp XDG and Git identity/config isolate fixtures. Do not install a missing host to claim a pass. A displayed status-bar also needs the root install linking the design system; this collector itself does not import it.
+Node.js 22.19+, an **existing** installed Pi (validated baseline 1.0.4), Git and POSIX fixture utilities are required. Tests use Node's built-in runner/type stripping and resolve Pi peers through the host, with no local dependency install/lockfile. No live source-collector engine, gh, `hc`/herdr-core, provider account or network is used; fixtures remove inherited `HC_*` and put a fake `hc` on a fixture-only PATH; fake executables, a fake source-collector socket (`SOURCE_COLLECTOR_HOME` always set to a fixture), temp XDG and Git identity/config isolate fixtures. Do not install a missing host to claim a pass. A displayed status-bar also needs the root install linking the design system; this collector itself does not import it.
 
 ## Full validation sequence
 
