@@ -1,6 +1,6 @@
 # Line meter
 
-The compact context-used bar modeled on herdr-sidebar's layout B. A generic inline reading, not a collector or progress animation.
+The compact context-used bar modeled on layout B of the herdr-tui agents sidebar, since removed. A generic inline reading, not a collector or progress animation.
 
 ## Usage
 
@@ -50,9 +50,9 @@ Natural width is `cells + 4` (15 by default). Under `maxWidth`, shorten the bar 
 
 Non-object input/options and non-number known percentages throw `TypeError`; non-finite or out-of-range numbers throw `RangeError`. Invalid tones, zones, cells or maxWidth throw `RangeError`. Values are never clamped, coerced or treated as zero.
 
-## Differences from herdr-sidebar
+## Differences from the herdr-tui sidebar
 
-The reference is [row 2 of its token contract](../../../pi/herdr-sidebar/docs/token-contract.md#row-2-always-all-three-present). Default known text, inclusive 70/90 thresholds, idle shape/ink and unknown ink match that bar. This renderer rejects invalid/out-of-range percentages rather than clamping them. It accepts explicit tone, thresholds and cell budgets instead of inferring activity or reading tokens. It emits ordinary spaces, not Herdr's U+2800 transport padding. There is no token reporting, access decay or host lifecycle.
+The reference is row 2 of its token contract (removed with the sidebar; in Git history). Default known text, inclusive 70/90 thresholds, idle shape/ink and unknown ink match that bar. This renderer rejects invalid/out-of-range percentages rather than clamping them. It accepts explicit tone, thresholds and cell budgets instead of inferring activity or reading tokens. It emits ordinary spaces, not Herdr's U+2800 transport padding. There is no token reporting, access decay or host lifecycle.
 
 ## Checks
 

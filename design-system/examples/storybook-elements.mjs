@@ -483,7 +483,7 @@ const MARKER = element('transcript-marker', {
 
 const LINE_METER = element('line-meter', {
   title: 'LINE METER',
-  summary: "herdr-sidebar's compact context-used bar, with a two-digit reading and a single ink.",
+  summary: "The herdr-tui sidebar's compact context-used bar, with a two-digit reading and a single ink.",
   rules: [
     'percent is finite 0-100 or null/undefined for unknown; invalid readings throw, never clamp.',
     'Readout floors and caps at 99%; bar cells use ceil, unlike the default gauge.',
@@ -525,7 +525,7 @@ const COLUMN_FIXTURE = {
 };
 const COLUMN_BLOCK = element('column-block', {
   title: 'COLUMN BLOCK',
-  summary: "herdr-sidebar's layout B: a gutter, a value with optional fixed marks, and a right-aligned slot. Geometry only; callers compose elements.",
+  summary: "The herdr-tui sidebar's layout B: a gutter, a value with optional fixed marks, and a right-aligned slot. Geometry only; callers compose elements.",
   rules: [
     'Default text column 10, text area 24, right slot 6; natural width 34.',
     'Strings use safeText; caller spans keep their styles and curated glyphs.',
