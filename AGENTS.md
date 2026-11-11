@@ -21,10 +21,10 @@ Scan the supporting-documents map and read every document whose condition applie
 | --- | --- |
 | Work on Lesson Maker or its lesson schema | [Lesson Maker guide](lesson-maker/AGENTS.md) and its routes |
 | Work in the design system | [The design-system guide](design-system/AGENTS.md) and its routes |
-| Work on a Pi extension | [The Pi guide](pi/AGENTS.md), then the extension's own guide, for example [claude-interrupt](pi/claude-interrupt/AGENTS.md), [signals-collector](pi/signals-collector/AGENTS.md), [status-bar](pi/status-bar/AGENTS.md) or [herdr-sidebar](pi/herdr-sidebar/AGENTS.md) |
+| Work on a Pi extension | [The Pi guide](pi/AGENTS.md), then the extension's own guide, for example [claude-interrupt](pi/claude-interrupt/AGENTS.md), [signals-collector](pi/signals-collector/AGENTS.md) or [status-bar](pi/status-bar/AGENTS.md) |
 | Work on the Pi theme | [The Pi guide](pi/AGENTS.md), then [the theme guide](pi/theme/AGENTS.md) |
 | Work on pane naming, session recaps, image previews or the startup header | [The Pi guide](pi/AGENTS.md), then [herdr-pane-naming](pi/herdr-pane-naming/AGENTS.md), [session-recap](pi/session-recap/AGENTS.md), [image-preview](pi/image-preview/AGENTS.md) or [droid-header](pi/droid-header/AGENTS.md) |
-| Work on a Herdr plugin | [Plugin group guide](herdr-plugins/AGENTS.md), then the plugin's guide, [Spaces](herdr-plugins/spaces/AGENTS.md), [Whiteboard](herdr-plugins/whiteboard/AGENTS.md), [Dispatch feed](herdr-plugins/dispatch-feed/AGENTS.md) or [Automations monitor](herdr-plugins/automations-monitor/AGENTS.md), and its routes |
+| Work on a Herdr plugin | [Plugin group guide](herdr-plugins/AGENTS.md), then the plugin's guide, [Whiteboard](herdr-plugins/whiteboard/AGENTS.md), [Dispatch feed](herdr-plugins/dispatch-feed/AGENTS.md) or [Automations monitor](herdr-plugins/automations-monitor/AGENTS.md), and its routes |
 | Work on the Herdr configuration | [The Herdr guide](herdr/AGENTS.md) and its routes |
 | Change the visual language or a palette value | [Design](docs/design.md), [the package decision](docs/decisions/in-repo-design-system-package.md), the design-system guide, then each extension that mirrors the value |
 | Import the design system from another project | [Conventions](docs/conventions.md#module-and-dependency-rules), [the package decision](docs/decisions/in-repo-design-system-package.md#migrating-an-extension), then the importing project's guide |
@@ -40,8 +40,7 @@ Scan the supporting-documents map and read every document whose condition applie
 | An element, motion, storybook story, or terminal host | `design-system/`; placement in [its architecture](design-system/docs/architecture.md#where-the-next-change-belongs), rules in [its conventions](design-system/docs/conventions.md) | Standard library only; imports no other project; elements and motions never own I/O; a new module gets an export entry |
 | claude-interrupt behavior or marker | `pi/claude-interrupt/`; placement in [its architecture](pi/claude-interrupt/docs/architecture.md) | Pi peer packages and the design-system package only; never block streaming, input, or focus |
 | status-bar footer, motion, or status integrations | `pi/status-bar/`; placement in [its architecture](pi/status-bar/docs/architecture.md) | Display-only snapshot consumer; no collection I/O; Pi/design-system exported subpaths only |
-| Session signals, Active selection, or usage-source reads | `pi/signals-collector/`; placement in [its architecture](pi/signals-collector/docs/architecture.md) | TUI-only collector; events only to consumers, no extension imports |
-| Herdr sidebar token values, reporting, `herdr:blocked` or `/flag` | `pi/herdr-sidebar/`; the [token contract](pi/herdr-sidebar/docs/token-contract.md), placement in [its architecture](pi/herdr-sidebar/docs/architecture.md) | Pi peer packages only; display-only apart from the `/flag` session reminder; reports only in TUI mode inside Herdr |
+| Session signals, Active selection, usage-source reads, the background-task count, `/flag`, or the `io.signals.v1` Herdr label | `pi/signals-collector/`; placement in [its architecture](pi/signals-collector/docs/architecture.md) | TUI-only collector; events only to consumers, no extension imports; publishes to Herdr desktop only through `hc label` on its own terminal |
 | Herdr pane naming | `pi/herdr-pane-naming/`; [architecture](pi/herdr-pane-naming/docs/architecture.md) | Main TUI-only; runs Herdr CLI pane get/rename on its own inherited pane, calls TypeSafe/Jev and a title model; no extension imports |
 | Away or detailed session recaps | `pi/session-recap/`; [architecture](pi/session-recap/docs/architecture.md) | TUI-only; calls a recap model; output UI only, never saved or main-model history |
 | Editor image previews | `pi/image-preview/`; [architecture](pi/image-preview/docs/architecture.md) | TUI-only; host peers only; reads the editor, never changes it or the submission; writes no files |
@@ -50,11 +49,10 @@ Scan the supporting-documents map and read every document whose condition applie
 | A new Pi extension | `pi/<name>/` with the [project document set](docs/architecture.md#contracts-between-the-root-and-a-project) | Its own manifest, checks, and license; the design system only by package name |
 | Scheduled sources, shared task snapshots or local triage | `source-collector/`; [architecture](source-collector/docs/architecture.md), [contract](source-collector/docs/contract.md) | Bun + Effect; private configs, one local owner, polling Unix RPC; no project imports |
 | Shared experience or scope | `docs/design.md`, `docs/mission.md` | Then each project separately |
-| Spaces reporting, activity history or quiet sorting | `herdr-plugins/spaces/`; [Spaces contract](herdr-plugins/spaces/docs/token-contract.md) | Node 22 stdlib only; one detached daemon per socket; tests never touch live Herdr |
 | Dispatch feed dashboard, source triage or pane lifecycle | `herdr-plugins/dispatch-feed/`; [architecture](herdr-plugins/dispatch-feed/docs/architecture.md), [design](herdr-plugins/dispatch-feed/docs/design.md) | Bun + TypeScript; source-collector JSON-RPC only, no source imports; design-system exported subpaths |
 | Whiteboard input, drawing or board storage | `herdr-plugins/whiteboard/`; placement in [its architecture](herdr-plugins/whiteboard/docs/architecture.md) | Rust with locked crates; colors only in `src/palette.rs`, checked against the design system; tests never touch live Herdr |
 | Automations monitor screens, Tatsu reads or terminal lifecycle | `herdr-plugins/automations-monitor/`; the [data contract](herdr-plugins/automations-monitor/docs/architecture.md#data-contract), placement in [its AGENTS](herdr-plugins/automations-monitor/AGENTS.md#placement) | Bun, TypeScript and Effect with a locked install; reads only the two `tatsu automations … --json` commands; a startup hook restarts it in panes Herdr restores; design-system colors by exported subpath; tests never touch live Herdr or the real `tatsu` |
-| Herdr configuration, such as the agents-sidebar rows | `herdr/`; placement in [its architecture](herdr/docs/architecture.md) | Valid Herdr TOML merged by hand; design-system colors; tokens from the owning reporter's contract |
+| Herdr desktop theme, the industrial-os sidebar mod and its layout | `herdr/`; placement in [its architecture](herdr/docs/architecture.md) | Mod imports stay inside its folder; rules in Node-tested pure modules; `theme()` colors in the mod and design-system values in the theme; reads the `io.signals.v1` label from the [signals-collector contract](pi/signals-collector/docs/contract.md) |
 
 ## Implement and verify
 
@@ -143,6 +141,7 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [pi/status-bar/docs/mission.md](pi/status-bar/docs/mission.md) | status-bar goals, non-goals, and constraints | Choosing or changing what status-bar does |
 | [pi/status-bar/docs/design.md](pi/status-bar/docs/design.md) | The footer experience, its palette, motion, and UI states | Changing anything a status-bar user sees or a status-bar color |
 | [docs/decisions/session-signals-collection.md](docs/decisions/session-signals-collection.md) | Why collection has one TUI owner; its quota cache part is superseded | Changing collector/display ownership or transport |
+| [docs/decisions/signals-collector-herdr-core.md](docs/decisions/signals-collector-herdr-core.md) | Why the collector publishes its snapshot to herdr-core as the `io.signals.v1` label and owns the background-task count and `/flag` | Changing the Herdr desktop publication or what reaches a Herdr mod |
 | [docs/decisions/usage-via-source-collector.md](docs/decisions/usage-via-source-collector.md) | Why provider usage is configured source-collector sources read through a Pi setting | Changing usage collection, its configuration or the usage item convention |
 | [pi/signals-collector/README.md](pi/signals-collector/README.md) | Collector install, consumer guide and limits | Using the collector or changing its public surface |
 | [pi/signals-collector/AGENTS.md](pi/signals-collector/AGENTS.md) | Collector rules, routes and placement | Working anywhere in pi/signals-collector |
@@ -154,15 +153,6 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [pi/signals-collector/docs/design.md](pi/signals-collector/docs/design.md) | Collector raw signals, tool and unknown states | Changing human-facing signals |
 | [pi/signals-collector/docs/contract.md](pi/signals-collector/docs/contract.md) | Canonical v1 snapshot, usage source convention and shared PR cache | Changing a signal, cache or consumer |
 | [pi/signals-collector/docs/decisions/agent-reported-active-workspace.md](pi/signals-collector/docs/decisions/agent-reported-active-workspace.md) | Why Active is explicit, agent-reported and display-only | Changing Active selection, persistence or cwd relationship |
-| [pi/herdr-sidebar/README.md](pi/herdr-sidebar/README.md) | herdr-sidebar purpose, rows, install, and limitations | Using herdr-sidebar |
-| [pi/herdr-sidebar/AGENTS.md](pi/herdr-sidebar/AGENTS.md) | herdr-sidebar rules, routes, and placement | Working anywhere in `pi/herdr-sidebar/` |
-| [pi/herdr-sidebar/CLAUDE.md](pi/herdr-sidebar/CLAUDE.md) | Runtime import of the herdr-sidebar guide | Checking agent entry points |
-| [pi/herdr-sidebar/CONTRIBUTING.md](pi/herdr-sidebar/CONTRIBUTING.md) | herdr-sidebar toolchain, checks, validation sequence, and verification records | Making or verifying a herdr-sidebar change |
-| [pi/herdr-sidebar/docs/token-contract.md](pi/herdr-sidebar/docs/token-contract.md) | The canonical Herdr sidebar token contract: keys, geometry, and rules | Changing a sidebar token, row, or width, in either herdr-sidebar or `herdr/` |
-| [pi/herdr-sidebar/docs/architecture.md](pi/herdr-sidebar/docs/architecture.md) | herdr-sidebar modules, inputs, Herdr reporting, invariants, and limits | Changing herdr-sidebar behavior, lifecycle, I/O, or its Pi or Herdr dependencies |
-| [pi/herdr-sidebar/docs/conventions.md](pi/herdr-sidebar/docs/conventions.md) | herdr-sidebar's TypeScript and Pi-extension rules and adoption gaps | Writing or reviewing herdr-sidebar code |
-| [pi/herdr-sidebar/docs/mission.md](pi/herdr-sidebar/docs/mission.md) | herdr-sidebar goals, non-goals, and constraints | Choosing or changing what herdr-sidebar does |
-| [pi/herdr-sidebar/docs/design.md](pi/herdr-sidebar/docs/design.md) | What each sidebar value and state means, truthfulness, and timing | Changing anything a herdr-sidebar user sees |
 | [pi/herdr-pane-naming/README.md](pi/herdr-pane-naming/README.md) | herdr-pane-naming purpose, status, install, commands and privacy/limits | Using herdr-pane-naming or changing its public surface |
 | [pi/herdr-pane-naming/AGENTS.md](pi/herdr-pane-naming/AGENTS.md) | herdr-pane-naming rules, routes and placement | Working anywhere in pi/herdr-pane-naming |
 | [pi/herdr-pane-naming/CLAUDE.md](pi/herdr-pane-naming/CLAUDE.md) | Runtime import of the herdr-pane-naming guide | Checking agent entry points |
@@ -203,26 +193,17 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [pi/theme/docs/conventions.md](pi/theme/docs/conventions.md) | Pi theme engineering rules and gaps | Writing or reviewing the theme or its check |
 | [pi/theme/docs/design.md](pi/theme/docs/design.md) | What each part of Pi gets, and contrast | Changing a Pi theme color |
 | [docs/decisions/pane-naming-root-dependency.md](docs/decisions/pane-naming-root-dependency.md) | Why pane naming needs root-installed pi-typesafe and peer suppression | Changing root dependencies, npm peer handling or pane-naming packaging |
-| [herdr/README.md](herdr/README.md) | Herdr configuration purpose, status, how to merge it, and limitations | Using the Herdr configuration |
+| [herdr/README.md](herdr/README.md) | Herdr desktop configuration purpose, status, how to install it, and limitations | Using the Herdr configuration |
 | [herdr/AGENTS.md](herdr/AGENTS.md) | Herdr configuration rules, routes, and placement | Working anywhere in `herdr/` |
 | [herdr/CLAUDE.md](herdr/CLAUDE.md) | Runtime import of the Herdr guide | Checking agent entry points |
 | [herdr/CONTRIBUTING.md](herdr/CONTRIBUTING.md) | Herdr configuration checks, validation sequence, and verification records | Making or verifying a Herdr configuration change |
-| [herdr/docs/architecture.md](herdr/docs/architecture.md) | Herdr configuration files, dependencies, invariants, and where the next file goes | Adding a Herdr configuration file or changing what it depends on |
-| [herdr/docs/conventions.md](herdr/docs/conventions.md) | Rules for Herdr configuration files and their checks | Writing or reviewing Herdr configuration |
-| [herdr/docs/design.md](herdr/docs/design.md) | Agents layout B and Spaces rows, width, colors, and states; the chrome theme | Changing anything a user sees in the Herdr sidebar or Herdr's chrome colors |
+| [herdr/docs/architecture.md](herdr/docs/architecture.md) | The mod, layout and theme files, dependencies, invariants, and where the next file goes | Adding a mod, layout or theme, or changing what one depends on |
+| [herdr/docs/conventions.md](herdr/docs/conventions.md) | Rules for the mod, layout and theme and their checks | Writing or reviewing Herdr configuration |
+| [herdr/docs/design.md](herdr/docs/design.md) | What the sidebar shows, its states and timing; the chrome theme | Changing anything a user sees in the Herdr sidebar or Herdr's chrome colors |
 | [herdr-plugins/README.md](herdr-plugins/README.md) | Plugin index and operator install procedure | Using or adding a Herdr plugin |
 | [herdr-plugins/AGENTS.md](herdr-plugins/AGENTS.md) | Shared plugin rules and detach/lock boundaries | Working anywhere in herdr-plugins |
 | [herdr-plugins/CLAUDE.md](herdr-plugins/CLAUDE.md) | Runtime import of the group guide | Checking agent entry points |
-| [herdr-plugins/spaces/README.md](herdr-plugins/spaces/README.md) | Spaces setup, privacy, operations and limits | Using Spaces or changing its public surface |
-| [herdr-plugins/spaces/AGENTS.md](herdr-plugins/spaces/AGENTS.md) | Spaces task routes and critical invariants | Working anywhere in herdr-plugins/spaces |
-| [herdr-plugins/spaces/CLAUDE.md](herdr-plugins/spaces/CLAUDE.md) | Runtime import of the Spaces guide | Checking agent entry points |
-| [herdr-plugins/spaces/CONTRIBUTING.md](herdr-plugins/spaces/CONTRIBUTING.md) | Spaces validation sequence and evidence | Making or verifying a Spaces change |
-| [herdr-plugins/spaces/docs/architecture.md](herdr-plugins/spaces/docs/architecture.md) | Daemon modules, protocol, history, locks and sorting | Changing Spaces behavior, lifecycle or persistence |
-| [herdr-plugins/spaces/docs/conventions.md](herdr-plugins/spaces/docs/conventions.md) | Spaces engineering rules and gaps | Writing or reviewing Spaces code |
-| [herdr-plugins/spaces/docs/design.md](herdr-plugins/spaces/docs/design.md) | Spaces geometry, truthfulness and quiet behavior | Changing anything a Spaces user sees |
-| [herdr-plugins/spaces/docs/mission.md](herdr-plugins/spaces/docs/mission.md) | Spaces goals and non-goals | Choosing Spaces scope |
-| [herdr-plugins/spaces/docs/token-contract.md](herdr-plugins/spaces/docs/token-contract.md) | Canonical Spaces key list, values, width and TTL | Changing Spaces values or Herdr rows |
-| [docs/decisions/spaces-plugin-daemon.md](docs/decisions/spaces-plugin-daemon.md) | Why Spaces has one socket-keyed plugin daemon | Changing plugin ownership or daemon design |
+| [docs/decisions/spaces-plugin-daemon.md](docs/decisions/spaces-plugin-daemon.md) | Superseded history: why the removed herdr-tui Spaces plugin had one socket-keyed daemon | Tracing the history of the Spaces rows |
 | [docs/decisions/herdr-plugin-runtimes.md](docs/decisions/herdr-plugin-runtimes.md) | Why a Herdr plugin may use a runtime other than Node, and what that requires | Adding a plugin in another language or changing a plugin's build |
 | [herdr-plugins/whiteboard/README.md](herdr-plugins/whiteboard/README.md) | Whiteboard install, opening, controls, storage and limits | Using the whiteboard or changing its public surface |
 | [herdr-plugins/whiteboard/AGENTS.md](herdr-plugins/whiteboard/AGENTS.md) | Whiteboard rules, routes and placement | Working anywhere in herdr-plugins/whiteboard |

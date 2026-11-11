@@ -6,20 +6,18 @@ Industrial OS turns the [Pi](https://github.com/earendil-works/pi) coding agent 
 
 ## Status
 
-Independent projects are here. They share code only through the private design-system package: claude-interrupt imports it for its transcript marker, status-bar for its footer elements, droid-header for its startup header, and the Herdr configuration's check for its colors:
+Independent projects are here. They share code only through the private design-system package: claude-interrupt imports it for its transcript marker, status-bar for its footer elements, droid-header for its startup header, and the Herdr desktop theme's check for its colors:
 
 - [source-collector](source-collector/README.md): one Bun/Effect engine for scheduled command and checklist sources, SQLite state and polling Unix RPC; private configs stay local.
 - [design-system](design-system/README.md): the terminal design system, a reference kit of elements, motions, a storybook, and a showcase. Plain Node.js, no dependencies. It is the private package `@industrial-os/design-system`, which in-repo projects import by name; it is never published. The authorised outside consumer Lunalee uses public root-package paths from a full-SHA git pin ([decision](docs/decisions/in-repo-design-system-package.md#lunalee-pinned-public-git-consumption)).
 - [pi/claude-interrupt](pi/claude-interrupt/README.md): a Pi extension that aborts the current response on Esc and continues with your queued text, marking the continuation with an animated plate.
-- [pi/signals-collector](pi/signals-collector/README.md): one TUI session signal producer for displays and future panels/dashboards; reads configured usage sources from source-collector, no renderer.
+- [pi/signals-collector](pi/signals-collector/README.md): one TUI session signal producer for displays and future panels/dashboards; reads configured usage sources from source-collector, owns the background-task count and `/flag`, and publishes its snapshot to Herdr desktop as the `io.signals.v1` label; no renderer.
 - [pi/status-bar](pi/status-bar/README.md): a Pi extension that replaces the footer with a framed Acid / Black instrument panel showing the agent-reported active project, where Pi's tools run, context use, model, and other extensions' statuses. It is the first implementation of the style.
-- [pi/herdr-sidebar](pi/herdr-sidebar/README.md): a Pi extension that reports each Pi session's state to Herdr's agents sidebar as tokens.
 - [pi/herdr-pane-naming](pi/herdr-pane-naming/README.md): names its own inherited Herdr pane from current work, using TypeSafe/Jev and a title model; main TUI sessions only.
 - [pi/session-recap](pi/session-recap/README.md): UI-only away and detailed recaps through a separate recap model; TUI only.
 - [pi/image-preview](pi/image-preview/README.md): previews image files whose paths are in Pi's editor, above the editor, without changing the draft or the message; TUI only.
 - [pi/droid-header](pi/droid-header/README.md): replaces Pi's startup header with the droid details panel, this session's identity and a manifest of what Pi's settings load; TUI only.
-- [herdr](herdr/README.md): Herdr agents and Spaces sidebar configuration, merged by hand.
-- [herdr-plugins/spaces](herdr-plugins/spaces/README.md): one Node daemon per Herdr socket reports space counts/names/quiet ages and moves quiet units below current work.
+- [herdr](herdr/README.md): Industrial OS in the Herdr desktop app: the Acid / Black theme and the industrial-os sidebar mod with its layout.
 - [herdr-plugins/dispatch-feed](herdr-plugins/dispatch-feed/README.md): source-collector task triage in a Bun terminal pane, with shared dashboard elements and truthful live state.
 - [herdr-plugins/whiteboard](herdr-plugins/whiteboard/README.md): a Rust whiteboard in a Herdr split or tab, with sticky notes and text, driven by the mouse, one board per workspace.
 
@@ -36,18 +34,16 @@ industrial-os/
 ├── lesson-maker/             terminal lesson editor: schema-validated lesson files, chat and pictures through Pi
 ├── pi/                       Pi extensions and the Pi theme, each its own project
 │   ├── claude-interrupt/     interrupt-and-continue with the DIRECTIVE UPDATED marker
-│   ├── signals-collector/    TUI session signals and configured usage sources
+│   ├── signals-collector/    TUI session signals, configured usage sources and the Herdr label
 │   ├── status-bar/           the Acid / Black footer for the agent-reported active project
-│   ├── herdr-sidebar/        this session's state as Herdr agents-sidebar tokens
 │   ├── herdr-pane-naming/    automatic names for this inherited Herdr pane
 │   ├── session-recap/        UI-only away and detailed session recaps
 │   ├── image-preview/        previews of image paths in the editor
 │   ├── droid-header/         the droid details startup header and resource manifest
 │   ├── theme/                the industrial-os Pi theme, a theme file
 │   └── settings.json         recommended Pi settings, merged by hand
-├── herdr/                    Herdr agents and Spaces configuration, merged by hand
+├── herdr/                    Herdr desktop theme, sidebar mod and layout
 ├── herdr-plugins/            Herdr plugins, each its own project
-│   ├── spaces/              workspace tokens, quiet history and ordering daemon
 │   ├── dispatch-feed/       source-collector dashboard and task triage in Bun
 │   ├── whiteboard/          sticky notes and text in a Herdr pane, in Rust
 │   └── automations-monitor/ read-only Tatsu pipelines and schedules dashboard, in Bun and Effect
