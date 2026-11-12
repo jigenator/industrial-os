@@ -10,7 +10,7 @@ The maintained content is a herdr-app mod in plain JavaScript, a layout and a th
 
 | Order | Directory | Command | Prerequisites/effects | Coverage |
 | --- | --- | --- | --- | --- |
-| 1 | `herdr/` | `node --test` | Root install; reads the mod's pure modules, `layouts/industrial-os.json`, `test/fixtures/` and `themes/acid-black.json`; no writes | Label parsing and stale labels; every state, unknowns, caps, decay, the finished rule, space aggregation and quiet ages; the layout differs from shipped `main` only in the sidebar block; the mod's imports; desktop theme values |
+| 1 | `herdr/` | `node --test` | Root install; reads the mod's pure modules, `layouts/industrial-os.json`, `test/fixtures/` and `themes/acid-black.json`; no writes | Label parsing and stale labels; every state, unknowns, caps, decay, the finished rule, space aggregation and quiet ages; the layout differs from shipped `main` only in the sidebar block and the frozen Lunalee column; the mod's imports; desktop theme values |
 | 2 | `herdr/` | `herdr-app check mods/industrial-os` | Installed herdr-app; loads the mod once with empty in-memory state, in a hidden window; changes nothing in the running app. It writes `gpui-kit.d.ts` and `jsconfig.json` into the mod folder for editors; Git ignores them | The mod loads and its initial description materializes: prints `check passed: mods/industrial-os`, exit 0. Only the empty state renders |
 | 3 | Herdr app | Manual, by an operator: install as in the [README](README.md#install), switch to the layout, and watch Pi agents with the signals publication and other agents | Changes the live app's files and layout | Populated rendering, every state, clicks, agent order, ahead/behind, live clocks, the look |
 
@@ -25,6 +25,17 @@ Change the source first: a color in the design system, a label field in [the sna
 ## Verification records
 
 Record each run with its date, app version and results.
+
+### Lunalee column
+
+2026-11-12, macOS, Node 22.23.4, herdr-app 0.1.15:
+
+- Root `npm install` in the fresh worktree: linked the design-system package, 0 vulnerabilities, no tracked change. Before it, `test/app-theme.test.mjs` failed to resolve the package.
+- `cd herdr && node --test`: **27/27 passed**, 0 failed/skipped/cancelled. The layout check now requires the column, as `root`'s third child, to equal the frozen contract, and nothing else to differ from shipped `main`.
+- Mutation checks, each restored: the column at 600 px failed 1; the block naming terminal `lunalee` failed 1.
+- `herdr-app check mods/industrial-os`: **`check passed: mods/industrial-os`, exit 0**. It does not load the layout.
+- `check-config.mjs`: not run; it was removed with the herdr-tui configuration.
+- Not run: installing the layout, switching to it and the live look, with and without Lunalee. The Herdr behaviours in the [README](README.md#lunalee-column) were observed by Lunalee's slice-0 check, not here.
 
 ### Industrial OS sidebar mod
 
