@@ -20,6 +20,10 @@ const FROSTED_INK = { decorative: SURFACE_PALETTE.frostLamp, structural: SURFACE
 
 const FULL_WIDTH = 40, WIDE_WIDTH = 56;
 const FRAME = new Set([' ', '─', '│', '+']); // the cells a stroke edge may replace
+// The stroke's edges: the Powerline full-cell triangles U+E0BA (lower right, like ◢) and U+E0BC (upper left, like ◤).
+// Terminals draw them across the whole cell, so the stroke stays smooth where ◢ ◤ come from a font as small
+// triangles; a terminal with neither Powerline shapes nor a Powerline font shows an empty box instead.
+const EDGE_LEFT = '\uE0BA', EDGE_RIGHT = '\uE0BC';
 const TOOL_STATES = new Set(['ready', 'open', 'disabled']);
 const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/;
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -145,7 +149,7 @@ function full(v, width, measure) {
   for (let y = 0; y < 6; y++) {
     for (let x = edge(y); x < edge(y) + strokeWidth; x++) {
       const { text: ch, style } = grid.rows[y][x];
-      const corner = x === edge(y) ? '◢' : x === edge(y) + strokeWidth - 1 ? '◤' : null;
+      const corner = x === edge(y) ? EDGE_LEFT : x === edge(y) + strokeWidth - 1 ? EDGE_RIGHT : null;
       if (corner && FRAME.has(ch)) grid.put(x, y, corner, { fg: 'accent', bg: PAPER });
       else grid.put(x, y, ch, { ...style, bg: 'accent', fg: style.fg === HAIR ? SHADE : style.fg });
     }

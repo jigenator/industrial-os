@@ -1,6 +1,6 @@
 # Alert Ticker
 
-One calm row, striped four-cell caps, NO ALERTS, separator and no alerts. v1 accepts only [] and rejects nonempty alerts rather than simulating a rotating feed.
+One calm row, striped four-cell caps (each a Powerline triangle U+E0BA, the shape of `◢`, a block and U+E0BC, the shape of `◤`, which terminals with Powerline shapes draw across the whole cell; elsewhere they show as empty boxes), NO ALERTS, separator and no alerts. v1 accepts only [] and rejects nonempty alerts rather than simulating a rotating feed.
 
 ## Contract
 
