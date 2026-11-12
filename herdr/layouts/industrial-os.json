@@ -163,6 +163,35 @@
           }
         }
       ]
+    },
+    {
+      "id": "lunalee",
+      "type": "column",
+      "size": {
+        "px": 580
+      },
+      "min": 420,
+      "max": 900,
+      "background": "chrome",
+      "children": [
+        {
+          "id": "lunalee-host",
+          "type": "block",
+          "size": {
+            "px": 1
+          },
+          "content": {
+            "mod": "lunalee"
+          }
+        },
+        {
+          "id": "lunalee-chat",
+          "type": "block",
+          "content": {
+            "terminal": "lunalee-chat"
+          }
+        }
+      ]
     }
   ]
 }

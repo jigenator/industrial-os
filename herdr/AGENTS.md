@@ -8,7 +8,7 @@ Purpose: Industrial OS in the Herdr desktop app: the Acid / Black theme and the 
 - Unknown is never zero, and a label counts only on a live terminal whose agent `app` is `pi`, with `version` 1. The label is the frozen `io.signals.v1` publication of the [signals-collector snapshot](../pi/signals-collector/docs/contract.md); change it there first. Check: `test/industrial-os.test.mjs`.
 - Every color is a `theme()` name in the mod, or a design-system value in a theme file; the design system owns the values. Check: `test/app-theme.test.mjs` imports `@industrial-os/design-system/foundation/palette` and `signal-colors` by package name.
 - Never change the running app to check this project: no installing, `herdr-app do`, `layout.*` or `mod.*` commands. `herdr-app check` and the tests only read. Commands are in [CONTRIBUTING.md](CONTRIBUTING.md).
-- The layout is Herdr's shipped `main` with one change; keep it that way, and record the shipped copy it follows in `test/fixtures/`.
+- The layout is Herdr's shipped `main` with two changes, the sidebar lists and Lunalee's column; keep it that way, and record the shipped copy it follows in `test/fixtures/`. The column's ids, size and terminal name are a frozen contract with Lunalee; Lunalee's install supplies its mod and terminal, never this project. Check: `test/industrial-os-layout.test.mjs`.
 
 ## Read for the task
 
@@ -26,7 +26,7 @@ Purpose: Industrial OS in the Herdr desktop app: the Acid / Black theme and the 
 | --- | --- | --- |
 | What a sidebar value means | `mods/industrial-os/` pure modules (`signals.js`, `agent.js`, `spaces.js`, `format.js`, `model.js`) | No `gpui-kit` or `herdr` imports; Node-tested |
 | How the sidebar draws, reads Herdr or runs commands | `mods/industrial-os/main.js` | herdr-app's `gpui-kit`, `gpui-base` and `herdr` modules; `theme()` colors |
-| The sidebar's place in the window | `layouts/industrial-os.json` | Shipped `main` with only the sidebar lists replaced |
+| The sidebar's place in the window, and Lunalee's column | `layouts/industrial-os.json` | Shipped `main` with only the sidebar lists replaced and the `lunalee` column added; the column's contents come from Lunalee's install |
 | The Herdr desktop theme | `themes/acid-black.json` | herdr-app's theme file format; design-system colors, including `HERDR_TERMINAL`; [theme design](docs/design.md#theme) |
 | Checks | `test/` | Node's test runner; reads files, imports only the mod's pure modules and the design-system package |
 | The label's fields or publication | [pi/signals-collector](../pi/signals-collector/AGENTS.md) | Not here |
