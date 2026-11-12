@@ -37,7 +37,7 @@ test('power-on, the grounds, then each row typed left to right behind an acid cu
   assert.notEqual(cellsOf(power[mid])[0].bg, cellsOf(power[0])[0].bg, 'the middle row lights');
   // The grounds: no ink yet, each cell's background, the plate's paint under the ground to its left.
   const grounds = crtBoot(LINES, { ...OPTS, time: T.power + 50 });
-  assert.ok(!text(grounds).join('').match(/[A-Z█◢]/));
+  assert.ok(!text(grounds).join('').match(/[A-Z█\uE0BA]/));
   // Mid-boot a typing row shows a cursor, typed text to its left and nothing to its right.
   let seen = 0;
   for (const t of times(crtBootDuration(LINES, OPTS))) {

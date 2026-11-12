@@ -89,14 +89,15 @@ function draw(v, width, titleBlock) {
   // The peak: the slash `◢██◤` and its mirror meeting at the top as a hollow `/\`, across all six rows and centred
   // between the blocks. Each stroke moves out a cell per row; the widest that keeps two cells clear of the left block
   // (its maker, wordmark or unit text, whichever is longest) and three of the right wins, or there is none. The
-  // hairlines run on under the paint in the darker accent.
+  // hairlines run on under the paint in the darker accent. The edges are the Powerline full-cell triangles U+E0BA ◢,
+  // U+E0BC ◤, U+E0BE ◥ and U+E0B8 ◣, so the peak stays smooth where a font draws ◢ ◤ ◥ ◣ small.
   const left = leftEnd, mid = Math.floor((left + bx + 1) / 2);
   const half = (b) => b + 2 + UNIT_PLATE_ROWS - 1;
   const b = PEAK_STROKES.find((t) => mid - half(t) >= left + 3 && mid + half(t) <= bx - 3);
   const paint = [];
   if (b !== undefined) for (let k = 0; k < UNIT_PLATE_ROWS; k++) {
     const x0 = mid - (b + 2) - k, frame = k === 0 || k === UNIT_PLATE_ROWS - 1;
-    const strokes = [[x0, '◢', '◤'], [x0 + b + 2 + 2 * k, '◥', '◣']];
+    const strokes = [[x0, '\uE0BA', '\uE0BC'], [x0 + b + 2 + 2 * k, '\uE0BE', '\uE0B8']];
     for (const [x, open, close] of strokes) {
       grid.put(x, k, open, EDGE);
       for (let i = 1; i <= b; i++) grid.put(x + i, k, frame ? '─' : ' ', PAINT);

@@ -13,12 +13,12 @@ const text = (lines) => lines.map((line) => line.map((s) => s.text).join(''));
 
 // The approved droid header mockup's plate rows (droid-header-concepts k-motion g-shared.mjs, session 0000BEEF).
 const MOCKUP_104 = [
-  '+─────────────────────────────────────────────────────◢───◤◥───◣───────────────────────────────────────+',
-  '  INDUSTRIAL-OS ®                                    ◢   ◤  ◥   ◣                     ⟁ PI AGENT DROID  ',
-  '  █▀▄ █▀▄ █▀▄     █▀▀ █▀█ █▀▄ █▀▀                   ◢   ◤    ◥   ◣                    ▌ ▌ ▍ ▍▏█▎▍ ▏█▎▐  ',
-  '  █ █ █▀▄ █ █ ▀▀▀ █   █ █ █ █ █▀▀                  ◢   ◤      ◥   ◣                   ▌ ▌ ▍ ▍▏█▎▍ ▏█▎▐  ',
-  '  ▀▀  ▀ ▀ ▀▀      ▀▀▀ ▀▀▀ ▀▀  ▀▀▀                 ◢   ◤        ◥   ◣                  HALDENN DYNAMICS  ',
-  '+ S/N 0000-BEEF ─────────────────────────────────◢───◤──────────◥───◣──────────────────────────────────+',
+  '+──────────────────────────────────────────────────────────────────────────────────────────────────+',
+  '  INDUSTRIAL-OS ®                                                                 ⟁ PI AGENT DROID  ',
+  '  █▀▄ █▀▄ █▀▄     █▀▀ █▀█ █▀▄ █▀▀                                                 ▌ ▌ ▍ ▍▏█▎▍ ▏█▎▐  ',
+  '  █ █ █▀▄ █ █ ▀▀▀ █   █ █ █ █ █▀▀                                                 ▌ ▌ ▍ ▍▏█▎▍ ▏█▎▐  ',
+  '  ▀▀  ▀ ▀ ▀▀      ▀▀▀ ▀▀▀ ▀▀  ▀▀▀                                                 HALDENN DYNAMICS  ',
+  '+ S/N 0000-BEEF ───────────────────────────────────────────────────────────────────────────────────+',
 ];
 const MOCKUP_64 = [
   '+──────────────────────────────────────────────────────────────+',
@@ -38,7 +38,7 @@ test('the plate matches the approved mockup at 104 and 64 cells: blocks, barcode
   assert.equal(strokes.length, 12);
   const row1 = cellsOf(lines[1]);
   assert.deepEqual(row1.slice(2, 15).map((c) => [c.fg, c.bold]), Array(13).fill(['#000000', true]));
-  assert.deepEqual([row1[53].ch, row1[53].fg, row1[53].bg], ['◢', '#c0fe04', aluminiumAt(53, 1, { width: 104 }).ground]);
+  assert.deepEqual([row1[53].ch, row1[53].fg, row1[53].bg], ['', '#c0fe04', aluminiumAt(53, 1, { width: 104 }).ground]);
   assert.deepEqual([row1[54].bg, row1[54].fg], ['#c0fe04', SIGNAL_COLORS.accent75]);
   assert.deepEqual([cellsOf(lines[0])[55].ch, cellsOf(lines[0])[55].bg], ['─', '#c0fe04'], 'the hairline runs on under the paint');
   assert.equal(cellsOf(lines[4])[86].fg, SURFACE_PALETTE.aluminiumLabel);
@@ -68,7 +68,7 @@ test('every width 1–160 gives six exact rows on the aluminium ground, with cur
 
 test('the title block and peak need room; the wordmark falls back to text; unknown digits are grey', () => {
   // The title block needs two cells clear of the left block, and the peak two and three cells clear of the blocks.
-  assert.doesNotMatch(text(unitPlate(UNIT, { width: 48 }).lines).join('\n'), /⟁|HALDENN|◢/);
+  assert.doesNotMatch(text(unitPlate(UNIT, { width: 48 }).lines).join('\n'), /⟁|HALDENN|/);
   assert.match(text(unitPlate(UNIT, { width: 56 }).lines).join('\n'), /⟁ PI AGENT DROID/);
   const stroke = (width) => { const p = unitPlate(UNIT, { width }).paint; return p.length ? p[0].end - p[0].start - 2 : 0; };
   assert.deepEqual([64, 71, 72, 74, 76, 104].map(stroke), [0, 0, 1, 2, 3, 3]);
@@ -86,9 +86,9 @@ test('the title block and peak need room; the wordmark falls back to text; unkno
   assert.notEqual(bars(1), bars(2));
   // A long maker keeps the peak clear of it, then displaces the title block; past the margin it loses ® first, then clips.
   const maker = (n) => text(unitPlate({ ...UNIT, maker: 'M'.repeat(n) }, { width: 104 }).lines);
-  assert.match(maker(40)[1], /^ {2}M{40} ® +◢ +◤ +◥ +◣ +⟁ PI AGENT DROID {2}$/);
+  assert.match(maker(40)[1], /^ {2}M{40} ® + + + + +⟁ PI AGENT DROID {2}$/);
   assert.match(maker(80)[1], /^ {2}M{80} ® {2}⟁ PI AGENT DROID {2}$/);
-  assert.doesNotMatch(maker(80).join('\n'), /◢/);
+  assert.doesNotMatch(maker(80).join('\n'), //);
   assert.match(maker(90)[1], /^ {2}M{90} ® {10}$/);
   assert.equal(maker(100)[1], `  ${'M'.repeat(100)}  `);
   assert.equal(maker(120)[1], `  ${'M'.repeat(100)}… `);
