@@ -1,70 +1,76 @@
 # Architecture
 
-Status: current at the revision that added the project.
-Evidence: `sidebar.toml`, `test/sidebar.test.mjs`, Herdr 0.9.3's configuration reference and its config loader, sidebar and theme schemas (`src/config/io.rs`, `src/config/sidebar.rs`, `src/config/theme.rs`, `src/cli.rs` `config check`).
+Status: current at the revision that added the Industrial OS sidebar mod.
+Evidence: the mod and layout, their tests, and Herdr app 0.1.15's own documentation in `~/.config/herdr-app` (`AGENTS.md` "Layouts" and "Mods", `herdr.d.ts`, `gpui-kit.d.ts`) and its shipped `main` layout and `agents` and `spaces` mods.
 
 ## Files and dependencies
 
 | File | Owns | Depends on |
 | --- | --- | --- |
-| `sidebar.toml` | The Pi agents-sidebar row override, their colors and rules, the theme colors the layout needs, and the 36-column width lock | Herdr's config schema; the token names in [the token contract](../../pi/herdr-sidebar/docs/token-contract.md); design-system colors, restated as values because TOML cannot import |
-| `spaces.toml` | Spaces rows and global state-icon theme keys | Herdr schema; [Spaces contract](../../herdr-plugins/spaces/docs/token-contract.md); design-system colors |
+| `mods/industrial-os/main.js` | The sidebar view: reads Herdr's live data, keeps the remembered state in `localStorage`, looks up ahead/behind with `git`, runs click commands and draws | The app's `gpui-kit`, `gpui-base` and `herdr` modules; the pure modules beside it |
+| `mods/industrial-os/model.js` | The whole sidebar as plain data: which agents get a block, the order, the spaces rows, the next memory and the next time shown text changes | `agent.js`, `signals.js`, `spaces.js` |
+| `mods/industrial-os/signals.js` | Reading and validating the `io.signals.v1` label; the stale-label rule | Nothing; the frozen label contract |
+| `mods/industrial-os/agent.js` | State precedence, the unseen-work-finished rule, access decay, the pane name and every agent row | `format.js` |
+| `mods/industrial-os/spaces.js` | Space state, counts, units, activity and quiet ages, ahead/behind parsing and a space's place | `format.js`, `agent.js` icons |
+| `mods/industrial-os/format.js` | Text formats: durations, counts, model, directory, context bar, days, cleaning | Nothing |
+| `mods/industrial-os/mod.json` | `"place": "none"`: the mod appears only where a layout puts it | herdr-app's mod format |
+| `layouts/industrial-os.json` | The shipped `main` layout with the sidebar's lists replaced by the one `industrial-os` block | herdr-app's layout format; Herdr app 0.1.15's `main.json` |
+| `mods/package.json` | Marks the mods' `.js` files as ES modules for Node; not part of the mod | Node 22 |
+| `mods/.gitignore` | Keeps out the `gpui-kit.d.ts` and `jsconfig.json` that `herdr-app check` writes into a mod folder for editors | Git |
 | `themes/acid-black.json` | The Herdr desktop app's theme: terminal and panel colors | herdr-app's theme file format (`~/.config/herdr-app/AGENTS.md`, "The look"); design-system colors, including `HERDR_TERMINAL` |
-| `check-config.mjs` | Isolated native parser checks for each TOML fragment, their merge and an expected invalid rejection | Node stdlib; installed Herdr, only config check |
-| `test/spaces.test.mjs` | Spaces color/key/role checks | Design-system exported palette; reads Spaces contract |
+| `test/industrial-os.test.mjs` | The pure modules on fixtures: every state, unknowns, caps, decay, the finished rule, space aggregation | The mod's pure modules |
+| `test/industrial-os-layout.test.mjs` | The layout differs from the recorded shipped `main.json` only in that block; mod.json; imports stay in the mod folder | `test/fixtures/herdr-app-0.1.15-main.json` |
 | `test/app-theme.test.mjs` | Each desktop theme color holds its approved design-system value | `foundation/palette` and `/signal-colors` (`SIGNAL_COLORS`, `HERDR_TERMINAL`) by package name |
-| `test/sidebar.test.mjs` | The checks that keep the fragment true to its two sources | `@industrial-os/design-system/foundation/palette` and `/signal-colors` by package name; reads the token contract document |
 
 ```mermaid
 flowchart LR
-    DS["design-system<br/>palette, signal colors"] -->|imported by the check| Test["herdr/test/sidebar.test.mjs"]
-    Contract["pi/herdr-sidebar<br/>docs/token-contract.md"] -->|key list read by the check| Test
-    Test -->|checks| Fragment["herdr/sidebar.toml"]
-    Fragment -.->|merged by hand into config.toml| Herdr["Herdr client"]
-    Spaces["herdr-plugins/spaces"] -->|workspace tokens| Herdr
-    SpacesFragment["herdr/spaces.toml"] -.->|manual merge| Herdr
-    DS -->|imported by the check| ThemeTest["herdr/test/app-theme.test.mjs"]
-    ThemeTest -->|checks| AppTheme["herdr/themes/acid-black.json"]
-    AppTheme -.->|copied into ~/.config/herdr-app/themes| App["Herdr desktop app"]
-    Ext["pi/herdr-sidebar extension"] -->|pane tokens over the socket| Herdr
+    Pi["Pi signals-collector<br/>(pi/)"] -->|"hc label $HC_TERMINAL_ID io.signals.v1=…"| Core["herdr-core<br/>terminal labels"]
+    Core -->|"terminals()[i].labels"| Main["mods/industrial-os/main.js"]
+    App["herdr-app live data<br/>spaces, agents, panes"] --> Main
+    Main -->|"git rev-list (exec)"| Git["each space's folder"]
+    Main --> Model["model.js<br/>signals, agent, spaces, format"]
+    Model --> Main
+    Main -->|"space.select, pane.focus, setAgentOrder"| App
+    Layout["layouts/industrial-os.json"] -.->|copied into ~/.config/herdr-app| App
+    DS["design-system<br/>palette, signal colors"] -->|imported by the check| ThemeTest["test/app-theme.test.mjs"]
+    ThemeTest -->|checks| AppTheme["themes/acid-black.json"]
+    AppTheme -.->|copied into ~/.config/herdr-app/themes| App
 ```
 
-No code is shared. The check imports the design system only by package name, as every project may, and reads the token contract as a document: the contract is canonical in pi/herdr-sidebar, and the check fails if the fragment and the contract disagree rather than keeping a copy of the key list.
+No code is shared with another project. The mod's imports resolve inside its folder, as herdr-app requires, and the pure modules import neither `gpui-kit` nor `herdr`, so Node's test runner loads them directly. The label is the only data contract with Pi: the signals-collector publishes it; this project only reads it.
 
 ## Flow
 
-A person merges the fragment into Herdr's `config.toml` and reloads. Herdr's client selects the `rows_by_agent.pi` override for canonical agent ID `pi` (replacing, not extending, its base rows), leaving other agents on their configured/default rows; the herdr-sidebar extension in each Pi pane reports token values; Herdr draws each row from the values present, dropping missing tokens and their separators and any row left empty. Styling lives only here; values live only in the extension. ACT has two mutually exclusive configured rows (d0+d1 and d2+d3), each 12 entries, because Herdr 0.9.3 caps a row at 16 entries. The Pi layout is eight of the maximum 16 configured rows. Empty row filtering (`src/ui/sidebar/tokens.rs`) precedes pane-block rendering; `row_gap` in `src/client/shell/agent_sidebar.rs` separates pane blocks only, so the inactive ACT row adds no gap. MDL fits eight variants in one row. The reporter selects stage variants, keeping the visible logical layout unchanged.
+herdr-app redraws the mod whenever its live data changes: spaces, agents, terminals (including their labels), focus and theme. Each render reads those lists once, passes them with the clock, this computer's home folder, the last ahead/behind results and the remembered state to `buildSidebar`, saves the new memory when it changed, sets the agent order and draws. `buildSidebar`:
+
+1. Parses the label on every live terminal whose agent status `app` is `pi` (from `agents()`, else the core's report). Anything else is no signals.
+2. Builds one Pi block per agent with signals and one line per other agent, in `agents()` order, updating each terminal's remembered counts, finished time and last access.
+3. Builds one row per space from its panes, using the Pi blocks' states (SUB/RUN as working) and units, and updates its remembered activity.
+4. Returns the earliest time any shown clock, decay stage or quiet age will change.
+
+A one-second data timer compares the clock with that time and redraws only then; it also starts ahead/behind lookups: a place (machine and folder) not looked at yet at once, others every 30 seconds while the window is active, one pass at a time with a 5-second timeout per `git` run. A failed run keeps what was shown.
 
 ## Critical invariants
 
 | Must remain true | Check |
 | --- | --- |
-| Every color is an exported design-system color | `test/sidebar.test.mjs` |
-| Every token is in the contract key list, and every key has one row entry | `test/sidebar.test.mjs` |
-| The configured rows fit Herdr's 16-row/16-entry limits; exactly one ACT alternative resolves per stage | `test/sidebar.test.mjs`; native parser |
-| Only `rows_by_agent.pi` is set; global `rows` is absent | `test/sidebar.test.mjs` |
-| The width is locked at 36 columns with `row_gap = 1` | `test/sidebar.test.mjs` |
-| The fragment is a valid Herdr config by itself | `herdr config check` in [contributing](../CONTRIBUTING.md#validation-sequence) |
+| Unknown is never zero: a missing, malformed or stale label shows `??`, `--%` or nothing, and is no completion | `test/industrial-os.test.mjs` |
+| A label counts only on a live terminal whose agent `app` is `pi`, with `version` 1 | `test/industrial-os.test.mjs` |
+| State precedence `QNS` > `BLK` > `WRK` > `SUB` > `RUN` > `DNE` > `IDL`/`UNK` | `test/industrial-os.test.mjs` |
+| The layout is shipped `main` with only the sidebar lists replaced | `test/industrial-os-layout.test.mjs` |
+| The mod imports only `gpui-kit`, `gpui-base`, `herdr` (in `main.js`) and its own files; no `setTimeout`, `Intl`, `TextDecoder` or `WebSocket` | `test/industrial-os-layout.test.mjs` |
+| The mod loads and renders in herdr-app | `herdr-app check mods/industrial-os` |
 | Every desktop theme color is its approved design-system value | `test/app-theme.test.mjs` |
-| Each TOML fragment, and both merged into one `[theme.custom]`, parses; an unknown token is reported | `check-config.mjs` |
 
 ## Where the next change belongs
 
-Another piece of maintained Herdr configuration, such as Space rows or keybindings, is its own TOML file here with a check beside it and an install section in the README. A Herdr plugin with code would be a separate project with its own language and toolchain.
+- A rule about what a value means: the pure module that owns it, with its test, then [the design](design.md#sidebar).
+- How the sidebar looks: `main.js` alone, once the visual design is decided. Visual components come from the design system; a herdr-app mod cannot import outside its folder, so how its elements reach the mod is part of that decision.
+- Another Herdr desktop mod or layout: its own folder under `mods/` or file under `layouts/`, with a test beside the others and an install section in the README.
 
 ## Limits and evolution
 
-- Herdr has no config includes, so the fragment is merged by hand and drifts from the user's copy until merged again.
-- Pi panes without the extension show no Industrial OS rows. Other agents retain their configured/default layouts.
-- `row_gap = 1` is a panel-wide setting: all agents receive that spacing, not only Pi.
-
-Spaces values and sorting belong to the separate plugin, not this config project.
-Its `sp_`-prefixed contract key list is consumed by `test/spaces.test.mjs`;
-Herdr workspace keys share a namespace across sources. Space names require
-that plugin: no built-in workspace fallback is configured. Theme keys are global;
-see [the wider color effects](design.md#spaces-theme-scope).
-
-The desktop theme is a herdr-app theme file. The check proves its values, not
-that the app accepts it: herdr-app validates on load and writes `settings.error`
-or a layout's `.error` when it rejects one, so a live install is checked with
-`herdr-app status`.
+- `herdr-app check` loads the mod with empty in-memory state and renders once; it does not lay out, run timers, later async states or real data. Populated rendering and clicks need the live app.
+- Remembered state is per mod copy and per screen. A second copy of the mod (another layout) keeps its own.
+- The layout copies Herdr app 0.1.15's `main`; a later `main` is not followed. The layout test records the copy it was made from.
+- The desktop theme is a herdr-app theme file. Its check proves its values, not that the app accepts it: herdr-app validates on load and writes `settings.error` or a layout's `.error` when it rejects one, so a live install is checked with `herdr-app status`.

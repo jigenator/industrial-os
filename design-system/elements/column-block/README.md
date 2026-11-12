@@ -1,6 +1,6 @@
 # Column block
 
-herdr-sidebar's layout B geometry as a generic block: gutter · value · right-aligned slot, with optional fixed marks after the value. **Geometry only:** callers supply all data, state and rendered pieces. The element imports no other elements.
+The layout B geometry of the herdr-tui agents sidebar, since removed, as a generic block: gutter · value · right-aligned slot, with optional fixed marks after the value. **Geometry only:** callers supply all data, state and rendered pieces. The element imports no other elements.
 
 ## Usage
 
@@ -78,9 +78,9 @@ Values are truncatable; fixed marks are not. Oversized right values always obey 
 
 Invalid row/part/span/style shapes, unsafe span text, nonboolean head, or unsafe/nonstring separator throw `TypeError`. Invalid dimensions, indents or incompatible slot/separator sizes throw `RangeError`. Nothing is silently coerced. Normal string sanitization is not an error. No I/O, interaction, timers or data lookup is owned here.
 
-## Differences from herdr-sidebar
+## Differences from the herdr-tui sidebar
 
-Modeled on [layout B](../../../herdr/docs/design.md#layout-b) and its [token geometry](../../../pi/herdr-sidebar/docs/token-contract.md#geometry), not its reporting/runtime. The default column sizes match, but this kit also supports narrow stacking and wider field padding. It emits ordinary spaces: U+2800 exists only because Herdr trims transport values. Strings follow the DS printable-ASCII contract rather than Herdr's grapheme-aware control removal/Unicode measurement; rendered spans can use curated structural glyphs. The sidebar's `◐` and `✓` are now curated in foundation and can be supplied in rendered spans; `◐`'s one-cell prerequisite is verified in Herdr only (see the [foundation glyph contract](../../foundation/README.md#text-and-glyph-contract)). Fixtures also use `○ IDL`, `× QNS` or `· UNK` spans. String glyphs are still ASCII-sanitized like any other caller string.
+Modeled on layout B and its token geometry (the removed herdr-tui sidebar's design and token contract, in Git history), not its reporting/runtime. The default column sizes match, but this kit also supports narrow stacking and wider field padding. It emits ordinary spaces: U+2800 exists only because Herdr trims transport values. Strings follow the DS printable-ASCII contract rather than Herdr's grapheme-aware control removal/Unicode measurement; rendered spans can use curated structural glyphs. The sidebar's `◐` and `✓` are now curated in foundation and can be supplied in rendered spans; `◐`'s one-cell prerequisite is verified in Herdr only (see the [foundation glyph contract](../../foundation/README.md#text-and-glyph-contract)). Fixtures also use `○ IDL`, `× QNS` or `· UNK` spans. String glyphs are still ASCII-sanitized like any other caller string.
 
 ## Checks
 

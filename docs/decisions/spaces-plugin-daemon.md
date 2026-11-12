@@ -1,6 +1,6 @@
 # Spaces reporting belongs to one plugin daemon
 
-Status: accepted for Industrial OS Spaces, targeting Herdr 0.9.3.
+Status: superseded (2026-11-12). Industrial OS moved from herdr-tui to the Herdr desktop app: the Spaces plugin and its herdr-tui rows are removed, and spaces are now shown by the [industrial-os sidebar mod](../../herdr/README.md#sidebar), which reads Pi state from the label described in [the signals collector publishes to herdr-core labels](signals-collector-herdr-core.md). Kept as history; it was accepted for Industrial OS Spaces, targeting Herdr 0.9.3.
 
 ## Decision
 
@@ -42,5 +42,5 @@ configuration. Atomic rename does not guarantee power-loss durability. Unique
 owner control sockets prove daemon liveness independently of PID reuse; malformed
 locks or uncertain probes still fail closed. Revisit if Herdr supplies managed
 plugin daemons/locks, a session-generation identity, or conditional row gating.
-Full behavior/limits live in the [plugin architecture](../../herdr-plugins/spaces/docs/architecture.md)
-and [token contract](../../herdr-plugins/spaces/docs/token-contract.md).
+Full behavior/limits lived in the removed plugin's architecture and token contract
+(`herdr-plugins/spaces/docs/`, in Git history).

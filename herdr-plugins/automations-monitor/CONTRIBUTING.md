@@ -59,7 +59,7 @@ Render `--frame` output (with colour) through xterm.js in headless Chrome, outsi
 
 ### Isolated Herdr check
 
-Use a throwaway Herdr that shares nothing with a live session, as in the [Spaces procedure](../spaces/CONTRIBUTING.md#throwaway-server-check): run every `herdr` command under `env -i` with a temporary `HOME`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, an explicit `HERDR_SOCKET_PATH` in a short directory, a `PATH` with Bun and Herdr but not `tatsu`, and `AUTOMATIONS_MONITOR_TATSU` pointing at the fake. Never pass inherited `HERDR_*` variables. Record SHA-256 checksums of the live `config.toml` and `plugins.json` first.
+Use a throwaway Herdr that shares nothing with a live session. Inside a Herdr pane the shell inherits `HERDR_*` variables pointing at the live server, so run every `herdr` command under `env -i` with a temporary `HOME`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, an explicit `HERDR_SOCKET_PATH` in a short directory (macOS limits socket paths to about 104 bytes), a `PATH` with Bun and Herdr but not `tatsu`, and `AUTOMATIONS_MONITOR_TATSU` pointing at the fake. Never pass inherited `HERDR_*` variables. Record SHA-256 checksums of the live `config.toml` and `plugins.json` first.
 
 1. Start `herdr server`, `herdr plugin link` this directory, then `herdr workspace create`.
 2. Attach a client (`herdr`) in a pseudo-terminal of a known size; dismiss the welcome with Enter and the first-run settings dialog with Esc.

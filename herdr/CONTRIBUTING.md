@@ -4,25 +4,50 @@ Follow the [repository workflow](../CONTRIBUTING.md) as well as this project's c
 
 ## Toolchain and setup
 
-The maintained content is TOML read by Herdr. The checks use Node.js 22 with its standard library and the design-system package; there is no manifest, dependency or lockfile in this project. Run `npm install` once at the repository root so `@industrial-os/design-system` resolves; see [setup](../CONTRIBUTING.md#setup). The parser check needs an installed Herdr; it was run with Herdr 0.9.3.
+The maintained content is a herdr-app mod in plain JavaScript, a layout and a theme in JSON. The checks use Node.js 22 with its standard library and the design-system package; there is no dependency or lockfile in this project, and `mods/package.json` only marks the mod's files as ES modules for Node. Run `npm install` once at the repository root so `@industrial-os/design-system` resolves; see [setup](../CONTRIBUTING.md#setup). `herdr-app check` needs an installed Herdr desktop app; it was run with herdr-app 0.1.15.
 
 ## Validation sequence
 
 | Order | Directory | Command | Prerequisites/effects | Coverage |
 | --- | --- | --- | --- | --- |
-| 1 | `herdr/` | `node --test` | Root install; reads `sidebar.toml`, `spaces.toml`, `themes/acid-black.json`, `../pi/herdr-sidebar/docs/token-contract.md` and `../herdr-plugins/spaces/docs/token-contract.md`; no writes | Every color is an exported palette or signal color; every token is in the contract's key list and every rendered key has one row entry (excluding BG data tokens); width lock, row gap and theme values; desktop theme values; decay ladder, mutually exclusive ACT alternatives and native row/entry limits; Spaces and theme checks below |
-| 2 | `herdr/` | `HERDR_CONFIG_PATH="$PWD/sidebar.toml" herdr config check` | Installed Herdr; reads only that file; contacts no server and writes nothing | Herdr's own parser and validation accept the fragment as a config: prints `config: ok`, exit 0 |
-| 3 | Herdr | Manual: merge into a config as in the [README](README.md#install), reload, and watch Pi panes running herdr-sidebar | Changes the live Herdr configuration | Rendering, colors, alignment with and without the scrollbar, every state |
+| 1 | `herdr/` | `node --test` | Root install; reads the mod's pure modules, `layouts/industrial-os.json`, `test/fixtures/` and `themes/acid-black.json`; no writes | Label parsing and stale labels; every state, unknowns, caps, decay, the finished rule, space aggregation and quiet ages; the layout differs from shipped `main` only in the sidebar block; the mod's imports; desktop theme values |
+| 2 | `herdr/` | `herdr-app check mods/industrial-os` | Installed herdr-app; loads the mod once with empty in-memory state, in a hidden window; changes nothing in the running app. It writes `gpui-kit.d.ts` and `jsconfig.json` into the mod folder for editors; Git ignores them | The mod loads and its initial description materializes: prints `check passed: mods/industrial-os`, exit 0. Only the empty state renders |
+| 3 | Herdr app | Manual, by an operator: install as in the [README](README.md#install), switch to the layout, and watch Pi agents with the signals publication and other agents | Changes the live app's files and layout | Populated rendering, every state, clicks, agent order, ahead/behind, live clocks, the look |
 
-Then follow the [repository-wide checks](../CONTRIBUTING.md#repository-wide-checks). Record every check as passed, failed, skipped or not run. Step 2 proves the file parses and validates, not how it looks.
+Then follow the [repository-wide checks](../CONTRIBUTING.md#repository-wide-checks). Record every check as passed, failed, skipped or not run. Step 2 proves the mod loads, not how populated rows look or behave.
+
+The theme has its own manual step: install as in the [README](README.md#theme), then `herdr-app status` must show no `settings.error`, and `herdr-app shot` shows the sidebar, tab bar, a terminal and an agent's status in the theme. Changes the live app configuration.
 
 ## Making a change
 
-Change the source first: a color in the design system, a token in [the token contract](../pi/herdr-sidebar/docs/token-contract.md). Then change the fragment, keep each color's role comment accurate, update [the design](docs/design.md), and run the sequence.
+Change the source first: a color in the design system, a label field in [the snapshot contract](../pi/signals-collector/docs/contract.md). Then change the pure module and its test, then `main.js` if what is drawn changes, update [the design](docs/design.md), and run the sequence.
 
 ## Verification records
 
-Record each run with its date, Herdr version and results.
+Record each run with its date, app version and results.
+
+### Industrial OS sidebar mod
+
+2026-11-12, macOS, Node 22.23.4, herdr-app 0.1.15, hc 0.1.20:
+
+- `cd herdr && node --test`: **27/27 passed**, 0 failed/skipped/cancelled: 21 mod checks, 3 layout and mod-folder checks, 3 desktop theme checks.
+- Mutation checks, each restored: RUN placed before SUB failed 1; an unknown count shown as a number failed 3; the sidebar width changed in the layout failed 1; the label accepted from a non-Pi terminal failed 2.
+- `herdr-app check mods/industrial-os`: **`check passed: mods/industrial-os`, exit 0** (the empty state: `SPACES`, `No spaces.`, `AGENTS`, `No agent has reported a status.`).
+- Populated rendering, by hand: a throwaway copy of the mod with its `herdr` import pointed at a fake module returning two spaces, a working Pi with every row, a Pi with a question and unknowns, and a blocked Claude agent, passed `herdr-app check --print-spec` with the expected text in every row. The same copy with an invalid builder call failed the check. The copy was deleted.
+- Not run: installing the mod or layout, switching layout, the live look, clicks, agent order, ahead/behind lookups, timers and `localStorage` in the running app, and the signals publication itself (another change).
+
+### Acid / Black desktop theme
+2026-11-12, macOS, Herdr desktop 0.1.14, herdr-core 0.1.19.
+
+- `cd herdr && node --test`: **18/18**: 11 sidebar, 4 Spaces and 3 new desktop theme checks. Mutation: `working` set to `#c0fe05` failed 1 of 3, restored.
+- `cd herdr && node check-config.mjs`: spaces, sidebar and their merge **`config: ok`, exit 0**; the unknown-token copy **rejected, exit 1**.
+- `cd design-system && node --test`: **669/669**, including the new `HERDR_TERMINAL` check. With `PI_HOST_ROOT` set to the installed Pi: `pi/theme` **5/5**, `pi/status-bar` `test/footer-colors.test.ts` **1/1**, `pi/droid-header` **39/39**.
+- Live, with the operator's permission: copied into `~/.config/herdr-app/themes/`, `"theme": "acid-black"` set in `settings.json` (backed up first). `herdr-app status`: `errors: []`, no `*.error` file. `herdr-app shot`: black sidebar and chrome, the selected space on the surface, the Working header and spinner in acid, a white focus border.
+- Not checked: the light appearance (the theme is dark only), other layouts (`terminals`, `win98` set their own themes), and the blocked and done colors on screen.
+
+### herdr-tui configuration (removed)
+
+These records are for the herdr-tui fragments `sidebar.toml` and `spaces.toml`, their parser script `check-config.mjs` and tests, and the herdr-tui Spaces plugin, all since removed with the move to the Herdr desktop app. They are kept as history; links to removed files are plain text.
 
 2026-10-08, macOS, Node 22.23.0, Herdr 0.9.3:
 
@@ -30,7 +55,7 @@ Record each run with its date, Herdr version and results.
 - Step 2, `herdr config check` on the fragment: **`config: ok`, exit 0**. The same check on copies merged by hand into the live-spike configuration and into Herdr's `--default-config` output, in a temporary directory: **`config: ok`, exit 0** for both. A malformed token entry in a copy was rejected with a parse error, showing the rows are validated.
 - Step 3, interactive: **not run** for this file. The spike configuration it was derived from was checked live on 2026-10-08, adding only the `$bar_unk` row entry here.
 
-### Pi-only layout follow-up
+#### Pi-only layout follow-up
 
 2026-10-08, macOS, Node 22.23.0, installed Herdr 0.9.3:
 
@@ -39,7 +64,7 @@ Record each run with its date, Herdr version and results.
 - Root links/anchors, guide inventory, exact CLAUDE entrypoints, whitespace and publication checks passed. The architecture diagram renders with existing grok-mermaid 0.2.3, non-null art and no warnings.
 - Interactive rendering/reload: **not run**. Merge only `rows_by_agent.pi` and panel-wide spacing; preserve any existing global `rows` and other agent overrides.
 
-### SUB state
+#### SUB state
 
 2026-10-08, macOS, Node 22.23.0, installed Herdr 0.9.3:
 
@@ -47,7 +72,7 @@ Record each run with its date, Herdr version and results.
 - `HERDR_CONFIG_PATH=<temporary copy of sidebar.toml> herdr config check`: **`config: ok`, exit 0**. The same on a temporary copy of `herdr --default-config` with the fragment merged by hand: **`config: ok`, exit 0**. Read-only; no server contact or live configuration change.
 - Interactive rendering: **not run** for this change.
 
-## Spaces validation
+#### Spaces validation (the procedure then)
 
 From `herdr/`, run `node --test` for both fragments. The Spaces check reads the
 plugin contract's one full-key-list line, tests every custom key exactly once,
@@ -62,10 +87,10 @@ Then run `node check-config.mjs` from `herdr/`. It invokes installed Herdr 0.9.3
 4. `HERDR_CONFIG_PATH=<invalid-copy> herdr config check`: a malformed row entry
    must be rejected, not treated as a valid merge.
 
-The [README](README.md#spaces) explains installation order and the global theme
+The README then explained installation order and the global theme
 scope. Interactive/live Herdr validation is not authorized and is not run.
 
-### Spaces fragment
+#### Spaces fragment
 
 2026-10-08, macOS, Node 22.23.0, installed Herdr 0.9.3:
 
@@ -96,7 +121,7 @@ rendering with/without scrollbar, native navigation/order and other color
 depths/fonts. The approved quiet-space git-only second-row exception and the
 five theme keys' wider effects were verified from source, not live rendering.
 
-### Spaces review fixes
+#### Spaces review fixes
 
 2026-10-08, macOS, Node 22.23.0, installed Herdr 0.9.3:
 
@@ -110,20 +135,20 @@ five theme keys' wider effects were verified from source, not live rendering.
   manual publication review: **passed**. No live config or server was contacted.
 - Live/interactive Herdr and installation/reload: **not run**. Merge `$sp_` keys
   with the updated reporter; old unprefixed frozen tokens are no longer read.
-  The plugin's [corrected protocol evidence](../herdr-plugins/spaces/CONTRIBUTING.md#review-fix-round)
+  The plugin's corrected protocol evidence
   replaces the initial fake-server compatibility assumption, not parser evidence.
 
-### Spaces isolated rendering
+#### Spaces isolated rendering
 
 2026-10-08: merged agents and Spaces fragments passed `herdr config check` and
 ran in an isolated Herdr 0.9.3 server with the Spaces plugin linked; a client
 capture replayed in xterm.js matched the design, including quiet rows with the
 Spaces scrollbar shown. The run found quiet rows one cell too wide; the plugin
 now sizes them for 31 cells (see the
-[plugin record](../herdr-plugins/spaces/CONTRIBUTING.md#isolated-herdr-check)).
+plugin record).
 Live session merge and reload: **not run**.
 
-### ACT / MDL access decay
+#### ACT / MDL access decay
 
 2026-10-09, macOS, Node 22.23.0, installed Herdr 0.9.3; source checked offline:
 
@@ -135,24 +160,7 @@ Live session merge and reload: **not run**.
 - Live/interactive Pi/Herdr, config merge/reload, terminal rendering and Mermaid rendering: **not run**; existing diagrams unchanged. Inherited `HERDR_*` variables were unset before every shell/test/parser run; no live socket/configuration or global Pi files touched. No push, PR or Linear mutation.
 - Adoption requires the updated complete Pi row override and reporter together; merge rows first so later-stage keys can render. Memory-only age resets on reload/restart. Existing full-report partial-state/backoff, visibility approximation and untested font/color-depth limitations remain.
 
-## Theme validation
-
-From `herdr/`, in order:
-
-1. `node --test`: `test/app-theme.test.mjs` checks that every color in `themes/acid-black.json` is its approved value: field and primary for the terminal background and foreground, `HERDR_TERMINAL` for the ANSI colors, cursor and selection, and design-system roles or `SIGNAL_COLORS.ghost` for each panel color.
-2. Manual, by an operator or with their permission: install as in the [README](README.md#theme), then `herdr-app status` must show no `settings.error`, and `herdr-app shot` shows the sidebar, tab bar, a terminal and an agent's status in the theme. Changes the live app configuration.
-
-### Acid / Black desktop theme
-
-2026-11-12, macOS, Herdr desktop 0.1.14, herdr-core 0.1.19.
-
-- `cd herdr && node --test`: **18/18**: 11 sidebar, 4 Spaces and 3 new desktop theme checks. Mutation: `working` set to `#c0fe05` failed 1 of 3, restored.
-- `cd herdr && node check-config.mjs`: spaces, sidebar and their merge **`config: ok`, exit 0**; the unknown-token copy **rejected, exit 1**.
-- `cd design-system && node --test`: **669/669**, including the new `HERDR_TERMINAL` check. With `PI_HOST_ROOT` set to the installed Pi: `pi/theme` **5/5**, `pi/status-bar` `test/footer-colors.test.ts` **1/1**, `pi/droid-header` **39/39**.
-- Live, with the operator's permission: copied into `~/.config/herdr-app/themes/`, `"theme": "acid-black"` set in `settings.json` (backed up first). `herdr-app status`: `errors: []`, no `*.error` file. `herdr-app shot`: black sidebar and chrome, the selected space on the surface, the Working header and spinner in acid, a white focus border.
-- Not checked: the light appearance (the theme is dark only), other layouts (`terminals`, `win98` set their own themes), and the blocked and done colors on screen.
-
-### Acid & Orange theme (herdr-tui, removed)
+#### Acid & Orange theme (herdr-tui, removed)
 
 This record is for the herdr-tui `theme.toml` fragment and `HERDR_CHROME`, both since removed.
 
@@ -173,7 +181,7 @@ This record is for the herdr-tui `theme.toml` fragment and `HERDR_CHROME`, both 
 
 **Not run:** an agent-observed check of the rendered theme, the mobile layout, and other color depths. What each key colors is from Herdr 0.9.3 source, not observation; contrast ratios are computed from the hex values.
 
-### Pane-name row
+#### Pane-name row
 
 2026-10-15, macOS, Node 22.23.0, installed Herdr 0.9.3:
 
@@ -183,7 +191,7 @@ This record is for the herdr-tui `theme.toml` fragment and `HERDR_CHROME`, both 
 - Changed local links/anchors, guidance inventory, exact CLAUDE imports, both whitespace checks, new-contributor/publication/color review and full-diff simplification **passed**. Palette values unchanged; the new pane entry uses the exported secondary role.
 - Live merge/reload, interactive rendering/rename, other fonts/color depths and Mermaid rendering: **not run**. Diagrams unchanged; no renderer on PATH. Update the reporter and complete Pi row override together.
 
-### Manual flag
+#### Manual flag
 
 2026-10-15, macOS, Node 22.23.0, installed Herdr 0.9.3; every `HERDR_*` variable unset:
 
@@ -192,18 +200,18 @@ This record is for the herdr-tui `theme.toml` fragment and `HERDR_CHROME`, both 
 - `HERDR_CONFIG_PATH="$PWD/sidebar.toml" herdr config check`: **config: ok, exit 0**. `node check-config.mjs`: Spaces, sidebar, theme and both merges **config: ok**; invalid row and theme controls **rejected, exit 1**, expected.
 - Placement and spacing are from Herdr 0.9.3 source (`src/ui/sidebar/tokens.rs::separator`, `src/ui/sidebar.rs::resolved_token_spans`): ` · ` between custom tokens, full width when the row fits. Live merge/reload and rendering: **not run**. Update the reporter and the Pi row override together; an old fragment does not draw `flag`.
 
-### RUN state
+#### RUN state
 
 2026-10-17, macOS, Node 22.23.0, installed Herdr 0.9.3; every `HERDR_*` variable unset:
 
 - `node --test`: **20/20 passed**, 0 failed/skipped/cancelled. The updated contract-state check requires RUN to use the same accent rule as SUB; the 53 keys and native row limits remain unchanged.
 - `HERDR_CONFIG_PATH=<temporary copy of sidebar.toml> herdr config check`: **config: ok, exit 0**. Only the temporary file was read; no live Herdr or configuration was contacted or changed.
-- Live merge/reload and interactive rendering: **not run**. Reporter verification and review fixes are in the [sidebar record](../pi/herdr-sidebar/CONTRIBUTING.md#background-task-run-state).
+- Live merge/reload and interactive rendering: **not run**. Reporter verification and review fixes are in the sidebar record.
 
-### Spaces state icon
+#### Spaces state icon
 
 2026-10-29, macOS, Node 22.23.4, installed Herdr 0.9.5; every `HERDR_*` variable unset for the parser:
 
 - `node --test`: **20/20 passed**. The Spaces checks now require no `state_icon`, and a leading `$sp_panes` in decorative grey with `◐` accent, `×` critical and `✓` primary rules; the five global state-icon theme keys keep their roles.
 - `node check-config.mjs`: Spaces, sidebar, theme and both merges **config: ok, exit 0**; invalid row (now replacing `$sp_panes`) and invalid theme controls **rejected, exit 1**, expected.
-- Rendering in an isolated Herdr is in the [Spaces record](../herdr-plugins/spaces/CONTRIBUTING.md#space-state-icon). Live merge/reload: **not run**. Update the plugin and this fragment together: an old fragment draws Herdr's icon before the new `◐ 05PN`, and a new fragment with an old plugin draws no icon.
+- Rendering in an isolated Herdr is in the Spaces record. Live merge/reload: **not run**. Update the plugin and this fragment together: an old fragment draws Herdr's icon before the new `◐ 05PN`, and a new fragment with an old plugin draws no icon.

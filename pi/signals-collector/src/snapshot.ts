@@ -19,6 +19,8 @@ export type SignalsSnapshot = {
 	thinking: string | null;
 	context: ContextSnapshot | null;
 	compactions: number | null; units: number | null;
+	backgroundTasks: number | null; // running pi-background-tasks tasks; null = unknown
+	flag: boolean;                  // the manual /flag reminder
 	goal: { status: string; usedSeconds: number; activeSince: number | null } | null;
 	usage: UsageSnapshot;
 };
@@ -41,6 +43,19 @@ export function phaseTarget(tool: string, args: unknown): string | null {
 export function pendingQuestion(args: unknown, since: number): SignalsSnapshot["question"] {
 	if (!record(args) || !Array.isArray(args.questions) || !args.questions.length || !args.questions.every((q) => record(q) && typeof q.question === "string")) return null;
 	return { text: args.questions[0].question.slice(0, 200), more: args.questions.length - 1, since };
+}
+
+// The custom session entry type `/flag` appends, with data `{ flagged: boolean }`; the name predates this collector.
+export const FLAG_ENTRY = "industrial-os:herdr-sidebar:flag";
+
+/** The session's manual flag: the latest valid saved entry on the active branch, otherwise false. */
+export function savedFlag(entries: readonly { type: string; customType?: string; data?: unknown }[]): boolean {
+	for (let i = entries.length - 1; i >= 0; i--) {
+		const entry = entries[i];
+		const flagged = entry.type === "custom" && entry.customType === FLAG_ENTRY ? (entry.data as { flagged?: unknown } | undefined)?.flagged : undefined;
+		if (typeof flagged === "boolean") return flagged;
+	}
+	return false;
 }
 
 // Private pi-goal 0.54.10 persistence coupling, not its run-protocol DTO.

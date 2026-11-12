@@ -9,16 +9,14 @@ This guide covers the workflow for every change and the checks that apply to the
 | `pi/claude-interrupt/` | Node.js 22, npm, TypeScript, an installed Pi for the load check | [pi/claude-interrupt/CONTRIBUTING.md](pi/claude-interrupt/CONTRIBUTING.md) |
 | `pi/signals-collector/` | Node.js 22 type stripping, installed Pi; offline cache/contract tests | [pi/signals-collector/CONTRIBUTING.md](pi/signals-collector/CONTRIBUTING.md) |
 | `pi/status-bar/` | Node.js 22, npm, TypeScript run by type stripping, the globally installed Pi for its tests and the load check | [pi/status-bar/CONTRIBUTING.md](pi/status-bar/CONTRIBUTING.md) |
-| `pi/herdr-sidebar/` | Node.js 22, npm, TypeScript run by type stripping, the globally installed Pi for its tests and the load check | [pi/herdr-sidebar/CONTRIBUTING.md](pi/herdr-sidebar/CONTRIBUTING.md) |
 | `pi/herdr-pane-naming/` | Node.js 22.19+, npm, installed Pi loader; mocked CLI/services | [pi/herdr-pane-naming/CONTRIBUTING.md](pi/herdr-pane-naming/CONTRIBUTING.md) |
 | `pi/session-recap/` | Node.js 22.19+, npm, TypeScript; pinned offline Pi host probes | [pi/session-recap/CONTRIBUTING.md](pi/session-recap/CONTRIBUTING.md) |
 | `pi/image-preview/` | Node.js 22.19+, npm, strict TypeScript; pinned Pi 1.3.0 loader tests, an installed Pi for the load check | [pi/image-preview/CONTRIBUTING.md](pi/image-preview/CONTRIBUTING.md) |
 | `pi/droid-header/` | Node.js 22.19+, TypeScript run by type stripping, the root install, the globally installed Pi for its tests and the load check | [pi/droid-header/CONTRIBUTING.md](pi/droid-header/CONTRIBUTING.md) |
 | `pi/theme/` | JSON; Node.js 22.19+ for its check, the root install and an installed Pi | [pi/theme/CONTRIBUTING.md](pi/theme/CONTRIBUTING.md) |
 | `herdr-plugins/dispatch-feed/` | Bun 1.4.4, strict TypeScript, oxlint/oxfmt, fake socket and PTY checks | [herdr-plugins/dispatch-feed/CONTRIBUTING.md](herdr-plugins/dispatch-feed/CONTRIBUTING.md) |
-| `herdr-plugins/spaces/` | Node.js 22 standard library; fake Unix socket tests | [herdr-plugins/spaces/CONTRIBUTING.md](herdr-plugins/spaces/CONTRIBUTING.md) |
 | `lesson-maker/` | Node.js 22 standard library, the root install, Python 3 for its isolated PTY test; an installed Pi only for real-Pi runs | [lesson-maker/CONTRIBUTING.md](lesson-maker/CONTRIBUTING.md) |
-| `herdr/` | TOML; Node.js 22 for its check; an installed Herdr for the parser check | [herdr/CONTRIBUTING.md](herdr/CONTRIBUTING.md) |
+| `herdr/` | JavaScript mod, JSON layout and theme; Node.js 22 for its tests; an installed herdr-app for `herdr-app check` | [herdr/CONTRIBUTING.md](herdr/CONTRIBUTING.md) |
 
 There is no root test command, script, or workspace. The root `package.json` lists the Pi extensions' entry points and the Pi theme for Pi's git install, see [installing the Pi extensions](pi/README.md#install), and two runtime dependencies: the linked design-system package and pane naming's specific [pi-typesafe exception](docs/decisions/pane-naming-root-dependency.md). Running `node --test` from the root discovers the extensions' TypeScript tests, which need each extension's own setup; it is not a repository check. See [standalone packages](docs/decisions/standalone-packages.md) and [the in-repo design-system package](docs/decisions/in-repo-design-system-package.md).
 

@@ -16,7 +16,7 @@ Follow the [root workflow](../../CONTRIBUTING.md). Toolchain: Rust stable with C
 
 ### Isolated Herdr check
 
-Use a throwaway Herdr that shares nothing with a live session, as in the [Spaces procedure](../spaces/CONTRIBUTING.md#throwaway-server-check): run every `herdr` command under `env -i` with a temporary `HOME`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME` and an explicit `HERDR_SOCKET_PATH` in a short directory. Record checksums of the live `config.toml` and `plugins.json` first.
+Use a throwaway Herdr that shares nothing with a live session. Inside a Herdr pane the shell inherits `HERDR_*` variables pointing at the live server, so run every `herdr` command under `env -i` with a temporary `HOME`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME` and an explicit `HERDR_SOCKET_PATH` in a short directory (macOS limits socket paths to about 104 bytes). Record checksums of the live `config.toml` and `plugins.json` first.
 
 Clipboard checks must never touch the operator's clipboard. Use a temporary-file writer as `WHITEBOARD_CLIPBOARD_CMD`; explicitly inject it into a temporary copy of the manifest's pane command (for example `[/usr/bin/env, WHITEBOARD_CLIPBOARD_CMD=<temp-writer>, sh, bin/whiteboard.sh, pane]`, with each value quoted in TOML). This guarantees the override even if Herdr filters inherited environment variables. Copy the launcher and point its release binary at the worktree build, then link only that temporary plugin. Do not change the source manifest or live installation.
 

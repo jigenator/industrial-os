@@ -1,7 +1,7 @@
 # Agent guide
 
 Herdr plugin group. Follow the [root guide](../AGENTS.md) and the owning
-plugin's guide: [Spaces](spaces/AGENTS.md), [Whiteboard](whiteboard/AGENTS.md),
+plugin's guide: [Whiteboard](whiteboard/AGENTS.md),
 [Dispatch feed](dispatch-feed/AGENTS.md) or [Automations Monitor](automations-monitor/AGENTS.md).
 
 ## Shared rules

@@ -1,6 +1,6 @@
 # Session signals have one collection owner
 
-Status: current, except its CodexBar quota part, which is superseded by [provider usage comes from configured source-collector sources](usage-via-source-collector.md) (2026-10-31). Date: 2026-10-08; approved collector/display split. Source and offline tests implement this decision; live Pi/Herdr qualification is separate.
+Status: current, except its CodexBar quota part, which is superseded by [provider usage comes from configured source-collector sources](usage-via-source-collector.md) (2026-10-31); extended by [the signals collector publishes to herdr-core labels](signals-collector-herdr-core.md) (2026-11-12). Date: 2026-10-08; approved collector/display split. Source and offline tests implement this decision; live Pi/Herdr qualification is separate.
 
 ## Choice
 

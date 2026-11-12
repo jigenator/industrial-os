@@ -4,7 +4,7 @@ Follow the [root workflow](../../CONTRIBUTING.md). Commands below run from `pi/s
 
 ## Setup
 
-Node.js 22.19+, an **existing** installed Pi (validated baseline 1.0.4), Git and POSIX fixture utilities are required. Tests use Node's built-in runner/type stripping and resolve Pi peers through the host, with no local dependency install/lockfile. No live source-collector engine, gh, provider account or network is used; fake executables, a fake source-collector socket (`SOURCE_COLLECTOR_HOME` always set to a fixture), temp XDG and Git identity/config isolate fixtures. Do not install a missing host to claim a pass. A displayed status-bar also needs the root install linking the design system; this collector itself does not import it.
+Node.js 22.19+, an **existing** installed Pi (validated baseline 1.0.4), Git and POSIX fixture utilities are required. Tests use Node's built-in runner/type stripping and resolve Pi peers through the host, with no local dependency install/lockfile. No live source-collector engine, gh, `hc`/herdr-core, provider account or network is used; fixtures remove inherited `HC_*` and put a fake `hc` on a fixture-only PATH; fake executables, a fake source-collector socket (`SOURCE_COLLECTOR_HOME` always set to a fixture), temp XDG and Git identity/config isolate fixtures. Do not install a missing host to claim a pass. A displayed status-bar also needs the root install linking the design system; this collector itself does not import it.
 
 ## Full validation sequence
 
@@ -78,3 +78,13 @@ Final budget check: **45/45 collector and 135/135 consumer tests passed** after 
 - Interactive Pi/Herdr, a live source-collector engine, live CodexBar and Windows: **not run**.
 
 2026-10-31, macOS, Node 22.23.0, installed Pi 1.4.0 via explicit `PI_HOST_ROOT` (scoped watching and `nextAt`-timed usage polls): `npm test` **64/64 passed**, including the pure `nextPollDelay` vectors (earliest `nextAt` plus 5 s, running 10 s, the 12-poll running backoff to 60 s, clamps, ignored states, unreachable) and the timeout-chain lifecycle (start, show, hidden reply, one request at a time, dispose). status-bar **147/147** and herdr-sidebar **114/114** against this collector. Independent review: approve with nits, all addressed. Live engine with the new code and interactive Pi: **not run**.
+
+### Background tasks, /flag and the io.signals.v1 label
+
+2026-11-12, macOS, Node 22.23.4 and existing installed Pi 1.5.2 via explicit `PI_HOST_ROOT`:
+
+- Host prerequisite passed. `PI_HOST_ROOT="$PI_HOST_ROOT" npm test`, with inherited `HC_*` removed: **80/80 passed**, no failed/skipped/cancelled tests. New: the moved pi-background-tasks validators; the status request (one in flight, stale and wrong-id answers, the 1.5 s deadline, the single 1 s startup retry, the 20 s re-query, disposal fencing) with captured timers; the `io.signals.v1` publisher with an injected runner (gate, usage omitted, identical skip, 1000 ms cap, latest wins, one in flight, 2 s timeout, silent failure, shutdown kill and 1 s clear, closed fencing); `runHc` against a fake `hc` on a fixture-only PATH (inherited environment, exit status, missing `hc`, kill on timeout); and real-loader `/flag` (toggle, arguments, work, tree, resume, fork, new session, non-TUI warning), background-task count and label publication (no terminal id or an empty one spawns nothing, non-TUI spawns nothing, snapshot without usage, replacement, shutdown clear).
+- Isolated `printf '' | pi --mode rpc --no-extensions --extension .` with temporary agent, cache and `SOURCE_COLLECTOR_HOME`, `HERDR_ENV=0` and no `HC_*`: **exit 0**.
+- status-bar consumer suite against the additive fields: **147/147 passed**. `pi/settings.test.mjs`: **4/4 passed**.
+- Changed-document links/anchors, exact CLAUDE entrypoints and `git diff --check` passed. Mermaid rendering: **not run**, no diagram changed here.
+- A real `hc`, a live herdr-core, a live pi-background-tasks producer, interactive Pi in Herdr desktop and Windows: **not run**. No live configuration, `~/.pi` or herdr-core terminal was touched.

@@ -35,8 +35,8 @@ Evidence: design-system inventory with canonical Markdown guidance, `foundation/
 | `elements/segment-meter/` | USG quota squares and provider columns, with time formatters | `segmentMeter()`, `providerColumn()`, `providerColumnParts()`, `litSegments()`, `countdown()`, `staleAge()`; [README](../elements/segment-meter/README.md) | `foundation/` |
 | `elements/thread-rail/` | Lamp, ROOT plate, unit marks, and AU badge | `threadRail()`, `threadRailPieces()`, `threadRailSpans()`, `unitMarks()`; [README](../elements/thread-rail/README.md) | `foundation/`, lamp, label plate, count plate |
 | `elements/transcript-marker/` | claude-interrupt's DIRECTIVE UPDATED marker as static pieces | `transcriptMarker()`, `markerPlate()`, `markerBars()`, `MARKER_TIMELINE`; [README](../elements/transcript-marker/README.md) | `foundation/` |
-| `elements/line-meter/` | herdr-sidebar's compact context-used bar | `lineMeter()`; [README](../elements/line-meter/README.md) | `foundation/` |
-| `elements/column-block/` | herdr-sidebar's layout B column geometry with caller-rendered parts | `columnBlock()`; [README](../elements/column-block/README.md) | `foundation/` |
+| `elements/line-meter/` | The compact context-used bar of the removed herdr-tui sidebar's layout B | `lineMeter()`; [README](../elements/line-meter/README.md) | `foundation/` |
+| `elements/column-block/` | The removed herdr-tui sidebar's layout B column geometry with caller-rendered parts | `columnBlock()`; [README](../elements/column-block/README.md) | `foundation/` |
 | `elements/tab-rule/` | Survey chrome family, with board rule inks and a vertical rule | [Contract](../elements/tab-rule/README.md) | `foundation/`, label plate |
 | `elements/action-label/` | Survey chrome family | [Contract](../elements/action-label/README.md) | `foundation/` |
 | `elements/popup-header/` | Survey chrome family, with the board popup's frame, title bar and backdrop | [Contract](../elements/popup-header/README.md) | `foundation/`, label plate, action label |
