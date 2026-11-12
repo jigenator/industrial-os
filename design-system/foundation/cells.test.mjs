@@ -205,7 +205,7 @@ test('pane state glyphs keep the curated one-cell ruler contract (not a terminal
 });
 
 test('crate banner glyphs keep the curated one-cell ruler contract (not a terminal-width probe)', () => {
-  for (const glyph of '®▦≡⟁') {
+  for (const glyph of '®▦≡⟁\uE0BA\uE0BC') {
     assert.ok(GLYPHS.includes(glyph), glyph);
     assert.equal(lineWidth([span(`│${glyph.repeat(40)}│`)]), 42);
     assert.equal(safeText(glyph), '?', 'caller text still needs a measurer');
@@ -213,7 +213,7 @@ test('crate banner glyphs keep the curated one-cell ruler contract (not a termin
 });
 
 test('unit plate peak glyphs keep the curated one-cell ruler contract (not a terminal-width probe)', () => {
-  for (const glyph of '◢◣◤◥') {
+  for (const glyph of '\uE0BA\uE0BC\uE0BE\uE0B8') {
     assert.ok(GLYPHS.includes(glyph), glyph);
     assert.equal(lineWidth([span(`│${glyph.repeat(40)}│`)]), 42);
     assert.equal(safeText(glyph), '?', 'caller text still needs a measurer');

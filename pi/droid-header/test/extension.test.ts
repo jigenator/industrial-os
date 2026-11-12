@@ -129,7 +129,7 @@ test("resumed sessions, sessions with content, reloads and NO_MOTION render sett
 		await h.start();
 		assert.equal(h.clock.intervals(), 0, name);
 		assert.equal(h.state.inputListeners.size, 0, name);
-		assert.match(h.text()[0], /^\+[─◢◤◥◣]+\+$/u, name);
+		assert.match(h.text()[0], /^\+[─]+\+$/u, name);
 		assert.ok(settledText(h.text()), `${name}: settled at once`);
 	}
 });

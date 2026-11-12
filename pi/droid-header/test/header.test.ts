@@ -19,12 +19,12 @@ import { measure } from "./host.ts";
 // p white, S bold secondary, s secondary. Backgrounds and the shaded inks are checked against their formulas.
 const GOLDEN_104 = {
 	text: [
-		"+─────────────────────────────────────────────────────◢───◤◥───◣───────────────────────────────────────+",
-		"  INDUSTRIAL-OS ®                                    ◢   ◤  ◥   ◣                     ⟁ PI AGENT DROID  ",
-		"  █▀▄ █▀▄ █▀▄     █▀▀ █▀█ █▀▄ █▀▀                   ◢   ◤    ◥   ◣                    ▌ ▌ ▍ ▍▏█▎▍ ▏█▎▐  ",
-		"  █ █ █▀▄ █ █ ▀▀▀ █   █ █ █ █ █▀▀                  ◢   ◤      ◥   ◣                   ▌ ▌ ▍ ▍▏█▎▍ ▏█▎▐  ",
-		"  ▀▀  ▀ ▀ ▀▀      ▀▀▀ ▀▀▀ ▀▀  ▀▀▀                 ◢   ◤        ◥   ◣                  HALDENN DYNAMICS  ",
-		"+ S/N 0000-BEEF ─────────────────────────────────◢───◤──────────◥───◣──────────────────────────────────+",
+		"+──────────────────────────────────────────────────────────────────────────────────────────────────+",
+		"  INDUSTRIAL-OS ®                                                                 ⟁ PI AGENT DROID  ",
+		"  █▀▄ █▀▄ █▀▄     █▀▀ █▀█ █▀▄ █▀▀                                                 ▌ ▌ ▍ ▍▏█▎▍ ▏█▎▐  ",
+		"  █ █ █▀▄ █ █ ▀▀▀ █   █ █ █ █ █▀▀                                                 ▌ ▌ ▍ ▍▏█▎▍ ▏█▎▐  ",
+		"  ▀▀  ▀ ▀ ▀▀      ▀▀▀ ▀▀▀ ▀▀  ▀▀▀                                                 HALDENN DYNAMICS  ",
+		"+ S/N 0000-BEEF ───────────────────────────────────────────────────────────────────────────────────+",
 		"                  escape steer         ctrl+c clear         / commands           ! bash                 ",
 		"  ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   · ",
 		"  SPECIFICATIONS  MODEL                OPUS-5.5 / HIGH      SECTOR               WA1.T1                 ",
@@ -256,7 +256,7 @@ test("from 40 to 55 columns the plate keeps the maker, wordmark and serial only,
 	assert.deepEqual(rows.slice(6, 8), ["  escape steer          / commands              ", "  ctrl+c clear          ! bash                  "]);
 	assert.match(rows.join("\n"), /\n  MODEL[ ·]{17}OPUS-5\.5 \/ HIGH/);
 	assert.match(rows.join("\n"), /\n  SKILLS[ ·]{16}12/);
-	for (const width of [40, 48, 55]) assert.doesNotMatch(at(width).slice(0, 6).join("\n"), /[⟁◢◣◤◥]|HALDENN/, `no title block or peak at ${width}`);
+	for (const width of [40, 48, 55]) assert.doesNotMatch(at(width).slice(0, 6).join("\n"), /[⟁]|HALDENN/, `no title block or peak at ${width}`);
 	assert.match(at(56).slice(0, 6).join("\n"), /⟁ PI AGENT DROID[\s\S]*HALDENN DYNAMICS/);
 	// Below 44 columns the table keeps two columns, 18 or 19 cells each.
 	assert.deepEqual(at(40).slice(6, 8), ["  escape steer      / commands          ", "  ctrl+c clear      ! bash              "]);

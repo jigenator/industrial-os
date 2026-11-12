@@ -50,12 +50,12 @@ const codes = (lines, { backdrop = null } = {}) => lines.map((line, y) => cellsO
 const MOCKUP = {
   60: {
     text: [
-      '  +──────────────────────────◢────◤───────+────────────────+',
-      '  │ INDUSTRIAL-OS ®         ◢    ◤     ⟁  │ HOLD 2   09:34 │',
-      '  │ HALDENN DYNAMICS       ◢    ◤         +────────────────+',
-      '  │                       ◢    ◤          │ UNIT      M-02 │',
-      '  │                      ◢    ◤           │ ▌▏▏▍▐▐█▏▍▐▍▍▍▐ │',
-      '  + S/N 2610-0427 ──────◢────◤────────────+────────────────+',
+      '  +─────────────────────────────────────+────────────────+',
+      '  │ INDUSTRIAL-OS ®                  ⟁  │ HOLD 2   09:34 │',
+      '  │ HALDENN DYNAMICS                    +────────────────+',
+      '  │                                     │ UNIT      M-02 │',
+      '  │                                     │ ▌▏▏▍▐▐█▏▍▐▍▍▍▐ │',
+      '  + S/N 2610-0427 ──────────────────────+────────────────+',
       '  ▦ BOARD · │ ≡ NOTES · │                                   ',
     ],
     cells: [
@@ -69,10 +69,10 @@ const MOCKUP = {
     ],
     frosted: 'ffVfVVVVVflfqfVfVVVVVflfqfffffffffffffffffffffffffffffffffff',
     cases: [
-      { hold: 0, open: ['board'], text: { 1: '  │ INDUSTRIAL-OS ®         ◢    ◤     ⟁  │ HOLD 0   09:34 │', 6: '  ▦ BOARD ● │ ≡ NOTES · │                                   ' },
+      { hold: 0, open: ['board'], text: { 1: '  │ INDUSTRIAL-OS ®                  ⟁  │ HOLD 0   09:34 │', 6: '  ▦ BOARD ● │ ≡ NOTES · │                                   ' },
         cells: { 1: 'aahpBBBBBBBBBBBBBpipppppppppeaaaaepppppBpphpggggpgpppBBBBBph', 6: 'kkWkWWWWWkokrkWkWWWWWkdkrkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk' },
         frosted: 'ffVfVVVVVfcfqfVfVVVVVflfqfffffffffffffffffffffffffffffffffff' },
-      { hold: 12, open: ['board', 'notes'], text: { 1: '  │ INDUSTRIAL-OS ®         ◢    ◤     ⟁  │ HOLD 12  09:34 │', 6: '  ▦ BOARD ● │ ≡ NOTES ● │                                   ' },
+      { hold: 12, open: ['board', 'notes'], text: { 1: '  │ INDUSTRIAL-OS ®                  ⟁  │ HOLD 12  09:34 │', 6: '  ▦ BOARD ● │ ≡ NOTES ● │                                   ' },
         cells: { 1: 'aahpBBBBBBBBBBBBBpipppppppppeaaaaepppppBpphpggggpBBppBBBBBph', 6: 'kkWkWWWWWkokrkWkWWWWWkokrkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk' },
         frosted: 'ffVfVVVVVfcfqfVfVVVVVfcfqfffffffffffffffffffffffffffffffffff' },
     ],
@@ -81,12 +81,12 @@ const MOCKUP = {
   },
   40: {
     text: [
-      '  +────────────────────◢─◤─────────────+',
-      '  │ INDUSTRIAL-OS ® ⟁ ◢│◤HOLD 2  09:34 │',
-      '  │ HALDENN DYNAMICS ◢ ◤───────────────+',
-      '  │                 ◢ ◤│ UNIT     M-02 │',
-      '  │                ◢ ◤ │ ▌▏▏▍▐▐█▏▍▐▍▍▐ │',
-      '  + S/N 2610-0427 ◢─◤──+───────────────+',
+      '  +──────────────────────────────────+',
+      '  │ INDUSTRIAL-OS ® ⟁ │HOLD 2  09:34 │',
+      '  │ HALDENN DYNAMICS  ───────────────+',
+      '  │                  │ UNIT     M-02 │',
+      '  │                  │ ▌▏▏▍▐▐█▏▍▐▍▍▐ │',
+      '  + S/N 2610-0427 ───+───────────────+',
       '  BOARD ·│ NOTES ·│                     ',
     ],
     cells: [
@@ -100,10 +100,10 @@ const MOCKUP = {
     ],
     frosted: 'ffVVVVVflqfVVVVVflqfffffffffffffffffffff',
     cases: [
-      { hold: 0, open: ['board'], text: { 1: '  │ INDUSTRIAL-OS ® ⟁ ◢│◤HOLD 0  09:34 │', 6: '  BOARD ●│ NOTES ·│                     ' },
+      { hold: 0, open: ['board'], text: { 1: '  │ INDUSTRIAL-OS ® ⟁ │HOLD 0  09:34 │', 6: '  BOARD ●│ NOTES ·│                     ' },
         cells: { 1: 'aahpBBBBBBBBBBBBBpipBpeseggggpgppBBBBBph', 6: 'kkWWWWWkorkWWWWWkdrkkkkkkkkkkkkkkkkkkkkk' },
         frosted: 'ffVVVVVfcqfVVVVVflqfffffffffffffffffffff' },
-      { hold: 12, open: ['board', 'notes'], text: { 1: '  │ INDUSTRIAL-OS ® ⟁ ◢│◤HOLD 12 09:34 │', 6: '  BOARD ●│ NOTES ●│                     ' },
+      { hold: 12, open: ['board', 'notes'], text: { 1: '  │ INDUSTRIAL-OS ® ⟁ │HOLD 12 09:34 │', 6: '  BOARD ●│ NOTES ●│                     ' },
         cells: { 1: 'aahpBBBBBBBBBBBBBpipBpeseggggpBBpBBBBBph', 6: 'kkWWWWWkorkWWWWWkorkkkkkkkkkkkkkkkkkkkkk' },
         frosted: 'ffVVVVVfcqfVVVVVfcqfffffffffffffffffffff' },
     ],
@@ -168,12 +168,12 @@ test('hover inks the whole item black on acid and keeps the lamp truthful; disab
 
 test('the division sits directly under the maker, with a blank cell before the stroke at 40 cells', () => {
   const rows = plain(crateBanner(INPUT, { width: 40 }).lines);
-  assert.equal(rows[2].slice(4, 22), 'HALDENN DYNAMICS ◢');
+  assert.equal(rows[2].slice(4, 22), 'HALDENN DYNAMICS ');
   assert.equal(rows[3].slice(2, 20), '│' + ' '.repeat(17), 'row 3 is open ground');
   // At every full width the division keeps clear of the stroke on its row.
   for (let width = 40; width <= 160; width++) {
     const row = plain(crateBanner(INPUT, { width }).lines)[2];
-    assert.ok(row.indexOf('HALDENN DYNAMICS') === 4 && row.indexOf('◢') >= 4 + 'HALDENN DYNAMICS'.length + 1, `${width}`);
+    assert.ok(row.indexOf('HALDENN DYNAMICS') === 4 && row.indexOf('') >= 4 + 'HALDENN DYNAMICS'.length + 1, `${width}`);
   }
 });
 
@@ -216,6 +216,7 @@ test('every width from 1 to 160 is exact, in both forms, with the stroke clear o
           assert.equal(lineWidth(line), width, `${form} ${width}`);
           assert.equal(paint(line, 'truecolor').replace(/\x1b\[[0-9;]*m/g, ''), paint(line, 'none'));
           for (const ch of paint(line, 'none')) assert.ok(/[\x20-\x7e]/.test(ch) || GLYPHS.includes(ch), ch);
+          assert.doesNotMatch(paint(line, 'none'), /[◢◤◣◥]/u, 'the stroke edges are the Powerline triangles');
         }
         let last = 0;
         for (const span of tools) {
@@ -231,7 +232,7 @@ test('every width from 1 to 160 is exact, in both forms, with the stroke clear o
             const c = grid[y][x];
             // Under the paint only frame cells; text never sits on or under the stroke.
             if (c.bg === '#c0fe04') assert.ok(' ─│+'.includes(c.ch), `${width} (${x},${y}) ${c.ch}`);
-            if (c.ch === '◢' || c.ch === '◤') assert.equal(c.fg, '#c0fe04');
+            if (c.ch === '\uE0BA' || c.ch === '\uE0BC') assert.equal(c.fg, '#c0fe04');
           }
         }
         if (input.mark !== null) {
@@ -246,19 +247,19 @@ test('every width from 1 to 160 is exact, in both forms, with the stroke clear o
 
 test('long text is cut with an ellipsis before the stroke; ® goes before the maker is cut', () => {
   const rows = plain(crateBanner(VARIANTS[3], { width: 40 }).lines);
-  assert.equal(rows[1], '  │ A VERY LONG MA… * ◢│◤HOLD ?  --:-- │');
-  assert.equal(rows[2], '  │ A DIVISION NAME …◢ ◤───────────────+');
-  assert.equal(rows[3], '  │                 ◢ ◤│ UNIT UNIT-NU… │');
-  assert.equal(rows[5], '  + S/N SERIAL-0… ◢─◤──+───────────────+');
+  assert.equal(rows[1], '  │ A VERY LONG MA… * │HOLD ?  --:-- │');
+  assert.equal(rows[2], '  │ A DIVISION NAME … ───────────────+');
+  assert.equal(rows[3], '  │                  │ UNIT UNIT-NU… │');
+  assert.equal(rows[5], '  + S/N SERIAL-0… ───+───────────────+');
   assert.equal(rows[6], '  BOARD ·│ NOTES ·│ FILES  │            ', 'a tool that does not fit whole is left out');
-  assert.equal(plain(crateBanner({ ...INPUT, maker: 'INDUSTRIAL-OS-X' }, { width: 40 }).lines)[1], '  │ INDUSTRIAL-OS-X ⟁ ◢│◤HOLD 2  09:34 │');
+  assert.equal(plain(crateBanner({ ...INPUT, maker: 'INDUSTRIAL-OS-X' }, { width: 40 }).lines)[1], '  │ INDUSTRIAL-OS-X ⟁ │HOLD 2  09:34 │');
 });
 
 test('HOLD shows 99+ above 99, is grey at 0, and an unknown hold or clock is never zero', () => {
   const row = (input, width) => plain(crateBanner({ ...INPUT, ...input }, { width }).lines)[1];
   assert.ok(row({ hold: 100 }, 60).endsWith('│ HOLD 99+ 09:34 │'));
-  assert.ok(row({ hold: 99 }, 40).endsWith('◤HOLD 99 09:34 │'));
-  assert.ok(row({ hold: 100 }, 40).endsWith('◤HOLD 99+      │'), 'narrow: HOLD keeps priority over the clock');
+  assert.ok(row({ hold: 99 }, 40).endsWith('HOLD 99 09:34 │'));
+  assert.ok(row({ hold: 100 }, 40).endsWith('HOLD 99+      │'), 'narrow: HOLD keeps priority over the clock');
   assert.ok(row({ hold: null, clock: null }, 60).endsWith('│ HOLD ?   --:-- │'));
   const count = (hold) => codes(crateBanner({ ...INPUT, hold }, { width: 60 }).lines)[1][49];
   assert.deepEqual([count(0), count(3), count(null)], ['g', 'B', 'g']);
@@ -337,7 +338,7 @@ test('a tool without a lamp is just its icon and label, and still hovers and hit
 test('® and the mark are optional; the input is not changed', () => {
   const input = structuredClone(INPUT);
   const rows = plain(crateBanner({ ...input, registered: false, mark: null }, { width: 60 }).lines);
-  assert.equal(rows[1], '  │ INDUSTRIAL-OS           ◢    ◤        │ HOLD 2   09:34 │');
+  assert.equal(rows[1], '  │ INDUSTRIAL-OS                       │ HOLD 2   09:34 │');
   crateBanner(input, { width: 60 });
   assert.deepEqual(input, INPUT);
 });
