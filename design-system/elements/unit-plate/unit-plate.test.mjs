@@ -53,6 +53,7 @@ test('every width 1–160 gives six exact rows on the aluminium ground, with cur
       lines.forEach((line, y) => {
         assert.equal(lineWidth(line), width, `${width} row ${y}`);
         assert.equal(stripVTControlCharacters(paint(line, 'truecolor')), paint(line, 'none'));
+        assert.doesNotMatch(paint(line, 'none'), /[◢◤◣◥]/u, 'the peak edges are the Powerline triangles');
         cellsOf(line).forEach((c, x) => {
           assert.ok(/[\x20-\x7e]/.test(c.ch) || GLYPHS.includes(c.ch), c.ch);
           const { ground, hair } = aluminiumAt(x, y, { width });

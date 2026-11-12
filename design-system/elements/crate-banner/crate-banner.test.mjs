@@ -216,7 +216,7 @@ test('every width from 1 to 160 is exact, in both forms, with the stroke clear o
           assert.equal(lineWidth(line), width, `${form} ${width}`);
           assert.equal(paint(line, 'truecolor').replace(/\x1b\[[0-9;]*m/g, ''), paint(line, 'none'));
           for (const ch of paint(line, 'none')) assert.ok(/[\x20-\x7e]/.test(ch) || GLYPHS.includes(ch), ch);
-          assert.doesNotMatch(paint(line, 'none'), /[◢◤]/u, 'the stroke edges are the Powerline triangles');
+          assert.doesNotMatch(paint(line, 'none'), /[◢◤◣◥]/u, 'the stroke edges are the Powerline triangles');
         }
         let last = 0;
         for (const span of tools) {
