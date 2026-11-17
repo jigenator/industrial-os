@@ -44,7 +44,7 @@ industrial-os/
 │   ├── theme/                the industrial-os Pi theme, a theme file
 │   └── settings.json         recommended Pi settings, merged by hand
 ├── herdr/                    Herdr desktop theme, sidebar and Pi Reloader mods, and layout
-├── herdr-plugins/            Herdr plugins, each its own project
+├── herdr-plugins/            herdr-tui plugins awaiting a Herdr desktop port, each its own project
 │   ├── dispatch-feed/       source-collector dashboard and task triage in Bun
 │   ├── whiteboard/          sticky notes and text in a Herdr pane, in Rust
 │   └── automations-monitor/ read-only Tatsu pipelines and schedules dashboard, in Bun and Effect

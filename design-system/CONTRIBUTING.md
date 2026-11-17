@@ -8,7 +8,7 @@ Run every command in the design-system guides from this `design-system/` folder 
 
 You need Git, a UTF-8 editor, and Node.js 22. The showcase, storybook, and motions were built and checked on v22.23.0. Code is plain ES modules (`.mjs`) using only the Node standard library. `package.json` names the private package `@industrial-os/design-system` and declares its `exports` map; it has no dependencies or scripts. There is no dependency installation, build step, formatter, type checker, or CI gate. Do not add one without a current need. This folder's checks need no install: `package.test.mjs` imports the package by its own name, which Node resolves from this folder's `package.json`. Other projects reach the package through the root `npm install` in [setup](../CONTRIBUTING.md#setup).
 
-Herdr is the primary target. The baseline below is specific to Herdr 0.9.3 and Node v22.23.0, not a universal terminal compatibility claim. Verify version-specific Node contracts against the [matching documentation](https://nodejs.org/docs/v22.23.0/api/) before relying on them.
+Herdr is the primary target. The baseline below was checked in herdr-tui (Herdr 0.9.3) with Node v22.23.0, before the move to the Herdr desktop app; it is not a universal terminal compatibility claim. Verify version-specific Node contracts against the [matching documentation](https://nodejs.org/docs/v22.23.0/api/) before relying on them.
 
 ### Running the hosts
 
@@ -125,7 +125,7 @@ Node 22.23.0, macOS: all 387 DS checks passed (368 pre-existing after slice-1, 1
 
 ## Herdr chrome colors verification (2026-10-09)
 
-Node 22.23.0, macOS: `node --test` **388/388 passed** (387 before, plus the `HERDR_CHROME` check), including `package.test.mjs` **4/4**. `HERDR_CHROME` adds no module or export entry; status-bar's `test/footer-colors.test.ts` still passes **1/1**, since `SIGNAL_COLORS` is unchanged. Setting `signalOrange30` to `#4d1b00` failed the new check, then was restored. No storybook story or native Herdr check covers these values; the theme that uses them is recorded in [the Herdr contributing guide](../herdr/CONTRIBUTING.md#acid--orange-theme).
+Node 22.23.0, macOS: `node --test` **388/388 passed** (387 before, plus the `HERDR_CHROME` check), including `package.test.mjs` **4/4**. `HERDR_CHROME` adds no module or export entry; status-bar's `test/footer-colors.test.ts` still passes **1/1**, since `SIGNAL_COLORS` is unchanged. Setting `signalOrange30` to `#4d1b00` failed the new check, then was restored. No storybook story or native Herdr check covers these values; the theme that uses them is recorded in [the Herdr contributing guide](../herdr/CONTRIBUTING.md#acid--orange-theme-herdr-tui-removed).
 
 ## Pi chrome colors verification (2026-10-22)
 

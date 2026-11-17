@@ -28,7 +28,7 @@ Industrial OS is one repository holding several independent projects. A project 
 | `lesson-maker/` | Plain Node.js 22 ES modules (`.mjs`), standard library only; a private `package.json` with no dependencies | `main.mjs` (linkable onto `PATH` as `lesson`); lesson files following `schema/lesson.schema.json` | Imports exported design-system element and foundation subpaths by package name, resolved from the root install. Loads the installed Pi SDK at run time, never as a dependency, for models, imagegen, the Xiaohei skill and pi-typesafe's aim check; runs the `tatsu` CLI read-only for artifacts and `afplay` for reading aloud, and calls Google's speech endpoint with Pi's stored key | [README](../lesson-maker/README.md), [AGENTS](../lesson-maker/AGENTS.md), [architecture](../lesson-maker/docs/architecture.md), [contributing](../lesson-maker/CONTRIBUTING.md) |
 | `herdr/` | JavaScript mods and a JSON layout, theme and keys snippet read by the Herdr desktop app (herdr-app); Node 22 tests and `herdr-app check` | `mods/industrial-os/` and `layouts/industrial-os.json`, copied into `~/.config/herdr-app`; `mods/pi-reloader/` with `keys/pi-reloader.json` merged by hand; `themes/acid-black.json`, copied into `~/.config/herdr-app/themes/` | herdr-app's mod, layout, keys and theme formats; the sidebar mod reads the signals-collector's `io.signals.v1` label through herdr-core, and the Pi Reloader reads `io.pi-reloader.v2` and talks to each Pi's reloader-guard over loopback; mods import nothing outside their folders; its theme check imports design-system palette, signal and Herdr terminal colors by package name | [README](../herdr/README.md), [AGENTS](../herdr/AGENTS.md), [architecture](../herdr/docs/architecture.md), [contributing](../herdr/CONTRIBUTING.md) |
 
-`pi/` groups the Pi extensions and holds the rules they share: [its guide](../pi/AGENTS.md). `herdr/` holds the Herdr desktop configuration. `herdr-plugins/` groups independently installable Herdr plugins with [shared rules](../herdr-plugins/AGENTS.md).
+`pi/` groups the Pi extensions and holds the rules they share: [its guide](../pi/AGENTS.md). `herdr/` holds the Herdr desktop configuration. `herdr-plugins/` groups independently installable herdr-tui plugins, awaiting a port to Herdr desktop, with [shared rules](../herdr-plugins/AGENTS.md).
 
 ### Dependency direction
 
@@ -40,7 +40,7 @@ flowchart LR
         CI["pi/claude-interrupt/<br/>src/index.ts"]
         SC["pi/signals-collector/<br/>session producer + configured usage reads"]
         SB["pi/status-bar/<br/>src/extension.ts, footer.ts<br/>reference implementation"]
-        HC["herdr/<br/>mods/industrial-os, layouts/, themes/, test/"]
+        HC["herdr/<br/>mods/industrial-os, mods/pi-reloader, layouts/, themes/, keys/, test/"]
         DF["herdr-plugins/dispatch-feed/<br/>Bun pane app"]
         WB["herdr-plugins/whiteboard/<br/>Rust pane app"]
         AM["herdr-plugins/automations-monitor/<br/>Bun + Effect pane app"]
@@ -62,7 +62,8 @@ flowchart LR
     PollClients -.->|Unix JSON-RPC, not imports| SourceEngine
     Node["Node.js 22 standard library"]
     PiHost["Pi host<br/>@earendil-works/pi-coding-agent, pi-tui, typebox"]
-    Herdr["Herdr terminal"]
+    Herdr["Herdr desktop terminal"]
+    HerdrTui["herdr-tui<br/>plugin panes"]
     HerdrDesktop["Herdr desktop<br/>herdr-app, herdr-core labels"]
     TypeSafe["pi-typesafe / TypeSafe SDK<br/>Jev external service"]
     Models["Selected model providers"]
@@ -93,11 +94,11 @@ flowchart LR
     SB -->|imports| Node
     DF -->|imports exported subpaths| DS
     DF -.->|Unix JSON-RPC, not imports| SourceEngine
-    DF ==>|split or tab pane| Herdr
-    WB ==>|split or tab pane| Herdr
+    DF ==>|split or tab pane| HerdrTui
+    WB ==>|split or tab pane| HerdrTui
     WB -.->|check imports colors| DS
     AM -->|imports exported cells, palette, colors, lamp, numerals| DS
-    AM ==>|split or tab pane; startup hook restores it| Herdr
+    AM ==>|split or tab pane; startup hook restores it| HerdrTui
     AM ==>|two read-only JSON CLI commands| Tatsu
     LM -->|imports| Node
     LM -->|imports exported elements, cells, palette, surface| DS

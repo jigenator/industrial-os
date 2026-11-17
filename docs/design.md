@@ -58,7 +58,7 @@ The Herdr desktop app draws its own chrome from a theme file, so a project there
 
 ### Herdr plugin panes
 
-A plugin pane is a full-screen terminal application in a pane Herdr gives it, so it owns its cells, keys and mouse while it runs; that is its interaction contract, stated in its design doc. It uses the design-system colors, keeps a keyboard path for every mouse action, restores the terminal on every exit, and keeps a failure on screen rather than letting the pane vanish. [The whiteboard](../herdr-plugins/whiteboard/docs/design.md) is the first.
+A plugin pane, today in herdr-tui until the plugins are ported to Herdr desktop, is a full-screen terminal application in a pane Herdr gives it, so it owns its cells, keys and mouse while it runs; that is its interaction contract, stated in its design doc. It uses the design-system colors, keeps a keyboard path for every mouse action, restores the terminal on every exit, and keeps a failure on screen rather than letting the pane vanish. [The whiteboard](../herdr-plugins/whiteboard/docs/design.md) is the first.
 
 ## Accessibility and platform behavior
 
