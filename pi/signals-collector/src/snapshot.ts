@@ -10,7 +10,7 @@ export type Phase =
 	| { kind: "tool"; tool: string; target: string | null; since: number };
 export type SignalsSnapshot = {
 	version: 1; sessionId: string; seq: number; launch: string; active: string;
-	visible: boolean | null;
+	visible: null; // kept for v1 consumers: no pane-visibility source since herdr-tui retired
 	workspace: WorkspaceInfo | null; pr: PullRequestInfo | null;
 	root: { working: boolean; lastSettledAt: number | null };
 	phase: Phase | null;

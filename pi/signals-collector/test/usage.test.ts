@@ -85,7 +85,7 @@ test("next poll follows the engine's nextAt: just after the earliest run, shortl
 	for (const reply of [undefined, {}, { ...snapshot([]), v: 2 }]) assert.deepEqual(nextPollDelay(ids, reply, now), { delay: 60_000, running: false }, "unreachable retries in a minute");
 });
 
-test("collector polls at once, then on the nextAt schedule while visible, on show, one request at a time; dispose aborts and fences", async (t) => {
+test("collector polls at once, then on the nextAt schedule, one request at a time; dispose aborts and fences", async (t) => {
 	t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: at(OK_AT) });
 	const published: UsageSnapshot[] = [], signals: AbortSignal[] = [];
 	let release: ((value: unknown) => void) | undefined;
@@ -95,7 +95,7 @@ test("collector polls at once, then on the nextAt schedule while visible, on sho
 	const scheduled = (ms: number) => snapshot([status("usage-cld", { nextAt: new Date(Date.now() + ms).toISOString() })], [usageItem("usage-cld", facts)]);
 
 	const none = collectUsage([], () => assert.fail("no publish without sources"), () => assert.fail("no request without sources"));
-	t.mock.timers.tick(5 * 60_000); none.setVisible(false); none.setVisible(true); none.dispose();
+	t.mock.timers.tick(5 * 60_000); none.dispose();
 
 	const usage = collectUsage(["usage-cld"], (u) => published.push(u), request);
 	assert.equal(signals.length, 1, "immediately at start");
@@ -107,15 +107,11 @@ test("collector polls at once, then on the nextAt schedule while visible, on sho
 	await answer(snapshot([status("usage-cld")], [usageItem("usage-cld", facts)]));
 	t.mock.timers.tick(10_000); assert.equal(signals.length, 3, "checks shortly while the source runs");
 	await answer(undefined); assert.equal(published.at(-1)!.providers[0].failure, "failed");
-	usage.setVisible(false); t.mock.timers.tick(10 * 60_000); assert.equal(signals.length, 3, "hidden panes do not poll");
-	usage.setVisible(true); assert.equal(signals.length, 4, "showing polls at once");
-	usage.setVisible(false); await answer(scheduled(30_000)); t.mock.timers.tick(10 * 60_000);
-	assert.equal(signals.length, 4, "a reply that lands while hidden schedules nothing");
-	usage.setVisible(true); assert.equal(signals.length, 5);
+	t.mock.timers.tick(60_000); assert.equal(signals.length, 4, "a failed reply retries in a minute");
 	await answer(Promise.reject(new Error("transport"))); await flush();
-	t.mock.timers.tick(60_000); assert.equal(signals.length, 6, "unreachable retries in a minute");
+	t.mock.timers.tick(60_000); assert.equal(signals.length, 5, "unreachable retries in a minute");
 	const before = published.length; usage.dispose();
-	assert.equal(signals[5].aborted, true, "dispose aborts the in-flight request");
-	await answer(scheduled(30_000)); t.mock.timers.tick(10 * 60_000); usage.setVisible(false); usage.setVisible(true);
-	assert.equal(published.length, before, "no publish after dispose"); assert.equal(signals.length, 6, "no poll after dispose");
+	assert.equal(signals[4].aborted, true, "dispose aborts the in-flight request");
+	await answer(scheduled(30_000)); t.mock.timers.tick(10 * 60_000);
+	assert.equal(published.length, before, "no publish after dispose"); assert.equal(signals.length, 5, "no poll after dispose");
 });

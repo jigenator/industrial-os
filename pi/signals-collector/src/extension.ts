@@ -2,7 +2,6 @@ import { isAbsolute } from "node:path";
 import { performance } from "node:perf_hooks";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { watchVisibility } from "./herdr.ts";
 import { collectActivity } from "./activity.ts";
 import { BACKGROUND_START_TOOLS, collectBackgroundTasks } from "./background-tasks.ts";
 import { labelPublisher, signalsTerminal } from "./herdr-core.ts";
@@ -24,7 +23,6 @@ type SessionState = {
 	localAbort?: AbortController; prAbort?: AbortController; refreshPending: boolean;
 	timer?: ReturnType<typeof setInterval>; pushTimer?: ReturnType<typeof setTimeout>;
 	activity?: ReturnType<typeof collectActivity>; background?: ReturnType<typeof collectBackgroundTasks>; usageCollector?: ReturnType<typeof collectUsage>; offRequest?: () => void;
-	visible: boolean | null; visibility?: ReturnType<typeof watchVisibility>;
 	units: number | null; backgroundTasks: number | null; flagged: boolean; usage: UsageSnapshot; phase: Phase | null; lastSettledAt: number | null;
 	tools: Map<string, Extract<Phase, { kind: "tool" }>>;
 	questions: Map<string, NonNullable<SignalsSnapshot["question"]>>;
@@ -44,7 +42,7 @@ export default function (pi: ExtensionAPI) {
 		if (!working) s.phase = null;
 		const next: SignalsSnapshot = {
 			version: 1, sessionId: s.id, seq: s.snapshot?.seq ?? 0, launch: s.launch, active: s.active,
-			visible: s.visible, workspace: s.workspace ?? null, pr: s.pr, root: { working, lastSettledAt: s.lastSettledAt },
+			visible: null, workspace: s.workspace ?? null, pr: s.pr, root: { working, lastSettledAt: s.lastSettledAt },
 			phase: working ? s.phase : null, question: s.questions.values().next().value ?? null,
 			model: ctx.model ? { provider: ctx.model.provider, id: ctx.model.id } : null, thinking: pi.getThinkingLevel() ?? null,
 			context: contextSnapshot(ctx.getContextUsage(), ctx.model, compactionReserve(pi.getSettings(), ctx.model)),
@@ -81,12 +79,12 @@ export default function (pi: ExtensionAPI) {
 		s.disposed = true;
 		if (s.timer) clearInterval(s.timer);
 		if (s.pushTimer) clearTimeout(s.pushTimer);
-		s.visibility?.dispose(); s.offRequest?.(); s.activity?.dispose(); s.background?.dispose(); s.usageCollector?.dispose();
+		s.offRequest?.(); s.activity?.dispose(); s.background?.dispose(); s.usageCollector?.dispose();
 		s.localAbort?.abort(); s.prAbort?.abort();
 	}
 
 	async function refreshPR(s: SessionState, workspace: WorkspaceInfo) {
-		if (!current(s) || s.visible === false) return;
+		if (!current(s)) return;
 		if (workspace.github.kind !== "repository" || workspace.git.kind !== "repository") {
 			s.prAbort?.abort(); s.prAbort = undefined; s.prKey = undefined;
 			s.pr = workspace.git.kind === "unknown"
@@ -119,7 +117,7 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	async function refreshLocal(s: SessionState): Promise<void> {
-		if (!current(s) || s.visible === false) return;
+		if (!current(s)) return;
 		if (s.localAbort) { s.refreshPending = true; return; }
 		const controller = new AbortController();
 		s.localAbort = controller;
@@ -143,10 +141,6 @@ export default function (pi: ExtensionAPI) {
 		}
 	}
 
-	function resumeLocal(s: SessionState) {
-		if (!s.timer && s.visible !== false) { s.timer = setInterval(() => { void refreshLocal(s); }, LOCAL_REFRESH_MS); s.timer.unref(); }
-	}
-
 	function restore(ctx: ExtensionContext) {
 		const previous = session, id = ctx.sessionManager.getSessionId();
 		if (previous) stopWork(previous);
@@ -162,7 +156,7 @@ export default function (pi: ExtensionAPI) {
 		}
 		const s: SessionState = { ctx, id, disposed: false, launch, active, selection: 0, pr: null,
 			prCache: previous?.id === id ? previous.prCache : new Map(), refreshPending: false,
-			visible: null, units: null, backgroundTasks: null, flagged: savedFlag(ctx.sessionManager.getBranch()), usage: pendingUsage(sources), phase: ctx.isIdle() ? null : { kind: "waiting", since: Date.now() },
+			units: null, backgroundTasks: null, flagged: savedFlag(ctx.sessionManager.getBranch()), usage: pendingUsage(sources), phase: ctx.isIdle() ? null : { kind: "waiting", since: Date.now() },
 			lastSettledAt: previous?.id === id ? previous.lastSettledAt : null, tools: new Map(), questions: new Map(), snapshot: undefined! };
 		session = s; sample(s);
 		const terminal = publisher ? undefined : signalsTerminal();
@@ -175,17 +169,7 @@ export default function (pi: ExtensionAPI) {
 		s.activity = collectActivity(pi, id, () => current(s), (units) => { if (current(s) && s.units !== units) { s.units = units; changed(s); } });
 		s.background = collectBackgroundTasks(pi, () => current(s), (running) => { if (current(s) && s.backgroundTasks !== running) { s.backgroundTasks = running; changed(s); } });
 		s.usageCollector = collectUsage(sources, (usage) => { if (current(s)) { s.usage = usage; changed(s); } });
-		s.visibility = watchVisibility((visible) => {
-			if (!current(s) || s.visible === visible) return;
-			const hidden = s.visible === false; s.visible = visible;
-			s.usageCollector?.setVisible(visible !== false);
-			if (visible === false) {
-				if (s.timer) clearInterval(s.timer); s.timer = undefined;
-				s.localAbort?.abort(); s.prAbort?.abort(); s.localAbort = s.prAbort = undefined; s.refreshPending = false;
-			} else if (hidden) { resumeLocal(s); void refreshLocal(s); }
-			changed(s);
-		});
-		resumeLocal(s);
+		s.timer = setInterval(() => { void refreshLocal(s); }, LOCAL_REFRESH_MS); s.timer.unref();
 		void refreshLocal(s);
 		changed(s);
 		pi.events.emit(READY, { version: 1, sessionId: id });
