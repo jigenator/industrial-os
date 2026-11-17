@@ -1,7 +1,7 @@
 # Architecture
 
-Status: current at the revision that added the Industrial OS sidebar mod.
-Evidence: the mod and layout, their tests, and Herdr app 0.1.15's own documentation in `~/.config/herdr-app` (`AGENTS.md` "Layouts" and "Mods", `herdr.d.ts`, `gpui-kit.d.ts`) and its shipped `main` layout and `agents` and `spaces` mods.
+Status: current at the revision that added the Pi Reloader mod.
+Evidence: the mods and layout, their tests, and Herdr app 0.1.15's own documentation in `~/.config/herdr-app` (`AGENTS.md` "Layouts", "Keys", "Commands" and "Mods", `herdr.d.ts`, `gpui-kit.d.ts`, whose `net` module offers only `connect(host, port)`), `herdr-app commands`, herdr-core 0.1.20's `hc --help` and `hc --skill`, its shipped `main` layout and `agents`, `spaces`, `confirm` and `picker` mods.
 
 ## Files and dependencies
 
@@ -15,11 +15,17 @@ Evidence: the mod and layout, their tests, and Herdr app 0.1.15's own documentat
 | `mods/industrial-os/format.js` | Text formats: durations, counts, model, directory, context bar, days, cleaning | Nothing |
 | `mods/industrial-os/mod.json` | `"place": "none"`: the mod appears only where a layout puts it | herdr-app's mod format |
 | `layouts/industrial-os.json` | The shipped `main` layout with the sidebar's lists replaced by the one `industrial-os` block, and Lunalee's column (`lunalee`: a 1 px `lunalee-host` block for the `lunalee` mod and a `lunalee-chat` block for the terminal of that name) added on the right | herdr-app's layout format; Herdr app 0.1.15's `main.json`; Lunalee's install for the column's mod and terminal |
+| `mods/pi-reloader/main.js` | The Pi Reloader window: lists candidates, runs a sequence in one task, and supplies its `io`: `hc get` and `hc send`, the guard's loopback socket through `net`, `agent.focus` and the restoring `space.select`, `tab.select` and `pane.focus` | The app's `gpui-kit`, `gpui-base`, `herdr` and `net` modules; `reloader.js`, `scope.js` |
+| `mods/pi-reloader/reloader.js` | Every Pi Reloader rule: candidates and protection, the guard label and wire checks, the reload and reset sequences, the visit sweep, the summary | Nothing; the [guard contract](../../pi/reloader-guard/docs/contract.md) |
+| `mods/pi-reloader/scope.js` | `ONLY`: `null`, or the terminal addresses an isolated live check may act on | Nothing |
+| `mods/pi-reloader/mod.json`, `LICENSE` | The window it opens as (`kind: "window"`, 620 × 460); MIT, from the herdr-tui plugin it ports | herdr-app's mod format |
+| `keys/pi-reloader.json` | The keys.json snippet a person merges: `cmd-alt-r` → `mod.open:pi-reloader` | herdr-app's keys format |
 | `mods/package.json` | Marks the mods' `.js` files as ES modules for Node; not part of the mod | Node 22 |
 | `mods/.gitignore` | Keeps out the `gpui-kit.d.ts` and `jsconfig.json` that `herdr-app check` writes into a mod folder for editors | Git |
 | `themes/acid-black.json` | The Herdr desktop app's theme: terminal and panel colors | herdr-app's theme file format (`~/.config/herdr-app/AGENTS.md`, "The look"); design-system colors, including `HERDR_TERMINAL` |
 | `test/industrial-os.test.mjs` | The pure modules on fixtures: every state, unknowns, caps, decay, the finished rule, space aggregation | The mod's pure modules |
 | `test/industrial-os-layout.test.mjs` | The layout differs from the recorded shipped `main.json` only in that block and the frozen Lunalee column; mod.json; imports stay in the mod folder | `test/fixtures/herdr-app-0.1.15-main.json` |
+| `test/pi-reloader.test.mjs` | The Pi Reloader's rules against a simulated herdr-core and guard; its folder's imports, globals and `mod.json`; the shipped scope | `mods/pi-reloader/` |
 | `test/app-theme.test.mjs` | Each desktop theme color holds its approved design-system value | `foundation/palette` and `/signal-colors` (`SIGNAL_COLORS`, `HERDR_TERMINAL`) by package name |
 
 ```mermaid
@@ -50,6 +56,29 @@ herdr-app redraws the mod whenever its live data changes: spaces, agents, termin
 
 A one-second data timer compares the clock with that time and redraws only then; it also starts ahead/behind lookups: a place (machine and folder) not looked at yet at once, others every 30 seconds while the window is active, one pass at a time with a 5-second timeout per `git` run. A failed run keeps what was shown.
 
+## Pi Reloader
+
+`mod.open:pi-reloader` opens the mod as a window: a press it doesn't stop doesn't close it, and Esc reaches the mod, which ignores keys while a run is going. A run is one `cx.spawn` task; `reloader.js` gets an `io` whose every call goes through herdr-core or the guard, so the whole sequence is tested with a simulated one.
+
+```mermaid
+flowchart LR
+    Agents["agents(), terminals(), layout()"] --> Select["selectCandidates"]
+    Select --> Seq["reloadAll / resetAll"]
+    Seq -->|"hc get --json"| Core["herdr-core"]
+    Seq -->|"JSON line, net.connect 127.0.0.1:port"| Guard["pi/reloader-guard in each Pi"]
+    Guard -->|"ctx.reload() / ctx.shutdown()"| Pi["Pi"]
+    Seq -->|"hc send t 'pi --session …' (reset, shell in front)"| Core
+    Seq -->|"agent.focus, then space/tab/pane restore"| App["herdr-app"]
+```
+
+1. **Select.** From `agents()`: Pi (`app` is `pi`) on this computer, in a pane, not shown by a layout block nor named `lunalee-chat`, idle or done. Everything else is a counted skip; `ONLY` narrows the set.
+2. **Check at action time.** `hc get <t> --json` must show it live, Pi's status idle or done, and a valid `io.pi-reloader.v1` label whose `pid` is the foreground process or whose `ppid` is (a launcher such as volta's shim); else skip or fail with nothing done.
+3. **Reload**, one Pi at a time: probe; if ready, `reload` with the probed session; then poll `hc get` until the label shows a new token for the same pid and a probe on it answers (30 s).
+4. **Reset**, all at once, each settled independently: the root program must be sh, bash, zsh, dash or ksh with Pi as a job; probe; a session file is required; `quit`; poll until the shell is in front with no agent status (15 s); `hc send` the single-quoted resume line; poll until Pi reports idle or done with a new label in front and a probe returns the same session (30 s).
+5. **Visit** after every attempt settled: in candidate order, each restarted Pi that was idle and whose label, probe (`ready`) and session are unchanged gets `agent.focus` and 250 ms; then, if any was visited, the original `focused()` space, tab and pane are restored.
+
+Commands from `nextCommand()` (`reload`, `reset`, `close`) reach the window only while it is open.
+
 ## Critical invariants
 
 | Must remain true | Check |
@@ -61,12 +90,16 @@ A one-second data timer compares the clock with that time and redraws only then;
 | The mod imports only `gpui-kit`, `gpui-base`, `herdr` (in `main.js`) and its own files; no `setTimeout`, `Intl`, `TextDecoder` or `WebSocket` | `test/industrial-os-layout.test.mjs` |
 | The mod loads and renders in herdr-app | `herdr-app check mods/industrial-os` |
 | Every desktop theme color is its approved design-system value | `test/app-theme.test.mjs` |
+| The Pi Reloader never types into Pi, never kills, acts only through a matching guard, skips drafts, busy and protected terminals, and types its one shell line only into the root POSIX shell in front | `test/pi-reloader.test.mjs` |
+| The shipped Pi Reloader scope acts on every candidate (`ONLY = null`) | `test/pi-reloader.test.mjs` |
+| The Pi Reloader loads and renders | `herdr-app check mods/pi-reloader` |
 
 ## Where the next change belongs
 
 - A rule about what a value means: the pure module that owns it, with its test, then [the design](design.md#sidebar).
 - How the sidebar looks: `main.js` alone, once the visual design is decided. Visual components come from the design system; a herdr-app mod cannot import outside its folder, so how its elements reach the mod is part of that decision.
-- Another Herdr desktop mod or layout: its own folder under `mods/` or file under `layouts/`, with a test beside the others and an install section in the README.
+- Another Herdr desktop mod or layout: its own folder under `mods/` or file under `layouts/`, with a test beside the others and an install section in the README. A keys.json snippet it needs goes in `keys/`.
+- A Pi Reloader rule: `reloader.js` and its test; a protocol change starts in the [guard contract](../../pi/reloader-guard/docs/contract.md).
 
 ## Limits and evolution
 
@@ -74,4 +107,5 @@ A one-second data timer compares the clock with that time and redraws only then;
 - Remembered state is per mod copy and per screen. A second copy of the mod (another layout) keeps its own.
 - The layout copies Herdr app 0.1.15's `main`; a later `main` is not followed. The layout test records the copy it was made from.
 - Lunalee's column names its terminal, so the block is resolved when the layout is built: a terminal started later attaches only after the block is hidden and shown again. When that terminal ends, Herdr deletes the block from the installed copy; re-copying the file restores it. `layout.set` would wipe the layout's `.state` clicks, so nothing here or in Lunalee uses it. Observed live by Lunalee's slice-0 check with herdr-app 0.1.15, not by this project.
+- The Pi Reloader's run lives in its window's task: a layout switch closes the window and stops it. Visiting relies on Herdr marking a shown agent seen; `Visited` is not a receipt.
 - The desktop theme is a herdr-app theme file. Its check proves its values, not that the app accepts it: herdr-app validates on load and writes `settings.error` or a layout's `.error` when it rejects one, so a live install is checked with `herdr-app status`.

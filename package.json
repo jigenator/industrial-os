@@ -14,7 +14,8 @@
       "./pi/herdr-pane-naming/index.ts",
       "./pi/session-recap/index.ts",
       "./pi/image-preview/src/index.ts",
-      "./pi/droid-header/src/extension.ts"
+      "./pi/droid-header/src/extension.ts",
+      "./pi/reloader-guard/src/extension.ts"
     ],
     "skills": [],
     "prompts": [],

@@ -40,9 +40,10 @@ industrial-os/
 │   ├── session-recap/        UI-only away and detailed session recaps
 │   ├── image-preview/        previews of image paths in the editor
 │   ├── droid-header/         the droid details startup header and resource manifest
+│   ├── reloader-guard/       the draft guard the Herdr desktop Pi Reloader talks to
 │   ├── theme/                the industrial-os Pi theme, a theme file
 │   └── settings.json         recommended Pi settings, merged by hand
-├── herdr/                    Herdr desktop theme, sidebar mod and layout
+├── herdr/                    Herdr desktop theme, sidebar and Pi Reloader mods, and layout
 ├── herdr-plugins/            Herdr plugins, each its own project
 │   ├── dispatch-feed/       source-collector dashboard and task triage in Bun
 │   ├── whiteboard/          sticky notes and text in a Herdr pane, in Rust
