@@ -34,7 +34,7 @@ test("observeSignals handshakes both orders; absence/asynchronous reply means un
 async function composed(t: any, order: string[]) {
 	const directory = await mkdtemp(join(tmpdir(), "pi-signals-consumer-")), bin = join(directory, "bin"); await mkdir(bin);
 	await writeFile(join(bin, "git"), "#!/bin/sh\nprintf 'fatal: not a git repository' >&2\nexit 128\n"); await chmod(join(bin, "git"), 0o755);
-	const oldEnv = { ...process.env }; Object.assign(process.env, { HERDR_ENV: "0", PATH: bin, XDG_CACHE_HOME: join(directory, "cache") });
+	const oldEnv = { ...process.env }; Object.assign(process.env, { PATH: bin, XDG_CACHE_HOME: join(directory, "cache") });
 	const events = host.createEventBus(), manager = host.SessionManager.inMemory(directory);
 	const loader = new host.DefaultResourceLoader({ eventBus: events, cwd: directory, agentDir: join(directory, "agent"), settingsManager: host.SettingsManager.inMemory(), additionalExtensionPaths: order, noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true });
 	await loader.reload(); const loaded = loader.getExtensions(); assert.deepEqual(loaded.errors, []); assert.deepEqual(loaded.warnings, []);
