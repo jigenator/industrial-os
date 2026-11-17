@@ -14,7 +14,7 @@ Herdr desktop app files: mods in plain JavaScript for herdr-app's gpui-kit runti
 
 **Use only what the runtime has.** No `setTimeout`/`setInterval` (use `cx.timer`), no `Intl`, `TextDecoder` or `WebSocket`, no top-level `await`, and never keep a `cx` for later; each callback gets its own. Timers are for data and redraw only when shown text changes. Check: the layout test rejects the missing globals; review for the rest.
 
-**Unknown is never zero.** A missing, malformed or stale label value is unknown and shown as unknown (`??`, `--%` or absent), never as `00`, clean or a completion. Check: `test/industrial-os.test.mjs`.
+**Unknown is never zero.** A missing, malformed or stale label value is unknown and shown as unknown (`??`, `--%` or absent), never as `00`, clean or a completion. One operator-chosen exception: the header's `⟁` droid count leaves unknown subagents out ([design](design.md#sidebar-header)). Check: `test/industrial-os.test.mjs`.
 
 **State is never color alone.** Codes, icons and marks (`*`, `●`, `#?`) carry every state; color only adds emphasis.
 

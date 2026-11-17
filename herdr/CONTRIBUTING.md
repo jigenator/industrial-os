@@ -26,6 +26,17 @@ Change the source first: a color in the design system, a label field in [the sna
 
 Record each run with its date, app version and results.
 
+### Sidebar header
+
+2026-11-17, macOS, Node 22.23.4, herdr-app 0.1.16:
+
+- `cd herdr && node --test`: **45/45 passed**, 0 failed, skipped or cancelled: the new droid-count check, and the layout check now requiring the `brand` block to be `industrial-os` with `props.brand` and the sidebar at 300 px.
+- Mutations, restored: counting every non-idle agent as working failed 1; leaving subagents out of the droid count failed 1.
+- `herdr-app check mods/industrial-os`: **`check passed: mods/industrial-os`, exit 0** (the sidebar; the check passes no props).
+- The header, by hand: a temporary copy with `brand` forced on passed `herdr-app check --print-spec`, showing `INDUSTRIAL OS`, `◐00`, `search` and `sidebar-toggle`. The copy was deleted.
+- Live, at the operator's request: the installed layout had local edits (terminal padding, pane radius and borders), so only its `brand` block was changed in place, after a backup; the mod's `.js` files were copied in. The first install drew the whole sidebar in the header: a mod's props come from `props()` in `herdr`, not `init`'s argument. Fixed. Then the badge and count overlapped the search button on the macOS width; the badge went to 11 px. `herdr-app status`: `errors: []`. `herdr-app shot`: `INDUSTRIAL OS`, `◐03` in the working color, search and toggle, no overlap, while three agents worked. The `◐` mark was then replaced by the `NN DRD` plate, which covered the search button at 268 px (measured: the sidebar renders at the layout's 268 px; the saved 299 px state does not apply to a non-resizable node). With the sidebar at 300 px in the repository and installed layouts: `05 DRD` matched two working agents plus three units shown in the sidebar, then `07 DRD`, with no overlap. Then, at the operator's request: the badge became `INDUSTRIAL-OS ®` and the count `⟁ NN`. Weight 800 in the sidebar's `JetBrains Mono` drew no heavier than regular; the installed `JetBrainsMono NFM` drew it bold. `⟁ 07 DRD` covered the search button by about 20 px, so `DRD` was dropped: `⟁ 07` fits with search and toggle clear. Only the glyph in that font on this Mac was seen; fallback fonts were not. `⟁` is not in JetBrainsMono NFM (checked with fontTools), so its fallback glyph stayed thin; it is now `mark.svg` (stroke 3 of 24) and the shot shows it as heavy as the digits. `®` was then dropped from the badge at the operator's request: too small at 11 px.
+- Not run: clicks, window drag, the rail, and a count of zero in the live app.
+
 ### Pi Reloader
 
 Contract version 2, 2026-11-17, macOS, Node 22.23.4, hc 0.1.20, Pi 1.5.2. herdr-app updated itself from 0.1.15 to 0.1.16 at 11:55, minutes before the live run, so the live part ran on 0.1.16. The live part changed the running app and was run with the operator's explicit authorization for this change, against the project rule above.

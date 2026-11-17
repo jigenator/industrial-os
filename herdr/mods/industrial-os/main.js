@@ -2,11 +2,12 @@
 // the visual design is deferred (herdr/docs/design.md). The rules live in the pure modules beside this file; this
 // view reads Herdr, keeps the remembered state, looks up ahead/behind with git and draws.
 
-import { View, div } from "gpui-kit";
+import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { agents, terminals, panes, spaces, run, theme, settings, setAgentOrder, exec, home, window } from "herdr";
-import { buildSidebar, emptyMemory } from "./model.js";
+import { agents, terminals, panes, spaces, run, theme, settings, setAgentOrder, exec, home, window, layout, shared, setShared, props } from "herdr";
+import { buildSidebar, emptyMemory, droidCount } from "./model.js";
 import { parseAheadBehind, spacePlace } from "./spaces.js";
+import { twoDigits } from "./format.js";
 
 const MEMORY_KEY = "memory";
 // Ahead/behind is looked up for a new place at once, then this often while the window is in front.
@@ -29,8 +30,32 @@ const placeKey = (space, ps) => {
 	return place ? JSON.stringify([space.machine ?? null, place]) : null;
 };
 
+function findNode(node, id) {
+	if (node?.id === id) return node;
+	for (const child of node?.children ?? []) {
+		const found = findNode(child, id);
+		if (found) return found;
+	}
+	return null;
+}
+
+// Herdr's sidebar rail goes by width; the shipped header uses these shared keys too, so either header can unfold it.
+const RAIL_PX = 160;
+// The installed JetBrains Mono Nerd Font has the heavy weights; the plain "JetBrains Mono" fallback drew no bold.
+const PLATE_FONT = "JetBrainsMono NFM";
+const sidebarWidth = () => findNode(layout(), "sidebar")?.size?.px ?? Infinity;
+function toggleSidebar() {
+	const narrow = sidebarWidth() < RAIL_PX;
+	if (!narrow) setShared("sidebar.width", sidebarWidth());
+	setShared("sidebar.collapsed", !narrow);
+	run("layout.resize", { id: "sidebar", px: narrow ? (shared("sidebar.width") ?? 300) : window()?.platform === "macos" ? 76 : 44 });
+}
+
 export default class IndustrialOs extends View {
 	init(_props, cx) {
+		// The layout's `brand` block: the header, which keeps no memory and runs no timer or git lookups.
+		this.brand = props()?.brand === true;
+		if (this.brand) return;
 		this.memory = loadMemory();
 		this.git = {}; // place key → { ahead, behind } | null
 		this.checked = {}; // place key → when it was last looked up
@@ -77,7 +102,42 @@ export default class IndustrialOs extends View {
 		});
 	}
 
+	renderBrand() {
+		const t = theme();
+		const mac = window()?.platform === "macos";
+		const collapsed = sidebarWidth() < RAIL_PX;
+		// Working states and units need no remembered state, so an empty memory gives the sidebar's own answer.
+		const droids = droidCount(buildSidebar({ spaces: spaces(), agents: agents(), terminals: terminals(), panes: panes(), now: Date.now(), memory: emptyMemory() }).agents);
+		const button = (id, icon, tip, action) => div().id(id).size(26).flex_none().flex().items_center().justify_center().rounded(6)
+			.text_color(t.muted).hover((s) => s.bg(t.hover).text_color(t.foreground)).tooltip(tip)
+			.on_mouse_down("left", (_e, cx) => cx.stop_propagation()).on_click(action)
+			.child(svg(`mods/workspace-chrome/${icon}.svg`).size(15));
+		return h_flex()
+			.size_full()
+			.bg(t.chrome)
+			.pl(collapsed ? 6 : 14)
+			.pr(10)
+			.gap(4)
+			.items_center()
+			.font_family(settings().font_family ?? "JetBrains Mono")
+			.text_size(12)
+			.when(mac && !window()?.fullscreen && !collapsed, (el) => el.pl(76))
+			.when(!collapsed, (el) => el.child(h_flex().flex_1().min_w(0).gap(6).items_center()
+				// The maker and mark as the design system's crate banner writes them, without ® (too small to read at 11 px).
+				.child(div().flex_none().whitespace_nowrap().px(4).rounded(2).text_size(11).font_family(PLATE_FONT).font_weight(800).bg(t.accent).text_color(t.accent_foreground).child("INDUSTRIAL-OS"))
+				// A unit-style plate: acid while any droid runs, the neutral grey plate at zero.
+				.child(div().flex_none().whitespace_nowrap().px(4).rounded(2).text_size(11).font_family(PLATE_FONT).font_weight(800)
+					.bg(droids ? t.working : t.input).text_color(droids ? t.background : t.foreground)
+					// ⟁ as an SVG: no installed font has it, and the fallback font's glyph ignores the bold weight.
+					.flex().items_center().gap(5).child(svg("mods/industrial-os/mark.svg").size(11))
+					.child(twoDigits(droids)))))
+			.when(!collapsed, (el) => el.child(button("search", "search", "Search", () => run("mod.open", { name: "picker" }))))
+			// On the macOS rail the window buttons fill the row.
+			.when(!(collapsed && mac), (el) => el.child(button("sidebar-toggle", "sidebar", "Toggle sidebar", toggleSidebar)));
+	}
+
 	render() {
+		if (this.brand) return this.renderBrand();
 		const t = theme();
 		const now = Date.now();
 		const ps = panes();
