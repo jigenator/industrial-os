@@ -1,6 +1,6 @@
 # Design
 
-Industrial OS in the Herdr desktop app: the [sidebar](#sidebar) mod, [Lunalee's column](#lunalee-column) and the [chrome theme](#theme), in the [shared language](../../docs/design.md).
+Industrial OS in the Herdr desktop app: the [sidebar](#sidebar) mod, [Lunalee's column](#lunalee-column), the [Pi Reloader](#pi-reloader) window and the [chrome theme](#theme), in the [shared language](../../docs/design.md).
 
 The window is `sidebar | work | lunalee`: the sidebar on the left, Herdr's tabs, panes, Files/Changes panel and status bar in the middle, and Lunalee's column on the right edge.
 
@@ -102,6 +102,23 @@ Only `theme()` names, so the sidebar follows the theme (with Acid / Black, the h
 ### Timing
 
 Herdr's live data redraws the mod when it changes. A one-second data timer redraws only when a shown time would change: a running goal or age (each second under a minute, then each minute), an access-decay boundary, or a quiet boundary. No animation.
+
+## Pi Reloader
+
+A window over the layout, 620 × 460 px, opened and closed with `mod.open:pi-reloader` (the [keys snippet](../keys/pi-reloader.json) binds `cmd-alt-r`). It stays open while panes and tabs change underneath; only a layout switch closes it. Like the sidebar it is plain text in theme colors; its visual design is deferred.
+
+From top to bottom:
+
+- **Title** `Pi Reloader`, with `↑↓ Enter · Esc` on the right, or `running`.
+- **Actions**: `Reload all Pi` and `Reset all Pi`; `>` and the `selected` background mark the selected one. Under them one line says what it does: reload is Pi's own reload and skips drafts; reset moves focus, so don't type, click or switch until the summary.
+- **Last run**, after a run: `<action>: Success`, `Nothing to do` or `Completed with errors` (in `blocked`); the counts, `Reloaded` or `Restarted` (with `Visited`), `Skipped (drafts)`, `Skipped (busy)`, `Skipped (not Pi)`, and, when any, `Skipped (not restartable)`, `Skipped (protected terminal)`, `Skipped (another machine)`, then `Failed`; up to five errors and one line per Pi acted on, such as `t2n skipped (unsent draft left untouched)`.
+- **Idle or done Pi (n)**: one line per candidate, in Herdr's agent order: address, `idle` or `done`, `guard` or `NO GUARD` (in `blocked`), space / tab, title. Then `Not acted on:` with the busy, non-Pi, protected and remote counts.
+
+While a run is going the actions give way to one `working` line, `DON'T TYPE · Reset all Pi 1/3 · waiting for restart batch`, which counts settled attempts and then names the Pi being viewed. Keys and Esc do nothing until the summary; the summary returns the keyboard to the window.
+
+**States.** `Success` means at least one Pi completed and nothing failed; `Nothing to do` that nothing completed or failed. Reload is complete only when the new runtime's guard answers; restart only when the resumed Pi on the same session file answers, idle or done. `Visited` means focus moved to it, not that every client saw it.
+
+**Keys and commands.** `↑`/`k`, `↓`/`j`, `Enter`, `Esc`/`q`; clicking an action runs it. `pi-reloader.reload`, `pi-reloader.reset` and `pi-reloader.close` do the same from keys.json or `herdr-app do`.
 
 ## Theme
 

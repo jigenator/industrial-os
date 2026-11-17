@@ -1,10 +1,11 @@
 # Agent guide
 
-Purpose: Industrial OS in the Herdr desktop app: the Acid / Black theme and the Industrial OS sidebar, a mod and its layout; see [README.md](README.md). This project owns its standards and toolchain within the monorepo. Follow the [root guide](../AGENTS.md) as well.
+Purpose: Industrial OS in the Herdr desktop app: the Acid / Black theme, the Industrial OS sidebar (a mod and its layout) and the Pi Reloader window mod; see [README.md](README.md). This project owns its standards and toolchain within the monorepo. Follow the [root guide](../AGENTS.md) as well.
 
 ## Critical engineering rules
 
-- The mod imports only inside its folder: `gpui-kit`, `gpui-base` and `herdr` in `main.js`, otherwise `./name.js`. Rules live in pure modules with no host import. Check: `test/industrial-os-layout.test.mjs`.
+- A mod imports only inside its folder: `gpui-kit`, `gpui-base` and `herdr` in `main.js` (pi-reloader's also `net`), otherwise `./name.js`. Rules live in pure modules with no host import. Check: `test/industrial-os-layout.test.mjs`, `test/pi-reloader.test.mjs`.
+- The Pi Reloader acts only through each Pi's guard, under [its contract](../pi/reloader-guard/docs/contract.md): never a slash command or other terminal input to Pi, never a kill, nothing on a protected terminal (no pane, a layout block, `lunalee-chat`) or another machine, and the one shell line, `pi --session '<file>'`, only once the root POSIX shell is back in front. The shipped `scope.js` is `ONLY = null`. Check: `test/pi-reloader.test.mjs`.
 - Unknown is never zero, and a label counts only on a live terminal whose agent `app` is `pi`, with `version` 1. The label is the frozen `io.signals.v1` publication of the [signals-collector snapshot](../pi/signals-collector/docs/contract.md); change it there first. Check: `test/industrial-os.test.mjs`.
 - Every color is a `theme()` name in the mod, or a design-system value in a theme file; the design system owns the values. Check: `test/app-theme.test.mjs` imports `@industrial-os/design-system/foundation/palette` and `signal-colors` by package name.
 - Never change the running app to check this project: no installing, `herdr-app do`, `layout.*` or `mod.*` commands. `herdr-app check` and the tests only read. Commands are in [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -19,6 +20,7 @@ Purpose: Industrial OS in the Herdr desktop app: the Acid / Black theme and the 
 | The layout or a Herdr app update | [Architecture](docs/architecture.md), `~/.config/herdr-app/AGENTS.md` (Layouts, Mods) and `herdr.d.ts` |
 | A palette value | [Root design](../docs/design.md#acid--black) and [the package decision](../docs/decisions/in-repo-design-system-package.md); the design system changes first |
 | A new mod, layout or theme | [Architecture](docs/architecture.md#where-the-next-change-belongs) and [conventions](docs/conventions.md) |
+| The Pi Reloader | [Design](docs/design.md#pi-reloader), [architecture](docs/architecture.md#pi-reloader), the [guard contract](../pi/reloader-guard/docs/contract.md) and [the decision](../docs/decisions/pi-reloader-desktop.md) |
 
 ## Where work belongs
 
@@ -27,6 +29,9 @@ Purpose: Industrial OS in the Herdr desktop app: the Acid / Black theme and the 
 | What a sidebar value means | `mods/industrial-os/` pure modules (`signals.js`, `agent.js`, `spaces.js`, `format.js`, `model.js`) | No `gpui-kit` or `herdr` imports; Node-tested |
 | How the sidebar draws, reads Herdr or runs commands | `mods/industrial-os/main.js` | herdr-app's `gpui-kit`, `gpui-base` and `herdr` modules; `theme()` colors |
 | The sidebar's place in the window, and Lunalee's column | `layouts/industrial-os.json` | Shipped `main` with only the sidebar lists replaced and the `lunalee` column added; the column's contents come from Lunalee's install |
+| What the Pi Reloader decides: candidates, protection, the guard wire, the reload and reset sequences | `mods/pi-reloader/reloader.js` | No host imports; Node-tested against a simulated herdr-core and guard |
+| How the Pi Reloader draws, reads Herdr and talks to herdr-core and the guard | `mods/pi-reloader/main.js`; its window size in `mod.json`, its key in `keys/pi-reloader.json` | herdr-app's `gpui-kit`, `gpui-base`, `herdr` and `net`; `theme()` colors |
+| The guard's side of the protocol | [pi/reloader-guard](../pi/reloader-guard/AGENTS.md) | Not here |
 | The Herdr desktop theme | `themes/acid-black.json` | herdr-app's theme file format; design-system colors, including `HERDR_TERMINAL`; [theme design](docs/design.md#theme) |
 | Checks | `test/` | Node's test runner; reads files, imports only the mod's pure modules and the design-system package |
 | The label's fields or publication | [pi/signals-collector](../pi/signals-collector/AGENTS.md) | Not here |

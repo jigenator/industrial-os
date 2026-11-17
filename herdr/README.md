@@ -1,6 +1,6 @@
 # Industrial OS Herdr configuration
 
-Industrial OS for the Herdr desktop app (herdr-app): the Acid / Black theme, [themes/acid-black.json](themes/acid-black.json), and the Industrial OS sidebar, a mod, [mods/industrial-os](mods/industrial-os/main.js), shown by its layout, [layouts/industrial-os.json](layouts/industrial-os.json), which also holds [Lunalee's column](#lunalee-column). The experience is in [the design](docs/design.md).
+Industrial OS for the Herdr desktop app (herdr-app): the Acid / Black theme, [themes/acid-black.json](themes/acid-black.json), the Industrial OS sidebar, a mod, [mods/industrial-os](mods/industrial-os/main.js), shown by its layout, [layouts/industrial-os.json](layouts/industrial-os.json), which also holds [Lunalee's column](#lunalee-column), and the [Pi Reloader](#pi-reloader) window, [mods/pi-reloader](mods/pi-reloader/main.js). The experience is in [the design](docs/design.md).
 
 Status: the theme was installed and checked live on 2026-11-12. The sidebar passes its Node tests and `herdr-app check`; it has not been installed or looked at in a running app. It shows information as plain text: its visual design is deferred.
 
@@ -47,6 +47,35 @@ Herdr behaviours to know:
 - Unseen-finished state, access ages and space activity are kept in the mod's `localStorage`, on this screen only. Space activity starts when the mod first sees a space, so quiet ages count from installation, not from the space's real history.
 - Spaces keep Herdr's order: quiet spaces are not moved to the bottom, and worktree spaces are not nested.
 - Ahead/behind is read with `git` from each space's first terminal's folder, on that space's machine, at once for a new place and every 30 seconds while the window is in front.
+
+## Pi Reloader
+
+A window that reloads or restarts every Pi agent Herdr reports as idle or done, without touching an unsent draft. It replaces the herdr-tui plugin [jigenator/herdr-pi-reloader](https://github.com/jigenator/herdr-pi-reloader); its Pi side is the [reloader-guard](../pi/reloader-guard/README.md) extension, which must be loaded in every Pi it acts on.
+
+Status: its tests and `herdr-app check` pass, and a live run on three throwaway Pis in Herdr desktop 0.1.15 reloaded and restarted the idle one and skipped the draft and busy ones; visiting and restoring focus were exercised live only with a test-copy tweak. See the [record](CONTRIBUTING.md#pi-reloader). Not yet installed for everyday use.
+
+- **Reload all Pi** asks each idle or done Pi's guard to run Pi's own reload, one after another, and waits until the new runtime's guard answers.
+- **Reset all Pi** restarts them all at once: each guard quits its Pi, and once the terminal's shell is back in front the window types `pi --session '<the same session file>'` into that shell, then waits until the resumed Pi answers on the same session. When every attempt has settled it briefly shows (250 ms each, in order) each restarted Pi that was idle before, so it reads idle again, and then returns to the pane you started from.
+- **Skipped, never touched:** a Pi that is working or blocked, has queued messages or an **unsent draft** (never submitted, cleared or copied); a protected terminal (an agent without a pane of its own, any terminal a layout block shows, Lunalee's `lunalee-chat`); Pi on another machine. Reset also skips a Pi whose terminal would end with it: Pi is the terminal's own program, or its shell is not sh, bash, zsh, dash or ksh. Nothing is ever killed.
+- **Failures, also untouched:** no guard or an unresponsive one, a session that changed between the check and the action, and, for reset, a Pi with no session file yet. Neither action types a slash command or falls back to terminal input.
+- The window lists the candidates and, after a run, completed, skipped and failed counts with one line per Pi.
+
+### Install
+
+1. Load the [guard](../pi/reloader-guard/README.md#install) in Pi, and `/reload` each running Pi once with an empty editor.
+2. Copy the mod: `cp -R mods/pi-reloader ~/.config/herdr-app/mods/`.
+3. Merge [keys/pi-reloader.json](keys/pi-reloader.json) into `~/.config/herdr-app/keys.json` by hand: it binds `cmd-alt-r` to `mod.open:pi-reloader` in `global`. Ask before replacing a key already in use, and pick another if so. Editing keys.json makes the whole file yours; see the app's `AGENTS.md`, Keys.
+4. Run `herdr-app check ~/.config/herdr-app/mods/pi-reloader` and `herdr-app status`; both must report no error.
+
+Press the key, or run `herdr-app do mod.open --name pi-reloader`; the same again closes it.
+
+### Limits
+
+- **During a reset, don't type, click, switch panes or switch layout until the summary.** Visiting moves focus in this window. A layout switch closes the window and stops the run; a Pi already quit then stays at its shell prompt, its session file intact (`pi --session <file>` resumes it).
+- `Visited` means focus moved there; Herdr marks a done agent idle only when it is looked at.
+- A reset runs `pi` from the shell's `PATH` with `--session`, not the Pi's original arguments: flags such as `-e` or `--model` are not repeated (a shell function or alias named `pi` is used).
+- Scope is this computer and Herdr's agents; sub-agents without a pane are not listed.
+- `scope.js` exists for isolated live checks: `ONLY = null` acts on every candidate; a list of terminal addresses limits everything to them and the window says so.
 
 ## Theme
 
