@@ -7,7 +7,6 @@ import { basename, dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import test, { after } from "node:test";
-import { fakeHerdr } from "./herdr-fixture.ts";
 import { fakeSourceCollector, snapshot, status, usageItem } from "./source-collector-fixture.ts";
 
 // This gate loads the actual collector through the installed Pi loader. External
@@ -81,7 +80,7 @@ async function fixtures(t: any) {
 	// SOURCE_COLLECTOR_HOME keeps every collector away from a live engine socket; tests that poll point it at a fake.
 	// No inherited herdr-core terminal: tests that publish set a fake HC_TERMINAL_ID and a fake `hc` in `bin`.
 	for (const key of ["HC_TERMINAL_ID", "HC_TERMINAL_SOCKET", "HC_SCOPE"]) delete process.env[key];
-	Object.assign(process.env, { HERDR_ENV: "0", PATH: bin, PI_FOOTER_FIXTURE: root, XDG_CACHE_HOME: join(root, "cache"), SOURCE_COLLECTOR_HOME: join(root, "source-collector"), ...gitIsolation });
+	Object.assign(process.env, { PATH: bin, PI_FOOTER_FIXTURE: root, XDG_CACHE_HOME: join(root, "cache"), SOURCE_COLLECTOR_HOME: join(root, "source-collector"), ...gitIsolation });
 	const gitLog = join(root, "git.log"), ghLog = join(root, "gh.log");
 	t.after(async () => {
 		// Preserve Node's native environment object so os.homedir sees later HOME changes.
@@ -327,44 +326,6 @@ test("streaming deltas neither sample host state nor publish; phase starts still
 	await h.runner.emit({ type: "message_update", message: {}, assistantMessageEvent: { type: "thinking_start", contentIndex: 0, partial: { content: [] } } });
 	assert.ok(reads.mock.callCount() > 0); await until(() => h.pushed.length > pushes);
 	assert.equal(h.pushed.at(-1).phase.kind, "thinking"); assert.deepEqual(h.errors, []);
-});
-
-test("hidden panes defer Git/PR/selection inspection but keep lifecycle signals; visible and unknown catch up", async (t) => {
-	const f = await fixtures(t), herdr = await fakeHerdr(t), manager = host.SessionManager.inMemory(f.launch), h = await harness(f, manager);
-	t.after(() => h.stop());
-	const sc = await fakeSourceCollector(t); process.env.SOURCE_COLLECTOR_HOME = sc.home;
-	sc.result = snapshot([status("usage-cld")], [usageItem("usage-cld", { h5: true, h5Used: 25 })]);
-	h.settings({ industrialOs: { usageSources: ["usage-cld"] } });
-	f.runGit(f.repo, ["remote", "add", "origin", "https://github.com/fixture/repo.git"]);
-	await h.start(); await h.select(f.repo); await until(() => h.read().pr?.kind === "none" && h.read().visible === true && h.read().usage.installed === true); await until(f.idle);
-	assert.equal(sc.requests.length, 1);
-	t.mock.timers.enable({ apis: ["setInterval", "Date"], now: Date.now() });
-	herdr.workspace.focused = false; herdr.event("workspace_focused"); await until(() => h.read().visible === false); await until(f.idle);
-	const gitCalls = await f.count(f.gitLog), prCalls = await f.count(f.ghLog);
-	await writeFile(join(f.repo, "changed-hidden"), "dirty");
-	h.idle(false); await h.runner.emit({ type: "agent_start" }); await h.runner.emit(toolEnd());
-	h.model({ provider: "fixture", id: "hidden-model", contextWindow: 128000 }); await h.runner.emit({ type: "model_select" });
-	t.mock.timers.tick(6 * 60000); await sleep(150);
-	assert.equal(sc.requests.length, 1, "hidden panes do not poll usage");
-	assert.equal(await f.count(f.gitLog), gitCalls); assert.equal(await f.count(f.ghLog), prCalls);
-	assert.equal(h.read().root.working, true); assert.equal(h.read().phase.kind, "waiting"); assert.equal(h.read().model.id, "hidden-model");
-	assert.equal(h.pushed.at(-1).visible, false);
-	herdr.workspace.focused = true; herdr.event("workspace_focused");
-	await until(() => h.read().visible === true && h.read().workspace.git.active.dirty === true);
-	await until(async () => await f.count(f.ghLog) > prCalls);
-	await until(() => sc.requests.length === 2);
-	herdr.workspace.focused = false; herdr.event("tab_focused"); await until(() => h.read().visible === false); await until(f.idle);
-	await h.select(f.second); const selectedCalls = await f.count(f.gitLog);
-	assert.equal(h.read().active, f.second); assert.equal(h.read().workspace, null);
-	await h.runner.emit(toolEnd()); t.mock.timers.tick(15000); await sleep(100);
-	assert.equal(await f.count(f.gitLog), selectedCalls, "only selection path validation may read Git, not inspection");
-	herdr.hold = true; herdr.disconnect();
-	await until(() => h.read().visible === null && h.read().workspace?.git.kind === "repository");
-	assert.equal(h.read().active, f.second, "unknown resumes pending selection inspection");
-	await writeFile(join(f.second, "after-resume"), "dirty"); t.mock.timers.tick(15000);
-	await until(() => h.read().workspace.git.active.dirty === true);
-	await h.stop(); await until(f.idle); const stopped = await f.count(f.gitLog), polled = sc.requests.length; t.mock.timers.tick(60000); await sleep(100);
-	assert.equal(await f.count(f.gitLog), stopped); assert.equal(sc.requests.length, polled); assert.deepEqual(h.errors, []);
 });
 
 test("configured usage sources: scoped socket get in Pi-settings order; replacement and shutdown fence pending replies", async (t) => {

@@ -12,7 +12,7 @@ Node.js 22.19+, an **existing** installed Pi (validated baseline 1.0.4), Git and
 | --- | --- | --- |
 | 1 | `export PI_HOST_ROOT="$(npm root -g)/@earendil-works/pi-coding-agent"` | Discover existing host peers |
 | 2 | `test -f "$PI_HOST_ROOT/dist/index.js"` | Host prerequisite, read-only |
-| 3 | `PI_HOST_ROOT="$PI_HOST_ROOT" npm test` | Source-named policy/parser/domain/cache and real-host transport/lifecycle/selection tests; isolated temporary repositories/fake executables, fake source-collector and Herdr sockets, PR cache multiple processes/locks; no live providers |
+| 3 | `PI_HOST_ROOT="$PI_HOST_ROOT" npm test` | Source-named policy/parser/domain/cache and real-host transport/lifecycle/selection tests; isolated temporary repositories/fake executables, fake source-collector socket, PR cache multiple processes/locks; no live providers |
 | 4 | `printf '' \| pi --mode rpc --no-extensions --extension .` | Real CLI package/load gate; non-TUI collector does no collection/model call; expected disabled-provider model-pattern warnings; exit 0 required |
 
 Then follow [repository-wide checks](../../CONTRIBUTING.md#repository-wide-checks). Consumer composition/load-order/byte checks and existing renderer tests run in status-bar's own sequence. Use `node --experimental-strip-types --test test/<source>.test.ts` for a focused iteration; Pi-boundary tests still require `PI_HOST_ROOT`. No declared formatter/linter/build/standalone project typecheck. MockTimers/type-stripping experimental warnings are expected on Node 22.
@@ -60,7 +60,7 @@ Final budget check: **45/45 collector and 135/135 consumer tests passed** after 
 
 - npm's global prefix did not contain Pi (prerequisite failed there); the existing executable identified an already installed host instead. With `PI_HOST_ROOT` set to that host, the prerequisite and `npm test` passed: **68/68**, no failed/skipped/cancelled tests. No packages installed.
 - Fake-socket tests cover workspace/tab/zoom visibility, moves (later reads use the new pane ID), ignored other-workspace/tab updates, reconnect/failure unknown, disposal, malformed/oversized input and no polling. Real-loader tests cover hidden Git/PR/usage gating, deferred Active inspection, current lifecycle signals, visible/unknown catch-up and resumed intervals. Quota watch/lock tests remain green. Fixtures disable inherited live Herdr environment except when pointing to fake sockets.
-- Isolated RPC package load with temporary agent/cache roots and `HERDR_ENV=0`: **exit 0**. No live Pi reload/configuration or Herdr socket access. Schema inspection was read-only; public source citations are in [architecture](docs/architecture.md#herdr-visibility-flow-and-evidence).
+- Isolated RPC package load with temporary agent/cache roots and `HERDR_ENV=0`: **exit 0**. No live Pi reload/configuration or Herdr socket access. Schema inspection was read-only; its public source citations were in the architecture section removed with herdr-tui support.
 - Consumer suite: **138/138 passed**. Root changed-document links/anchors, mapped-guide inventory, exact CLAUDE entrypoints, whitespace and import/publication self-review passed; index empty.
 - Simplification reviewed the full diff against merge base `00ea975`, including new files and surrounding callers. Retained a minimal independent visibility socket client, centralized footer repaint suppression, reused existing stop/resume motion and cache locks; removed mixed acknowledgement/request cancellation bookkeeping. No generic transport package, dependency, provider registry or cross-extension import.
 - Interactive Pi/Herdr, live GitHub/CodexBar, Windows and Mermaid rendering: **not run** (no renderer on PATH; diagram unchanged). Independent final review remains a parent-owned gate, not implied by these checks.
@@ -88,3 +88,12 @@ Final budget check: **45/45 collector and 135/135 consumer tests passed** after 
 - status-bar consumer suite against the additive fields: **147/147 passed**. `pi/settings.test.mjs`: **4/4 passed**.
 - Changed-document links/anchors, exact CLAUDE entrypoints and `git diff --check` passed. Mermaid rendering: **not run**, no diagram changed here.
 - A real `hc`, a live herdr-core, a live pi-background-tasks producer, interactive Pi in Herdr desktop and Windows: **not run**. No live configuration, `~/.pi` or herdr-core terminal was touched.
+
+### herdr-tui visibility removed
+
+2026-11-17, macOS, Node 22.23.4 and existing installed Pi 1.5.2 via explicit `PI_HOST_ROOT`:
+
+- Before the change, outside herdr-tui (no `HERDR_ENV=1`, `HERDR_PANE_ID` or `HERDR_SOCKET_PATH`, as in Herdr desktop) `watchVisibility` returned a no-op, `visible` stayed null and every gate checked `=== false`, so collection always ran. Removing `src/herdr.ts`, its tests, fixture and gating keeps that behavior; `visible` is now always null.
+- `npm test`: **75/75 passed**, no failed/skipped/cancelled tests. Isolated `printf '' | pi --mode rpc --no-extensions --extension .` with temporary agent, cache and `SOURCE_COLLECTOR_HOME`: **exit 0**.
+- status-bar suite, after the root `npm install`: **147/147 passed** (docs-only change there). Root changed-document links/anchors and `git diff --check` passed.
+- Interactive Pi/Herdr desktop: **not run**.
