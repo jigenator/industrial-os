@@ -8,6 +8,7 @@ Industrial OS turns the [Pi](https://github.com/earendil-works/pi) coding agent 
 
 Independent projects are here. They share code only through the private design-system package: claude-interrupt imports it for its transcript marker, status-bar for its footer elements, droid-header for its startup header, and the Herdr desktop theme's check for its colors:
 
+- [zsh](zsh/README.md): a minimal Acid / Black shell prompt with truthful Git and exit states.
 - [source-collector](source-collector/README.md): one Bun/Effect engine for scheduled command and checklist sources, SQLite state and polling Unix RPC; private configs stay local.
 - [design-system](design-system/README.md): the terminal design system, a reference kit of elements, motions, a storybook, and a showcase. Plain Node.js, no dependencies. It is the private package `@industrial-os/design-system`, which in-repo projects import by name; it is never published. The authorised outside consumer Lunalee uses public root-package paths from a full-SHA git pin ([decision](docs/decisions/in-repo-design-system-package.md#lunalee-pinned-public-git-consumption)).
 - [pi/claude-interrupt](pi/claude-interrupt/README.md): a Pi extension that aborts the current response on Esc and continues with your queued text, marking the continuation with an animated plate.
@@ -29,6 +30,7 @@ Each top-level project folder, and each project under `pi/` or `herdr-plugins/`,
 
 ```text
 industrial-os/
+├── zsh/                      Acid / Black zsh prompt theme, specimens and checks
 ├── source-collector/         local scheduled sources, shared snapshots and triage
 ├── design-system/            terminal design system and its guides
 ├── lesson-maker/             terminal lesson editor: schema-validated lesson files, chat and pictures through Pi

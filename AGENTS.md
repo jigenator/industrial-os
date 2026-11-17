@@ -19,6 +19,7 @@ Scan the supporting-documents map and read every document whose condition applie
 
 | Task | Route |
 | --- | --- |
+| Work on the zsh prompt theme | [Zsh guide](zsh/AGENTS.md) and its routes |
 | Work on Lesson Maker or its lesson schema | [Lesson Maker guide](lesson-maker/AGENTS.md) and its routes |
 | Work in the design system | [The design-system guide](design-system/AGENTS.md) and its routes |
 | Work on a Pi extension | [The Pi guide](pi/AGENTS.md), then the extension's own guide, for example [claude-interrupt](pi/claude-interrupt/AGENTS.md), [signals-collector](pi/signals-collector/AGENTS.md) or [status-bar](pi/status-bar/AGENTS.md) |
@@ -38,6 +39,7 @@ Scan the supporting-documents map and read every document whose condition applie
 
 | Change | Start here | Boundary |
 | --- | --- | --- |
+| Shell prompt, Git state or prompt layout | `zsh/`; [architecture](zsh/docs/architecture.md), [design](zsh/docs/design.md) | zsh 5.9, synchronous read-only Git; mirrored design-system roles, palette/render/security tests |
 | Lesson Maker workbench, lesson files, AI requests or pictures | `lesson-maker/`; [architecture](lesson-maker/docs/architecture.md), [design](lesson-maker/docs/design.md) | Node 22 stdlib only; lessons are JSON files validated against its schema before every write; models, imagegen and the Xiaohei skill only through the installed Pi, loaded at run time (reading aloud alone calls Google's speech endpoint, with Pi's stored key); AI requests read files and Tatsu artifacts (read-only tools and the `tatsu` CLI) but never write them; design-system exported subpaths |
 | An element, motion, storybook story, or terminal host | `design-system/`; placement in [its architecture](design-system/docs/architecture.md#where-the-next-change-belongs), rules in [its conventions](design-system/docs/conventions.md) | Standard library only; imports no other project; elements and motions never own I/O; a new module gets an export entry |
 | claude-interrupt behavior or marker | `pi/claude-interrupt/`; placement in [its architecture](pi/claude-interrupt/docs/architecture.md) | Pi peer packages and the design-system package only; never block streaming, input, or focus |
@@ -269,3 +271,10 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [lesson-maker/docs/architecture.md](lesson-maker/docs/architecture.md) | Lesson file, schema validator, model, AI requests, Pi bridge, render, input and terminal/image seams | Changing behavior, state, the file, dependencies or lifecycle |
 | [lesson-maker/docs/conventions.md](lesson-maker/docs/conventions.md) | Node conventions, the schema validator rule and authorized composition gaps | Writing or reviewing Lesson Maker code |
 | [lesson-maker/docs/design.md](lesson-maker/docs/design.md) | Column layout, visual grammar, slide preview and form editing, outline, chat, mouse, images, file states and limits | Changing anything a Lesson Maker user sees |
+| [zsh/README.md](zsh/README.md) | Prompt purpose, install and limits | Using the prompt or changing public usage |
+| [zsh/AGENTS.md](zsh/AGENTS.md) | Prompt rules, routes and placement | Working anywhere in zsh/ |
+| [zsh/CLAUDE.md](zsh/CLAUDE.md) | Runtime import of the prompt guide | Checking instruction entry points |
+| [zsh/CONTRIBUTING.md](zsh/CONTRIBUTING.md) | Exact checks, specimen format and evidence | Making or verifying a prompt change |
+| [zsh/docs/architecture.md](zsh/docs/architecture.md) | Hooks, collection, rendering and security seams | Changing prompt behavior or dependencies |
+| [zsh/docs/conventions.md](zsh/docs/conventions.md) | Zsh rules and mirrored components | Writing or reviewing prompt code |
+| [zsh/docs/design.md](zsh/docs/design.md) | Layout, states, colors and narrow behavior | Changing anything the shell user sees |

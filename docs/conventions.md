@@ -79,6 +79,8 @@ Scope reviewed: the full source and test trees of the design system and claude-i
 
 ## Adoption gaps
 
+- **Zsh prompt language boundary.** `zsh/industrial-os.zsh-theme` cannot import JavaScript: it mirrors Acid / Black roles once in `_ios_colors`. `zsh/test/palette.test.mjs` imports the exported package palette and rejects role drift or other hex values; `zsh/test/render.test.mjs` pins plain layout/states and ANSI roles. It draws plain text, not label-plate shapes. See [its conventions](../zsh/docs/conventions.md).
+
 - **Palette-copy gap retired for the rendering extensions.** claude-interrupt, status-bar and droid-header consume the design-system palette/signal tokens through exported subpaths and host adapters. Review new extensions for imports rather than copied values; any extension that still mirrors a value must match the design system until migration. The Rust whiteboard plugin cannot import the package, so it mirrors the palette in `src/palette.rs` and its Node test compares the two.
 - **Locally drawn components (a review scan, not exhaustive).** These projects still draw some visual components themselves; move each into the design system under [the rule](#design-system-components) when the project is next changed there. Next change: per project, extend or add the element, switch the project and record frame or snapshot equality.
   - dispatch feed: its dashboard pieces are design-system elements, but `herdr-plugins/dispatch-feed/src/render.ts` still draws the sort and filter chips, the dotted band rule with its label and count, the item row's plan dots and priority marks, the arrival mark, the column divider and the footer rule with its label.
