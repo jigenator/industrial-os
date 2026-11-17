@@ -158,3 +158,11 @@ macOS, Node v22.23.4, existing Pi 1.4.0. Only the design-system and display slic
 C4 integration follow-up, same date/toolchain: the real-collector composition test now requires `{ installed: null, providers: [] }` for absent `industrialOs.usageSources`, rather than the old CodexBar-missing `false`. Remaining `installed: false` test values are synthetic legacy-v1 fixtures, not real-collector expectations. A full `PI_HOST_ROOT="$PI_HOST_ROOT" npm test` rerun passed **146/147**, with the sole failure at this new assertion (`false !== null`) because this slice intentionally retains the old collector. The parent will run combined suites after integrating the collector slice; no compatibility allowance weakens the new assertion. Whitespace and scoped diff review passed. The earlier 147/147 record predates this contract-alignment assertion.
 
 Integrated branch `feature/usage-sources`, same date, Node 22.23.0, Pi 1.4.0 host via explicit `PI_HOST_ROOT`: `npm test` **147/147 passed** with the new collector, and again after the review fix that strips leading whitespace and marks together from source tags (new vectors: a bidi mark, space, then a combining mark). Interactive Pi/Herdr and a live engine: **not run**.
+
+### Visibility pause removed (2026-11-17)
+
+macOS, Node 22.23.4, existing Pi host through explicit `PI_HOST_ROOT` (the npm global root has no Pi). The footer no longer reads the collector's `visible` field: the hidden-pane freeze, its cached lines and its resume repaint are gone, because the collector always publishes null. The earlier freeze records above are history.
+
+- **Passed:** `PI_HOST_ROOT="$PI_HOST_ROOT" npm test` **145/145**, no failed/skipped/cancelled tests. The two hidden/resume integration tests and the `visible` normalisation test were removed; a real-loader test checks that `visible` false, true and null each still repaint and render current values.
+- **Passed:** changed-link/anchor check, `git diff --check`, `git diff --cached --check`.
+- **Not run:** interactive Pi/Herdr, isolated RPC package load.

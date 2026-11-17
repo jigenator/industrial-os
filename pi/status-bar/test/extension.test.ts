@@ -558,52 +558,15 @@ test("background tasks: real loader draws the producer's status natively, keeps 
 	await h.stop(); assert.deepEqual(h.errors, []);
 });
 
-test("hidden footer freezes all repaint sources and cached rendering; resume is once, current and without boot replay", async (t) => {
+test("rendering ignores the collector's visible field", async (t) => {
 	const f = await fixtures(t), manager = host.SessionManager.inMemory(f.launch), h = await harness(f, manager);
 	t.after(() => h.stop());
-	const advance = mockClock(t);
-	await h.emitStart(); await advance(5);
-	h.publish({ usage: { installed: true, providers: [{ provider: "quota/team", tag: "MUSE", color: "usage.kmi", data: { fetchedAt: Date.now(), updatedAt: null, windows: { "5h": { usedPercent: 25, resetsAt: Date.now() + 3600000 } } } }] } });
-	const cached = h.component.render(300);
-	const armed = t.mock.method(globalThis, "setTimeout");
-	h.publish({ visible: false }); const renders = h.renders;
-	const contextReads = h.contextReads;
-	h.changeModel(); h.setIdle(false); h.setStatus("ponytail", ponytailText("full", true));
-	h.events.emit("tatsu-status:changed", { version: 1, phase: "checking", components: [{ component: "tatsu-cli", state: "checking" }, { component: "agent-workspace", state: "checking" }] });
-	for (const type of ["agent_start", "agent_end", "agent_settled", "model_select", "thinking_level_select", "session_compact"]) await h.runner.emit({ type });
-	h.publish({ units: 8 }); await h.motion("off"); await h.motion("on");
-	assert.strictEqual(h.component.render(300), cached, "same width returns the exact cached lines");
-	assert.equal(h.contextReads, contextReads, "cached render does not build a snapshot");
-	const resized = h.component.render(180); assert.strictEqual(h.component.render(180), resized);
-	assert.match(resized.map(shownText).join("\n"), /second-model/, "width change renders once, settled and current");
-	await advance(10 * 60000);
-	assert.equal(h.renders, renders, "no repaint from signals/status/lifecycle/commands or cleared timers");
-	assert.equal(armed.mock.callCount(), 0, "hidden width change and updates arm no timers");
-	assert.equal(h.contextReads, contextReads + 1, "only the resized hidden render samples once");
-	h.publish({ visible: true }); assert.equal(h.renders, renders + 1, "one resume repaint");
-	const first = h.component.render(300); const text = first.map(shownText).join("\n");
-	assert.match(text, /second-model/); assert.match(text, /08 AU/); assert.match(text, /FUL/);
-	assert.match(text, /MUSE/, "widened v1 source metadata survives real-loader display and hidden resume");
-	assert.ok(armed.mock.callCount() > 0, "visible render rearms decoration/countdown");
-	await h.motion("off"); const settled = h.component.render(300);
-	for (const label of ["01 ACT", "02 CTX", "03 MDL", "04 USG"]) {
-		assert.equal(first.find((line: string) => line.includes(label)), settled.find((line: string) => line.includes(label)), "no boot, PNYTL mode burst or USG fill replay; ordinary lamp/shuttle decoration may resume");
+	await h.emitStart();
+	for (const visible of [false, true, null]) {
+		const renders = h.renders;
+		h.publish({ visible, units: 8 }); assert.equal(h.renders, renders + 1, `visible ${visible} still repaints`);
 	}
-	h.publish({ visible: false }); await h.motion("on"); const beforeUnknown = h.renders;
-	h.publish({ visible: null }); assert.equal(h.renders, beforeUnknown + 1, "unknown fails open like visible");
+	h.publish({ visible: false }); h.changeModel(); await h.runner.emit({ type: "model_select" });
+	const text = h.text(); assert.match(text, /second-model/); assert.match(text, /08 AU/);
 	assert.deepEqual(h.errors, []);
-});
-
-
-test("hidden without cached lines renders settled once; motion-off resume remains off", async (t) => {
-	const f = await fixtures(t), manager = host.SessionManager.inMemory(f.launch), h = await harness(f, manager);
-	t.after(() => h.stop());
-	h.publish({ visible: false }); await h.emitStart(); await h.motion("off");
-	const advance = mockClock(t), armed = t.mock.method(globalThis, "setTimeout");
-	const reads = h.contextReads, first = h.component.render(300);
-	assert.match(first.map(shownText).join("\n"), /first-model/);
-	assert.strictEqual(h.component.render(300), first); assert.equal(h.contextReads, reads + 1);
-	const renders = h.renders; await advance(100000); assert.equal(h.renders, renders); assert.equal(armed.mock.callCount(), 0);
-	h.changeModel(); h.publish({ visible: null }); assert.equal(h.renders, renders + 1);
-	assert.match(h.text(), /second-model/); assert.equal(armed.mock.callCount(), 0, "motion off plus absent usage stays timer-free on resume");
 });
