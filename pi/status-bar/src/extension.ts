@@ -74,7 +74,7 @@ export default function (pi: ExtensionAPI) {
 
 	// Countdowns are live values: repaint when one can change, with or without motion.
 	const scheduleUsageRepaint = (s: SessionState, delay: number | undefined) => {
-		if (delay === undefined || !current(s) || s.signals?.visible === false) return;
+		if (delay === undefined || !current(s)) return;
 		const now = performance.now(), due = now + delay + 20;
 		if (s.usageTimer && s.usageDue! <= due) return;
 		if (s.usageTimer) clearTimeout(s.usageTimer);
@@ -195,22 +195,14 @@ export default function (pi: ExtensionAPI) {
 			ctx.ui.setFooter((tui, theme, footerData) => {
 				if (session !== s) return { render: () => [], invalidate() {} };
 				stopWork(s); s.disposed = false;
-				const render = () => { if (current(s) && s.signals?.visible !== false) tui.requestRender(); };
+				const render = () => { if (current(s)) tui.requestRender(); };
 				s.requestRender = render;
 				const ponytailObserver = observePonytail(s, () => footerData.getExtensionStatuses());
 				s.ponytailObserver = ponytailObserver;
 				const tatsuObserver = observeTatsu(s);
 				s.signalObserver = observeSignals(pi, () => current(s) && s.ctx.sessionManager.getSessionId() === s.id ? s.id : undefined, (signals) => {
-					const hidden = s.signals?.visible === false;
 					s.signals = signals;
-					if (signals?.visible === false) {
-						if (!hidden) stopAnimation(s);
-						if (s.usageTimer) clearTimeout(s.usageTimer);
-						s.usageTimer = s.usageDue = undefined;
-					} else {
-						if (hidden && s.motion) s.animation?.resume();
-						s.requestRender?.();
-					}
+					s.requestRender?.();
 				});
 				const snapshot = (): FooterSnapshot => {
 					const ponytail = ponytailObserver.read(), tatsu = tatsuObserver.read();
@@ -233,7 +225,6 @@ export default function (pi: ExtensionAPI) {
 				const animation: Animation = {
 					state: startMotion(latest, performance.now(), motionSeed(), true, ponytailGuardUntil),
 					resume() {
-						if (s.signals?.visible === false) return;
 						stopAnimation(s);
 						latest = snapshot();
 						const now = performance.now();
@@ -242,14 +233,14 @@ export default function (pi: ExtensionAPI) {
 					},
 					// One unref'd decoration timeout; no telemetry collection in this path.
 					schedule(now) {
-						if (!s.motion || !current(s) || s.signals?.visible === false || s.animation !== animation) return;
+						if (!s.motion || !current(s) || s.animation !== animation) return;
 						const due = now + nextMotionDelay(animation.state, now);
 						if (animation.timer && animation.due! <= due) return;
 						if (animation.timer) clearTimeout(animation.timer);
 						animation.due = due;
 						animation.timer = setTimeout(() => {
 							animation.timer = animation.due = undefined;
-							if (!s.motion || !current(s) || s.signals?.visible === false || s.animation !== animation) return;
+							if (!s.motion || !current(s) || s.animation !== animation) return;
 							const time = performance.now();
 							animation.state = advanceMotion(animation.state, latest, time);
 							render();
@@ -260,23 +251,18 @@ export default function (pi: ExtensionAPI) {
 				};
 				s.animation = animation;
 				animation.schedule(performance.now());
-				let cached: { width: number; lines: string[] } | undefined;
 				return {
 					invalidate() {},
 					render(width) {
 						if (!current(s) || s.animation !== animation) return [];
-						const hidden = s.signals?.visible === false;
-						if (hidden && cached?.width === width) return cached.lines;
 						latest = snapshot();
 						scheduleUsageRepaint(s, usageRepaintDelay(latest.usage));
 						const now = performance.now();
-						if (s.motion && !hidden) {
+						if (s.motion) {
 							animation.state = advanceMotion(animation.state, latest, now);
 							animation.schedule(now);
 						}
-						const lines = renderFooter(latest, width, theme, s.motion && !hidden ? motionFrame(animation.state, now) : undefined);
-						cached = { width, lines };
-						return lines;
+						return renderFooter(latest, width, theme, s.motion ? motionFrame(animation.state, now) : undefined);
 					},
 					dispose() { if (s.animation === animation) stopWork(s); },
 				};

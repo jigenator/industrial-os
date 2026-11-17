@@ -69,16 +69,6 @@ test("missing collector: no data subprocesses, unknown AU/CMP/Active/Git, live C
 });
 
 
-test("visible is additive: old, null and malformed values fail open; only false freezes", () => {
-	const events = host.createEventBus(), seen: any[] = [];
-	const observer = observeSignals({ events } as any, () => "live", (s) => seen.push(s));
-	for (const [n, value] of [undefined, null, "false", 0, true, false].entries()) {
-		events.emit("signals-collector:v1:snapshot", { ...dto("live", n + 1), visible: value });
-		assert.equal(seen.at(-1).visible, typeof value === "boolean" ? value : null);
-	}
-	observer.dispose();
-});
-
 test("widened v1 usage preserves configured order, arbitrary ids and raw metadata", () => {
 	const events = host.createEventBus(), seen: any[] = [];
 	const providers = [{ provider: "__proto__", tag: "\x1b[31mNEW", color: "usage.unknown" }, { provider: "a/b", data: { windows: { wk: { usedPercent: null, resetsAt: null } }, updatedAt: null, fetchedAt: 1 } }];

@@ -38,7 +38,7 @@ The collector gives the agent the unchanged `set_active_project({ path })` tool.
 
 ## Limitations
 
-- The footer freezes only on a snapshot with `visible: false`; the current collector always publishes null (no visibility source since herdr-tui was retired), so the freeze does not trigger. See [freeze behavior](docs/architecture.md#off-screen-freeze) and the [collector contract](../signals-collector/docs/contract.md#pane-visibility).
+- The footer does not read the collector's `visible` field and never pauses for a hidden pane; the collector always publishes null ([contract](../signals-collector/docs/contract.md#pane-visibility)).
 
 Active is an agent declaration, not automatic cwd tracking, so the footer can be stale if the agent forgets to signal a switch. Paths show only their parent/current directories, so checkouts whose last two directory names match look alike; the `set_active_project` result reports the full Active path. GitHub repository detection is local; PR lookup requires a recognizable public GitHub remote plus a working, authenticated `gh` command. It checks the selected remote repository, not outbound PRs from a fork to an upstream repository. Failures are reported as unavailable rather than as clean or no-PR states.
 
