@@ -45,7 +45,7 @@ function harness(options: { editor?: string; idle?: boolean; queued?: boolean; h
 	};
 	reloaderGuard(pi as any, async (args) => { hcCalls.push(args); return options.hcOk ?? true; }, "t9");
 	const label = () => JSON.parse(hcCalls[0][2].slice(LABEL.length + 1));
-	const request = (fields: Request = {}) => ({ v: 1, token: label().token, pid: process.pid, terminal: "t9", action: "probe", session: ctx.session, ...fields });
+	const request = (fields: Request = {}) => ({ v: 2, token: label().token, action: "probe", session: ctx.session, ...fields });
 	async function send(body: Request | string) {
 		return new Promise<any>((resolve, reject) => {
 			const socket = connect(label().port, "127.0.0.1", () => socket.write((typeof body === "string" ? body : JSON.stringify(body)) + "\n"));
@@ -59,17 +59,15 @@ function harness(options: { editor?: string; idle?: boolean; queued?: boolean; h
 	return { handlers, hcCalls, sent, calls, ctx, label, request, send, start: () => handlers.session_start({}, ctx), dispatching: (f: () => void) => { onDispatch = f; } };
 }
 
-test("publishes the loopback port, a fresh token, its pid and parent pid as the io.pi-reloader.v1 label on its own terminal", async (t) => {
+test("publishes the loopback port and a fresh token as the io.pi-reloader.v2 label on its own terminal", async (t) => {
 	const h = harness();
 	await h.start();
 	t.after(() => h.handlers.session_shutdown({ reason: "quit" }, h.ctx));
 	assert.equal(h.hcCalls[0][0], "label");
 	assert.equal(h.hcCalls[0][1], "t9");
 	const label = h.label();
-	assert.deepEqual(Object.keys(label).sort(), ["pid", "port", "ppid", "token", "v"]);
-	assert.equal(label.v, 1);
-	assert.equal(label.pid, process.pid);
-	assert.equal(label.ppid, process.ppid);
+	assert.deepEqual(Object.keys(label).sort(), ["port", "token", "v"]);
+	assert.equal(label.v, 2);
 	assert.match(label.token, /^[0-9a-f]{32}$/);
 });
 
@@ -78,7 +76,7 @@ test("probe reports ready, draft or busy and never exposes the draft text", asyn
 		const h = harness(options);
 		await h.start();
 		const reply = await h.send(h.request());
-		assert.deepEqual(reply, { v: 1, pid: process.pid, terminal: "t9", session: SESSION, status });
+		assert.deepEqual(reply, { v: 2, session: SESSION, status });
 		assert.doesNotMatch(JSON.stringify(reply), /secret/);
 		assert.deepEqual(h.sent, []);
 		await h.handlers.session_shutdown({ reason: "quit" }, h.ctx);
@@ -86,10 +84,10 @@ test("probe reports ready, draft or busy and never exposes the draft text", asyn
 	t.diagnostic("five editor/queue states checked");
 });
 
-test("rejects a wrong token, pid, terminal, action or session without acting", async () => {
+test("rejects a wrong version, token, action or session without acting", async () => {
 	const h = harness();
 	await h.start();
-	for (const bad of [{ token: "0".repeat(32) }, { token: undefined }, { pid: process.pid + 1 }, { terminal: "t1" }, { action: "submit" }, { action: "reload", session: "/sessions/other.jsonl" }, { action: "quit", session: null }, { v: 2 }]) {
+	for (const bad of [{ token: "0".repeat(32) }, { token: undefined }, { action: "submit" }, { action: "reload", session: "/sessions/other.jsonl" }, { action: "quit", session: null }, { v: 1 }]) {
 		const reply = await h.send(h.request(bad));
 		assert.equal(reply.status, "error", JSON.stringify(bad));
 	}

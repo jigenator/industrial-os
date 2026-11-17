@@ -110,13 +110,13 @@ A window over the layout, 620 × 460 px, opened and closed with `mod.open:pi-rel
 From top to bottom:
 
 - **Title** `Pi Reloader`, with `↑↓ Enter · Esc` on the right, or `running`.
-- **Actions**: `Reload all Pi` and `Reset all Pi`; `>` and the `selected` background mark the selected one. Under them one line says what it does: reload is Pi's own reload and skips drafts; reset moves focus, so don't type, click or switch until the summary.
-- **Last run**, after a run: `<action>: Success`, `Nothing to do` or `Completed with errors` (in `blocked`); the counts, `Reloaded` or `Restarted` (with `Visited`), `Skipped (drafts)`, `Skipped (busy)`, `Skipped (not Pi)`, and, when any, `Skipped (not restartable)`, `Skipped (protected terminal)`, `Skipped (another machine)`, then `Failed`; up to five errors and one line per Pi acted on, such as `t2n skipped (unsent draft left untouched)`.
-- **Idle or done Pi (n)**: one line per candidate, in Herdr's agent order: address, `idle` or `done`, `guard` or `NO GUARD` (in `blocked`), space / tab, title. Then `Not acted on:` with the busy, non-Pi, protected and remote counts.
+- **Actions**: `Reload all Pi` and `Reset all Pi`; `>` and the `selected` background mark the selected one. Under them one line says what it does: reload is Pi's own reload and skips drafts; reset quits each Pi and resumes its session in the same shell.
+- **Last run**, after a run: `<action>: Success`, `Nothing to do` or `Completed with errors` (in `blocked`); one line of counts, `Reloaded: 1 · Skipped: 2 · Failed: 0` (`Restarted` for a reset); then one line per Pi acted on with its reason, such as `t2n skipped (unsent draft left untouched)` or, in `blocked`, `t2p failed: guard unavailable; …`.
+- **Idle or done Pi (n)**: one line per candidate, in Herdr's agent order: address, `idle` or `done`, `guard` or `NO GUARD` (in `blocked`), space / tab, title. Then `Not acted on:` with the busy and protected Pi counts. A test copy adds `Test scope: only …` in `blocked`.
 
-While a run is going the actions give way to one `working` line, `DON'T TYPE · Reset all Pi 1/3 · waiting for restart batch`, which counts settled attempts and then names the Pi being viewed. Keys and Esc do nothing until the summary; the summary returns the keyboard to the window.
+While a run is going the actions give way to one `working` line, `Reset all Pi 1/3`, which counts settled attempts. Focus never moves, so the person can keep working; keys and Esc in the window do nothing until the summary, which returns the keyboard to the window.
 
-**States.** `Success` means at least one Pi completed and nothing failed; `Nothing to do` that nothing completed or failed. Reload is complete only when the new runtime's guard answers; restart only when the resumed Pi on the same session file answers, idle or done. `Visited` means focus moved to it, not that every client saw it.
+**States.** `Success` means at least one Pi completed and nothing failed; `Nothing to do` that nothing completed or failed. Reload is complete only when the new runtime's guard answers; restart only when the resumed Pi on the same session file answers, idle or done. A Pi keeps the idle or done it had: neither action runs a prompt, so Herdr's read state does not change.
 
 **Keys and commands.** `↑`/`k`, `↓`/`j`, `Enter`, `Esc`/`q`; clicking an action runs it. `pi-reloader.reload`, `pi-reloader.reset` and `pi-reloader.close` do the same from keys.json or `herdr-app do`.
 

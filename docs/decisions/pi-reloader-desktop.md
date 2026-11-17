@@ -1,38 +1,42 @@
-# The Pi Reloader moves to Herdr desktop
+# The Pi Reloader: a Herdr desktop window and a Pi guard
 
-Status: current. Date: 2026-11-17; the placement, a Herdr desktop mod plus a Pi extension inside Industrial OS, was decided by the maintainer; the channel and restart below were chosen within that brief. Offline tests, `herdr-app check` and one isolated live run implement and check it; see the [Herdr record](../../herdr/CONTRIBUTING.md#pi-reloader).
+Status: current, version 2. Date: 2026-11-17. The placement, a herdr-app window mod plus a Pi extension inside Industrial OS, was decided by the maintainer. Version 2 is the maintainer's requested rewrite onto Herdr desktop's own tools; the channel and dropping any read marking were chosen within that brief, on the live evidence below. Offline tests, `herdr-app check` and an isolated live run implement and check it; see the [Herdr record](../../herdr/CONTRIBUTING.md#pi-reloader).
 
 ## Choice
 
-The herdr-tui plugin [jigenator/herdr-pi-reloader](https://github.com/jigenator/herdr-pi-reloader), a Rust popup plus a companion Pi extension, is ported as two Industrial OS projects:
+Two Industrial OS projects that share only [the guard contract](../../pi/reloader-guard/docs/contract.md):
 
-- `herdr/mods/pi-reloader/`, a herdr-app window mod with Node-tested pure rules, opened from a key bound to `mod.open:pi-reloader`;
-- `pi/reloader-guard/`, the companion extension adapted for Herdr desktop, gated on `HC_TERMINAL_ID`.
+- `herdr/mods/pi-reloader/`, a window mod with Node-tested pure rules, opened from a key bound to `mod.open:pi-reloader`;
+- `pi/reloader-guard/`, a Pi extension, active only in the TUI inside a Herdr desktop terminal (`HC_TERMINAL_ID`).
 
-Its behaviours and safety rules are kept: idle or done Pi only; reload through Pi's API, verified by a replacement guard runtime; reset concurrently, wait for every attempt, visit restarted idle Pis in order, restore focus; skip busy, queued, changed-session and draft Pis; never type a slash command; fail closed without a guard; report completed, skipped and failed counts.
+**Channel.** The guard listens on a loopback TCP port and publishes `{ v: 2, port, token }` as the herdr-core label `io.pi-reloader.v2` on its own terminal. The mod reads it from `terminals()` and `hc get`, and sends one JSON line over gpui-kit's `net.connect` carrying the per-runtime token; one line comes back on the same connection.
 
-**Channel.** The guard listens on a loopback TCP port and publishes `{ port, token, pid, ppid }` as the herdr-core label `io.pi-reloader.v1` on its own terminal, as the signals collector publishes `io.signals.v1`. The mod reads labels from `terminals()` and `hc get`, and talks to the guard with gpui-kit's `net.connect`, one JSON line each way, carrying the per-runtime token. [The contract](../../pi/reloader-guard/docs/contract.md) is canonical.
+**Rules.** Act only on Pi agents Herdr reports idle or done, in their own pane on this computer. Never a protected terminal: no pane of its own, shown by a layout block, `lunalee-chat`, or another machine. Skip busy, queued, draft and changed-session Pis; the guard rechecks right before Pi's own `reload()` or `shutdown()`. Never type a slash command or any text into Pi. Fail closed when the guard is missing or silent. Never kill anything. Report completed, skipped and failed counts with a reason for each Pi. Reload and Reset both run on every candidate at once and wait for every attempt.
 
-**Restart.** Pi 1.5.2 has no restart API (`reload()` and `shutdown()` only). A reset asks the guard to quit Pi, waits until herdr-core shows the terminal's root shell back in front with no agent status, and then types one shell line into that shell with `hc send`: `pi --session '<the same session file>'`. It acts only when the root program is sh, bash, zsh, dash or ksh and Pi one of its jobs, so quitting never ends the terminal; nothing is killed. Protected terminals (no pane, a layout block, `lunalee-chat`) and other machines are never candidates.
+**Restart.** Pi 1.5.2 has no restart API. Reset asks the guard to quit Pi and waits until herdr-core shows the root shell back in front with no agent status. It then types one shell line into that shell with `hc send`: `pi --session '<the same session file>'`. It acts only when the root program is sh, bash, zsh, dash or ksh and Pi one of its jobs, so quitting never ends the terminal.
+
+**Read state.** The Reloader leaves Herdr's idle and done alone. herdr-core counts a `turn` per terminal; Herdr shows an agent `done` while the undocumented label `herdr.seen` is below that turn. The turn advances only when a prompt runs. A reload or a quit and resume runs no prompt, so a Pi that was idle stays idle and one that was done stays done, with no visit and no label.
 
 ## Why
 
-- **The fork's channel does not exist in Desktop.** Its plugin found each guard at `/tmp/herdr-pi-reloader-<uid>/<pid>.sock`, keyed by herdr-tui's `HERDR_SOCKET_PATH` and `HERDR_PANE_ID`, which Desktop terminals don't set. herdr-app mods can `exec`, run `hc`, read and write files and open TCP connections (`gpui-kit.d.ts`, module `net`), but not Unix sockets.
-- **Labels are already the store mods read.** A label on the guard's own terminal is scoped to it, live in `terminals()`, gone with the terminal, and readable by `hc get` in the same snapshot as status and foreground process. No exec'd client, no file in the mod's folder and no polling of files.
-- **The token keeps the old trust boundary.** The Unix socket admitted only the same user through file modes; a loopback port admits anyone, so every request needs the 128-bit token, which only processes that can read the user's herdr-core labels see.
-- **Restarting from the shell is what the fork did** (`run_in_pane "pi --session …"` after the shell returned), and it is the only restart that keeps the terminal, its pane and layout place, and needs no new Pi API.
+- **The loopback port is the simplest channel that keeps the guarantees.** A label request channel works: `hc events --terminal <t> --json` pushes a `labels` event on every label change. But every idle Pi would then keep an `hc events` child running and restart it whenever herdr-core restarts. That child wakes on every change to its terminal, including each `io.signals.v1` write. The guard would also have to deduplicate requests, ignore a request label left from an earlier runtime, and reply by label, and the mod would poll for that reply. The listener costs nothing while idle and needs herdr-core only to publish. A reply arrives on the request's own connection, so a stale reply cannot pass as a fresh one, and a replacement runtime is recognised by its new token.
+- **The trust boundary is the same either way.** Only processes of the same user can read herdr-core labels (`hc get`) or write them (`hc label`). That includes agent sessions, so any of them could read the token or write a request label. Neither channel can tell Herdr's window from another process of the user. The token keeps other users and stale runtimes out.
+- **The token alone identifies the runtime.** The guard checks it; the mod confirms a reload by a new token that answers. A process id, parent id and terminal in the label and wire added no protection the token does not give, so version 2 drops them, along with the foreground-process check that needed them.
+- **There is no seen state to restore.** Live, a reload and a reset left the core `turn` unchanged: a restarted idle Pi read `idle` in `herdr-app ls` and a done one stayed `done`, while focus never moved. Moving focus, or writing `herdr.seen=<turn>`, would only rewrite what is already there. A turn that does advance after a resume is new work, and `done` is the honest state for it.
+- **Restarting from the shell** is the only restart that keeps the terminal, its pane and its place in the layout, and needs no new Pi API.
+- **`hc wait` does not fit the waits.** It waits for an agent to stop working; the Pis here are already settled, and the root shell has no status. The mod polls `hc get` every 250 ms, only while it acts.
 
 ## Alternatives
 
-- **Unix socket plus an exec'd client** (`nc -U`, or a Node script): a process per request, a client file whose path the mod must know, and `nc -U` is not on every Linux. Rejected for the label and TCP.
-- **A request file the guard watches:** polling or a watcher in every Pi, and stale files to clean. Rejected.
-- **Typing `/reload` or `/quit` into Pi with `hc send`:** violates the draft rule and the no-slash-command rule. Rejected. (The live run showed why: a pasted `/reload` from an agent terminal arrives wrapped in `<hc from=…>` tags and reaches the model as a prompt.)
-- **`hc kill` and a new terminal for reset:** ends the terminal and its pane, and would be unsafe for layout-block terminals. Rejected.
-- **Repeating Pi's original arguments on restart:** they may include a first prompt, which would be sent again. Kept the fork's bare `pi --session`.
+- **A request label watched with `hc events`:** rejected above. Revisit if herdr-core gains per-terminal requests or private values, or if mods gain a push stream.
+- **Marking restarted Pis read with `hc label <t> herdr.seen=<turn>`, or visiting them with `agent.focus`:** neither changes anything, because the turn does not move. Version 1 visited restarted idle Pis and restored focus; removed.
+- **Typing `/reload` or `/quit` into Pi with `hc send`:** breaks the draft rule and the no-slash-command rule. From an agent terminal, `hc send` wraps the text as `<hc from="tN">…</hc>`, which reaches the model as a prompt.
+- **`hc kill` and a new terminal for reset:** ends the terminal and its pane. Rejected.
+- **Repeating Pi's original arguments on restart:** they may include a first prompt, which would be sent again. Rejected for a bare `pi --session`.
 
 ## Consequences and revisit
 
-- The herdr-tui plugin and its extension are no longer needed in Desktop. The old extension is inert there and can coexist until herdr-tui is retired.
-- A Pi started from a layout block, as a terminal's own program, under fish, or on another machine is not restarted. Revisit if Pi gains a restart API.
-- The token is visible to the user's own processes and to agents that print `hc get` output. Revisit if herdr-core gains per-terminal private values or mods gain Unix sockets.
+- Version 2 changes the label and the wire, so the mod and the guard are installed together. Until a running Pi reloads with the new guard, the new mod shows it as `NO GUARD` and leaves it alone. A version 1 label left on a terminal is inert.
+- A Pi started from a layout block, as a terminal's own program, under fish, or on another machine is never restarted. Revisit if Pi gains a restart API.
+- `herdr.seen` and `turn` are undocumented; this record depends on them only to explain why nothing is marked. If Herdr ever shows a restarted Pi as done, `hc label <t> herdr.seen=<turn from hc get>` marks it read without moving focus.
 - The run lives in the window's task: a layout switch stops it, possibly leaving a quit Pi at its shell prompt with its session intact.
