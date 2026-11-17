@@ -18,13 +18,17 @@ function find(node, id) {
 	return null;
 }
 
-test("the layout differs from shipped main.json only in the sidebar-lists block and the lunalee column", async () => {
+test("the layout differs from shipped main.json only in terminal padding, the sidebar-lists block and the lunalee column", async () => {
 	const shipped = JSON.parse(await read("./fixtures/herdr-app-0.1.15-main.json"));
 	const layout = JSON.parse(await read("../layouts/industrial-os.json"));
+	// Zero so her chat fills its column; Herdr 0.1.16 reads terminal padding only from the root.
+	assert.deepEqual(shipped.terminal_padding, [14, 12]);
+	assert.deepEqual(layout.terminal_padding, [0, 0]);
+	shipped.terminal_padding = layout.terminal_padding;
 	assert.deepEqual(find(shipped, "sidebar-lists").children.map((c) => c.id), ["spaces", "agents"]);
 	assert.deepEqual(find(layout, "sidebar-lists").children, [{ id: "industrial-os", type: "block", content: { mod: "industrial-os" } }]);
 	find(shipped, "sidebar-lists").children = find(layout, "sidebar-lists").children;
-	// The frozen Lunalee column contract: ids, terminal name and 580 px (64 columns at font 14, padding [14,12]).
+	// The frozen Lunalee column contract: ids, terminal name and 580 px (about 67 columns at font 14, no terminal padding).
 	assert.deepEqual(layout.children[2], {
 		id: "lunalee",
 		type: "column",
