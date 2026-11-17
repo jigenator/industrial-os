@@ -1,13 +1,13 @@
 # Agent guide
 
-Purpose: keep the actual inherited Herdr pane label aligned with current work. This project supplements the [root guide](../../AGENTS.md) and [Pi guide](../AGENTS.md); user usage is in [README](README.md).
+Purpose: keep this Pi's Herdr Desktop pane name, its terminal title, aligned with current work. This project supplements the [root guide](../../AGENTS.md) and [Pi guide](../AGENTS.md); user usage is in [README](README.md).
 
 ## Critical engineering rules
 
-- Preserve the main-TUI/Herdr/subagent gate and inherited-pane/terminal checks; never choose the target from focus or model output; rename only the inherited pane. Flow and safeguards: [architecture](docs/architecture.md#critical-invariants); check `test/naming.test.ts`.
+- Preserve the main-TUI/Herdr Desktop (`HC_TERMINAL_ID`)/subagent gate; the only write is Pi's `ctx.ui.setTitle` on this Pi's own terminal; run no command and never take a target from focus, input or model output. Flow and safeguards: [architecture](docs/architecture.md#critical-invariants); check `test/naming.test.ts`.
 - Forward only the bounded payload documented in [privacy and cost](README.md#data-sharing-and-cost). Excerpts are not generally redacted; never log their content or raw SDK errors. Check hostile/failure tests and [conventions](docs/conventions.md#trust-and-state-boundaries).
-- Preserve epoch/signal cancellation and serialized writes. A stale result cannot rename; off stops this runtime even if its save fails. Check navigation, late-read and atomic-write cases.
-- Runtime pi-typesafe is the specific root-install exception, not permission to bundle Pi peers; see [the decision](../../docs/decisions/pane-naming-root-dependency.md). Tests never contact live TypeSafe, providers or Herdr.
+- Preserve epoch/signal cancellation. A stale result cannot rename; off stops this runtime even if its save fails. Check navigation, late-read and atomic-write cases.
+- Runtime pi-typesafe is the specific root-install exception, not permission to bundle Pi peers; see [the decision](../../docs/decisions/pane-naming-root-dependency.md). Tests never contact live TypeSafe, providers or Herdr, and never write a real terminal title.
 
 ## Read for the task
 
@@ -23,9 +23,9 @@ Purpose: keep the actual inherited Herdr pane label aligned with current work. T
 
 | Change | Start here | Boundary |
 | --- | --- | --- |
-| Pi lifecycle, preferences, cooldown or Herdr writes | `index.ts` | Own inherited pane only; serialized CLI writes and epoch/signal fencing |
-| Jev classification, title model, PR/title parsing or safe errors | `models.ts` | Untrusted bounded data; model output cannot select a command or pane |
-| Regression or installed-host coverage | `test/naming.test.ts`, `test/pi-load.mjs` | Mocked services/CLI, temporary preferences and agent directories |
+| Pi lifecycle, preferences, cooldown or the title write | `index.ts` | Own terminal title only, through Pi; no commands; epoch/signal fencing |
+| Jev classification, title model, PR/title parsing or safe errors | `models.ts` | Untrusted bounded data; model output cannot select a command or target |
+| Regression or installed-host coverage | `test/naming.test.ts`, `test/pi-load.mjs` | Mocked services and `setTitle`, temporary preferences and agent directories |
 | Rules, experience or scope | Matching `docs/` guide | Commands and evidence stay in CONTRIBUTING |
 
 ## Implement and verify

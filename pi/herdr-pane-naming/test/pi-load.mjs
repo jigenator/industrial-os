@@ -11,7 +11,7 @@ const { DefaultResourceLoader, SettingsManager } = await import(pathToFileURL(jo
 const temporary = await mkdtemp(join(tmpdir(), "pane-naming-pi-load-"));
 const originalFetch = globalThis.fetch;
 // PI_CODING_AGENT_DIR also isolates pi-typesafe's key store and usage ledger.
-const isolatedEnv = { PI_CODING_AGENT_DIR: temporary, HERDR_ENV: "1", HERDR_PANE_ID: "offline-pane", PI_SUBAGENT_CHILD: "0", TYPESAFE_API_KEY: undefined };
+const isolatedEnv = { PI_CODING_AGENT_DIR: temporary, HC_TERMINAL_ID: "offline-terminal", PI_SUBAGENT_CHILD: "0", TYPESAFE_API_KEY: undefined };
 const originalEnv = Object.fromEntries(Object.keys(isolatedEnv).map((key) => [key, process.env[key]]));
 for (const [key, value] of Object.entries(isolatedEnv)) {
   if (value === undefined) delete process.env[key]; else process.env[key] = value;
@@ -38,10 +38,10 @@ try {
     sessionManager: { getSessionId: () => "offline", getEntries: () => [], getBranch: () => [] },
     ui: { notify(message) { notices.push(message); } },
     model: undefined,
-    // Stop before Herdr/model execution; record which title models the real factory considers.
+    // Stop before model execution; record which title models the real factory considers.
     modelRegistry: { find(provider, model) { selected.push(`${provider}/${model}`); return undefined; } },
   });
-  // The real loader's unbound exec is a throwing stub. Startup must never call Herdr or a model.
+  // The real loader's unbound exec is a throwing stub. Startup must never run a command, write a title or call a model.
   for (const mode of ["rpc", "json", "print"]) {
     const selected = [], notices = [];
     await run("session_start", contextFor(mode, selected, notices));

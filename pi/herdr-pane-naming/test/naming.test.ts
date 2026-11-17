@@ -19,7 +19,7 @@ const agentDirectory = mkdtempSync(join(tmpdir(), "pane-naming-agent-"));
 process.env.PI_CODING_AGENT_DIR = agentDirectory;
 let harnessId = 0;
 after(() => Promise.all([preferencesDirectory, agentDirectory].map((directory) => rm(directory, { recursive: true, force: true }))));
-const env = { HERDR_ENV: "1", HERDR_PANE_ID: "own-pane" };
+const env = { HC_TERMINAL_ID: "t1" };
 const title = { title: "Fix login", prs: [] };
 const input = { request: "Fix login", previousTask: "", currentName: "", replyContext: "" };
 const USAGE = "Usage: /pane-naming on | off | status | cooldown <seconds: 1–3600> | model <provider/model-id>";
@@ -52,15 +52,21 @@ function harness(options: any = {}) {
     writeFileSync(preferencesFile, typeof options.preferences === "string" ? options.preferences : JSON.stringify(options.preferences));
   }
   const entries: any[] = [];
-  const calls: any[] = [], checks: any[] = [], titles: any[] = [], notices: string[] = [];
-  const paneId = options.env?.HERDR_PANE_ID ?? env.HERDR_PANE_ID;
-  const pane: any = { pane_id: paneId, terminal_id: "terminal-1", ...(options.label ? { label: options.label } : {}) };
+  const calls: string[] = [], checks: any[] = [], titles: any[] = [], notices: string[] = [];
+  // What Herdr Desktop shows: Pi's own title until this extension writes one.
+  const terminal = { title: "π - project" };
+  let seeding: any; let execs = 0;
   const session = { history: options.history ?? [], branch: options.branch ?? options.history ?? [] };
   const models: string[] = options.models ?? [FALLBACK_TITLE_MODEL, "google/test-model", "google/new-model"];
   const modelObjects = new Map<string, any>();
   const ctx: any = {
     mode: options.mode ?? "tui", hasUI: options.mode !== "print", isIdle: () => true, model: options.sessionModel,
-    ui: { notify: (message: string) => notices.push(message), confirm: async () => { throw new Error("Pane naming must not ask for confirmation"); } },
+    ui: {
+      notify: (message: string) => notices.push(message), confirm: async () => { throw new Error("Pane naming must not ask for confirmation"); },
+      setTitle: (...args: string[]) => {
+        assert.equal(args.length, 1); calls.push(args[0]); options.setTitle?.(args[0]); terminal.title = args[0];
+      },
+    },
     sessionManager: {
       getSessionId: () => "session-1", getEntries: () => entries,
       getBranch: () => session.branch, buildContextEntries: () => session.history,
@@ -80,24 +86,16 @@ function harness(options: any = {}) {
     registerFlag: () => {}, getFlag: (name: string) => flags[name],
     registerCommand: (name: string, command: any) => commands.set(name, command.handler),
     appendEntry: (customType: string, data: any) => entries.push({ type: "custom", customType, data: structuredClone(data) }),
-    exec: async (bin: string, args: string[], opts: any) => {
-      calls.push({ bin, args, opts });
-      assert.equal(bin, "herdr");
-      assert.equal(args[0], "pane"); assert.equal(args[2], paneId); assert.equal(opts.timeout, 1500);
-      const act = async () => {
-        if (args[1] === "rename") {
-          assert.equal(args.length, 4); assert.equal(args[3].startsWith("-"), false); pane.label = args[3];
-        } else assert.equal(args[1], "get");
-        return { code: 0, killed: false, stderr: "", stdout: JSON.stringify({ result: { type: "pane_info", pane } }) };
-      };
-      return options.exec ? options.exec(args, act, pane) : act();
-    },
+    exec: async () => { execs++; throw new Error("Pane naming must not run commands"); },
   };
   register(pi, {
     preferencesFile,
     env: { ...env, ...options.env },
-    classify: async (data, signal) => { checks.push({ data, signal }); return options.check ? options.check(data, signal) : "new_task"; },
+    classify: async (data, signal) => {
+      if (seeding) return "new_task";
+      checks.push({ data, signal }); return options.check ? options.check(data, signal) : "new_task"; },
     generateTitle: async (model, data, allowed, _ctx, signal) => {
+      if (seeding) return seeding;
       titles.push({ model, data, allowed, signal }); return options.title ? options.title(data, allowed, signal) : title;
     },
     typesafeStatus: options.typesafeStatus ?? (() => ({ level: "ok", text: "TypeSafe key: verified." })),
@@ -112,28 +110,30 @@ function harness(options: any = {}) {
     role: "assistant", stopReason: "stop", content: typeof content === "string" ? [{ type: "text", text: content }] : content, ...extra,
   } });
   const command = (arg: string) => commands.get("pane-naming")!(arg, { ...ctx });
-  const renames = () => calls.filter((call) => call.args[1] === "rename");
+  const renames = () => calls;
   const failures = () => entries.filter((entry) => entry.customType === "herdr-pane-naming-failure");
-  return { emit, deliver, send, assistant, command, renames, failures, pane, flags, entries, calls, checks, titles, notices, ctx, session, models, preferencesFile };
+  // Gives this runtime an earlier title of its own, uncounted: it reads no title it did not write.
+  const seed = async (label: string) => { seeding = parseLabel(label); await send(`Seed ${label}`); seeding = undefined; calls.length = 0; };
+  return { emit, deliver, send, assistant, command, renames, failures, seed, terminal, flags, entries, calls, checks, titles, notices, ctx, session, models, preferencesFile, execs: () => execs };
 }
 const savedPreferences = async (h: { preferencesFile: string }) => JSON.parse(await readFile(h.preferencesFile, "utf8"));
 
 // 1. Eligibility
 
-test("only the main interactive inherited Herdr pane is eligible", async (t) => {
+test("only the main interactive Pi in a Herdr Desktop terminal is eligible", async (t) => {
   const tick = activityClock(t);
   assert.equal(eligible(env, { mode: "tui" }), true);
   for (const [environment, mode] of [
-    [{ ...env, HERDR_ENV: "0" }, "tui"], [{ ...env, HERDR_PANE_ID: "" }, "tui"], [{ HERDR_ENV: "1" }, "tui"],
+    [{ HC_TERMINAL_ID: "" }, "tui"], [{}, "tui"], [{ HERDR_ENV: "1", HERDR_PANE_ID: "p1" }, "tui"],
     [{ ...env, PI_SUBAGENT_CHILD: "1" }, "tui"], [env, "rpc"], [env, "print"], [env, "json"],
   ] as const) assert.equal(eligible(environment, { mode } as any), false);
-  for (const options of [{ mode: "rpc" }, { mode: "print" }, { mode: "json" }, { env: { HERDR_ENV: "0" } }, { env: { HERDR_PANE_ID: "" } }, { env: { PI_SUBAGENT_CHILD: "1" } }]) {
+  for (const options of [{ mode: "rpc" }, { mode: "print" }, { mode: "json" }, { env: { HC_TERMINAL_ID: "" } }, { env: { PI_SUBAGENT_CHILD: "1" } }]) {
     const h = harness({ ...options, typesafeStatus: () => ({ level: "error", text: "missing" }) });
     await h.emit("session_start"); await h.send("Fix login");
     await h.assistant("Now debugging login"); await tick();
     for (const command of ["on", "cooldown 5", "model google/test-model", "status"]) await h.command(command);
     assert.equal(h.calls.length, 0); assert.equal(h.checks.length, 0); assert.equal(h.titles.length, 0);
-    assert.deepEqual(h.notices, Array(4).fill("Pane naming only runs in a main interactive Herdr pane."));
+    assert.deepEqual(h.notices, Array(4).fill("Pane naming only runs in a main interactive Pi in a Herdr Desktop terminal."));
     await assert.rejects(readFile(h.preferencesFile), { code: "ENOENT" });
   }
 });
@@ -142,10 +142,11 @@ test("only the main interactive inherited Herdr pane is eligible", async (t) => 
 
 test("naming is on by default with no saved preferences or flags", async () => {
   const h = harness(); await h.emit("session_start");
-  assert.equal(h.calls.length, 0); assert.equal(h.checks.length, 0, "startup must not call Herdr or a model");
+  assert.equal(h.calls.length, 0); assert.equal(h.checks.length, 0, "startup must not write a title or call a model");
   assert.deepEqual(h.notices, []);
   await h.deliver("Fix login"); await until(() => h.renames().length === 1);
-  assert.equal(h.pane.label, "Fix login"); assert.equal(h.renames()[0].args[2], "own-pane");
+  assert.deepEqual(h.renames(), ["Fix login"]); assert.equal(h.terminal.title, "Fix login");
+  assert.equal(h.execs(), 0, "no command runs: the title goes only to Pi's own terminal");
   await assert.rejects(readFile(h.preferencesFile), { code: "ENOENT" }, "startup never saves preferences");
   await h.command("status"); assert.match(h.notices.at(-1)!, /^Pane naming on; new-pane default on\./);
 });
@@ -205,20 +206,20 @@ test("a legacy checkLimit field is accepted, ignored, and dropped on the next sa
   }
 });
 
-// 3. Existing labels
+// 3. Existing titles
 
-test("existing labels are taken over at the next decision without confirmation; adopt and limit are gone", async () => {
-  const h = harness({ label: "My chosen name" }); await h.emit("session_start");
-  assert.equal(h.pane.label, "My chosen name"); assert.equal(h.calls.length, 0);
+test("Pi's own title is replaced at the first decision and never sent as the current name; adopt and limit are gone", async () => {
+  const h = harness(); await h.emit("session_start");
+  assert.equal(h.terminal.title, "π - project"); assert.equal(h.calls.length, 0);
   await h.deliver("Fix login"); await until(() => h.renames().length === 1);
-  assert.equal(h.checks[0].data.currentName, "My chosen name"); assert.equal(h.pane.label, "Fix login");
+  assert.equal(h.checks[0].data.currentName, ""); assert.equal(h.terminal.title, "Fix login");
   for (const command of ["adopt", "limit 3", "limit"]) { await h.command(command); assert.equal(h.notices.at(-1), USAGE, command); }
   await assert.rejects(readFile(h.preferencesFile), { code: "ENOENT" });
 });
 
-// 4. Manual renames
+// 4. Titles written by others
 
-test("manual renames before or during model work never pause naming", async (t) => {
+test("titles Pi or another program writes before or during model work never pause naming and are never read", async (t) => {
   const tick = activityClock(t);
   for (const during of [false, true]) {
     const pending = deferred(); let first = true;
@@ -227,23 +228,23 @@ test("manual renames before or during model work never pause naming", async (t) 
       return { title: data.activity?.text ?? data.request, prs: [] };
     } });
     await h.emit("session_start");
-    if (!during) h.pane.label = "User name";
+    if (!during) h.terminal.title = "User name";
     await h.deliver("Fix login"); await until(() => h.titles.length === 1);
-    if (during) h.pane.label = "User name";
-    pending.resolve(title); await until(() => h.pane.label === "Fix login");
-    if (!during) assert.equal(h.checks[0].data.currentName, "User name");
-    h.pane.label = "Another manual name";
-    await h.send("Next task"); assert.equal(h.pane.label, "Next task");
-    h.pane.label = "Typed during activity";
-    await h.assistant("Debugging next task"); await tick(); assert.equal(h.pane.label, "Debugging next task");
+    if (during) h.terminal.title = "User name";
+    pending.resolve(title); await until(() => h.terminal.title === "Fix login");
+    assert.equal(h.checks[0].data.currentName, "");
+    h.terminal.title = "Another manual name";
+    await h.send("Next task"); assert.equal(h.terminal.title, "Next task");
+    h.terminal.title = "Typed during activity";
+    await h.assistant("Debugging next task"); await tick(); assert.equal(h.terminal.title, "Debugging next task");
     assert.equal(h.failures().length, 0);
   }
   const pending = deferred();
   const h = harness({ check: (data: any) => data.activity ? pending.promise : "keep", title: (data: any) => ({ title: data.activity.text, prs: [] }) });
   await h.emit("session_start"); await h.send("Fix login");
   await h.assistant("Now debugging login"); await tick(); assert.equal(h.checks.length, 2);
-  h.pane.label = "Manual name during Jev"; pending.resolve("update"); await settle();
-  assert.equal(h.pane.label, "Now debugging login");
+  h.terminal.title = "Manual name during Jev"; pending.resolve("update"); await settle();
+  assert.equal(h.terminal.title, "Now debugging login");
 });
 
 // 5. Delivered user messages
@@ -299,7 +300,7 @@ test("session start of any reason anchors activity on the branch's latest user m
     assert.equal(h.checks.length, 1, reason);
     assert.equal(h.checks[0].data.request, "Fix login");
     assert.deepEqual(h.checks[0].data.activity, { text: "Now debugging login", tools: [] });
-    assert.equal(h.pane.label, "Debugging login");
+    assert.equal(h.terminal.title, "Debugging login");
   }
 });
 
@@ -307,14 +308,14 @@ test("tree navigation re-anchors activity on the new branch and clears the previ
   const tick = activityClock(t);
   const h = harness({ history: [userMessage("Branch A request")], title: (data: any) => ({ title: data.activity?.text ?? data.request, prs: [] }) });
   await h.emit("session_start"); await h.send("Fix login");
-  assert.equal(h.pane.label, "Fix login");
+  assert.equal(h.terminal.title, "Fix login");
   await h.emit("session_before_tree");
   h.session.branch = [userMessage("Branch B request", "b1"), assistantMessage([{ type: "text", text: "Answer" }], "b2")];
   await h.emit("session_tree");
   await h.assistant("Working on branch B"); await tick();
   assert.equal(h.checks.length, 2);
   assert.equal(h.checks[1].data.request, "Branch B request"); assert.equal(h.checks[1].data.previousTask, "");
-  assert.equal(h.pane.label, "Working on branch B");
+  assert.equal(h.terminal.title, "Working on branch B");
 });
 
 test("activity naming works when the branch has no user message", async () => {
@@ -322,7 +323,7 @@ test("activity naming works when the branch has no user message", async () => {
   await h.emit("session_start");
   await h.assistant("Exploring the repository layout."); await settle();
   assert.equal(h.checks.length, 1); assert.equal(h.checks[0].data.request, "");
-  assert.equal(h.pane.label, "Exploring the repository");
+  assert.equal(h.terminal.title, "Exploring the repository");
 });
 
 // 7. Cooldown and coalescing
@@ -336,7 +337,7 @@ test("assistant activity renames without another prompt, coalesces bursts and sk
   await h.assistant("I found the cause; now debugging login.");
   await tick(19_999); assert.equal(h.checks.length, 1);
   await tick(1);
-  assert.equal(h.pane.label, "Debugging login"); assert.equal(h.checks.length, 2);
+  assert.equal(h.terminal.title, "Debugging login"); assert.equal(h.checks.length, 2);
   assert.equal(h.checks[1].data.request, "Investigate login failures");
   assert.deepEqual(h.checks[1].data.activity, { text: "I found the cause; now debugging login.", tools: [] });
   await h.assistant("I found the cause; now debugging login."); await tick();
@@ -414,7 +415,7 @@ test("there is no per-session check cap", async (t) => {
   for (let i = 0; i < 50; i++) { await h.assistant(`Phase ${i}`); await tick(); }
   assert.equal(h.checks.length, 250); assert.equal(h.checks.at(-1).data.request, "Request 199");
   decision = "new_task";
-  await h.send("Request 250"); assert.equal(h.checks.length, 251); assert.equal(h.pane.label, "Request 250");
+  await h.send("Request 250"); assert.equal(h.checks.length, 251); assert.equal(h.terminal.title, "Request 250");
   await h.command("status");
   assert.ok(h.notices.at(-1)!.startsWith("Pane naming on; new-pane default on. This session: 251 Jev checks, 1 title requests."));
   assert.equal(h.failures().length, 0); assert.equal(h.notices.length, 1);
@@ -423,24 +424,8 @@ test("there is no per-session check cap", async (t) => {
 // 9. Failures
 
 test("failures record their stage and sanitized reason, warn, and never disable naming", async () => {
-  const herdrFailure = (result: any) => async (args: string[], act: Function) => args[1] === "get" ? result : act();
-  const renameFailure = (result: (pane: any) => any) => async (args: string[], act: Function, pane: any) => args[1] === "rename" ? result(pane) : act();
   const cases: [string, string, any, number, number][] = [
-    ["Herdr read", "Unexpected error (details withheld).", { exec: async () => { throw new Error("PRIVATE_MARKER"); } }, 0, 0],
-    ["Herdr read", "Herdr CLI unavailable.", { exec: herdrFailure({ code: 1, killed: false, stderr: "PRIVATE_MARKER", stdout: "" }) }, 0, 0],
-    ["Herdr read", "Herdr CLI unavailable.", { exec: herdrFailure({ code: 0, killed: true, stderr: "", stdout: "" }) }, 0, 0],
-    ["Herdr read", "Herdr returned invalid JSON.", { exec: herdrFailure({ code: 0, killed: false, stderr: "", stdout: "PRIVATE_MARKER" }) }, 0, 0],
-    ["Herdr read", "Invalid Herdr response.", { exec: herdrFailure({ code: 0, killed: false, stderr: "", stdout: JSON.stringify({ error: "PRIVATE_MARKER" }) }) }, 0, 0],
-    ["Herdr read", "Invalid Herdr response.", { exec: herdrFailure({ code: 0, killed: false, stderr: "", stdout: "null" }) }, 0, 0],
-    // The read inside a rename (after Jev and the title model) is reported as a read, not a rename.
-    ["Herdr read", "Herdr CLI unavailable.", { exec: (() => {
-      let gets = 0;
-      return async (args: string[], act: Function) => args[1] === "get" && ++gets === 2 ? { code: 1, killed: false, stderr: "", stdout: "" } : act();
-    })() }, 1, 1],
-    ["Herdr rename", "Herdr CLI unavailable.", { exec: renameFailure(() => ({ code: 1, killed: false, stderr: "PRIVATE_MARKER", stdout: "" })) }, 1, 1],
-    ["Herdr rename", "Herdr did not confirm the rename.", { exec: renameFailure((pane) => ({
-      code: 0, killed: false, stderr: "", stdout: JSON.stringify({ result: { type: "pane_info", pane } }),
-    })) }, 1, 1],
+    ["Terminal title", "Unexpected error (details withheld).", { setTitle: () => { throw new Error("PRIVATE_MARKER"); } }, 1, 1],
     ["Jev", "Unexpected error (details withheld).", { check: () => { throw new Error("PRIVATE_MARKER"); } }, 1, 0],
     ["Jev", "Provider HTTP 503.", { check: () => { throw Object.assign(new Error("PRIVATE_MARKER"), { status: 503 }); } }, 1, 0],
     ["Jev", "TypeSafe returned HTTP 401. Check TYPESAFE_API_KEY. No automatic retry was made.", {
@@ -453,21 +438,20 @@ test("failures record their stage and sanitized reason, warn, and never disable 
   for (const [stage, reason, options, checks, titles] of cases) {
     let failing = true;
     const h = harness(Object.fromEntries(Object.entries(options).map(([key, fn]: [string, any]) => [key,
-      key === "exec" ? (args: string[], act: Function, pane: any) => failing ? fn(args, act, pane) : act()
-        : key === "check" ? (...values: any[]) => failing ? fn(...values) : "new_task"
-          : (...values: any[]) => failing ? fn(...values) : title])));
+      key === "check" ? (...values: any[]) => failing ? fn(...values) : "new_task"
+        : (...values: any[]) => failing ? fn(...values) : title])));
     await h.emit("session_start"); await h.send("PRIVATE_MARKER request");
     assert.equal(h.failures().length, 1, `${stage}: ${reason}`);
     const data = h.failures()[0].data;
-    assert.deepEqual(Object.keys(data).sort(), ["checks", "elapsedMs", "paneId", "reason", "stage", "titles"]);
-    assert.deepEqual({ ...data, elapsedMs: 0 }, { paneId: "own-pane", checks, titles, stage, reason, elapsedMs: 0 });
+    assert.deepEqual(Object.keys(data).sort(), ["checks", "elapsedMs", "reason", "stage", "terminalId", "titles"]);
+    assert.deepEqual({ ...data, elapsedMs: 0 }, { terminalId: "t1", checks, titles, stage, reason, elapsedMs: 0 });
     assert.ok(Number.isSafeInteger(data.elapsedMs) && data.elapsedMs >= 0);
     assert.ok(h.notices.at(-1)!.startsWith(`Pane naming failed at ${stage} (`), h.notices.at(-1));
     assert.ok(h.notices.at(-1)!.includes(`${reason} Naming stays on and tries again on the next activity.`));
     assert.equal(JSON.stringify([h.notices, h.entries]).includes("PRIVATE_MARKER"), false);
-    assert.notEqual(h.pane.label, "Fix login");
+    assert.notEqual(h.terminal.title, "Fix login");
     failing = false;
-    await h.send("Next task"); assert.equal(h.pane.label, "Fix login", `recovers after ${stage}: ${reason}`);
+    await h.send("Next task"); assert.equal(h.terminal.title, "Fix login", `recovers after ${stage}: ${reason}`);
     assert.equal(h.failures().length, 1);
   }
 });
@@ -489,7 +473,7 @@ test("a repeated failure warns once until a successful cycle", async () => {
   mode = "fail"; await h.send("fourth"); assert.equal(failed(), 2, "a keep decision resets the notice");
   mode = "http"; await h.send("fifth"); assert.equal(failed(), 3, "a different reason warns immediately");
   await h.send("sixth"); assert.equal(failed(), 3);
-  mode = "new_task"; await h.send("seventh"); assert.equal(h.pane.label, "Fix login");
+  mode = "new_task"; await h.send("seventh"); assert.equal(h.terminal.title, "Fix login");
   mode = "http"; await h.send("eighth"); assert.equal(failed(), 4, "a successful rename resets the notice");
   mode = "new_task"; await h.send("ninth"); assert.equal(h.renames().length, 1);
   mode = "http"; await h.send("tenth"); assert.equal(failed(), 5, "an unchanged label also counts as success");
@@ -545,25 +529,13 @@ test("keep, uncertainty and cancelled work are not reported as failures", async 
   }
 });
 
-// 10. Terminal and pane identity
+// 10. Own terminal only
 
-test("the first terminal seen is remembered; a different terminal or pane id is a failure, never a rename", async () => {
+test("titles go only to Pi's own terminal: no command, and no target from input or the model", async () => {
   const h = harness({ title: (data: any) => ({ title: data.request, prs: [] }) });
-  await h.emit("session_start"); await h.send("First task");
-  assert.equal(h.pane.label, "First task");
-  h.pane.terminal_id = "terminal-2";
-  await h.send("Second task");
-  assert.equal(h.renames().length, 1); assert.equal(h.pane.label, "First task");
-  assert.deepEqual([h.failures()[0].data.stage, h.failures()[0].data.reason], ["Herdr read", "Herdr pane now belongs to a different terminal."]);
-  await h.emit("session_start"); await h.send("Third task");
-  assert.equal(h.renames().length, 1, "a new session in the same process keeps the remembered terminal");
-  assert.equal(h.failures().length, 2);
-  h.pane.terminal_id = "terminal-1";
-  await h.send("Fourth task"); assert.equal(h.pane.label, "Fourth task");
-  const wrong = harness(); wrong.pane.pane_id = "someone-else";
-  await wrong.emit("session_start"); await wrong.send("Fix login");
-  assert.equal(wrong.checks.length, 0); assert.equal(wrong.renames().length, 0);
-  assert.equal(wrong.failures()[0].data.reason, "Invalid Herdr response.");
+  await h.emit("session_start"); await h.send("Rename terminal t2");
+  assert.deepEqual(h.renames(), ["Rename terminal t2"], "setTitle takes only the title");
+  assert.equal(h.execs(), 0); assert.equal(h.failures().length, 0);
 });
 
 // 11. Stale results
@@ -577,9 +549,9 @@ test("late classification and title results cannot rename a newer task", async (
     });
     await h.emit("session_start"); await h.deliver("old");
     await until(() => phase === "check" ? h.checks.length === 1 : h.titles.length === 1);
-    await h.deliver("new"); await until(() => h.pane.label === "new");
+    await h.deliver("new"); await until(() => h.terminal.title === "new");
     old.resolve(phase === "check" ? "new_task" : { title: "old", prs: [] }); await settle();
-    assert.equal(h.pane.label, "new"); assert.equal(h.renames().length, 1);
+    assert.equal(h.terminal.title, "new"); assert.equal(h.renames().length, 1);
     assert.equal(h.checks[0].signal.aborted, true); assert.equal(h.failures().length, 0);
   }
 });
@@ -617,16 +589,11 @@ test("new user delivery, navigation, off and abort discard pending assistant wor
 
 test("assistant checks cancel on the agent signal at every phase", async (t) => {
   const tick = activityClock(t);
-  for (const phase of ["queued", "check", "title", "write"]) {
-    const pending = deferred(); const agent = new AbortController(); let reads = 0;
+  for (const phase of ["queued", "check", "title"]) {
+    const pending = deferred(); const agent = new AbortController();
     const h = harness({
       check: (data: any) => !data.activity ? "keep" : phase === "check" ? pending.promise : "update",
       title: () => phase === "title" ? pending.promise : title,
-      exec: async (args: string[], act: Function) => {
-        // Reads: user check, activity check, then the render's read before rename.
-        if (phase === "write" && args[1] === "get" && ++reads === 3) await pending.promise;
-        return act();
-      },
     });
     await h.emit("session_start"); h.ctx.signal = agent.signal;
     await h.send("Fix login"); await h.assistant("Debugging login");
@@ -652,49 +619,25 @@ test("new assistant activity invalidates stale classification and title results"
     await until(() => phase === "check" ? h.checks.length === 2 : h.titles.length === 1);
     await h.assistant("New phase"); pending.resolve(phase === "check" ? "update" : { title: "Old phase", prs: [] });
     await settle(); assert.equal(h.renames().length, 0);
-    await tick(); assert.equal(h.pane.label, "New phase");
+    await tick(); assert.equal(h.terminal.title, "New phase");
     assert.equal(h.checks[1].signal.aborted, true); assert.equal(h.failures().length, 0);
   }
 });
 
-test("a stale Herdr read cannot initiate a rename", async () => {
-  const read = deferred(); let gets = 0;
-  const h = harness({ exec: async (args: string[], act: Function) => {
-    if (args[1] === "get" && ++gets === 2) await read.promise;
-    return act();
-  } });
-  await h.emit("session_start"); await h.deliver("old"); await until(() => gets === 2);
-  await h.command("off"); read.resolve(undefined); await settle(); assert.equal(h.renames().length, 0);
-});
-
-test("shutdown waits only for an already-issued bounded CLI write", async () => {
-  const pending = deferred(); const h = harness({ exec: async (args: string[], act: Function) => {
-    if (args[1] === "rename") await pending.promise;
-    return act();
-  } });
-  await h.emit("session_start"); await h.deliver("Fix login"); await until(() => h.renames().length === 1);
-  let stopped = false; const shutdown = h.emit("session_shutdown").then(() => { stopped = true; });
-  await settle(); assert.equal(stopped, false);
-  pending.resolve(undefined); await shutdown; assert.equal(stopped, true);
+test("shutdown never waits for a pending model call", async () => {
   const model = deferred(); const idle = harness({ title: () => model.promise });
   await idle.emit("session_start"); await idle.deliver("Fix login"); await until(() => idle.titles.length === 1);
   await idle.emit("session_shutdown"); // Resolves without the pending model call.
   model.resolve(title); await settle(); assert.equal(idle.renames().length, 0);
 });
 
-test("a newer task waits for an old issued rename, then wins", async () => {
-  const pending = deferred(); let renames = 0;
-  const h = harness({
-    title: (data: any) => ({ title: data.request, prs: [] }),
-    exec: async (args: string[], act: Function) => {
-      if (args[1] === "rename" && ++renames === 1) await pending.promise;
-      return act();
-    },
-  });
-  await h.emit("session_start"); await h.deliver("old"); await until(() => renames === 1);
-  await h.deliver("new"); await settle(); assert.equal(h.checks.length, 1);
-  pending.resolve(undefined); await until(() => h.pane.label === "new");
-  assert.equal(h.checks[1].data.currentName, "old"); assert.equal(h.renames().length, 2);
+test("the current name is the title this runtime last wrote, forgotten at session start", async () => {
+  const h = harness({ title: (data: any) => ({ title: data.request, prs: [] }) });
+  await h.emit("session_start"); await h.send("old"); await h.send("new");
+  assert.deepEqual(h.checks.map((check) => check.data.currentName), ["", "old"]);
+  // Pi writes its own title on every session start, so the old one is no longer shown.
+  await h.emit("session_start"); await h.send("old");
+  assert.equal(h.checks[2].data.currentName, ""); assert.deepEqual(h.renames(), ["old", "new", "old"]);
 });
 
 // 12. Decisions and allowed PRs
@@ -716,10 +659,10 @@ test("update offers the current label's PRs plus explicit refs; new_task offers 
     ["Manual name with PR #7", "update", "continue", []],
     ["Manual name", "update", "Look at https://github.com/example/repo/pull/8", ["8"]],
   ] as const) {
-    const h = harness({ label, check: () => decision, title: (_data: any, allowed: string[]) => ({ title: "Review parser", prs: allowed }) });
-    await h.emit("session_start"); await h.send(request);
+    const h = harness({ check: () => decision, title: (_data: any, allowed: string[]) => ({ title: "Review parser", prs: allowed }) });
+    await h.emit("session_start"); await h.seed(label); await h.send(request);
     assert.deepEqual(h.titles[0].allowed, expected, `${label} / ${decision}`);
-    assert.equal(h.pane.label, paneLabel({ title: "Review parser", prs: [...expected] }));
+    assert.equal(h.terminal.title, paneLabel({ title: "Review parser", prs: [...expected] }));
   }
 });
 
@@ -730,7 +673,7 @@ test("PR switches and leaving PR work remove outdated prefixes", async () => {
   });
   await h.emit("session_start");
   for (const [request, expected] of [["Review PR #123", "PR #123 · Review changes"], ["Switch to PR #234", "PR #234 · Review changes"], ["Leave PR work", "Review changes"]]) {
-    await h.deliver(request); await until(() => h.pane.label === expected); await settle();
+    await h.deliver(request); await until(() => h.terminal.title === expected); await settle();
   }
   assert.deepEqual(h.titles.map((call) => call.allowed), [["123"], ["123", "234"], ["234"]]);
 });
@@ -739,15 +682,15 @@ test("merge PR 130 is named on user delivery and assistant activity over an exis
   const tick = activityClock(t);
   for (const decision of ["new_task", "update"]) {
     const h = harness({
-      label: "Creating pull request for evaluation changes", check: () => decision,
+      check: () => decision,
       title: (data: any, allowed: string[]) => parseTitle(JSON.stringify({
         title: data.activity ? "Merging PR 130" : "Preparing PR #130 merge", prs: ["130"],
       }), allowed),
     });
-    await h.emit("session_start"); await h.send("merge PR 130 please.");
-    assert.equal(h.pane.label, "PR #130 · Preparing merge");
+    await h.emit("session_start"); await h.seed("Creating pull request for evaluation changes"); await h.send("merge PR 130 please.");
+    assert.equal(h.terminal.title, "PR #130 · Preparing merge");
     await h.assistant("I will check the head, then merge it."); await tick();
-    assert.equal(h.pane.label, "PR #130 · Merging");
+    assert.equal(h.terminal.title, "PR #130 · Merging");
     assert.deepEqual(h.titles.map((call) => call.allowed), [["130"], ["130"]]);
     assert.equal(h.failures().length, 0);
   }
@@ -756,18 +699,18 @@ test("merge PR 130 is named on user delivery and assistant activity over an exis
 test("keep re-renders only to add a PR created during the check; uncertain never renames", async () => {
   for (const decision of ["keep", "uncertain"]) {
     const pending = deferred();
-    const h = harness({ label: "Old title", check: () => pending.promise });
-    await h.emit("session_start"); await h.deliver("Open the PR"); await until(() => h.checks.length === 1);
+    const h = harness({ check: () => pending.promise });
+    await h.emit("session_start"); await h.seed("Old title"); await h.deliver("Open the PR"); await until(() => h.checks.length === 1);
     const event = { toolName: "bash", toolCallId: "gh-1", input: { command: "gh pr create --fill" } };
     await h.emit("tool_call", event);
     await h.emit("tool_result", { ...event, isError: false, content: [{ type: "text", text: "https://github.com/example/repo/pull/42" }] });
     await settle(); assert.equal(h.renames().length, 0, "no desired title exists yet");
     pending.resolve(decision); await settle();
     assert.equal(h.titles.length, 0);
-    assert.equal(h.pane.label, decision === "keep" ? "PR #42 · Old title" : "Old title");
+    assert.equal(h.terminal.title, decision === "keep" ? "PR #42 · Old title" : "Old title");
   }
-  const h = harness({ label: "Old title", check: () => "keep" });
-  await h.emit("session_start"); await h.send("continue");
+  const h = harness({ check: () => "keep" });
+  await h.emit("session_start"); await h.seed("Old title"); await h.send("continue");
   assert.equal(h.renames().length, 0); assert.equal(h.titles.length, 0);
 });
 
@@ -779,7 +722,7 @@ test("confirmed gh pr creation updates a title without another model call", asyn
   await h.emit("tool_call", event);
   await h.emit("tool_result", { ...event, isError: false, content: [{ type: "text", text: "https://github.com/example/repo/pull/42\n" }] });
   await until(() => h.renames().length === 2);
-  assert.equal(h.pane.label, "PR #42 · Fix login"); assert.equal(h.checks.length, 1); assert.equal(h.titles.length, 1);
+  assert.equal(h.terminal.title, "PR #42 · Fix login"); assert.equal(h.checks.length, 1); assert.equal(h.titles.length, 1);
 });
 
 test("unsuccessful, indirect or non-bash PR creation output is ignored", async () => {
@@ -795,7 +738,7 @@ test("unsuccessful, indirect or non-bash PR creation output is ignored", async (
     await h.emit("tool_call", event);
     await h.emit("tool_result", { ...event, isError, content: [{ type: "text", text }] });
   }
-  await settle(); assert.equal(h.renames().length, 1); assert.equal(h.pane.label, "Fix login");
+  await settle(); assert.equal(h.renames().length, 1); assert.equal(h.terminal.title, "Fix login");
 });
 
 test("PR creation during generation is retained; an older task's result is discarded", async () => {
@@ -805,10 +748,10 @@ test("PR creation during generation is retained; an older task's result is disca
   await h.emit("tool_call", event);
   await h.emit("tool_result", { ...event, isError: false, content: [{ type: "text", text: "https://github.com/example/repo/pull/42" }] });
   pending.resolve(title); await until(() => h.renames().length === 1);
-  assert.equal(h.pane.label, "PR #42 · Fix login");
+  assert.equal(h.terminal.title, "PR #42 · Fix login");
   await h.emit("tool_call", { ...event, toolCallId: "old-call" }); await h.send("Different task");
   await h.emit("tool_result", { ...event, toolCallId: "old-call", isError: false, content: [{ type: "text", text: "https://github.com/example/repo/pull/99" }] });
-  await settle(); assert.equal(h.pane.label?.includes("99"), false);
+  await settle(); assert.equal(h.terminal.title?.includes("99"), false);
 });
 
 test("assistant text cannot authorize invented PRs; confirmed creation survives an activity delay", async (t) => {
@@ -816,16 +759,16 @@ test("assistant text cannot authorize invented PRs; confirmed creation survives 
   const h = harness({ title: (_data: any, allowed: string[]) => ({ title: "Login", prs: allowed }) });
   await h.emit("session_start"); await h.send("Fix login");
   await h.assistant("I will inspect PR #999 next."); await tick();
-  assert.deepEqual(h.titles.at(-1).allowed, []); assert.equal(h.pane.label, "Login");
+  assert.deepEqual(h.titles.at(-1).allowed, []); assert.equal(h.terminal.title, "Login");
   await h.assistant("Creating the login PR.");
   const event = { toolName: "bash", toolCallId: "create", input: { command: "gh pr create" } };
   await h.emit("tool_call", event);
   await h.emit("tool_result", { ...event, isError: false, content: [{ type: "text", text: "https://github.com/example/repo/pull/42" }] });
-  await settle(); assert.equal(h.pane.label, "PR #42 · Login");
+  await settle(); assert.equal(h.terminal.title, "PR #42 · Login");
   assert.equal(h.checks.length, 2, "PR confirmation itself needs no additional model call");
-  await tick(); assert.equal(h.pane.label, "PR #42 · Login");
+  await tick(); assert.equal(h.terminal.title, "PR #42 · Login");
   await h.assistant("Now researching gardening, unrelated to the login PR."); await tick();
-  assert.equal(h.pane.label, "Login"); assert.deepEqual(h.titles.at(-1).allowed, []);
+  assert.equal(h.terminal.title, "Login"); assert.deepEqual(h.titles.at(-1).allowed, []);
 });
 
 test("only successful direct PR-create output is recognized", () => {
@@ -901,7 +844,7 @@ test("no usable title model warns at startup and fails per attempt without disab
   await h.command("status"); assert.ok(h.notices.at(-1)!.startsWith("Pane naming on;"));
   assert.ok(h.notices.at(-1)!.includes("Title model: none available."));
   models.push(FALLBACK_TITLE_MODEL);
-  await h.send("Fix login"); assert.equal(h.pane.label, "Fix login");
+  await h.send("Fix login"); assert.equal(h.terminal.title, "Fix login");
   assert.equal(JSON.stringify([h.entries, h.notices]).includes("PRIVATE_MARKER"), false);
 });
 
@@ -1052,7 +995,7 @@ test("Jev key errors warn at startup but naming stays on; status includes the ke
   const h = harness({ typesafeStatus: () => ({ level: "error", text }) });
   await h.emit("session_start");
   assert.deepEqual(h.notices, [`Pane naming is on, but Jev is unavailable: ${text}`]);
-  await h.send("Fix login"); assert.equal(h.pane.label, "Fix login");
+  await h.send("Fix login"); assert.equal(h.terminal.title, "Fix login");
   await h.command("status");
   assert.ok(h.notices.at(-1)!.startsWith("Pane naming on;")); assert.ok(h.notices.at(-1)!.endsWith(`Jev: ${text}`));
   const warning = harness({ typesafeStatus: () => ({ level: "warning", text: "TypeSafe key: not yet verified." }) });
@@ -1061,7 +1004,7 @@ test("Jev key errors warn at startup but naming stays on; status includes the ke
   await broken.emit("session_start");
   assert.deepEqual(broken.notices, ["Pane naming is on, but Jev is unavailable: Could not read the TypeSafe key status."]);
   await broken.command("status"); assert.ok(broken.notices.at(-1)!.endsWith("Jev: key status unreadable"));
-  await broken.send("Fix login"); assert.equal(broken.pane.label, "Fix login");
+  await broken.send("Fix login"); assert.equal(broken.terminal.title, "Fix login");
 });
 
 // 17. Commands
@@ -1072,7 +1015,7 @@ test("on and off save the global default and apply to this pane immediately", as
   assert.equal(h.notices.at(-1), "Pane naming on here and by default for new panes. It names the pane from the next user message or assistant activity.");
   assert.deepEqual(await savedPreferences(h), { enabled: true });
   assert.equal(h.checks.length, 0, "enabling must not replay a request");
-  await h.send("Fix login"); assert.equal(h.pane.label, "Fix login");
+  await h.send("Fix login"); assert.equal(h.terminal.title, "Fix login");
   await h.command("off");
   assert.equal(h.notices.at(-1), "Pane naming off here and by default for new panes. Other running panes are unchanged. /pane-naming on turns it back on.");
   assert.deepEqual(await savedPreferences(h), { enabled: false });
@@ -1099,15 +1042,11 @@ test("status reports state, defaults, counts, cooldown, title model and Jev stat
 
 test("model commands validate, save, cancel old work and apply to this pane", async (t) => {
   const tick = activityClock(t);
-  for (const phase of ["queued", "check", "title", "write"]) {
-    const pending = deferred(); let reads = 0;
+  for (const phase of ["queued", "check", "title"]) {
+    const pending = deferred();
     const h = harness({
       check: (data: any) => !data.activity ? "keep" : phase === "check" && data.activity.text === "Old phase" ? pending.promise : "update",
       title: (data: any) => phase === "title" && data.activity.text === "Old phase" ? pending.promise : { title: data.activity.text, prs: [] },
-      exec: async (args: string[], act: Function) => {
-        if (phase === "write" && args[1] === "get" && ++reads === 3) await pending.promise;
-        return act();
-      },
     });
     await h.emit("session_start"); await h.send("Fix login"); await h.assistant("Old phase");
     if (phase !== "queued") await tick();
@@ -1117,7 +1056,7 @@ test("model commands validate, save, cancel old work and apply to this pane", as
     pending.resolve(phase === "check" ? "update" : title);
     await tick(); assert.equal(h.renames().length, 0, phase); assert.equal(h.checks.length, attempts);
     await h.assistant("New phase"); await tick();
-    assert.equal(h.pane.label, "New phase"); assert.deepEqual(h.titles.at(-1).model, { provider: "google", id: "new-model" });
+    assert.equal(h.terminal.title, "New phase"); assert.deepEqual(h.titles.at(-1).model, { provider: "google", id: "new-model" });
     assert.equal(h.failures().length, 0);
     assert.deepEqual(await savedPreferences(h), { titleModel: "google/new-model" });
   }
@@ -1205,10 +1144,6 @@ test("request context is bounded and excludes thinking, tools and older history"
   const data = h.checks[0].data;
   assert.equal(data.request.length, 2000); assert.equal(data.replyContext, "a".repeat(600));
   assert.equal(data.activity, undefined); assert.equal(data.currentName, "");
-  // A hand-set label can be arbitrarily long; only the first 80 characters leave Pi.
-  const long = harness({ label: "L".repeat(300) });
-  await long.emit("session_start"); await long.deliver("Fix login"); await until(() => long.checks.length === 1);
-  assert.equal(long.checks[0].data.currentName, "L".repeat(80));
   assert.equal(JSON.stringify([h.checks, h.titles]).includes("PRIVATE_"), false);
   await settle(); await h.emit("session_start");
   await h.assistant("y".repeat(1_000)); await settle();
@@ -1291,7 +1226,7 @@ test("title validation identifies the failed rule without exposing response cont
 });
 
 test("diagnostics retain only known error metadata", () => {
-  assert.equal(describeFailure(failure("Herdr CLI unavailable.")), "Herdr CLI unavailable.");
+  assert.equal(describeFailure(failure("Title was empty after normalization.")), "Title was empty after normalization.");
   assert.equal(describeFailure(new Error("PRIVATE_MARKER")), "Unexpected error (details withheld).");
   assert.equal(describeFailure(new TypeSafeIntegrationError("http", "PRIVATE_MARKER")), "Unexpected error (details withheld).");
   assert.equal(describeFailure(Object.assign(new Error("PRIVATE_MARKER"), { status: 429 })), "Provider HTTP 429.");
