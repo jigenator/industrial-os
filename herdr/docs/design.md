@@ -4,6 +4,8 @@ Industrial OS in the Herdr desktop app: the [sidebar](#sidebar) mod, [Lunalee's 
 
 The window is `sidebar | work | lunalee`: the sidebar on the left, Herdr's tabs, panes, Files/Changes panel and status bar in the middle, and Lunalee's column on the right edge.
 
+Panes are flat: square corners, no border and no focus outline, at the operator's choice. The focused pane is not outlined; for an agent's pane, the sidebar's selected agent row marks it.
+
 ## Lunalee column
 
 One full-height column on the right, 580 px (64 terminal columns at font 14, zoom 1), resizable from its left edge between 420 and 900 px, on the chrome background. It is always in the layout; Industrial OS draws nothing in it. Lunalee's install supplies a 1 px `lunalee` mod block at the top, which draws nothing, and the `lunalee-chat` terminal below it. Without Lunalee, the column is a blank 1 px block over a blank terminal slot. What to do when the block disappears is in the [README](../README.md#lunalee-column).

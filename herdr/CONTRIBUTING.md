@@ -26,6 +26,10 @@ Change the source first: a color in the design system, a label field in [the sna
 
 Record each run with its date, app version and results.
 
+### Flat panes
+
+2026-11-17, macOS, Node 22.23.4, herdr-app 0.1.16: the layout's pane radius 0 and no border or focus outline, taken from the operator's installed layout, which has run this way. `cd herdr && node --test`: **45/45 passed**; the layout check now requires them. Not checked: how a person tells the focused pane apart without the outline.
+
 ### Sidebar header
 
 2026-11-17, macOS, Node 22.23.4, herdr-app 0.1.16:
