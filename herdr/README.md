@@ -31,7 +31,7 @@ The layout is the shipped `main` layout of Herdr app 0.1.15 with the sidebar's t
 
 ### Lunalee column
 
-The layout ends in one full-height, fixed-width column on the window's right edge, always present: `sidebar | work | lunalee`. It belongs to Lunalee, the desktop secretary (a separate repository). The layout is Industrial OS's; Lunalee's own install supplies what runs in it: the `lunalee` mod, in a 1 px `lunalee-host` block at the top that draws nothing, and the terminal named `lunalee-chat`, in the `lunalee-chat` block below. The column is 580 px wide, 64 terminal columns at font 14, zoom 1 and the layout's padding; drag its left edge between 420 and 900 px.
+The layout ends in one full-height, fixed-width column on the window's right edge, always present: `sidebar | work | lunalee`. It belongs to Lunalee, the desktop secretary (a separate repository). The layout is Industrial OS's; Lunalee's own install supplies what runs in it: the `lunalee` mod, in a 1 px `lunalee-host` block at the top that draws nothing, and the terminal named `lunalee-chat`, in the `lunalee-chat` block below. The column is 580 px wide, about 67 terminal columns at font 14 and zoom 1; drag its left edge between 420 and 900 px.
 
 Without Lunalee installed, the column is still there: a blank 1 px block and a blank terminal slot.
 
