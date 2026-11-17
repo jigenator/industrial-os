@@ -19,13 +19,18 @@ function find(node, id) {
 	return null;
 }
 
-test("the layout differs from shipped main.json only in terminal padding, the sidebar width, the brand header, the sidebar-lists block and the lunalee column", async () => {
+test("the layout differs from shipped main.json only in terminal padding, flat panes, the sidebar width, the brand header, the sidebar-lists block and the lunalee column", async () => {
 	const shipped = JSON.parse(await read("./fixtures/herdr-app-0.1.15-main.json"));
 	const layout = JSON.parse(await read("../layouts/industrial-os.json"));
 	// Zero so her chat fills its column; Herdr 0.1.16 reads terminal padding only from the root.
 	assert.deepEqual(shipped.terminal_padding, [14, 12]);
 	assert.deepEqual(layout.terminal_padding, [0, 0]);
 	shipped.terminal_padding = layout.terminal_padding;
+	// Flat panes: square corners, no border and no focus outline.
+	const shippedPane = find(shipped, "main").content.pane, pane = find(layout, "main").content.pane;
+	assert.deepEqual([shippedPane.radius, shippedPane.border, shippedPane.focus], [10, { width: 1, color: "border" }, { width: 1, color: "accent" }]);
+	assert.deepEqual([pane.radius, "border" in pane, "focus" in pane], [0, false, false]);
+	find(shipped, "main").content.pane = pane;
 	assert.deepEqual(find(shipped, "sidebar-lists").children.map((c) => c.id), ["spaces", "agents"]);
 	assert.deepEqual(find(layout, "sidebar-lists").children, [{ id: "industrial-os", type: "block", content: { mod: "industrial-os" } }]);
 	find(shipped, "sidebar-lists").children = find(layout, "sidebar-lists").children;
