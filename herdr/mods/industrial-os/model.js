@@ -10,6 +10,15 @@ export const FORGET_MS = 30 * 86_400_000;
 // Refreshed timestamps are saved at most this often; decay and quiet ages are hours and days.
 const SAVE_MS = 60_000;
 
+/**
+ * The header's droid count: agents the sidebar shows as working (WRK, SUB, RUN, or another agent Herdr reports
+ * working) plus every Pi's known subagents. By the operator's choice, unknown subagents add nothing, so it can undercount.
+ */
+export const droidCount = (blocks) =>
+	blocks.reduce((n, b) => n
+		+ ((b.kind === "pi" ? b.state.tone : b.status.word) === "working" ? 1 : 0)
+		+ (b.kind === "pi" ? (b.units.count ?? 0) : 0), 0);
+
 /** An empty memory: per terminal address and per space ID, each with when it was last present. */
 export const emptyMemory = () => ({ agents: {}, spaces: {} });
 

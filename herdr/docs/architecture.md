@@ -7,14 +7,15 @@ Evidence: the mods and layout, their tests, and Herdr app 0.1.15's own documenta
 
 | File | Owns | Depends on |
 | --- | --- | --- |
-| `mods/industrial-os/main.js` | The sidebar view: reads Herdr's live data, keeps the remembered state in `localStorage`, looks up ahead/behind with `git`, runs click commands and draws | The app's `gpui-kit`, `gpui-base` and `herdr` modules; the pure modules beside it |
-| `mods/industrial-os/model.js` | The whole sidebar as plain data: which agents get a block, the order, the spaces rows, the next memory and the next time shown text changes | `agent.js`, `signals.js`, `spaces.js` |
+| `mods/industrial-os/main.js` | The sidebar view: reads Herdr's live data, keeps the remembered state in `localStorage`, looks up ahead/behind with `git`, runs click commands and draws. With `props.brand` it is the sidebar header instead: no memory, timer or `git`, and the search and sidebar-toggle buttons drawn with the shipped `workspace-chrome` mod's icons | The app's `gpui-kit`, `gpui-base` and `herdr` modules; the pure modules beside it |
+| `mods/industrial-os/model.js` | The whole sidebar as plain data: which agents get a block, the order, the spaces rows, the next memory and the next time shown text changes; the header's droid count | `agent.js`, `signals.js`, `spaces.js` |
 | `mods/industrial-os/signals.js` | Reading and validating the `io.signals.v1` label; the stale-label rule | Nothing; the frozen label contract |
 | `mods/industrial-os/agent.js` | State precedence, the unseen-work-finished rule, access decay, the pane name and every agent row | `format.js` |
 | `mods/industrial-os/spaces.js` | Space state, counts, units, activity and quiet ages, ahead/behind parsing and a space's place | `format.js`, `agent.js` icons |
 | `mods/industrial-os/format.js` | Text formats: durations, counts, model, directory, context bar, days, cleaning | Nothing |
+| `mods/industrial-os/mark.svg` | The header's `⟁` mark, drawn bold in the plate's text color | Nothing |
 | `mods/industrial-os/mod.json` | `"place": "none"`: the mod appears only where a layout puts it | herdr-app's mod format |
-| `layouts/industrial-os.json` | The shipped `main` layout with the sidebar's lists replaced by the one `industrial-os` block, and Lunalee's column (`lunalee`: a 1 px `lunalee-host` block for the `lunalee` mod and a `lunalee-chat` block for the terminal of that name) added on the right | herdr-app's layout format; Herdr app 0.1.15's `main.json`; Lunalee's install for the column's mod and terminal |
+| `layouts/industrial-os.json` | The shipped `main` layout with zero terminal padding, the sidebar at 300 px and its `brand` header and lists replaced by `industrial-os` blocks (the header with `props.brand`), and Lunalee's column (`lunalee`: a 1 px `lunalee-host` block for the `lunalee` mod and a `lunalee-chat` block for the terminal of that name) added on the right | herdr-app's layout format; Herdr app 0.1.15's `main.json`; Lunalee's install for the column's mod and terminal |
 | `mods/pi-reloader/main.js` | The Pi Reloader window: lists candidates, runs an action in one task, and supplies its `io`: `hc get` and `hc send`, and the guard's loopback socket through `net` | The app's `gpui-kit`, `gpui-base`, `herdr` and `net` modules; `reloader.js` |
 | `mods/pi-reloader/reloader.js` | Every Pi Reloader rule: candidates and protection, the guard label and wire checks, the reload and reset sequences, the summary | Nothing; the [guard contract](../../pi/reloader-guard/docs/contract.md) |
 | `mods/pi-reloader/mod.json`, `LICENSE` | The window it opens as (`kind: "window"`, 620 × 460; a test copy adds `overlay.props.only`, the addresses it may act on); MIT, keeping the notice of the code it was adapted from | herdr-app's mod format |
@@ -86,7 +87,7 @@ Commands from `nextCommand()` (`reload`, `reset`, `close`) reach the window only
 | Unknown is never zero: a missing, malformed or stale label shows `??`, `--%` or nothing, and is no completion | `test/industrial-os.test.mjs` |
 | A label counts only on a live terminal whose agent `app` is `pi`, with `version` 1 | `test/industrial-os.test.mjs` |
 | State precedence `QNS` > `BLK` > `WRK` > `SUB` > `RUN` > `DNE` > `IDL`/`UNK` | `test/industrial-os.test.mjs` |
-| The layout is shipped `main` with only the sidebar lists replaced and the frozen `lunalee` column (ids `lunalee`, `lunalee-host`, `lunalee-chat`; terminal `lunalee-chat`; 580 px, 420–900) as `root`'s third child | `test/industrial-os-layout.test.mjs` |
+| The layout is shipped `main` with only zero terminal padding, the sidebar at 300 px, its header and lists replaced, and the frozen `lunalee` column (ids `lunalee`, `lunalee-host`, `lunalee-chat`; terminal `lunalee-chat`; 580 px, 420–900) as `root`'s third child | `test/industrial-os-layout.test.mjs` |
 | The mod imports only `gpui-kit`, `gpui-base`, `herdr` (in `main.js`) and its own files; no `setTimeout`, `Intl`, `TextDecoder` or `WebSocket` | `test/industrial-os-layout.test.mjs` |
 | The mod loads and renders in herdr-app | `herdr-app check mods/industrial-os` |
 | Every desktop theme color is its approved design-system value | `test/app-theme.test.mjs` |

@@ -7,7 +7,7 @@ import { clean, contextBar, countText, daysText, displayPath, formatDuration, mo
 import { LABEL, parseSignals, terminalSignals } from "../mods/industrial-os/signals.js";
 import { decayStage, displayState, nextFinishedAt, paneName, piBlock } from "../mods/industrial-os/agent.js";
 import { QUIET_MS, paneState, parseAheadBehind, spacePlace, spaceRow, unitsSum } from "../mods/industrial-os/spaces.js";
-import { buildSidebar, emptyMemory } from "../mods/industrial-os/model.js";
+import { buildSidebar, droidCount, emptyMemory } from "../mods/industrial-os/model.js";
 
 // Fixtures: a SignalsSnapshot v1 label value and Herdr app data in the shapes ~/.config/herdr-app/herdr.d.ts
 // documents. Every value is invented.
@@ -192,7 +192,7 @@ test("rows 1–4: space, flag, live goal, units, context zones, compactions, ACT
 	assert.equal(b.space, "release");
 	assert.equal(b.flag, true);
 	assert.deepEqual(b.goal, { text: "1h0m", active: true });
-	assert.deepEqual(b.units, { text: "02AU", active: true });
+	assert.deepEqual(b.units, { text: "02AU", active: true, count: 2 });
 	assert.deepEqual(b.context, { text: "━━━━━━━━─── 67%", zone: "ok" });
 	assert.equal(b.compactions, "CMP×18");
 	assert.deepEqual(b.act, { kind: "branch", text: "feat/sidebar", dirty: false });
@@ -369,6 +369,19 @@ test("sidebar: Pi blocks for valid labels, one line otherwise, Herdr's order, st
 	assert.deepEqual([release.icon, release.panes, release.agents.text, release.units.text, release.ahead], ["◐", "03PN", "02AG", "??AU", 1]);
 	assert.deepEqual([tooling.icon, tooling.panes, tooling.agents.text, tooling.units.text], ["×", "01PN", "01AG", "00AU"]);
 	assert.equal(result.nextChangeAt, NOW + 1001);
+});
+
+test("header: droids are agents shown working plus every Pi's known subagents; unknown subagents add nothing", () => {
+	const w = world();
+	// The WRK Pi with 2 units; the blocked Claude's stale label and the unlabeled idle Pi add nothing.
+	assert.equal(droidCount(buildSidebar(w).agents), 3);
+	w.agents[1] = agent("t2", { status: "working" });
+	assert.equal(droidCount(buildSidebar(w).agents), 4); // an unlabeled working Pi counts itself, not its unknown units
+	w.terminals[0] = terminal("t1", { labels: labels(snapshot({ units: 2, question: { text: "Ship it?", more: 0 } })) });
+	assert.equal(droidCount(buildSidebar(w).agents), 3); // QNS is not working, but its 2 subagents still run
+	w.terminals[0] = terminal("t1", { labels: labels(snapshot({ units: null })) });
+	assert.equal(droidCount(buildSidebar(w).agents), 2); // WRK with unknown units: the agent alone
+	assert.equal(droidCount([]), 0);
 });
 
 test("sidebar: a Pi SUB lifts its space to working; another machine's agent gets no home folder", () => {

@@ -8,6 +8,22 @@ The window is `sidebar | work | lunalee`: the sidebar on the left, Herdr's tabs,
 
 One full-height column on the right, 580 px (64 terminal columns at font 14, zoom 1), resizable from its left edge between 420 and 900 px, on the chrome background. It is always in the layout; Industrial OS draws nothing in it. Lunalee's install supplies a 1 px `lunalee` mod block at the top, which draws nothing, and the `lunalee-chat` terminal below it. Without Lunalee, the column is a blank 1 px block over a blank terminal slot. What to do when the block disappears is in the [README](../README.md#lunalee-column).
 
+## Sidebar header
+
+The layout's `brand` block, at the top of the sidebar, is the same mod with `props.brand`, in place of Herdr's logo and name. The sidebar is 300 px, not shipped `main`'s 268, so the plates and both buttons fit beside the macOS window buttons:
+
+```text
+ INDUSTRIAL-OS  ⟁ 05              ⌕ ◧
+```
+
+| Part | Shows |
+| --- | --- |
+| Plate | `INDUSTRIAL-OS`, the maker as the design system's crate banner writes it but without `®`, which was too small to read at this size, at 11 px weight 800 in `JetBrainsMono NFM` (the plain `JetBrains Mono` the sidebar asks for drew no bold here; without that font the app falls back), accent foreground on accent, like the design system's label plate. Drawn by the mod: the plate element itself cannot reach a mod folder yet. |
+| `⟁ NN` | Droids running, marked with `⟁`, the Industrial OS mark from the crate banner, drawn as `mark.svg` with a heavy stroke because no installed font has the glyph and a fallback glyph cannot be bolded (`DRD` was dropped so the header fits at 300 px): every agent the sidebar shows as working (Pi `WRK`, `SUB` or `RUN`, and other agents Herdr reports working; `QNS` and `BLK` outrank working and do not count) plus every Pi's subagents (units), including a `QNS` or `BLK` Pi's. Capped `99`. A plate in the count-plate style, in the badge's font and weight: `background` on `working` while above zero, `foreground` on `input` (the neutral plate) at zero. **An exception to unknown-is-never-zero, chosen by the operator:** a Pi whose units are unknown (no label, pi-subagents not answering, the moment a Pi starts or reloads) adds only itself if working, so the plate can undercount. |
+| Buttons | Search opens the picker; the toggle narrows the sidebar to the rail and back, as Herdr's own header does. |
+
+On the rail the plate, count and search hide; on macOS the window buttons fill the rail, so the toggle hides too, as in Herdr's header. Dragging the header moves the window.
+
 ## Sidebar
 
 The `industrial-os` mod fills the main layout's sidebar lists with two sections, spaces then agents, in one scrolling block. It carries the information the herdr-tui agents sidebar and Spaces rows showed, with their rules, but not their geometry: no fixed 36-column fitting, no padding cells, no per-stage keys.

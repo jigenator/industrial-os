@@ -1,5 +1,6 @@
 // Checks the industrial-os layout and mod folder: the layout is the shipped `main` layout with the sidebar's two
-// lists replaced by the one industrial-os block and Lunalee's column added on the right, and the mod imports
+// lists replaced by the one industrial-os block, its brand header drawn by the same mod, and Lunalee's column added
+// on the right, and the mod imports
 // nothing from outside its folder.
 // The recorded shipped layout is fixtures/herdr-app-0.1.15-main.json (Herdr app 0.1.15's layouts/main.json).
 import assert from "node:assert/strict";
@@ -18,7 +19,7 @@ function find(node, id) {
 	return null;
 }
 
-test("the layout differs from shipped main.json only in terminal padding, the sidebar-lists block and the lunalee column", async () => {
+test("the layout differs from shipped main.json only in terminal padding, the sidebar width, the brand header, the sidebar-lists block and the lunalee column", async () => {
 	const shipped = JSON.parse(await read("./fixtures/herdr-app-0.1.15-main.json"));
 	const layout = JSON.parse(await read("../layouts/industrial-os.json"));
 	// Zero so her chat fills its column; Herdr 0.1.16 reads terminal padding only from the root.
@@ -28,6 +29,12 @@ test("the layout differs from shipped main.json only in terminal padding, the si
 	assert.deepEqual(find(shipped, "sidebar-lists").children.map((c) => c.id), ["spaces", "agents"]);
 	assert.deepEqual(find(layout, "sidebar-lists").children, [{ id: "industrial-os", type: "block", content: { mod: "industrial-os" } }]);
 	find(shipped, "sidebar-lists").children = find(layout, "sidebar-lists").children;
+	assert.deepEqual(find(shipped, "brand").content, { mod: "workspace-chrome" });
+	assert.deepEqual(find(layout, "brand").content, { mod: "industrial-os", props: { brand: true } });
+	find(shipped, "brand").content = find(layout, "brand").content;
+	// Wide enough for the header's plates and buttons beside the macOS window buttons.
+	assert.deepEqual([find(shipped, "sidebar").size, find(layout, "sidebar").size], [{ px: 268 }, { px: 300 }]);
+	find(shipped, "sidebar").size = find(layout, "sidebar").size;
 	// The frozen Lunalee column contract: ids, terminal name and 580 px (about 67 columns at font 14, no terminal padding).
 	assert.deepEqual(layout.children[2], {
 		id: "lunalee",

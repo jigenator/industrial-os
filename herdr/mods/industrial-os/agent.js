@@ -166,7 +166,7 @@ export function piBlock({ agent, signals, herdr, seen, spaceName, tab, sharedTab
 			idle,
 			flag: signals.flag,
 			goal,
-			units: { text: countText(signals.units, "AU"), active: (signals.units ?? 0) >= 1 },
+			units: { text: countText(signals.units, "AU"), active: (signals.units ?? 0) >= 1, count: signals.units },
 			context: { text: bar.text, zone: bar.zone === "unknown" ? "unknown" : idle ? "idle" : bar.zone },
 			compactions: `CMP×${countText(signals.compactions, "")}`,
 			act: actText(signals, home),
