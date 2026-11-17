@@ -1,6 +1,7 @@
 # Agent guide
 
-Herdr plugin group. Follow the [root guide](../AGENTS.md) and the owning
+Herdr plugin group. Every plugin here is a herdr-tui plugin awaiting a port to the
+Herdr desktop app. Follow the [root guide](../AGENTS.md) and the owning
 plugin's guide: [Whiteboard](whiteboard/AGENTS.md),
 [Dispatch feed](dispatch-feed/AGENTS.md) or [Automations Monitor](automations-monitor/AGENTS.md).
 
@@ -31,5 +32,5 @@ plugin's guide: [Whiteboard](whiteboard/AGENTS.md),
 ## Routes
 
 Read the plugin's README, AGENTS, CONTRIBUTING and applicable architecture,
-conventions, design, mission and token contract before changing its surface.
+conventions, design and mission before changing its surface.
 Installation belongs to an explicitly authorized operator, not a test suite.

@@ -1,7 +1,9 @@
 # Herdr plugins
 
 Independent Herdr plugins for Industrial OS. Each owns its runtime, manifest,
-checks and guides; shared rules are in [AGENTS.md](AGENTS.md).
+checks and guides; shared rules are in [AGENTS.md](AGENTS.md). They are
+herdr-tui plugins awaiting a port to the Herdr desktop app; the commands below
+are herdr-tui's.
 
 | Plugin | Purpose | Runtime |
 | --- | --- | --- |
