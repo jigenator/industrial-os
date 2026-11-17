@@ -9,10 +9,8 @@ import {
 } from "./models.ts";
 
 const STATE = "herdr-pane-naming";
-const CLI_TIMEOUT = 1_500;
 const DEFAULT_COOLDOWN_SECONDS = 30;
 const USAGE = "Usage: /pane-naming on | off | status | cooldown <seconds: 1–3600> | model <provider/model-id>";
-type Pane = { pane_id: string; terminal_id: string; label?: string };
 // Older versions also saved checkLimit; it is accepted and ignored.
 type Preferences = { enabled?: boolean; titleModel?: string; cooldownSeconds?: number };
 const validInteger = (value: unknown, max: number): value is number =>
@@ -45,7 +43,7 @@ function savePreferences(file: string, value: Preferences) {
 }
 
 export function eligible(env: NodeJS.ProcessEnv, ctx: Pick<ExtensionContext, "mode">): boolean {
-  return env.HERDR_ENV === "1" && !!env.HERDR_PANE_ID && env.PI_SUBAGENT_CHILD !== "1" && ctx.mode === "tui";
+  return !!env.HC_TERMINAL_ID && env.PI_SUBAGENT_CHILD !== "1" && ctx.mode === "tui";
 }
 
 // Text blocks only: images, thinking and tool content never leave Pi.
@@ -70,7 +68,7 @@ export function register(pi: ExtensionAPI, dependencies: {
   typesafeStatus?: () => { level: "ok" | "warning" | "error"; text: string };
 }): void {
   const env = { ...(dependencies.env ?? process.env) };
-  const paneId = env.HERDR_PANE_ID ?? ""; // Never accept a target from a model, command argument, or focused pane.
+  const terminalId = env.HC_TERMINAL_ID ?? "";
   const check = dependencies.classify ?? ((state, signal) => classify(state, signal));
   const titleModel = dependencies.generateTitle ?? generateTitle;
   const typesafeStatus = dependencies.typesafeStatus ?? (() => describeAuth(authState()));
@@ -81,8 +79,8 @@ export function register(pi: ExtensionAPI, dependencies: {
   let enabled = false;
   let epoch = 0;
   let controller: AbortController | undefined;
-  let writes = Promise.resolve();
-  let terminalId: string | undefined;
+  // The title this runtime last wrote. Pi rewrites its own title on every session start, so session_start forgets it.
+  let shownLabel: string | undefined;
   let counts = { checks: 0, titles: 0 };
   let lastNotice: string | undefined;
   let previousTask = "";
@@ -130,7 +128,7 @@ export function register(pi: ExtensionAPI, dependencies: {
   function fail(stage: string, error: unknown, elapsedMs: number) {
     const reason = describeFailure(error);
     try {
-      pi.appendEntry(`${STATE}-failure`, { paneId, ...counts, stage, reason, elapsedMs });
+      pi.appendEntry(`${STATE}-failure`, { terminalId, ...counts, stage, reason, elapsedMs });
     } catch { /* Diagnostics must not block work when session storage is unavailable. */ }
     // Naming stays on; repeat the same warning only after a success, so a broken key cannot flood the screen.
     const notice = `${stage}: ${reason}`;
@@ -145,44 +143,18 @@ export function register(pi: ExtensionAPI, dependencies: {
     return latest?.type === "message" && latest.message.role === "user" ? text(latest.message.content)?.slice(0, 2_000) ?? "" : "";
   }
 
-  async function pane(args: string[]): Promise<Pane> {
-    const result = await pi.exec("herdr", ["pane", ...args], { timeout: CLI_TIMEOUT });
-    if (result.code !== 0 || result.killed || result.stdout.length > 65_536) throw failure("Herdr CLI unavailable.");
-    let response;
-    try { response = JSON.parse(result.stdout); } catch { throw failure("Herdr returned invalid JSON."); }
-    if (!response || typeof response !== "object") throw failure("Invalid Herdr response.");
-    const value = response.result?.pane;
-    if (response.error || response.result?.type !== "pane_info" || value?.pane_id !== paneId ||
-        typeof value.terminal_id !== "string" || !value.terminal_id ||
-        (value.label != null && typeof value.label !== "string")) throw failure("Invalid Herdr response.");
-    // HERDR_PANE_ID is inherited, so the first terminal seen is this process's. A different one is someone else's pane.
-    terminalId ??= value.terminal_id;
-    if (value.terminal_id !== terminalId) throw failure("Herdr pane now belongs to a different terminal.");
-    return value;
-  }
-
   function render(title: Title, version: number) {
     if (!current(version)) return;
     const candidate = { ...title, prs: [...new Set([...title.prs, ...created])].slice(0, 4), epoch: version };
     desired = candidate;
-    let stage = "Herdr read";
-    let started = performance.now();
-    // Serialize writes; stale work is checked again after every asynchronous read.
-    writes = writes.then(async () => {
-      if (!current(version) || desired !== candidate) return;
-      const label = paneLabel(candidate);
-      started = performance.now();
-      const before = await pane(["get", paneId]);
-      if (!current(version) || desired !== candidate) return;
-      if (before.label !== label) {
-        stage = "Herdr rename"; started = performance.now();
-        const after = await pane(["rename", paneId, label]);
-        if (after.label !== label) throw failure("Herdr did not confirm the rename.");
-      }
-      lastNotice = undefined;
-    }).catch((error) => {
-      if (ctx && current(version)) fail(stage, error, Math.round(performance.now() - started));
-    });
+    const label = paneLabel(candidate);
+    if (label !== shownLabel) {
+      // Pi's setTitle writes OSC 0 to Pi's own stdout: only this process's terminal, never one chosen by input.
+      try { ctx!.ui.setTitle(label); }
+      catch (error) { fail("Terminal title", error, 0); return; }
+      shownLabel = label;
+    }
+    lastNotice = undefined;
   }
 
   async function name(request: string, version: number, context: ExtensionContext, activity?: NamingInput["activity"]) {
@@ -199,14 +171,8 @@ export function register(pi: ExtensionAPI, dependencies: {
     try {
       const model = resolveTitleModel(context, selectedModel());
       if (!model) throw failure("No title model is available. Use /pane-naming model provider/model-id.");
-      stage = "Herdr read"; started = performance.now();
-      await writes;
-      if (!current(version)) return;
-      const before = await pane(["get", paneId]);
-      if (!current(version)) return;
-      const shown = parseLabel(before.label);
-      // Hand-set labels can be long; send no more than a label this extension would write.
-      input.currentName = [...(before.label ?? "")].slice(0, 80).join("");
+      const shown = parseLabel(shownLabel);
+      input.currentName = shownLabel ?? "";
       counts.checks++;
       lastCheckAt = performance.now();
       stage = "Jev"; started = performance.now();
@@ -258,6 +224,7 @@ export function register(pi: ExtensionAPI, dependencies: {
     modelOverride = undefined;
     counts = { checks: 0, titles: 0 };
     desired = undefined;
+    shownLabel = undefined;
     activeSignal = context.signal;
     activityText = "";
     if (!eligible(env, context)) return;
@@ -270,10 +237,8 @@ export function register(pi: ExtensionAPI, dependencies: {
     cooldownSeconds = preferences.cooldownSeconds ?? DEFAULT_COOLDOWN_SECONDS;
     if (preferences.enabled !== false || pi.getFlag("pane-naming") === true) enable(context);
   });
-  pi.on("session_shutdown", async () => {
-    disable();
-    // Never wait for a model. Let any already-issued, bounded CLI write settle before session replacement.
-    await writes;
+  pi.on("session_shutdown", () => {
+    disable(); // Never wait for a model.
     ctx = undefined;
   });
   pi.on("session_before_switch", () => { cancel(); });
@@ -345,7 +310,7 @@ export function register(pi: ExtensionAPI, dependencies: {
   pi.registerCommand("pane-naming", {
     description: "Pane naming: on | off | status | cooldown <seconds> | model <provider/model-id>; settings persist for new panes",
     handler: async (args, context) => {
-      if (!eligible(env, context)) { context.ui.notify("Pane naming only runs in a main interactive Herdr pane.", "info"); return; }
+      if (!eligible(env, context)) { context.ui.notify("Pane naming only runs in a main interactive Pi in a Herdr Desktop terminal.", "info"); return; }
       ctx = context;
       const [command, ...values] = (args.trim() || "status").split(/\s+/);
       if (values.length !== (["cooldown", "model"].includes(command) ? 1 : 0)) { notify(USAGE); return; }

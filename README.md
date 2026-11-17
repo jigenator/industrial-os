@@ -13,7 +13,7 @@ Independent projects are here. They share code only through the private design-s
 - [pi/claude-interrupt](pi/claude-interrupt/README.md): a Pi extension that aborts the current response on Esc and continues with your queued text, marking the continuation with an animated plate.
 - [pi/signals-collector](pi/signals-collector/README.md): one TUI session signal producer for displays and future panels/dashboards; reads configured usage sources from source-collector, owns the background-task count and `/flag`, and publishes its snapshot to Herdr desktop as the `io.signals.v1` label; no renderer.
 - [pi/status-bar](pi/status-bar/README.md): a Pi extension that replaces the footer with a framed Acid / Black instrument panel showing the agent-reported active project, where Pi's tools run, context use, model, and other extensions' statuses. It is the first implementation of the style.
-- [pi/herdr-pane-naming](pi/herdr-pane-naming/README.md): names its own inherited Herdr pane from current work, using TypeSafe/Jev and a title model; main TUI sessions only.
+- [pi/herdr-pane-naming](pi/herdr-pane-naming/README.md): names its own Herdr Desktop pane, through its terminal title, from current work, using TypeSafe/Jev and a title model; main TUI sessions only.
 - [pi/session-recap](pi/session-recap/README.md): UI-only away and detailed recaps through a separate recap model; TUI only.
 - [pi/image-preview](pi/image-preview/README.md): previews image files whose paths are in Pi's editor, above the editor, without changing the draft or the message; TUI only.
 - [pi/droid-header](pi/droid-header/README.md): replaces Pi's startup header with the droid details panel, this session's identity and a manifest of what Pi's settings load; TUI only.
@@ -36,7 +36,7 @@ industrial-os/
 │   ├── claude-interrupt/     interrupt-and-continue with the DIRECTIVE UPDATED marker
 │   ├── signals-collector/    TUI session signals, configured usage sources and the Herdr label
 │   ├── status-bar/           the Acid / Black footer for the agent-reported active project
-│   ├── herdr-pane-naming/    automatic names for this inherited Herdr pane
+│   ├── herdr-pane-naming/    automatic names for this Herdr Desktop pane
 │   ├── session-recap/        UI-only away and detailed session recaps
 │   ├── image-preview/        previews of image paths in the editor
 │   ├── droid-header/         the droid details startup header and resource manifest

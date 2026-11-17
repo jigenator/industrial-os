@@ -9,7 +9,7 @@ This guide covers the workflow for every change and the checks that apply to the
 | `pi/claude-interrupt/` | Node.js 22, npm, TypeScript, an installed Pi for the load check | [pi/claude-interrupt/CONTRIBUTING.md](pi/claude-interrupt/CONTRIBUTING.md) |
 | `pi/signals-collector/` | Node.js 22 type stripping, installed Pi; offline cache/contract tests | [pi/signals-collector/CONTRIBUTING.md](pi/signals-collector/CONTRIBUTING.md) |
 | `pi/status-bar/` | Node.js 22, npm, TypeScript run by type stripping, the globally installed Pi for its tests and the load check | [pi/status-bar/CONTRIBUTING.md](pi/status-bar/CONTRIBUTING.md) |
-| `pi/herdr-pane-naming/` | Node.js 22.19+, npm, installed Pi loader; mocked CLI/services | [pi/herdr-pane-naming/CONTRIBUTING.md](pi/herdr-pane-naming/CONTRIBUTING.md) |
+| `pi/herdr-pane-naming/` | Node.js 22.19+, npm, installed Pi loader; mocked services | [pi/herdr-pane-naming/CONTRIBUTING.md](pi/herdr-pane-naming/CONTRIBUTING.md) |
 | `pi/session-recap/` | Node.js 22.19+, npm, TypeScript; pinned offline Pi host probes | [pi/session-recap/CONTRIBUTING.md](pi/session-recap/CONTRIBUTING.md) |
 | `pi/image-preview/` | Node.js 22.19+, npm, strict TypeScript; pinned Pi 1.3.0 loader tests, an installed Pi for the load check | [pi/image-preview/CONTRIBUTING.md](pi/image-preview/CONTRIBUTING.md) |
 | `pi/droid-header/` | Node.js 22.19+, TypeScript run by type stripping, the root install, the globally installed Pi for its tests and the load check | [pi/droid-header/CONTRIBUTING.md](pi/droid-header/CONTRIBUTING.md) |

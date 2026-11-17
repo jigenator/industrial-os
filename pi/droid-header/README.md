@@ -1,6 +1,6 @@
 # pi-droid-header
 
-A [Pi](https://pi.dev) extension that replaces Pi's startup header with the Industrial OS droid header: a brushed-aluminium unit plate with this session's droid ID and serial, key hints, and a ledger of the model, Pi version, Herdr pane, start time and project, and a manifest of the context files, skills, prompts and extensions Pi's settings load. Everything shown is real; what is not known shows as `--`.
+A [Pi](https://pi.dev) extension that replaces Pi's startup header with the Industrial OS droid header: a brushed-aluminium unit plate with this session's droid ID and serial, key hints, and a ledger of the model, Pi version, Herdr Desktop terminal, start time and project, and a manifest of the context files, skills, prompts and extensions Pi's settings load. Everything shown is real; what is not known shows as `--`.
 
 Status: new, unpublished. Offline tests run against the globally installed Pi 1.4.0, the installed-Pi load check passes, and a scripted terminal run of the installed Pi outside Herdr drew it without errors. Nobody has yet looked at it in an interactive Pi or Herdr session. See [verification records](CONTRIBUTING.md#verification-records).
 
@@ -37,7 +37,8 @@ In Pi's interactive TUI only; in RPC, JSON and print modes it does nothing.
 | `S/N` | The first eight hex digits of the session ID |
 | `MODEL` | The model and thinking level when the session started |
 | `FRAMEWORK` | Pi's version |
-| `SECTOR`, `PANE` | Herdr's workspace and tab, and its pane, from `HERDR_WORKSPACE_ID`, `HERDR_TAB_ID` and `HERDR_PANE_ID`; `--` outside Herdr |
+| `SECTOR` | `--`: Desktop names the space and tab only in terminal labels, which take a command to read |
+| `PANE` | The Herdr Desktop terminal, from `HC_TERMINAL_ID`; `--` outside Herdr Desktop |
 | `DEPLOYED` | The local time this Pi process started or opened the session; a `/reload` keeps it |
 | `ASSIGNMENT` | The working folder's name and its Git branch (or short commit when detached), read from `.git/HEAD` without running Git; just the folder outside a repository |
 | `MANIFEST` | The total, then context files in Pi's load order; skills as Pi loads them, the prompts Pi has loaded, and the extensions Pi's settings enable, alphabetically; `MANIFEST UNAVAILABLE` and the reason when it cannot be built, such as `SETTINGS UNREADABLE` and the file |

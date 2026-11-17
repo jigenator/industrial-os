@@ -11,12 +11,12 @@ test("droid codes come from the session ID: the same session keeps its ID, none 
 	for (const missing of [undefined, "", "not-a-session", "abc"]) assert.deepEqual(sessionCodes(missing), { unit: "????", session: "????????", seed: 0 });
 });
 
-test("Herdr pane and sector codes, and -- outside Herdr", () => {
-	assert.deepEqual(herdrCodes({ HERDR_PANE_ID: "wA1:p1", HERDR_WORKSPACE_ID: "wA1", HERDR_TAB_ID: "wA1:t1" }), { pane: "WA1:P1", sector: "WA1.T1" });
+test("Herdr Desktop terminal code, sector always --, and -- outside Desktop", () => {
+	assert.deepEqual(herdrCodes({ HC_TERMINAL_ID: "t7" }), { pane: "T7", sector: "--" });
 	assert.deepEqual(herdrCodes({}), { pane: "--", sector: "--" });
-	assert.deepEqual(herdrCodes({ HERDR_PANE_ID: "wA1:p1" }), { pane: "WA1:P1", sector: "--" });
-	assert.equal(herdrCodes({ HERDR_WORKSPACE_ID: "w1", HERDR_TAB_ID: "t9" }).sector, "W1.T9");
-	assert.deepEqual(herdrCodes({ HERDR_PANE_ID: "\u001b[31m", HERDR_WORKSPACE_ID: "a b", HERDR_TAB_ID: "x" }), { pane: "--", sector: "--" });
+	assert.deepEqual(herdrCodes({ HERDR_PANE_ID: "wA1:p1", HERDR_WORKSPACE_ID: "wA1", HERDR_TAB_ID: "wA1:t1" }), { pane: "--", sector: "--" });
+	assert.deepEqual(herdrCodes({ HC_TERMINAL_ID: "\u001b[31m" }), { pane: "--", sector: "--" });
+	assert.equal(herdrCodes({ HC_TERMINAL_ID: "a b" }).pane, "--");
 });
 
 test("the CORE value is a short model label and the thinking level at boot", () => {

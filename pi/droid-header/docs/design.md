@@ -100,8 +100,8 @@ Every line is exactly the terminal width at every width; above 1000 columns the 
 | `S/N` | The first eight hex digits as `0000-BEEF`; `????-????` when unknown. They also seed the barcode and the intro |
 | `MODEL` | A short model label, then the thinking level uppercased: the provider prefix, a `claude-` word and a date or `-latest` suffix are dropped, a trailing `N-N` reads `N.N` (`anthropic/claude-sonnet-4-5-20250929` → `SONNET-4.5`). Pi's placeholder model (provider and ID `unknown`) and a missing level are `--` |
 | `FRAMEWORK`, `PI-` | `PI` and Pi's `VERSION` |
-| `SECTOR` | `HERDR_WORKSPACE_ID` and the tab part of `HERDR_TAB_ID`, joined with `.` and uppercased (`wA1`, `wA1:t1` → `WA1.T1`) |
-| `PANE` | `HERDR_PANE_ID` uppercased. IDs that are not 1–32 of `A-Za-z0-9:._-` count as absent; absent is `--` |
+| `SECTOR` | `--`. Herdr Desktop names a terminal's space and tab only in its labels, which take a command to read, and the header runs none. The sample states keep `WA1.T1` to match the approved reference |
+| `PANE` | `HC_TERMINAL_ID`, the Herdr Desktop terminal, uppercased (`t7` → `T7`). An ID that is not 1–32 of `A-Za-z0-9:._-` counts as absent; absent is `--` |
 | `MANIFEST` and each hold's count | The total and each hold's count as two digits or more, from the manifest; `--` until it is ready. The minimal line's `MOD` and `SKL` are three-digit extension and skill counts |
 | Escape hint | Pi's interrupt key, then `steer` once the ready manifest shows claude-interrupt enabled (an extension named `claude-interrupt` or `…/claude-interrupt`, or any enabled extension whose path has a `claude-interrupt` or `pi-claude-interrupt` folder or file), and `interrupt` while the manifest is pending or unavailable, or does not show it |
 | `DEPLOYED` | Local `HH:MM:SS` when this Pi process first saw the session |
