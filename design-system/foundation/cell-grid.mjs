@@ -1,6 +1,4 @@
-import { assertCells, fitText, GLYPHS, lineWidth, resolveStyle, safeText, span, textSlot } from './cells.mjs';
-
-const graphemes = new Intl.Segmenter('und', { granularity: 'grapheme' });
+import { assertCells, fitText, GLYPHS, graphemeSegments, lineWidth, resolveStyle, safeText, span, textSlot } from './cells.mjs';
 
 // A bounded, I/O-free composition surface; lines are the existing public seam. With a measurer, text() admits
 // measured graphemes: a wide one fills its cell and leaves `{ text: '' }` continuation cells after it, as in surface.
@@ -49,7 +47,7 @@ export class CellGrid {
     return col - x;
   }
   #graphemes(x, y, text, style) {
-    for (const { segment } of graphemes.segment(text)) {
+    for (const { segment } of graphemeSegments(text)) {
       const size = this.#measure(segment);
       if (y >= 0 && y < this.height) {
         if (x >= 0 && x + size <= this.width) { if (size) this.#set(x, y, segment, style, size); }

@@ -26,7 +26,7 @@ import { transcriptMarker } from '../elements/transcript-marker/transcript-marke
 import { lineMeter } from '../elements/line-meter/line-meter.mjs';
 import { columnBlock } from '../elements/column-block/column-block.mjs';
 import { tabRule, leader, neatline, nameRule, verticalRule } from '../elements/tab-rule/tab-rule.mjs';
-import { actionLabel, keyHints } from '../elements/action-label/action-label.mjs';
+import { actionLabel, keycapBay, keyHints } from '../elements/action-label/action-label.mjs';
 import { popupHeader, popupFooter, popupFrame, popupTitleBar } from '../elements/popup-header/popup-header.mjs';
 import { noticeRow } from '../elements/notice-row/notice-row.mjs';
 import { scopeMeter } from '../elements/scope-meter/scope-meter.mjs';
@@ -43,6 +43,7 @@ import { scrollRail } from '../elements/scroll-rail/scroll-rail.mjs';
 import { crateBanner } from '../elements/crate-banner/crate-banner.mjs';
 import { surfaceAt } from '../foundation/surface.mjs';
 import { unitPlate } from '../elements/unit-plate/unit-plate.mjs';
+import { hintSegments, statusStrip } from '../elements/status-strip/status-strip.mjs';
 import { CATEGORY_TONES } from '../foundation/board-tones.mjs';
 import { BOARD_INKS } from '../foundation/signal-colors.mjs';
 import { call, code, literal } from './storybook-usage.mjs';
@@ -574,8 +575,15 @@ const TAB_RULE = element('tab-rule', {
 const ACTION_LABEL = element('action-label', {
   title:'ACTION LABEL', summary:'Open affordances and whole-token keyboard hints. Host owns activation.',
   rules:['Read open actions have brackets, not just different ink.', 'Hints drop whole tokens, never part of a chord.'],
-  variants:['ready','read','hover'].map(state=>({name:state.toUpperCase(),input:{state}})).concat([{name:'HINTS',hints:true}]),
+  variants:['ready','read','hover'].map(state=>({name:state.toUpperCase(),input:{state}})).concat([{name:'HINTS',hints:true},
+    {name:'KEYCAP BAY',note:'The pane plate\'s bay: four bracket keys centred on 16 columns, lit.',bay:{}},
+    {name:'BAY HOVER',note:'The pointer over [-]: the key fills white; a pressed key fills acid.',bay:{hover:1}},
+    {name:'BAY DARK',note:'An unfocused pane\'s bay on the dark plate.',bay:{lighting:'dark'}}]),
   specimen(v,width) {
+    if(v.bay) {
+      const keys=[{glyph:'|'},{glyph:'-'},{glyph:'^'},{glyph:'x'}], options={width:16,...v.bay}, bay=keycapBay(keys,options);
+      return {lines:[fitLine(bay.line,width)],calls:[`${call('keycapBay',keys,options)}.line`],facts:[`KEYS ${bay.keys.map((k)=>`${k.col}-${k.col+k.len-1} (hit ${k.hitCol}-${k.hitCol+k.hitLen-1})`).join(', ')}`]};
+    }
     if(!v.hints) return piece('actionLabel',o=>actionLabel(v.input,o),[v.input],{},width);
     const tokens=[{key:'^O',label:'open'},{key:'Esc',label:'back'},{key:'^P',label:'sheets'}];
     return {lines:[keyHints(tokens,{width})],calls:[call('keyHints',tokens,{width})],facts:[]};
@@ -936,9 +944,13 @@ const UNIT_PLATE = element('unit-plate', {
     { name: 'STACKED', note: 'At 64 cells there is no room for the peak; the title block stays.', input: UNIT, width: 64 },
     { name: 'PLATE ONLY', note: 'titleBlock false: the maker, wordmark and serial only, as the header draws from 40 to 55 cells.', input: UNIT, width: 48, titleBlock: false },
     { name: 'UNKNOWN', note: 'A session with no ID: the unit and serial digits are unknown.', input: { ...UNIT, unit: 'DRD-????', serial: '????-????' }, width: 64 },
+    { name: 'PANE DARK', note: 'The pane plate\'s 16-column title block on the dark graphite level, as an unfocused pane shows it.', input: UNIT, width: 99, options: { blockWidth: 16, lighting: 'dark' } },
+    { name: 'PANE STANDBY', note: 'The standby level, while the pointer is over an unfocused plate.', input: UNIT, width: 99, options: { blockWidth: 16, lighting: 'standby' } },
+    { name: 'PANE PEAK', note: 'peakFrom 54: the peak starts right of the pane\'s centre, clear of Herdr\'s drag grip, as the 99-column pane plate draws it.', input: UNIT, width: 99, options: { blockWidth: 16, peakFrom: 54 } },
+    { name: 'TERMINAL', note: 'A shell\'s plate: DIR in the hairline, BRANCH in the block, no barcode and no peak.', input: { unit: 'TERM-ZSH', serial: '~/projects/lunalee', serialLabel: 'DIR', mark: null, title: '', division: ['BRANCH', 'MAIN'] }, width: 99, options: { blockWidth: 16, barcode: false, peak: false } },
   ],
   specimen(v, width) {
-    const w = within(width, v.width), options = v.titleBlock === false ? { width: w, titleBlock: false } : { width: w };
+    const w = within(width, v.width), options = { ...(v.titleBlock === false ? { width: w, titleBlock: false } : { width: w }), ...v.options };
     const made = unitPlate(v.input, options);
     return {
       lines: made.lines.map((line) => fitLine(line, width)),
@@ -948,4 +960,35 @@ const UNIT_PLATE = element('unit-plate', {
   },
 });
 
-export const ELEMENT_STORIES = [PANEL, FRAME, PLATE, COUNT, MODE, CHIP, LAMP, ROW, GAUGE, NUMERAL, METER, RAIL, MARKER, LINE_METER, COLUMN_BLOCK, TAB_RULE, ACTION_LABEL, POPUP_HEADER, NOTICE_ROW, SCOPE_METER, SOUNDING_METER, FEED_BEZEL, INPUT_FRAME, CALLOUT, DOCUMENT_BLOCK, SHEET_CARD, DESK_TRAY, OPERATION_ROW, ...DASHBOARD_STORIES, SECTION_HEAD, BOARD_MARKS, TIME_LANE, READOUT, EVENT_ROW, SCROLL_RAIL, CRATE_BANNER, UNIT_PLATE];
+// The status strip: the pane plate's state row and keycap bay. Fixtures only; the host supplies every segment and clock.
+const STRIP_KEYS = [{ glyph: '|' }, { glyph: '-' }, { glyph: '^' }, { glyph: 'x' }];
+const PI_HINTS = hintSegments([['esc', 'steer'], ['ctrl+c', 'clear'], ['/', 'commands'], ['!', 'bash']]);
+const STATUS_STRIP = element('status-strip', {
+  title: 'STATUS STRIP',
+  summary: 'The frosted row under a pane plate: a status lamp or chip, fields, text, clocks and key hints from column 2, and the keycap bay on the plate\'s 16-column block. Returns the line and the bay keys\' cells.',
+  rules: [
+    'Segments pack with a 3-cell gap and 3 clear cells before the bay; 2/2 and then 2/1 are tried before anything drops.',
+    'Then the lowest drop priority goes first, a clippable text is cut with an ellipsis, and the last segment goes last.',
+    'Lit is frosted; dark sits on the surface. Status lamps and the NEEDS YOU chip keep their lit inks at every level.',
+    'The bay ends on W - 3 at every width it fits; below that the strip has no bay.',
+  ],
+  variants: [
+    { name: 'PI IDLE', note: 'Fixture: Pi\'s key hints, dropped from the right as the strip narrows.', segments: PI_HINTS, width: 99 },
+    { name: 'PI WORKING', note: 'The phase lamp, the tool\'s target cut to fit, its elapsed clock and esc.', segments: [{ kind: 'status', glyph: '■', word: 'BASH', tone: 'accent' }, { kind: 'text', text: 'npm test -- --watch=false', clip: true }, { kind: 'clock', text: '00:42', drop: 1 }, PI_HINTS[0]], width: 99 },
+    { name: 'NEEDS YOU', note: 'The black-on-critical chip and the question.', segments: [{ kind: 'chip', glyph: '▲', word: 'NEEDS YOU' }, { kind: 'text', text: 'Which trade-off should I take?', clip: true }], width: 99 },
+    { name: 'NARROW', note: 'At 48 cells the spacing tightens and hints drop.', segments: PI_HINTS, width: 48 },
+    { name: 'DARK', note: 'An unfocused pane: the strip on the surface, READY dimmed.', segments: [{ kind: 'status', glyph: '○', word: 'READY', tone: 'ready' }], width: 99, lighting: 'dark' },
+    { name: 'STANDBY HOVER', note: 'The pointer over the plate and its [^] key.', segments: [{ kind: 'status', glyph: '▶', word: 'RUNNING', tone: 'primary' }, { kind: 'text', text: 'npm run dev', clip: true }, { kind: 'clock', text: '00:12:41', drop: 1 }], width: 99, lighting: 'standby', hover: 2 },
+  ],
+  specimen(v, width) {
+    const w = within(width, v.width), options = { width: w, keys: STRIP_KEYS, ...(v.lighting ? { lighting: v.lighting } : {}), ...(v.hover !== undefined ? { hover: v.hover } : {}) };
+    const made = statusStrip(v.segments, options);
+    return {
+      lines: [fitLine(made.line, width)],
+      calls: [`${call('statusStrip', v.segments, options)}.line`],
+      facts: [`${w} CELLS; GAP ${made.gap}, CLEAR ${made.clear}; ${made.dropped} DROPPED; BAY ${made.keys.length ? `${made.keys[0].hitCol}-${made.keys.at(-1).hitCol + made.keys.at(-1).hitLen - 1}` : 'none'}`],
+    };
+  },
+});
+
+export const ELEMENT_STORIES = [PANEL, FRAME, PLATE, COUNT, MODE, CHIP, LAMP, ROW, GAUGE, NUMERAL, METER, RAIL, MARKER, LINE_METER, COLUMN_BLOCK, TAB_RULE, ACTION_LABEL, POPUP_HEADER, NOTICE_ROW, SCOPE_METER, SOUNDING_METER, FEED_BEZEL, INPUT_FRAME, CALLOUT, DOCUMENT_BLOCK, SHEET_CARD, DESK_TRAY, OPERATION_ROW, ...DASHBOARD_STORIES, SECTION_HEAD, BOARD_MARKS, TIME_LANE, READOUT, EVENT_ROW, SCROLL_RAIL, CRATE_BANNER, UNIT_PLATE, STATUS_STRIP];

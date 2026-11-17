@@ -1,6 +1,6 @@
 // Shared seam for the motion primitives: option and time validation, plus per-cell restyling.
 // Pure and I/O-free. See motions/README.md for the contract every motion shares.
-import { isTerminalDefault, lineWidth, resolveColor, span, textSlot } from '../foundation/cells.mjs';
+import { graphemeSegments, isTerminalDefault, lineWidth, resolveColor, span, textSlot } from '../foundation/cells.mjs';
 
 // Shortest valid period. There is no frequency cap (../../docs/design.md#motion): any positive period is allowed,
 // and motion-off (animate: false) is what settles a motion.
@@ -70,6 +70,26 @@ export const phase = (time, period) => (time % period) / period;
 
 export const copyLines = (lines) => lines.map((line) => line.slice());
 
+// Two styles with the same keys and values.
+export function sameStyle(a, b) {
+  if (a === b) return true;
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  for (const key of keys) if (a[key] !== b[key] || !Object.hasOwn(b, key)) return false;
+  return true;
+}
+
+// One cell per span in, adjacent cells of the same style joined into one span.
+export function joinCells(cells) {
+  const out = [];
+  for (const { ch, style } of cells) {
+    const last = out.at(-1);
+    if (last && sameStyle(last.style, style)) last.text += ch;
+    else out.push({ text: ch, style });
+  }
+  return out;
+}
+
 export const blockWidth = (lines) => lines.reduce((max, line) => Math.max(max, lineWidth(line)), 0);
 
 const norm = (s) => `${s.fg ?? 'secondary'}|${s.bg ?? 'field'}|${s.bold ?? false}`;
@@ -113,7 +133,7 @@ export function restyleCells(lines, fn, { stateCells = false, measure } = {}) {
   if (measure !== undefined) return lines.map((line, row) => {
     const source = textSlot(line, lineWidth(line, { measure }), { measure }).spans;
     const out = []; let col = 0;
-    for (const s of source) for (const { segment: ch } of new Intl.Segmenter('und', { granularity: 'grapheme' }).segment(s.text)) {
+    for (const s of source) for (const { segment: ch } of graphemeSegments(s.text)) {
       const size = measure(ch), state = isStateCell(s.style);
       const change = state && !stateCells ? undefined : fn(s.style, col, row, ch, state);
       const style = change?.style ?? s.style, char = change?.char ?? ch;

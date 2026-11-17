@@ -1,5 +1,5 @@
 import { assertCells, fitLine, fitText, lineWidth, resolveStyle, span } from '../../foundation/cells.mjs';
-import { SURFACE_PALETTE as P } from '../../foundation/surface-palette.mjs';
+import { BAY_INKS, SURFACE_PALETTE as P } from '../../foundation/surface-palette.mjs';
 
 export function actionLabel({ label = 'open', kind = 'open', state = 'ready' } = {}, { maxWidth = Infinity, style, measure } = {}) {
   for (const value of arguments) if (value !== undefined && (value === null || typeof value !== 'object' || Array.isArray(value))) throw new TypeError('input and options must be objects');
@@ -30,4 +30,37 @@ export function keyHints(tokens, { width, measure } = {}) {
     else break;
   }
   return fitLine(out, width, { bg: 'default' }, { measure });
+}
+
+// The keycap bay: one-glyph bracket keys `[g]`, adjacent and centred on one ground `width` cells wide (the pane plate's
+// 16-column title block: 2 + 4 × 3 + 2). The ground carries the bay's edges; the end ground cells belong to the end
+// keys' hit areas, so nothing in the bay is dead. `lighting` picks BAY_INKS' level; `hover` and `pressed` (a key index,
+// pressed first) fill that key's cells. Returns the line and each key's cells and hit area, from the bay's first cell.
+export function keycapBay(keys, { width = 16, lighting = 'lit', hover = null, pressed = null } = {}) {
+  if (!Array.isArray(keys) || keys.length === 0) throw new TypeError('keycap bay keys must be a non-empty array');
+  for (const key of keys) if (!key || typeof key.glyph !== 'string' || !/^[\x21-\x7e]$/.test(key.glyph)) throw new TypeError('each bay key needs one printable ASCII glyph');
+  assertCells(width, 'keycap bay width');
+  if (width < 3 * keys.length) throw new RangeError('keycap bay is narrower than its keys');
+  if (!['lit', 'standby', 'dark'].includes(lighting)) throw new RangeError('keycap bay lighting must be lit, standby or dark');
+  for (const [name, value] of Object.entries({ hover, pressed })) {
+    if (value !== null && (!Number.isInteger(value) || value < 0 || value >= keys.length)) throw new RangeError(`keycap bay ${name} must be a key index or null`);
+  }
+  const ink = BAY_INKS[lighting], pad = Math.floor((width - 3 * keys.length) / 2), cells = [];
+  for (let x = 0; x < width; x++) cells.push(span(' ', { fg: ink.bracket, bg: ink.ground }));
+  const out = keys.map((key, i) => {
+    const col = pad + 3 * i, over = i === pressed ? BAY_INKS.pressed : i === hover ? BAY_INKS.hover : null;
+    ['[', key.glyph, ']'].forEach((ch, c) => {
+      const edge = c !== 1;
+      cells[col + c] = span(ch, { fg: over ? over.glyph : edge ? ink.bracket : ink.glyph, bg: over ? over.ground : ink.ground, bold: !edge });
+    });
+    const hitCol = i === 0 ? 0 : col, hitEnd = i === keys.length - 1 ? width - 1 : col + 2;
+    return { col, len: 3, hitCol, hitLen: hitEnd - hitCol + 1 };
+  });
+  const line = [];
+  for (const cell of cells) {
+    const last = line.at(-1);
+    if (last && last.style.fg === cell.style.fg && last.style.bg === cell.style.bg && last.style.bold === cell.style.bold) last.text += cell.text;
+    else line.push(span(cell.text, { ...cell.style }));
+  }
+  return { line, keys: out };
 }

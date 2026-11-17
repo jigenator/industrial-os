@@ -57,6 +57,8 @@ import { feedScan, feedScanDuration, FEED_SCAN_DEFAULTS } from '../motions/feed-
 import { cornerSnap, CORNER_SNAP_DEFAULTS } from '../motions/corner-snap.mjs';
 import { crtBoot, crtBootDuration, CRT_BOOT_DEFAULTS, CRT_BOOT_TIMING } from '../motions/crt-boot.mjs';
 import { unitPlate } from '../elements/unit-plate/unit-plate.mjs';
+import { bankSwitch, bankSwitchDuration, BANK_SWITCH_DEFAULTS } from '../motions/bank-switch.mjs';
+import { serialRoll, serialRollDuration, SERIAL_ROLL_DEFAULTS } from '../motions/serial-roll.mjs';
 import { call, code, literal, spread } from './storybook-usage.mjs';
 
 // Redraw interval for continuously changing motions (scan, pulse, reveal): setInterval truncates
@@ -141,7 +143,8 @@ const MOTION_FRAME = { number: 1, title: 'BAY 04', meta: 'DEMONSTRATION' };
 function motionStory({ id, fn, motion, defaults, units, duration, loop, frame = () => CONTINUOUS_FRAME_MS, ...fields }) {
   const bodyAt = (variant, width) => variant.body(panelInnerWidth(within(width, 60)));
   // A variant's `region(lines)`, when given, targets cells found in the rendered body at this width.
-  const optionsFor = (variant, lines, options = variant.options) => (variant.region ? { ...options, region: variant.region(lines) } : options);
+  // `derive(lines)`, likewise, adds options found in the body (a serial roll's slots).
+  const optionsFor = (variant, lines, options = variant.options) => ({ ...options, ...(variant.region ? { region: variant.region(lines) } : {}), ...(variant.derive ? variant.derive(lines) : {}) });
   return {
     id,
     kind: 'motion',
@@ -574,6 +577,14 @@ const RESTRIKE = motionStory({
   ],
 });
 
+// The unit plate the pane-plate motions and the CRT boot run over. Fixtures only.
+const BOOT_UNIT = { unit: 'DRD-C0DE', serial: '0000-BEEF', seed: 0xbeef };
+// The plate's wordmark, from the plate itself; an empty region when the unit is drawn as text.
+function wordmarkRegion(width) {
+  const mark = unitPlate(BOOT_UNIT, { width }).regions.wordmark;
+  return mark ? { top: mark.top, left: mark.left, rows: mark.rows, cols: mark.cols } : { top: 2, left: 2, rows: 3, cols: 0 };
+}
+
 const GHOST = motionStory({
   id: 'ghost',
   fn: 'ghost',
@@ -605,6 +616,14 @@ const GHOST = motionStory({
       options: { seed: 5, mode: 'registration' },
       region: (lines) => ({ top: 0, left: 0, rows: lines.length, cols: Math.max(0, ...lines.map(lineWidth)) }),
       body: (w) => body(instrumentFrame(FRAME_FIXTURE.real, { width: w }), call('instrumentFrame', FRAME_FIXTURE.shown, { width: w })),
+      plainVisible: true,
+    },
+    {
+      name: 'OFFSET',
+      note: 'The pane plate\'s K4 ghost: the wordmark prints one cell right in acid, then one cell left in the darker acid, seed 9.',
+      options: { seed: 9, mode: 'offset', tick: 50 },
+      region: (lines) => wordmarkRegion(lineWidth(lines[0])),
+      body: (w) => body(unitPlate(BOOT_UNIT, { width: w }).lines, `${call('unitPlate', BOOT_UNIT, { width: w })}.lines`),
       plainVisible: true,
     },
   ],
@@ -791,8 +810,7 @@ const AMBIENT_LOAD = motionStory({
     body:(width)=>body(ambientField(Array.from({length:54},()=>fitLine([],width))),`ambientField(Array.from({length:54},()=>fitLine([],${width})))`)}],
 });
 
-// The CRT boot over a unit plate and two ledger rows, as the Pi droid header boots. Fixtures only.
-const BOOT_UNIT = { unit: 'DRD-C0DE', serial: '0000-BEEF', seed: 0xbeef };
+
 const bootBody = (width) => body(
   [...unitPlate(BOOT_UNIT, { width }).lines, fitLine([span('  MODEL      ', { fg: 'secondary' }), span('OPUS-5.5 / HIGH')], width), fitLine([span('  WORKSPACE  ', { fg: 'secondary' }), span('INDUSTRIAL-OS')], width)],
   `[...${call('unitPlate', BOOT_UNIT, { width })}.lines, ${call('fitLine', code(`[${call('span', '  MODEL      ', { fg: 'secondary' })}, ${call('span', 'OPUS-5.5 / HIGH')}]`), width)}, ${call('fitLine', code(`[${call('span', '  WORKSPACE  ', { fg: 'secondary' })}, ${call('span', 'INDUSTRIAL-OS')}]`), width)}]`,
@@ -819,4 +837,64 @@ const CRT_BOOT = motionStory({
   ],
 });
 
-export const MOTION_STORIES = [SCAN, PULSE, REVEAL, DRAW_IN, WARM_UP, LATCH, BEACON, CYCLE, FADE, BLINK, FLASH, PING, WIPE, FILL_IN, BURN_OUT, EDGE_PULSE, RESTRIKE, GHOST, NUDGE, MARKER_TIMELINE_STORY, SCOPE_TRACE, SOUNDING_SWEEP, FEED_SCAN, CORNER_SNAP, CALLOUT_ENTRANCE, PHOSPHOR_HEAD, DASH_DECODE, DASH_BREATHE, DASH_ARRIVAL_PING, DASH_AMBIENT_SWEEP, AMBIENT_LOAD, CRT_BOOT];
+// The bank switch from a pane's dark plate to its lit one: `body` is the lit plate, `dark` the same plate unlit.
+const plateAt = (width, lighting) => unitPlate(BOOT_UNIT, { width, blockWidth: 16, ...(lighting ? { lighting } : {}) }).lines;
+const bankBody = (width) => ({
+  lines: plateAt(width),
+  calls: [`dark = ${call('unitPlate', BOOT_UNIT, { width, blockWidth: 16, lighting: 'dark' })}.lines`, `body = ${call('unitPlate', BOOT_UNIT, { width, blockWidth: 16 })}.lines`],
+});
+const BANK_SWITCH_STORY = motionStory({
+  id: 'bank-switch',
+  fn: 'bankSwitch',
+  title: 'BANK SWITCH',
+  summary: 'A plate\'s lighting changing in vertical banks, left to right: the pane plate\'s focus switch. Interruptible from any level.',
+  motion: (lines, o) => bankSwitch(plateAt(lineWidth(lines[0]), 'dark'), lines, o),
+  defaults: BANK_SWITCH_DEFAULTS,
+  units: { stagger: 'ms', fade: 'ms' },
+  duration: (lines, o) => bankSwitchDuration(o),
+  frame: () => 30,
+  rules: [
+    'Four banks, 30 ms apart, 40 ms each: 130 ms. Each cell mixes its two colors and takes the nearer level\'s glyph.',
+    'from is a level 0-1 or one per bank: a change mid-switch starts from bankLevels() of the last one.',
+    'At bankSwitchDuration() and with motion off the output is the target lines.',
+  ],
+  variants: [
+    { name: 'FOCUS', note: 'Dark to lit, as a pane takes focus.', options: {}, body: bankBody },
+    { name: 'TURN BACK', note: 'A second change 60 ms into a switch: each bank turns back from where it was.', options: { from: [1, 0.25, 0, 0] }, body: bankBody },
+  ],
+});
+// Patch the call: a bank switch takes the lines it leaves and the lines it reaches.
+const bankSpecimen = BANK_SWITCH_STORY.specimen;
+BANK_SWITCH_STORY.specimen = (...args) => {
+  const made = bankSpecimen(...args);
+  return { ...made, calls: made.calls.map((c) => c.replace(/^frame = bankSwitch\(body, /, 'frame = bankSwitch(dark, body, ')) };
+};
+
+// The serial roll over the plate's serial text: one text slot per hex digit, locking left to right.
+function serialSlots(width) {
+  const { serial } = unitPlate(BOOT_UNIT, { width }).regions;
+  const slots = [];
+  for (const [i, ch] of [...BOOT_UNIT.serial].entries()) if (/[0-9A-F]/.test(ch) && i < serial.cols) slots.push({ kind: 'text', row: serial.top, col: serial.left + i, lock: slots.length });
+  return slots;
+}
+const SERIAL_ROLL_STORY = motionStory({
+  id: 'serial-roll',
+  fn: 'serialRoll',
+  title: 'SERIAL ROLL',
+  summary: 'A plate\'s identity digits rolling through seeded hex and locking left to right, as a Pi session\'s serial arrives.',
+  motion: serialRoll,
+  defaults: SERIAL_ROLL_DEFAULTS,
+  units: { tick: 'ms', start: 'ms', step: 'ms' },
+  duration: (lines, o) => serialRollDuration(o),
+  frame: (o) => o.tick,
+  rules: [
+    'Unlocked slots show seeded hex, changing every tick; slot n locks at start + n * step.',
+    'Pixel slots roll a 3x3 wordmark glyph; hold shows other cells until the last lock.',
+    'At serialRollDuration() and with motion off the output equals the input.',
+  ],
+  variants: [
+    { name: 'SERIAL', note: 'The eight serial digits of DRD-C0DE, seed 7.', options: { seed: 7 }, derive: (lines) => ({ slots: serialSlots(lineWidth(lines[0])) }), body: (w) => body(unitPlate(BOOT_UNIT, { width: w }).lines, `${call('unitPlate', BOOT_UNIT, { width: w })}.lines`), plainVisible: true },
+  ],
+});
+
+export const MOTION_STORIES = [SCAN, PULSE, REVEAL, DRAW_IN, WARM_UP, LATCH, BEACON, CYCLE, FADE, BLINK, FLASH, PING, WIPE, FILL_IN, BURN_OUT, EDGE_PULSE, RESTRIKE, GHOST, NUDGE, MARKER_TIMELINE_STORY, SCOPE_TRACE, SOUNDING_SWEEP, FEED_SCAN, CORNER_SNAP, CALLOUT_ENTRANCE, PHOSPHOR_HEAD, DASH_DECODE, DASH_BREATHE, DASH_ARRIVAL_PING, DASH_AMBIENT_SWEEP, AMBIENT_LOAD, CRT_BOOT, BANK_SWITCH_STORY, SERIAL_ROLL_STORY];

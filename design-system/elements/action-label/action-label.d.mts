@@ -5,3 +5,7 @@ export function actionLabel(input?: ActionInput, options?: ActionOptions): Line;
 export function actionLabel(input: ActionInput<TextValue>, options: ActionOptions & { measure: Measure }): Line;
 export function keyHints(tokens: { key?: string; label: string }[], options: { width: number; measure?: Measure }): Line;
 export function keyHints(tokens: { key?: TextValue; label: TextValue }[], options: { width: number; measure: Measure }): Line;
+export interface BayKey { glyph: string }
+/** A bay key's three cells and its hit area, from the bay's first cell. */
+export interface BayKeyCells { col: number; len: number; hitCol: number; hitLen: number }
+export function keycapBay(keys: readonly BayKey[], options?: { width?: number; lighting?: 'lit' | 'standby' | 'dark'; hover?: number | null; pressed?: number | null }): { line: Line; keys: BayKeyCells[] };

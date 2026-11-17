@@ -1,13 +1,17 @@
 // Pure derivations of the header's values from what Pi and the environment report. No I/O, clock or Pi import;
 // sources.ts and extension.ts gather the inputs. The rules are in ../docs/design.md#values.
 import { basename, dirname, isAbsolute, relative, sep } from "node:path";
+import { sessionUnit } from "@industrial-os/design-system/elements/unit-plate";
 
-interface SessionCodes { unit: string; session: string; seed: number }
-/** DRD and SES codes: the last four and first eight hex digits of the session ID, `?` for each when it has none. */
+interface SessionCodes { unit: string; serial: string; seed: number }
+/**
+ * The DRD code, serial and barcode seed from the session ID, by the design system's rule (`sessionUnit`): the last
+ * four hex digits, the first eight of the last twelve, and the last eight as the seed. `?` for each without one.
+ */
 export function sessionCodes(sessionId: string | undefined): SessionCodes {
-	const hex = (sessionId ?? "").replace(/[^0-9a-f]/gi, "").toUpperCase();
-	if (hex.length < 8) return { unit: "????", session: "????????", seed: 0 };
-	return { unit: hex.slice(-4), session: hex.slice(0, 8), seed: Number.parseInt(hex.slice(0, 8), 16) | 0 };
+	const unit = sessionUnit(sessionId);
+	if (!unit) return { unit: "????", serial: "????????", seed: 0 };
+	return { unit: unit.unit.slice(4), serial: unit.serial.replace("-", ""), seed: unit.seed };
 }
 
 /**

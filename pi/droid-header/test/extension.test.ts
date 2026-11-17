@@ -6,7 +6,7 @@ import test, { after, beforeEach } from "node:test";
 import { load, measure, tui } from "./host.ts";
 
 // The extension through the installed host's own Pi packages, with a fake Pi API, context, TUI and clock.
-const { default: droidHeader, DroidHeader, FRAME_MS, INTRO_LIMIT_MS } = await load("src/extension.ts");
+const { default: droidHeader, DroidHeader, DECIDE_LIMIT_MS, FRAME_MS, INTRO_LIMIT_MS } = await load("src/extension.ts");
 const { introEnd, settledFrame } = await load("src/header.ts");
 
 const root = await realpath(await mkdtemp(join(tmpdir(), "droid-header-ext-")));
@@ -43,7 +43,7 @@ function manualClock() {
 	};
 }
 
-function harness(options: { mode?: string; reason?: string; entries?: string[]; sessionId?: string; manifest?: (request: unknown) => unknown } = {}) {
+function harness(options: { mode?: string; reason?: string; entries?: string[]; sessionId?: string; manifest?: (request: unknown) => unknown; plated?: (env: unknown) => Promise<boolean> } = {}) {
 	const handlers = new Map<string, Array<(event: any, ctx: any) => unknown>>();
 	const clock = manualClock();
 	const pi = {
@@ -56,7 +56,7 @@ function harness(options: { mode?: string; reason?: string; entries?: string[]; 
 	const screen = { renders: 0, requestRender() { this.renders++; state.header?.render(104); } };
 	const ctx = {
 		mode: options.mode ?? "tui", cwd, model: { id: "claude-opus-5-5", provider: "anthropic" }, isProjectTrusted: () => true,
-		sessionManager: { getSessionId: () => options.sessionId ?? "0000beef-0000-4000-8000-00000000c0de", getEntries: () => (options.entries ?? ["thinking_level_change"]).map((type) => ({ type })) },
+		sessionManager: { getSessionId: () => options.sessionId ?? "0000beef-0000-4000-8000-0000beefc0de", getEntries: () => (options.entries ?? ["thinking_level_change"]).map((type) => ({ type })) },
 		ui: {
 			setHeader(factory: any) {
 				state.setHeaderCalls++;
@@ -66,8 +66,9 @@ function harness(options: { mode?: string; reason?: string; entries?: string[]; 
 			onTerminalInput(listener: (data: string) => unknown) { state.inputListeners.add(listener); return () => state.inputListeners.delete(listener); },
 		},
 	};
-	if (options.manifest) droidHeader(pi, clock, options.manifest);
-	else droidHeader(pi, clock);
+	// The plate lookup is always a fake: a test never runs the real `hc`, even inside Herdr.
+	if (options.plated) droidHeader(pi, clock, options.manifest ?? (async () => ({ status: "pending" })), options.plated);
+	else droidHeader(pi, clock, options.manifest as any, async () => false);
 	const emit = async (event: string, payload: any = {}) => { for (const run of handlers.get(event) ?? []) await run({ type: event, ...payload }, ctx); };
 	const start = () => emit("session_start", { reason: options.reason ?? "startup" });
 	const text = (width = 104) => state.header.render(width).map((line: string) => tui.stripTerminalSequences(line));
@@ -185,10 +186,16 @@ const turn = () => new Promise((done) => setImmediate(done));
 test("the manifest is built after the header is first drawn, with the prompts Pi loaded, and not for a header gone first", async () => {
 	const requests: unknown[] = [];
 	let answer!: (manifest: unknown) => void;
-	const h = harness({ reason: "resume", manifest: (request) => { requests.push(request); return new Promise((done) => { answer = done; }); } });
+	let decide!: (ledgerOnly: boolean) => void;
+	const lookup = new Promise<boolean>((done) => { decide = done; });
+	const h = harness({ reason: "resume", plated: () => lookup, manifest: (request) => { requests.push(request); return new Promise((done) => { answer = done; }); } });
 	await h.start();
 	await turn();
+	assert.deepEqual(h.text(), [], "undecided: nothing drawn");
+	await turn();
 	assert.equal(requests.length, 0, "nothing before the header is drawn");
+	decide(false); // the decision asks Pi to draw the header
+	for (let i = 0; i < 5; i++) await Promise.resolve();
 	assert.ok(pending(h.text()));
 	assert.equal(requests.length, 0, "nothing during the draw");
 	await turn();
@@ -218,7 +225,7 @@ test("a manifest source or Pi call that throws shows the manifest as unavailable
 test("a header's manifest updates request a render, and a disposed header ignores them", () => {
 	const clock = manualClock();
 	const screen = { renders: 0, requestRender() { this.renders++; } };
-	const state = { unit: "C0DE", session: "0000BEEF", seed: 0x0000beef, core: "-- / --", version: "1.4.0", sector: "--", pane: "--", deployed: "00:00:00", assignment: "X", manifest: { status: "pending" }, hints: [] };
+	const state = { unit: "C0DE", serial: "0000BEEF", seed: 0x0000beef, core: "-- / --", version: "1.4.0", sector: "--", pane: "--", deployed: "00:00:00", assignment: "X", manifest: { status: "pending" }, hints: [] };
 	const header = new DroidHeader(state, false, clock);
 	const component = header.attach(screen, { getColorMode: () => "truecolor" });
 	header.setManifest({ status: "unavailable", reason: "SETTINGS UNREADABLE: global" });
@@ -247,7 +254,7 @@ test("rendered ANSI lines never exceed the width Pi passes, at every width and f
 test("the Escape hint follows the manifest: steer once it shows claude-interrupt", () => {
 	const clock = manualClock();
 	const screen = { renders: 0, requestRender() { this.renders++; } };
-	const state = { unit: "C0DE", session: "0000BEEF", seed: 0x0000beef, core: "-- / --", version: "1.4.0", sector: "--", pane: "--", deployed: "00:00:00", assignment: "X", manifest: { status: "pending" }, hints: [["escape", "interrupt"], ["/", "commands"]] };
+	const state = { unit: "C0DE", serial: "0000BEEF", seed: 0x0000beef, core: "-- / --", version: "1.4.0", sector: "--", pane: "--", deployed: "00:00:00", assignment: "X", manifest: { status: "pending" }, hints: [["escape", "interrupt"], ["/", "commands"]] };
 	const header = new DroidHeader(state, false, clock);
 	const component = header.attach(screen, { getColorMode: () => "truecolor" });
 	const strip = () => tui.stripTerminalSequences(component.render(104)[6]);
@@ -260,7 +267,7 @@ test("the Escape hint follows the manifest: steer once it shows claude-interrupt
 });
 
 test("the intro ends when the frame drawn says, or at the backstop for a header Pi never draws", () => {
-	const state = { unit: "C0DE", session: "0000BEEF", seed: 0x0000beef, core: "-- / --", version: "1.4.0", sector: "--", pane: "--", deployed: "00:00:00", assignment: "X", manifest: { status: "pending" }, hints: [] };
+	const state = { unit: "C0DE", serial: "0000BEEF", seed: 0x0000beef, core: "-- / --", version: "1.4.0", sector: "--", pane: "--", deployed: "00:00:00", assignment: "X", manifest: { status: "pending" }, hints: [] };
 	assert.equal(INTRO_LIMIT_MS, 8000);
 	const end = introEnd(settledFrame(state, 104, measure));
 	assert.ok(end > 1000 && end < INTRO_LIMIT_MS, `${end} ms`);
@@ -282,4 +289,54 @@ test("the intro ends when the frame drawn says, or at the backstop for a header 
 	clock.advance(FRAME_MS);
 	assert.equal(undrawn.animating, false);
 	assert.equal(clock.intervals(), 0);
+});
+
+test("under Herdr's droid-plate pane header the header is the ledger alone; without the label, or if the lookup fails, it is whole", async () => {
+	const seen: unknown[] = [];
+	const under = harness({ reason: "resume", plated: async (env) => { seen.push(env); return true; } });
+	await under.start();
+	for (let i = 0; i < 5; i++) await Promise.resolve();
+	const rows = under.text();
+	assert.equal(seen.length, 1);
+	assert.ok(!rows.some((row) => /S\/N|INDUSTRIAL-OS|escape|ctrl\+c/.test(row)), "no plate and no hint strip");
+	assert.match(rows[1], /^ {2}SPECIFICATIONS/);
+	for (const plated of [async () => false, async () => { throw new Error("hc failed"); }]) {
+		const whole = harness({ reason: "resume", plated });
+		await whole.start();
+		for (let i = 0; i < 5; i++) await Promise.resolve();
+		assert.ok(whole.text().some((row) => /S\/N 0000-BEEF/.test(row)));
+	}
+});
+
+test("the plate lookup never holds session start: the header draws nothing until it answers or times out, then decides, and input passes", async () => {
+	// A lookup that answers late: session start returns at once, the header is set and draws nothing.
+	let answer: (value: boolean) => void = () => {};
+	const late = harness({ plated: () => new Promise<boolean>((resolve) => { answer = resolve; }) });
+	const started = late.start();
+	await started;
+	assert.ok(late.state.header, "the header is set before the lookup answers");
+	assert.deepEqual(late.text(), []);
+	assert.equal(late.clock.intervals(), 1, "only the decision limit runs; the intro waits for the decision");
+	// Input meanwhile is never consumed.
+	for (const listener of late.state.inputListeners) assert.equal(listener("x"), undefined);
+	answer(true);
+	for (let i = 0; i < 5; i++) await Promise.resolve();
+	assert.ok(late.text().some((row) => /SPECIFICATIONS/.test(row)));
+	assert.ok(!late.text().some((row) => /S\/N/.test(row)), "decided: the ledger alone");
+	assert.equal(late.clock.intervals(), 0, "the limit is cleared once decided; the intro was settled by the input");
+
+	// A lookup that never answers: whole at DECIDE_LIMIT_MS, the intro starting then; a later answer changes nothing.
+	let never: (value: boolean) => void = () => {};
+	const hung = harness({ plated: () => new Promise<boolean>((resolve) => { never = resolve; }) });
+	await hung.start();
+	assert.equal(DECIDE_LIMIT_MS, 350);
+	hung.clock.advance(DECIDE_LIMIT_MS - 1);
+	assert.deepEqual(hung.text(), []);
+	hung.clock.advance(1);
+	assert.ok(hung.text().length > 0, "drawn once the limit passes");
+	assert.deepEqual([...hung.clock.timers.values()].map((t) => t.every), [FRAME_MS], "the limit stops itself; the intro runs");
+	never(true);
+	for (let i = 0; i < 5; i++) await Promise.resolve();
+	hung.clock.advance(10_000);
+	assert.ok(hung.text().some((row) => /S\/N 0000-BEEF/.test(row)), "a late answer does not take the plate away");
 });

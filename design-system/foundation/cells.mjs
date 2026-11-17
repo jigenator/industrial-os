@@ -15,7 +15,18 @@ export function safeText(value) {
   return value.replace(PRINTABLE_ASCII, '?');
 }
 
-const graphemes = new Intl.Segmenter('und', { granularity: 'grapheme' });
+// Grapheme segments of text, as Intl.Segmenter yields them ({ segment, index }). The segmenter is made on first use; a
+// host without Intl.Segmenter (Herdr's mod runtime has no Intl) gets one segment per code point instead, so a module
+// that imports this file still loads there. Node always has it, so its output is unchanged.
+let segmenter;
+export function graphemeSegments(text) {
+  if (segmenter === undefined) segmenter = typeof Intl === 'object' && typeof Intl?.Segmenter === 'function' ? new Intl.Segmenter('und', { granularity: 'grapheme' }) : null;
+  if (segmenter) return [...segmenter.segment(text)];
+  const out = [];
+  let index = 0;
+  for (const segment of text) { out.push({ segment, index }); index += segment.length; }
+  return out;
+}
 const UNSAFE_TEXT = /[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u2028-\u202e\u2066-\u2069]/u;
 
 function assertTextStart(text) {
@@ -49,7 +60,7 @@ export function textSlot(spans, width, { measure } = {}) {
   if (measured(text, measure) !== width || copy.reduce((n, s) => n + measured(s.text, measure), 0) !== width) {
     throw new RangeError('slot width does not match measure(text)');
   }
-  const boundaries = new Set([...graphemes.segment(text)].map((s) => s.index));
+  const boundaries = new Set(graphemeSegments(text).map((s) => s.index));
   boundaries.add(text.length);
   let end = 0;
   for (const s of copy) {
@@ -113,7 +124,7 @@ function clipMeasured(line, n, measure) {
   let left = n;
   outer: for (const s of checked) {
     let text = '';
-    for (const { segment } of graphemes.segment(s.text)) {
+    for (const { segment } of graphemeSegments(s.text)) {
       const width = cells(segment, { measure });
       if (width > left) { if (text) out.push(span(text, s.style)); break outer; }
       text += segment;

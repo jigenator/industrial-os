@@ -25,6 +25,8 @@ export function surfaceAt(x: number, y: number, size: SurfaceSize & { gradient?:
 export function dotAt(x: number, y: number): `#${string}` | null;
 /** A six-row plate's brushed-aluminium ground at (x, y), and the hairline drawn on it. */
 export function aluminiumAt(x: number, y: number, size: { width: number }): { ground: `#${string}`; hair: `#${string}` };
+/** An unlit plate's graphite ground at (x, y), level 'dark' (default) or 'standby', and its (lighter) hairline. */
+export function graphiteAt(x: number, y: number, options: { width: number; level?: 'dark' | 'standby' }): { ground: `#${string}`; hair: `#${string}` };
 export function blendFill(fill: Color, under: Color, alpha: number): `#${string}`;
 /** Compose full viewport rows so same-row text clearance has its complete context. Extra cell properties pass through. */
 export function composeSurface<C extends SurfaceCell>(rows: readonly (readonly C[])[], options: SurfaceOptions): C[][];

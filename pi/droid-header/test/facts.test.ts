@@ -2,13 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { assignment, clock, contextPath, coreValue, extensionNames, herdrCodes, interruptAction, isClaudeInterrupt, modelLabel, packageName, parseHead, type ResourceRef, sessionCodes } from "../src/facts.ts";
 
-test("droid codes come from the session ID: the same session keeps its ID, none is unknown", () => {
-	const id = "0000beef-0000-4000-8000-00000000c0de";
-	assert.deepEqual(sessionCodes(id), { unit: "C0DE", session: "0000BEEF", seed: 0x0000beef });
+test("droid codes come from the session ID: DRD the last four hex digits, the serial the last group's first eight, the seed the last eight", () => {
+	const id = "01a1e81c-27f3-70f3-b278-150c4f01fa03";
+	assert.deepEqual(sessionCodes(id), { unit: "FA03", serial: "150C4F01", seed: 0x4f01fa03 });
 	assert.deepEqual(sessionCodes(id), sessionCodes(id));
-	assert.equal(sessionCodes("0000beef-0000-4000-8000-00000000ffff").unit, "FFFF");
-	assert.equal(sessionCodes("ffffffff-0000").seed, -1);
-	for (const missing of [undefined, "", "not-a-session", "abc"]) assert.deepEqual(sessionCodes(missing), { unit: "????", session: "????????", seed: 0 });
+	// Two sessions started in the same second share their first eight digits, which the serial no longer uses.
+	assert.notEqual(sessionCodes("01a1e81c-5b10-7a42-9c3e-2d7e88b1a4c9").serial, sessionCodes(id).serial);
+	assert.equal(sessionCodes("0000beef-0000-4000-8000-0000beefffff").unit, "FFFF");
+	assert.equal(sessionCodes("0000beef-0000-4000-8000-0000ffffffff").seed, -1);
+	for (const missing of [undefined, "", "not-a-session", "abc", "0000beef-000"]) assert.deepEqual(sessionCodes(missing), { unit: "????", serial: "????????", seed: 0 });
 });
 
 test("Herdr Desktop terminal code, sector always --, and -- outside Desktop", () => {

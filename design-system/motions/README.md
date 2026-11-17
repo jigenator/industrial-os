@@ -33,6 +33,8 @@ A motion decorates rendered lines; it does not supply data. Most preserve every 
 | [ambient sweep](#ambientsweeplines-options) | loop | | decorative foreground | exempt |
 | [ambient load](#ambientloadlines-options-and-ambientloaddurationlines-options) | once | ambientLoadDuration | grid/dots/registration glyphs and ink | exempt |
 | [CRT boot](#crtbootlines-options-and-crtbootdurationlines-options) | once, seeded | `crtBootDuration` | hides untyped cells, garbles, style | exempt, whole line |
+| [bank switch](#bankswitchfromlines-tolines-options-and-bankswitchdurationoptions) | once, interruptible | `bankSwitchDuration` | colors mixed between two blocks; glyphs at half way | unchanged when the same in both |
+| [serial roll](#serialrolllines-options-and-serialrolldurationoptions) | once, seeded | `serialRollDuration` | host-chosen slots' glyphs | host keeps them out of slots |
 
 Each motion lives in its own file here, named like its row, with its checks beside it in `<name>.test.mjs` (scan, pulse, and reveal are checked in `motions.test.mjs`).
 
@@ -127,8 +129,9 @@ A one-shot wipe left to right. Each line starts `stagger` ms after the one above
 | `duration` | ms for one line to wipe fully, `1`–`60000` | `600` |
 | `stagger` | ms between line starts, `0`–`1000` | `60` |
 | `veil` | `'dim'`: characters remain in structural grey (contrast is not guaranteed). `'blank'`: veiled cells become spaces | `'dim'` |
+| `outgoing` | Lines of the block being replaced. Cells not yet reached show the outgoing block's cell instead of a veil, so the new block wipes in over the old with a clean vertical front; state cells take part, since both blocks are whole. One-cell lines only: with `measure` it throws `TypeError` | none |
 
-`revealDuration(lineCount, options)` returns `duration + (lineCount - 1) * stagger` (just `duration` for 0 or 1 lines) and validates the same options. Hosts use it to know when to stop redrawing. At that time and later, `reveal` equals the input. `REVEAL_DEFAULTS` is exported.
+`revealDuration(lineCount, options)` returns `duration + (lineCount - 1) * stagger` (just `duration` for 0 or 1 lines) and validates the same options. Hosts use it to know when to stop redrawing. At that time and later, `reveal` equals the input. `REVEAL_DEFAULTS` is exported (without `outgoing`, which has no default). The Herdr pane plate reveals a shell's plate over the agent's it replaces with `outgoing`, rows 60 ms apart, 540 ms each.
 
 ## State and attention motions
 
@@ -439,7 +442,7 @@ Finite seeded **fill glitches** or **registration ghosts**. An explicit decorati
 | `seed` | `0` | Integer; deterministic plan |
 | `tick` | `50` | Ms per frame, `1–60000` |
 | `level` | `1` | Integer `1–3`; fill glitch strength |
-| `mode` | `'fill'` | `'fill'` or `'registration'` |
+| `mode` | `'fill'` | `'fill'`, `'registration'` or `'offset'` |
 | `region` | Required | Shared cell rectangle, restricted to decoration |
 
 | Fill level | Frames | Runs | Run lengths | Glyphs | Wait after event (ms) |
@@ -451,6 +454,8 @@ Finite seeded **fill glitches** or **registration ghosts**. An explicit decorati
 Fill runs are fixed during the event, retain input ink/background, with source level-3 12% white highlights. Only filled-track glyph candidates `█▀▄▏▎▍▋▊▉▓▒░▚▞■` are eligible; the highest candidate on each line is protected, except a single-candidate line uses `▓` as in the source. **Letters, numbers, spaces, readout padding, every cell outside region and state cells remain unchanged.** The caller must keep unfilled/Unknown tracks, labels, state messages, activity cells, styled extensions and actual readouts outside the region; glyphs alone cannot establish which cells contain real fill.
 
 Registration uses the source's geometry-only corner/side/bracket/center groups, shuffled A+B with 2–5 tick start separation. Echoes go into blank neighbours only: first tick secondary, next two decorative; an actual frame anchor `┏┓┗┛┃━` can lift (blank) for its second tick, then restores. It never overwrites nonblank text. Region defines the frame's bounds; at narrow geometry, unavailable targets are skipped.
+
+Offset (the pane plate's K4 registration ghost) prints a mark again off register: for one tick each inked cell of the region prints one cell right in bold `accent`, for the next one cell left in bold `SIGNAL_COLORS.accent75`, each into a blank cell only (so at most one cell outside the region), never from or onto a state cell. `ghostDuration` is two ticks. The pane plate gives it the wordmark's region and schedules one every 20–60 s, seeded per plate, on the focused idle plate.
 
 Rate: 20 frame steps/s; fill events 100–300 ms; registration echoes three ticks (150 ms) with a bounded A+B plan. `ghostDuration(lines, options)` returns seeded event completion, including A+B delays; at completion and motion-off, output equals input. Warning/critical foreground/background cells are exempt, no state opt-in.
 
@@ -543,6 +548,26 @@ Options, beside `time` and `animate`: `seed` (integer, default 0) seeds the pace
 - Every frame keeps each line's width. Motion-off (`animate: false`) is the input. Lines type on their own 50 ms chunks from their own starts, so a host samples it at most every 50 ms (20 frames a second); the storybook previews it at 50 ms.
 
 Invalid options throw: a non-integer seed, a negative or fractional range, late row or late time `RangeError`; a `paint` or `ground` that is not an array of objects, a non-object `late` or a non-function `measure` `TypeError`. Checks: [crt-boot.test.mjs](crt-boot.test.mjs), and the CRT BOOT story.
+
+## `bankSwitch(fromLines, toLines, options)` and `bankSwitchDuration(options)`
+
+A block's lighting changing in vertical banks, left to right: the Herdr pane plate's focus switch (T2), which that plate runs natively from `bankSchedule` (below); `bankSwitch` draws the same switch as frames, for a terminal host and the storybook. `fromLines` (level 0) and `toLines` (level 1) are the same block drawn two ways, the same rows and widths, such as a [unit plate](../elements/unit-plate/README.md) dark and lit. Each frame is `toLines` cell by cell at its bank's level: both colors mixed (`blendFill`), and the glyph and weight of the nearer end. `BANK_SWITCH_DEFAULTS` is frozen.
+
+| Option | Contract | Default |
+| --- | --- | --- |
+| `banks` | Integer 1–64; column `x` of a `w`-cell block is in bank `floor(x · banks / w)` (`bankOf`) | `4` |
+| `stagger` | ms between bank starts, `0`–`1000` | `30` |
+| `fade` | ms for one bank, `1`–`1000` | `40` |
+| `from` | Starting level 0–1, or one per bank | `0` |
+| `to` | Target level 0–1 | `1` |
+
+`bankSwitchDuration(options)` is `fade + (banks − 1) · stagger`, 130 ms by default. `bankLevels(options)` gives each bank's level at `time`; pass it as the next change's `from` to turn a switch back mid-way, so a second change never jumps. `bankSchedule(width, options)` gives each bank's first column, width, delay and duration, for a host that animates with its own opacity transitions instead. At its duration and with motion off the output is `toLines` at `to` 1. Colors that are the same in both blocks never change, so a state cell kept lit at every level (as the [status strip](../elements/status-strip/README.md) keeps its lamps) is never dimmed; the motion has no other state-cell exemption. Mismatched rows or widths, or options out of range, throw `RangeError`. Checks: [bank-switch.test.mjs](bank-switch.test.mjs), and the BANK SWITCH story.
+
+## `serialRoll(lines, options)` and `serialRollDuration(options)`
+
+A plate's identity digits rolling through seeded hex and locking left to right (K5), as a Pi session's serial arrives on the pane plate. The host names the cells in `slots`: `{ kind: 'text', row, col, lock }`, one cell, or `{ kind: 'pixel', row, col, lock, ink? }`, a 3×3 wordmark glyph from `glyphs` (three rows of three cells for each of `0`–`F`). Until slot `n` locks at `start + lock · step`, it shows a hex digit seeded by `seed`, the slot and the tick, changing every `tick` ms; a text slot over a blank cell stays blank. With `hold: { region, lines }`, cells in the region show `hold.lines` until the last lock (the pane plate's pre-session barcode until the real one). `SERIAL_ROLL_DEFAULTS` is `{ seed: 0, tick: 40, start: 120, step: 50, slots: [] }`, frozen.
+
+`serialRollDuration(options)` is `start + max(lock) · step`, 0 with no slots; the pane plate's eight serial digits and four wordmark digits end at 470 ms. At that time and with motion off the output equals the input. It touches only the slots and the hold region, so the host keeps state cells out of them. A slot that is not an object with non-negative integer `row`, `col` and `lock`, pixel slots without sixteen 3×3 glyphs, a non-integer seed or times out of range throw. Checks: [serial-roll.test.mjs](serial-roll.test.mjs), and the SERIAL ROLL story.
 
 ## Extending
 

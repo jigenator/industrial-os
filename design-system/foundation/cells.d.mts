@@ -13,6 +13,8 @@ export type Ellipsis = 'fit' | 'always';
 export function fitText(value: string, n: number, options?: { measure?: Measure; style?: Style; ellipsis?: Ellipsis }): Line;
 export function fitText(value: TextValue, n: number, options: { measure: Measure; style?: Style; ellipsis?: Ellipsis }): Line;
 export const GLYPHS: string;
+/** Grapheme segments as Intl.Segmenter yields them; one per code point where the host has no Intl.Segmenter. */
+export function graphemeSegments(text: string): { segment: string; index: number }[];
 export function safeText(value: string): string;
 export function cells(text: string, options?: { measure?: Measure }): number;
 export function fit(text: string, n: number, options?: { measure?: Measure }): string;

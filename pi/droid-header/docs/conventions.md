@@ -5,7 +5,7 @@ Follow [root conventions](../../../docs/conventions.md) and the [Pi guide](../..
 ## Boundaries and state
 
 - Keep `header.ts` and `facts.ts` pure: inputs in, values out; no Pi import, clock, timer or I/O. The host passes the grapheme measurer, and `extension.ts` alone turns cells into ANSI. Check: their tests build state by hand and use no Pi context.
-- Keep all I/O in `sources.ts`, bounded (64 parent folders, 1 KiB per Git file) and resolving to a value. Call only Pi loaders that cannot start a process: resolution with `"skip"` on a settings manager whose npm command is empty, so Pi's guard rejects it before spawning, and which is never reloaded or saved. Do not use `DefaultResourceLoader.reload()` or set `PI_OFFLINE`. Check: `test/sources.test.ts`.
+- Keep all I/O in `sources.ts`, bounded (64 parent folders, 1 KiB per Git file, one `hc get` killed at 300 ms) and resolving to a value. The only process the header starts is that `hc get`, inside Herdr Desktop; tests pass a stub runner or a fake `hc` in a temporary folder. Call only Pi loaders that cannot start a process: resolution with `"skip"` on a settings manager whose npm command is empty, so Pi's guard rejects it before spawning, and which is never reloaded or saved. Do not use `DefaultResourceLoader.reload()` or set `PI_OFFLINE`. Check: `test/sources.test.ts`.
 - One `DroidHeader` per session. Every timer and listener is registered with `onSettle` or `onDispose` when it is created, never cleared ad hoc. Check: `test/extension.test.ts` asserts the manual clock holds no timer after settling, shutdown, replacement and a new session.
 - Write explicit class fields rather than TypeScript parameter properties, which Node's type stripping rejects.
 

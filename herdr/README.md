@@ -1,8 +1,8 @@
 # Industrial OS Herdr configuration
 
-Industrial OS for the Herdr desktop app (herdr-app): the Acid / Black theme, [themes/acid-black.json](themes/acid-black.json), the Industrial OS sidebar, a mod, [mods/industrial-os](mods/industrial-os/main.js), shown by its layout, [layouts/industrial-os.json](layouts/industrial-os.json), which also holds [Lunalee's column](#lunalee-column), and the [Pi Reloader](#pi-reloader) window, [mods/pi-reloader](mods/pi-reloader/main.js). The experience is in [the design](docs/design.md).
+Industrial OS for the Herdr desktop app (herdr-app): the Acid / Black theme, [themes/acid-black.json](themes/acid-black.json), the Industrial OS sidebar, a mod, [mods/industrial-os](mods/industrial-os/main.js), shown by its layout, [layouts/industrial-os.json](layouts/industrial-os.json), which also holds [Lunalee's column](#lunalee-column) and frames every pane with the [droid-plate pane header](#droid-plate-pane-header), [mods/droid-plate](mods/droid-plate/main.js), and the [Pi Reloader](#pi-reloader) window, [mods/pi-reloader](mods/pi-reloader/main.js). The experience is in [the design](docs/design.md).
 
-Status: the theme was installed and checked live on 2026-11-12. The sidebar passes its Node tests and `herdr-app check`; it has not been installed or looked at in a running app. It shows information as plain text: its visual design is deferred.
+Status: the theme was installed and checked live on 2026-11-12. The sidebar and the droid-plate pane header pass their Node tests and `herdr-app check`; neither has been installed or looked at in a running app. It shows information as plain text: its visual design is deferred.
 
 The herdr-tui configuration this project used to hold (the agents and Spaces sidebar fragments, their parser check) and the herdr-tui Spaces plugin have been removed; their histories are in [contributing](CONTRIBUTING.md#verification-records).
 
@@ -20,14 +20,14 @@ What every value means is in [the design](docs/design.md#sidebar). The values co
 The app reads mods and layouts from `~/.config/herdr-app` (or `$HERDR_APP_HOME`). Copy both in, then switch to the layout:
 
 ```sh
-cp -R mods/industrial-os ~/.config/herdr-app/mods/
+cp -R mods/industrial-os mods/droid-plate ~/.config/herdr-app/mods/
 cp layouts/industrial-os.json ~/.config/herdr-app/layouts/
 herdr-app do layout.switch '{"name":"industrial-os"}'
 ```
 
 `ctrl-shift-l` (`layout.switch`) cycles back to `main`; `ctrl-alt-shift-escape` always returns to `main`. Run `herdr-app status` to see errors from the mod or layout.
 
-The layout is the shipped `main` layout of Herdr app 0.1.15 with zero terminal padding, flat panes (square corners, no border or focus outline), the sidebar widened to 300 px, its header and two lists replaced by `industrial-os` blocks (the header with `props.brand`), and [Lunalee's column](#lunalee-column) added on the right. It does not follow later changes to `main`; compare it with the shipped file after an app update. Copy only the `mods/industrial-os` folder: `mods/package.json` is for the Node tests. `gpui-kit.d.ts` and `jsconfig.json` in the folder, if present, were written by `herdr-app check` for editors; the app writes its own.
+The layout is the shipped `main` layout of Herdr app 0.1.15 with zero terminal padding, flat panes (square corners, no border or focus outline) under the 130 px [droid-plate](#droid-plate-pane-header) header in place of the shipped `pane` header, the sidebar widened to 300 px, its header and two lists replaced by `industrial-os` blocks (the header with `props.brand`), and [Lunalee's column](#lunalee-column) added on the right. It does not follow later changes to `main`; compare it with the shipped file after an app update. Copy only the `mods/industrial-os` and `mods/droid-plate` folders: `mods/package.json` is for the Node tests. `gpui-kit.d.ts` and `jsconfig.json` in the folder, if present, were written by `herdr-app check` for editors; the app writes its own.
 
 ### Lunalee column
 
@@ -47,6 +47,34 @@ Herdr behaviours to know:
 - Unseen-finished state, access ages and space activity are kept in the mod's `localStorage`, on this screen only. Space activity starts when the mod first sees a space, so quiet ages count from installation, not from the space's real history.
 - Spaces keep Herdr's order: quiet spaces are not moved to the bottom, and worktree spaces are not nested.
 - Ahead/behind is read with `git` from each space's first terminal's folder, on that space's machine, at once for a new place and every 30 seconds while the window is in front.
+
+## Droid-plate pane header
+
+One mod, `droid-plate`, draws a unit plate over every pane of the shown tab, from the design system: who is in the pane on six rows, and what it is doing on a strip under it.
+
+- **Pi** (a pane whose agent app is `pi`, with the `io.signals.v1` label): `DRD-FA03`, its serial and barcode from the session ID, `⟁ PI AGENT DROID`, `HALDENN DYNAMICS` and the acid peak. The strip shows Pi's key hints when idle; `■ BASH <target> 00:42  esc steer` (or `THINKING`, `WRITING`) while it works; a `▲ NEEDS YOU` chip and the question; `● DONE  SETTLED 15:02` when it finished while you were away. Before the label arrives, `▶ STARTING pi` on the terminal plate for 3 s, then `DRD-????`.
+- **Another agent** (Claude Code, Codex): `AGT-CLAUDE` (or plain `AGT` when the name does not fit), its folder, a barcode from the terminal, `EXTERNAL AGENT`. Strip: `○ READY`, `■ WORKING 03:12`, `▲ NEEDS YOU`, `● DONE`.
+- **A terminal**: `TERM-ZSH` from the shell, its folder and branch. Strip: `○ READY`, `▶ RUNNING npm run dev 00:12:41` (the full command, looked up once per program change with `hc get`), and `○ READY  PI EXITED 15:04` after Pi hands back, until the next command.
+
+The bay at the strip's right end has `[|]` split right, `[-]` split down, `[^]` zoom (`[v]` while zoomed) and `[x]` close, the shipped pane header's commands. Click elsewhere on the header to focus the pane; drag panes with Herdr's own grip, which appears at the top edge. The focused pane's plate is lit aluminium; the others are dark graphite with their status lamps still lit, rising to standby while the pointer is over them; every plate is dark while the window is in the background. What each state means, the motions and their rates are in [the design](docs/design.md#pane-plate).
+
+Under the plate, Pi's [droid header](../pi/droid-header/README.md) shows only its ledger: the mod sets the label `io.droid-plate.v1=1` on its pane's terminal while it draws there, and the header reads it at session start. Set Pi's `quietStartup` to `true` (the [recommended settings](../pi/README.md#recommended-settings)) so the ledger starts right under the plate.
+
+### Install
+
+It comes with the layout: copy `mods/droid-plate` with `mods/industrial-os`, as in the [sidebar install](#install). The folder is self-contained: `mods/droid-plate/ds/` is a byte-for-byte copy of the design-system files it draws with. After changing the design system, regenerate it with `node herdr/scripts/sync-design-system.mjs` from the checkout root before copying; `node --test` in `herdr/` fails while the copy differs. The plate's text is in the terminal's font (Herdr's JetBrains Mono unless the settings name another); block elements, lines and the peak's triangles are drawn as shapes, so no Nerd Font is needed.
+
+### Limits
+
+- Seen in a running app at one width and display scale (198 columns at 2x): the grid, the shapes and the peak clear of Herdr's grip. The motions, hover and the keys are checked only by the Node tests and `herdr-app check`.
+- The peak sits right of Herdr's drag grip (28 px, top centre on hover) and needs 80 columns; narrower droid plates have none (see [the design](docs/design.md#pane-plate)).
+- Lighting changes and the hand-back wipe are Herdr-native transitions; the CRT boot, the serial roll, the latch and the ghost redraw the pane every 40–50 ms while they play, and nothing redraws otherwise but a clock's second.
+- Over 256 columns the plate's middle is widened plain ground, and past about 418 columns the droid has no peak.
+- The plate is the header's width over the terminal's cell width, both measured in the app; the part of a cell left over at the right takes the row's last color. For its first frames, before layout reports them, it draws the terminal's columns at `font_size × 0.6`.
+- Whether Herdr redraws a pane header when the window gains or loses focus is not documented; a 500 ms check per pane covers it.
+- Label writes are serialized and retried at most three times; a terminal `hc` never acknowledges stays as it was. A crashed or force-quit app can leave `io.droid-plate.v1=1` on a terminal, and a Pi started there before the app runs again shows only its ledger. Whether Herdr calls the mod's `close()` on a layout switch is not verified; if it does not, a Pi started after switching away shows only its ledger too.
+- Herdr's pane header height is one value for the layout: plain shells get the same 130 px as Pi.
+- No reduced-motion setting: the motions always play.
 
 ## Pi Reloader
 
