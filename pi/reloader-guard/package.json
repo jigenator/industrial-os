@@ -1,0 +1,30 @@
+{
+  "name": "pi-reloader-guard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Draft-safe reload and quit guard that the Herdr desktop Pi Reloader mod talks to",
+  "type": "module",
+  "keywords": [
+    "pi-package"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jigenator/industrial-os.git",
+    "directory": "pi/reloader-guard"
+  },
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test test/*.test.ts"
+  },
+  "pi": {
+    "extensions": [
+      "./src/extension.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  }
+}
