@@ -192,10 +192,10 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [pi/reloader-guard/CLAUDE.md](pi/reloader-guard/CLAUDE.md) | Runtime import of the reloader-guard guide | Checking agent entry points |
 | [pi/reloader-guard/CONTRIBUTING.md](pi/reloader-guard/CONTRIBUTING.md) | reloader-guard checks and verification records | Making or verifying a reloader-guard change |
 | [pi/reloader-guard/docs/architecture.md](pi/reloader-guard/docs/architecture.md) | reloader-guard flow, state, host seams and invariants | Changing guard behavior or its Pi dependencies |
-| [pi/reloader-guard/docs/contract.md](pi/reloader-guard/docs/contract.md) | The `io.pi-reloader.v1` label and the guard's wire protocol | Changing anything the guard or the Pi Reloader mod sends or reads |
+| [pi/reloader-guard/docs/contract.md](pi/reloader-guard/docs/contract.md) | The `io.pi-reloader.v2` label and the guard's wire protocol | Changing anything the guard or the Pi Reloader mod sends or reads |
 | [pi/reloader-guard/docs/conventions.md](pi/reloader-guard/docs/conventions.md) | reloader-guard engineering rules and gaps | Writing or reviewing guard code |
 | [pi/reloader-guard/docs/design.md](pi/reloader-guard/docs/design.md) | The guard's guarantees and its one message | Changing what a person sees from the guard |
-| [docs/decisions/pi-reloader-desktop.md](docs/decisions/pi-reloader-desktop.md) | Why the Pi Reloader is a Herdr desktop mod plus a guard, its label and loopback channel, and its shell restart | Changing the Pi Reloader's channel, restart or placement |
+| [docs/decisions/pi-reloader-desktop.md](docs/decisions/pi-reloader-desktop.md) | Why the Pi Reloader is a Herdr desktop mod plus a guard, its label and loopback channel, its shell restart, and why it marks nothing read | Changing the Pi Reloader's channel, restart or placement |
 | [pi/theme/README.md](pi/theme/README.md) | The Pi theme's purpose, install and limits | Using the Pi theme or changing its public usage |
 | [pi/theme/AGENTS.md](pi/theme/AGENTS.md) | Pi theme rules, routes and placement | Working anywhere in pi/theme |
 | [pi/theme/CLAUDE.md](pi/theme/CLAUDE.md) | Runtime import of the Pi theme guide | Checking agent entry points |

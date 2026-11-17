@@ -4,24 +4,22 @@
 
 import { View, div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { agents, terminals, layout, focused, hc, run, theme, props, closeOverlay, nextCommand } from "herdr";
+import { agents, terminals, layout, hc, theme, props, closeOverlay, nextCommand } from "herdr";
 import { connect } from "net";
-import { ONLY } from "./scope.js";
-import { decodeUtf8, heading, parseGuard, reloadAll, resetAll, selectCandidates, summaryLines } from "./reloader.js";
+import { decodeUtf8, heading, parseGuard, reloadOne, resetOne, runAll, selectCandidates } from "./reloader.js";
 
 const ACTIONS = [
-	{ id: "reload", label: "Reload all Pi", verb: "Reloaded", hint: "Pi's own reload; unsent drafts are skipped, never submitted or cleared." },
-	{ id: "reset", label: "Reset all Pi", verb: "Restarted", hint: "Reset moves focus. Don't type, click or switch until the summary." },
+	{ id: "reload", label: "Reload all Pi", verb: "Reloaded", one: reloadOne, hint: "Pi's own reload; unsent drafts are skipped, never submitted or cleared." },
+	{ id: "reset", label: "Reset all Pi", verb: "Restarted", one: resetOne, hint: "Quits each Pi and resumes its session in the same shell; drafts are skipped." },
 ];
 const GUARD_TIMEOUT_MS = 3_000;
 const MAX_REPLY_BYTES = 8_192;
-const MAX_ERRORS = 5;
 const TIMED_OUT = Symbol("timed out");
 
 export default class PiReloader extends View {
 	init(_props, cx) {
 		this.selected = 0;
-		this.running = null; // { action, done, total, note }
+		this.running = null; // { action, done, total }
 		this.result = null; // { action, summary }
 		this.handle = cx.focus_handle();
 		this.handle.focus();
@@ -40,26 +38,19 @@ export default class PiReloader extends View {
 		if (!this.running) closeOverlay(props().overlay);
 	}
 
+	// `only` in mod.json's overlay props limits a test copy to its throwaway terminals.
 	selection() {
-		return selectCandidates(agents(), terminals(), layout(), ONLY);
+		return selectCandidates(agents(), terminals(), layout(), props()?.only);
 	}
 
 	start(action, cx) {
 		if (!action || this.running) return;
-		const origin = focused();
-		const { candidates, skipped } = this.selection();
+		const { candidates } = this.selection();
 		this.result = null;
-		this.running = { action, done: 0, total: candidates.length, note: "starting" };
+		this.running = { action, done: 0, total: candidates.length };
 		cx.notify();
 		cx.spawn(async (cx) => {
-			const io = this.io(cx, origin);
-			const summary = skipped; // a fresh summary already holding the selection's skips
-			try {
-				await (action.id === "reload" ? reloadAll : resetAll)(io, candidates, summary);
-			} catch (error) {
-				summary.failed++;
-				summary.errors.push(String(error?.message ?? error));
-			}
+			const summary = await runAll(this.io(cx), candidates, action.one, action.verb);
 			this.running = null;
 			this.result = { action, summary };
 			this.handle.focus();
@@ -67,8 +58,8 @@ export default class PiReloader extends View {
 		});
 	}
 
-	// The host side of reloader.js: herdr-core, the guard's loopback socket and focus commands.
-	io(cx, origin) {
+	// The host side of reloader.js: herdr-core and the guard's loopback socket.
+	io(cx) {
 		// The losing sleep resolves harmlessly; a rejecting timer would be an unhandled rejection after every reply.
 		const within = async (what, work) => {
 			work.catch(() => {}); // a late failure after a timeout is already reported
@@ -76,19 +67,17 @@ export default class PiReloader extends View {
 			if (result === TIMED_OUT) throw new Error(`${what} timed out`);
 			return result;
 		};
+		const run = async (args) => {
+			const r = await hc(args);
+			if (r.code !== 0) throw new Error(`hc ${args[0]} failed: ${r.stderr.trim() || r.code}`);
+			return r.stdout;
+		};
 		return {
 			now: () => Date.now(),
 			sleep: (ms) => cx.sleep(ms),
-			progress: (done, total, note) => { this.running = { ...this.running, done, total, note }; cx.notify(); },
-			async get(address) {
-				const r = await hc(["get", address, "--json"]);
-				if (r.code !== 0) throw new Error(`hc get failed: ${r.stderr.trim() || r.code}`);
-				return JSON.parse(r.stdout);
-			},
-			async send(address, text) {
-				const r = await hc(["send", address, text]);
-				if (r.code !== 0) throw new Error(`hc send failed: ${r.stderr.trim() || r.code}`);
-			},
+			progress: (done, total) => { this.running = { ...this.running, done, total }; cx.notify(); },
+			get: async (address) => JSON.parse(await run(["get", address, "--json"])),
+			send: (address, text) => run(["send", address, text]),
 			async call(guard, line) {
 				const socket = await within("guard connect", connect("127.0.0.1", guard.port));
 				try {
@@ -107,27 +96,20 @@ export default class PiReloader extends View {
 					socket.close();
 				}
 			},
-			focus: (address) => run("agent.focus", { terminal: address }),
-			restore() {
-				if (!origin) throw new Error("no original focus recorded");
-				run("space.select", { id: origin.space });
-				run("tab.select", { id: origin.tab });
-				run("pane.focus", origin.pane ? { pane: origin.pane } : { terminal: origin.terminal });
-			},
 		};
 	}
 
 	render(cx) {
 		const t = theme();
-		const { candidates, skipped } = this.selection();
+		const { candidates, busy, protected: guarded } = this.selection();
 		const guards = new Map(terminals().map((x) => [x.address, parseGuard(x.labels)]));
 		const line = (text, color = t.foreground) => div().truncate().text_color(color).child(text);
 		const section = (text) => div().pt(6).text_size(11).font_semibold().text_color(t.dim).child(text);
 		const body = [];
 
 		if (this.running) {
-			const { action, done, total, note } = this.running;
-			body.push(line(`DON'T TYPE · ${action.label} ${done}/${total} · ${note}`, t.working));
+			const { action, done, total } = this.running;
+			body.push(line(`${action.label} ${done}/${total}`, t.working));
 			body.push(line(action.hint, t.muted));
 		} else {
 			ACTIONS.forEach((action, i) => body.push(
@@ -145,22 +127,19 @@ export default class PiReloader extends View {
 			const head = heading(summary);
 			body.push(section("LAST RUN"));
 			body.push(line(`${action.label}: ${head}`, head === "Completed with errors" ? t.blocked : t.foreground));
-			for (const text of summaryLines(summary, action.verb)) body.push(line(text, t.muted));
-			for (const text of summary.errors.slice(0, MAX_ERRORS)) body.push(line(`Error: ${text}`, t.blocked));
-			if (summary.errors.length > MAX_ERRORS) body.push(line(`…and ${summary.errors.length - MAX_ERRORS} more errors`, t.blocked));
-			for (const text of summary.outcomes) body.push(line(text, t.dim));
+			body.push(line(`${action.verb}: ${summary.completed} · Skipped: ${summary.skipped} · Failed: ${summary.failed}`, t.muted));
+			for (const text of summary.outcomes) body.push(line(text, text.includes(" failed: ") ? t.blocked : t.dim));
 		}
 
 		body.push(section(`IDLE OR DONE PI (${candidates.length})`));
 		if (candidates.length === 0) body.push(line("No Pi agent here is idle or done.", t.dim));
 		for (const c of candidates) {
 			const guard = guards.get(c.address) ? "guard" : "NO GUARD";
-			body.push(line(`${c.address}  ${c.wasIdle ? "idle" : "done"}  ${guard}  ${c.where}  ${c.title ?? ""}`, guard === "guard" ? t.foreground : t.blocked));
+			body.push(line(`${c.address}  ${c.status}  ${guard}  ${c.where}  ${c.title ?? ""}`, guard === "guard" ? t.foreground : t.blocked));
 		}
-		const notNow = [["busy", skipped.busy], ["not Pi", skipped.notPi], ["protected", skipped.protected], ["another machine", skipped.remote]]
-			.filter(([, n]) => n > 0).map(([what, n]) => `${n} ${what}`);
+		const notNow = [["busy", busy], ["protected", guarded]].filter(([, n]) => n > 0).map(([what, n]) => `${n} ${what}`);
 		if (notNow.length) body.push(line(`Not acted on: ${notNow.join(" · ")}`, t.dim));
-		if (Array.isArray(ONLY)) body.push(line(`Test scope: only ${ONLY.join(", ")}`, t.blocked));
+		if (Array.isArray(props()?.only)) body.push(line(`Test scope: only ${props().only.join(", ")}`, t.blocked));
 
 		return v_flex()
 			.id("pi-reloader")

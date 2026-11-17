@@ -50,19 +50,20 @@ Herdr behaviours to know:
 
 ## Pi Reloader
 
-A window that reloads or restarts every Pi agent Herdr reports as idle or done, without touching an unsent draft. It replaces the herdr-tui plugin [jigenator/herdr-pi-reloader](https://github.com/jigenator/herdr-pi-reloader); its Pi side is the [reloader-guard](../pi/reloader-guard/README.md) extension, which must be loaded in every Pi it acts on.
+A window that reloads or restarts every Pi agent Herdr reports as idle or done, without touching an unsent draft. Its Pi side is the [reloader-guard](../pi/reloader-guard/README.md) extension, which must be loaded in every Pi it acts on.
 
-Status: its tests and `herdr-app check` pass, and a live run on three throwaway Pis in Herdr desktop 0.1.15 reloaded and restarted the idle one and skipped the draft and busy ones; visiting and restoring focus were exercised live only with a test-copy tweak. See the [record](CONTRIBUTING.md#pi-reloader). Not yet installed for everyday use.
+Status: contract version 2. Its tests and `herdr-app check` pass, and a live run on three throwaway Pis in Herdr desktop reloaded and restarted the idle and done ones and skipped the draft and busy ones, with focus never moving. See the [record](CONTRIBUTING.md#pi-reloader).
 
-- **Reload all Pi** asks each idle or done Pi's guard to run Pi's own reload, one after another, and waits until the new runtime's guard answers.
-- **Reset all Pi** restarts them all at once: each guard quits its Pi, and once the terminal's shell is back in front the window types `pi --session '<the same session file>'` into that shell, then waits until the resumed Pi answers on the same session. When every attempt has settled it briefly shows (250 ms each, in order) each restarted Pi that was idle before, so it reads idle again, and then returns to the pane you started from.
+- **Reload all Pi** asks each idle or done Pi's guard to run Pi's own reload and waits until the new runtime's guard answers.
+- **Reset all Pi** restarts them: each guard quits its Pi, and once the terminal's shell is back in front the window types `pi --session '<the same session file>'` into that shell, then waits until the resumed Pi answers on the same session.
+- Both act on every candidate at once and never move focus. A Pi that read idle still reads idle afterwards, and one that read done still reads done: neither action runs a prompt, so Herdr's read state is unchanged.
 - **Skipped, never touched:** a Pi that is working or blocked, has queued messages or an **unsent draft** (never submitted, cleared or copied); a protected terminal (an agent without a pane of its own, any terminal a layout block shows, Lunalee's `lunalee-chat`); Pi on another machine. Reset also skips a Pi whose terminal would end with it: Pi is the terminal's own program, or its shell is not sh, bash, zsh, dash or ksh. Nothing is ever killed.
 - **Failures, also untouched:** no guard or an unresponsive one, a session that changed between the check and the action, and, for reset, a Pi with no session file yet. Neither action types a slash command or falls back to terminal input.
-- The window lists the candidates and, after a run, completed, skipped and failed counts with one line per Pi.
+- The window lists the candidates and, after a run, completed, skipped and failed counts with one line per Pi and its reason.
 
 ### Install
 
-1. Load the [guard](../pi/reloader-guard/README.md#install) in Pi, and `/reload` each running Pi once with an empty editor.
+1. Load the [guard](../pi/reloader-guard/README.md#install) in Pi, and `/reload` each running Pi once with an empty editor. Install the mod and the guard together: each reads only its own contract version.
 2. Copy the mod: `cp -R mods/pi-reloader ~/.config/herdr-app/mods/`.
 3. Merge [keys/pi-reloader.json](keys/pi-reloader.json) into `~/.config/herdr-app/keys.json` by hand: it binds `cmd-alt-r` to `mod.open:pi-reloader` in `global`. Ask before replacing a key already in use, and pick another if so. Editing keys.json makes the whole file yours; see the app's `AGENTS.md`, Keys.
 4. Run `herdr-app check ~/.config/herdr-app/mods/pi-reloader` and `herdr-app status`; both must report no error.
@@ -71,11 +72,10 @@ Press the key, or run `herdr-app do mod.open --name pi-reloader`; the same again
 
 ### Limits
 
-- **During a reset, don't type, click, switch panes or switch layout until the summary.** Visiting moves focus in this window. A layout switch closes the window and stops the run; a Pi already quit then stays at its shell prompt, its session file intact (`pi --session <file>` resumes it).
-- `Visited` means focus moved there; Herdr marks a done agent idle only when it is looked at.
+- **Don't switch layout during a run.** A layout switch closes the window and stops the run; a Pi already quit then stays at its shell prompt, its session file intact (`pi --session <file>` resumes it).
 - A reset runs `pi` from the shell's `PATH` with `--session`, not the Pi's original arguments: flags such as `-e` or `--model` are not repeated (a shell function or alias named `pi` is used).
 - Scope is this computer and Herdr's agents; sub-agents without a pane are not listed.
-- `scope.js` exists for isolated live checks: `ONLY = null` acts on every candidate; a list of terminal addresses limits everything to them and the window says so.
+- For an isolated live check, a copy of the mod under another name can add `"props": { "only": ["t40", "t41"] }` to its `mod.json` overlay: it then acts only on those addresses and says so. The shipped `mod.json` has none.
 
 ## Theme
 

@@ -29,5 +29,5 @@ Herdr desktop app files: mods in plain JavaScript for herdr-app's gpui-kit runti
 | The sidebar's visual design is deferred, and it draws no design-system elements | Decide the layout and treatment, then bring the design-system elements into the mod folder in a way the rule allows | Review, `herdr-app check`, live look |
 | No live record of the sidebar in the app | Install as in the README, switch layout and watch every state | Manual; not run |
 | `herdr-app check` renders only the empty state with in-memory data | Keep it, and exercise populated rendering by hand or in the live app | Step 2 in [contributing](../CONTRIBUTING.md#validation-sequence) |
-| No license, except `mods/pi-reloader/LICENSE` (MIT, from the plugin it ports) | Resolve with the repository's open license decision | Review the folder |
+| No license, except `mods/pi-reloader/LICENSE` (MIT, keeping the notice of the code it was adapted from) | Resolve with the repository's open license decision | Review the folder |
 | The Pi Reloader draws no design-system elements, like the sidebar | Decide its visual treatment with the sidebar's | Review, `herdr-app check`, live look |

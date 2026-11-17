@@ -6,7 +6,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 
 // The draft guard for the Herdr desktop Pi Reloader mod. Its wire protocol is docs/contract.md.
 // No editor writes or terminal input: drafts stay in place, including the cursor position.
-export const LABEL = "io.pi-reloader.v1";
+export const LABEL = "io.pi-reloader.v2";
 export const COMMAND = "pi-reloader-guard-control";
 const ACTIONS = ["probe", "reload", "quit"];
 const HC_TIMEOUT_MS = 2_000;
@@ -42,7 +42,7 @@ export function reloaderGuard(pi: ExtensionAPI, hc: RunHc = runHc, terminal = pr
 	}
 
 	function reply(socket: Socket, ctx: ExtensionContext, status: string, error?: string) {
-		socket.end(JSON.stringify({ v: 1, pid: process.pid, terminal, session: sessionOf(ctx), status, error }) + "\n");
+		socket.end(JSON.stringify({ v: 2, session: sessionOf(ctx), status, error }) + "\n");
 	}
 
 	function sameToken(value: unknown) {
@@ -51,10 +51,9 @@ export function reloaderGuard(pi: ExtensionAPI, hc: RunHc = runHc, terminal = pr
 	}
 
 	function validate(request: any, ctx: ExtensionContext) {
-		if (!request || request.v !== 1 || !sameToken(request.token) || request.pid !== process.pid ||
-			request.terminal !== terminal || !ACTIONS.includes(request.action) ||
+		if (!request || request.v !== 2 || !sameToken(request.token) || !ACTIONS.includes(request.action) ||
 			(request.action !== "probe" && request.session !== sessionOf(ctx))) {
-			throw new Error("Guard identity/session mismatch; no action taken");
+			throw new Error("Guard token/session mismatch; no action taken");
 		}
 	}
 
@@ -132,7 +131,7 @@ export function reloaderGuard(pi: ExtensionAPI, hc: RunHc = runHc, terminal = pr
 				listening.listen(0, "127.0.0.1", () => resolve());
 			});
 			const { port } = listening.address() as AddressInfo;
-			published = await hc(["label", terminal, `${LABEL}=${JSON.stringify({ v: 1, port, token, pid: process.pid, ppid: process.ppid })}`]);
+			published = await hc(["label", terminal, `${LABEL}=${JSON.stringify({ v: 2, port, token })}`]);
 			if (!published) throw new Error("hc label failed");
 		} catch (error) {
 			ctx.ui.notify(`Pi Reloader guard unavailable: ${error}`, "warning");
