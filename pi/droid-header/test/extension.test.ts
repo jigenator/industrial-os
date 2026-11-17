@@ -17,7 +17,7 @@ await writeFile(join(agentDir, "extensions/notes.ts"), "export default function 
 await mkdir(join(cwd, ".git"), { recursive: true });
 await writeFile(join(cwd, ".git/HEAD"), "ref: refs/heads/main\n");
 process.env.PI_CODING_AGENT_DIR = agentDir;
-for (const key of ["NO_MOTION", "HERDR_PANE_ID", "HERDR_WORKSPACE_ID", "HERDR_TAB_ID"]) delete process.env[key];
+for (const key of ["NO_MOTION", "HC_TERMINAL_ID"]) delete process.env[key];
 
 /** A manual clock: intervals run only when the test advances time. */
 function manualClock() {

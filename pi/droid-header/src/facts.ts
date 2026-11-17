@@ -10,15 +10,13 @@ export function sessionCodes(sessionId: string | undefined): SessionCodes {
 	return { unit: hex.slice(-4), session: hex.slice(0, 8), seed: Number.parseInt(hex.slice(0, 8), 16) | 0 };
 }
 
-const herdrId = (value: string | undefined) => (value && /^[A-Za-z0-9:._-]{1,32}$/.test(value) ? value : undefined);
-/** PNE and SCT from Herdr's pane, workspace and tab IDs (`wA1:p1`, `wA1` + `wA1:t1` → `WA1:P1`, `WA1.T1`); `--` outside Herdr. */
+/**
+ * PNE from the Herdr Desktop terminal ID (`t7` → `T7`); `--` outside Desktop. SCT is `--`: Desktop names the space
+ * and tab only in terminal labels, which need a command to read.
+ */
 export function herdrCodes(env: Record<string, string | undefined>): { pane: string; sector: string } {
-	const pane = herdrId(env.HERDR_PANE_ID), workspace = herdrId(env.HERDR_WORKSPACE_ID), tab = herdrId(env.HERDR_TAB_ID);
-	const tabPart = tab && workspace && tab.startsWith(`${workspace}:`) ? tab.slice(workspace.length + 1) : tab;
-	return {
-		pane: pane ? pane.toUpperCase() : "--",
-		sector: workspace && tabPart ? `${workspace}.${tabPart}`.toUpperCase() : "--",
-	};
+	const terminal = env.HC_TERMINAL_ID;
+	return { pane: terminal && /^[A-Za-z0-9:._-]{1,32}$/.test(terminal) ? terminal.toUpperCase() : "--", sector: "--" };
 }
 
 /**

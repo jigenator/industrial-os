@@ -8,7 +8,7 @@ People who run several Pi agents, often side by side in Herdr panes, open a sess
 
 Goals:
 
-- Identify the session at the top of the screen: a stable droid ID from the session, its model, Pi version, Herdr pane and sector, start time, and project and branch.
+- Identify the session at the top of the screen: a stable droid ID from the session, its model, Pi version, Herdr Desktop terminal, start time, and project and branch.
 - Show what Pi's settings load, as a compact manifest of context files, skills, prompts and extensions, in place of Pi's listing.
 - Do it in the Industrial OS visual language, with a short intro on a fresh session that never delays work.
 
