@@ -18,3 +18,21 @@ test('reveal measured option rows never tear wide, combining or ZWJ slots', () =
   assert.equal(paint(reveal(warning,{time:0,veil:'blank',measure})[0],'none'),'▲ error 日');
   assert.throws(()=>reveal(lines,{animate:false,measure:1}),TypeError);
 });
+
+test('reveal outgoing: cells not yet reached show the outgoing block, with a clean front and no veil', async () => {
+  const { span } = await import('../foundation/cells.mjs');
+  const { reveal: r, revealDuration: d } = await import('./reveal.mjs');
+  const incoming = [[span('NEWNEWNEW', { fg: 'accent' })], [span('NEWNEWNEW', { fg: 'accent' })]];
+  const outgoing = [[span('oldoldold', { fg: 'critical', bg: 'surface' })], [span('oldoldold', { fg: 'critical', bg: 'surface' })]];
+  const text = (lines) => lines.map((line) => line.map((s) => s.text).join(''));
+  // The pane plate's Pi → shell wipe: 900 ms for seven rows, 60 ms apart.
+  assert.equal(d(7, { duration: 540, stagger: 60 }), 900);
+  const o = { duration: 90, stagger: 30, outgoing };
+  assert.deepEqual(text(r(incoming, { ...o, time: 0 })), ['oldoldold', 'oldoldold']);
+  assert.deepEqual(text(r(incoming, { ...o, time: 30 })), ['NEWoldold', 'oldoldold']);
+  assert.deepEqual(text(r(incoming, { ...o, time: 60 })), ['NEWNEWold', 'NEWoldold']);
+  assert.deepEqual(r(incoming, { ...o, time: 30 })[0][1].style, { fg: 'critical', bg: 'surface' });
+  assert.deepEqual(text(r(incoming, { ...o, time: 120 })), text(incoming));
+  assert.deepEqual(text(r(incoming, { ...o, animate: false })), text(incoming));
+  assert.throws(() => r(incoming, { ...o, time: 0, outgoing: 'x' }), TypeError);
+});

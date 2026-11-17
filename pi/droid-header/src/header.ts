@@ -21,8 +21,8 @@ export type Manifest =
 export interface HeaderState {
 	/** The last four hex digits of the session ID, or `????` when it has none. */
 	unit: string;
-	/** The first eight hex digits of the session ID, or `????????`. */
-	session: string;
+	/** The serial's eight hex digits (the first eight of the session ID's last twelve), or `????????`. */
+	serial: string;
 	/** Seeds the barcode and the intro from the session. */
 	seed: number;
 	core: string;
@@ -35,6 +35,8 @@ export interface HeaderState {
 	/** Intro time at which a ready manifest arrived while the intro was still playing. */
 	manifestAt?: number;
 	hints: ReadonlyArray<readonly [key: string, action: string]>;
+	/** Herdr's droid-plate pane header draws this droid's plate and hints above the terminal: show the ledger only. */
+	ledgerOnly?: boolean;
 }
 
 /** Width thresholds: the hanging ledger from 100 columns, the plate's title block and peak from 56, the plate from 40. */
@@ -277,8 +279,8 @@ export function settledFrame(state: HeaderState, width: number, measure: Measure
 	if (W < PLATE_WIDTH) return { ...base, lines: [padded(minimal(state, W, measure), width)], minimal: true };
 
 	const unit = `DRD-${state.unit.replace(/[^0-9A-F?]/g, "?")}`;
-	const session = state.session.replace(/[^0-9A-F?]/g, "?").padEnd(8, "?");
-	const plate = unitPlate({ unit, serial: `${session.slice(0, 4)}-${session.slice(4, 8)}`, seed: state.seed | 0 }, { width: W, titleBlock: W >= TITLE_BLOCK_WIDTH });
+	const serial = state.serial.replace(/[^0-9A-F?]/g, "?").padEnd(8, "?");
+	const plate = state.ledgerOnly ? null : unitPlate({ unit, serial: `${serial.slice(0, 4)}-${serial.slice(4, 8)}`, seed: state.seed | 0 }, { width: W, titleBlock: W >= TITLE_BLOCK_WIDTH });
 	const t = table(W), hints = strip(state, t, W, measure), body = ledger(state, t, W, measure);
 
 	// The strip is frosted white over the gradient's top row; the ledger takes the gradient, its last row black, and a
@@ -290,11 +292,14 @@ export function settledFrame(state: HeaderState, width: number, measure: Measure
 	// Rows past the surface's 1000-cell height, only for an enormous manifest, print on the field.
 	const beyond = body.rows.slice(height - 1).map((row) => toSurface(row).map((c) => ({ ...c, style: { ...c.style, bg: "field" as const } })));
 
-	const top = UNIT_PLATE_ROWS + stripRows.length;
+	// Under Herdr's droid-plate pane header the plate and the strip are drawn above the terminal: the ledger alone,
+	// on the same surface as below the strip, so it reads as the plate's continuation.
+	const above = plate ? [...plate.lines, ...stripRows.map(toLine)] : [];
+	const top = above.length;
 	const ground = floor.flatMap((row, i) => row.flatMap((c, x) => (c.text === "·" && surfaced[i][x].text === " " ? [{ row: top + i, start: x, end: x + 1 }] : [])));
-	const lines = [...plate.lines, ...stripRows.map(toLine), ...floor.map(toLine), ...beyond.map(toLine)].map((line) => padded(line, width));
+	const lines = [...above, ...floor.map(toLine), ...beyond.map(toLine)].map((line) => padded(line, width));
 	const late = body.first !== undefined && state.manifestAt !== undefined ? { row: top + body.first, time: state.manifestAt } : undefined;
-	return { ...base, lines, minimal: false, paint: plate.paint, ground, late };
+	return { ...base, lines, minimal: false, paint: plate ? plate.paint : [], ground, late };
 }
 const padded = (line: DsLine, width: number): DsLine => (width > MAX_WIDTH ? [...line, { text: " ".repeat(width - MAX_WIDTH), style: { bg: "field" } }] : line);
 

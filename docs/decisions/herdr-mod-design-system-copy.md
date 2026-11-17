@@ -1,0 +1,31 @@
+# A Herdr desktop mod carries a generated copy of the design system
+
+Status: current. Date: 2026-11-17; approved by the maintainer with the droid-plate pane header. Adds one exception to the [module and dependency rule](../conventions.md#module-and-dependency-rules); the [package decision](in-repo-design-system-package.md) is otherwise unchanged.
+
+## Problem
+
+The approved sticky droid plate is a Herdr desktop pane header drawn from the design system's unit plate, status strip, keycap bay and motions. The design-system-first rule says a project imports those elements and never redraws them. A herdr-app mod, though, can import only `gpui-kit`, `gpui-base`, `herdr` (and `net`) and files inside its own folder, and the folder is copied into `~/.config/herdr-app/mods/` as it is (`~/.config/herdr-app/AGENTS.md`, "Mods"). It cannot resolve `@industrial-os/design-system` or a path outside the folder.
+
+## Choice
+
+The mod keeps a `ds/` folder that is a byte-for-byte copy of exactly the design-system files its pure modules import, plus everything those import, in the design system's own tree (`ds/elements/unit-plate/unit-plate.mjs`, …). Its pure modules import `./ds/…` paths; `main.js` imports only the app's modules and its own files.
+
+- `herdr/scripts/sync-design-system.mjs` (Node standard library) computes the import closure of every mod's `./ds/…` imports and rewrites `ds/`; `--check` reports missing, extra and changed files.
+- `herdr/test/droid-plate.test.mjs` fails while `ds/` differs from the design system by a byte, or holds a file outside the closure.
+- `ds/` is never edited. A change starts in `design-system/`, with its tests, README and story, then the sync, then the mod.
+- Only design-system files that are already standard library only and free of host I/O are copied; the design system's own rule already guarantees that.
+
+## Alternatives
+
+- **Redraw the plate in the mod.** It would keep the import rule, but break the design-system-first rule and drift from the Pi droid header, which draws the same plate.
+- **A bundler step that inlines the package.** It would produce one file, but adds a build tool and a dependency to a project that has none, and the output would be harder to compare with the source than a byte copy.
+- **Symlink `ds/` to `design-system/`.** herdr-app copies or reads the folder in place; a symlink would break when the folder is copied, and Git would carry the link, not the files.
+- **Install the mod from the repository path.** herdr-app loads mods only from its own configuration folder.
+
+## Consequences
+
+The repository holds a second copy of 21 design-system files under `herdr/mods/droid-plate/ds/`; a design-system change that touches them makes `herdr/` tests fail until the sync runs, in the same change. Reviewers see the copied diff twice. The copy is this repository's own code, so it needs no notice. The industrial-os sidebar can adopt design-system elements the same way, closing its adoption gap.
+
+## Revisit when
+
+herdr-app lets a mod import a package or a path outside its folder, the design system gains a single-file build, or a second mod's copy grows large enough that review of the copied diff becomes a burden.

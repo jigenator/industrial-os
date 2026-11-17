@@ -2,15 +2,15 @@
 // code and its serial set into the bottom hairline; optionally a title block (mark and title, a seeded barcode, the
 // division) at the right margin and a hollow acid peak between the two. The host supplies every value and the seed.
 // Contract: README.md.
-import { assertCells, fitText, GLYPHS, lineWidth, span } from '../../foundation/cells.mjs';
+import { assertCells, fitText, GLYPHS, lineWidth, safeText, span } from '../../foundation/cells.mjs';
 import { barcode } from '../../foundation/barcode.mjs';
 import { CellGrid } from '../../foundation/cell-grid.mjs';
 import { INDUSTRIALOS_COLORS } from '../../foundation/industrialos-colors.mjs';
 import { random } from '../../foundation/seeded.mjs';
 import { SIGNAL_COLORS } from '../../foundation/signal-colors.mjs';
-import { aluminiumAt } from '../../foundation/surface.mjs';
-import { SURFACE_PALETTE } from '../../foundation/surface-palette.mjs';
-import { numeralLines, textGrid } from '../pixel-numeral/pixel-numeral.mjs';
+import { aluminiumAt, graphiteAt } from '../../foundation/surface.mjs';
+import { PLATE_LIGHTING, SURFACE_PALETTE } from '../../foundation/surface-palette.mjs';
+import { FONT, HEX_FONT, LETTER_FONT, numeralLines, textGrid } from '../pixel-numeral/pixel-numeral.mjs';
 
 // Drawn on light paper with paper hairlines, then brushed: the aluminium ground replaces each paper cell, as in the
 // crate banner.
@@ -26,8 +26,9 @@ const PEAK_STROKES = [3, 2, 1]; // solid cells per stroke, widest first
 
 function read(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new TypeError('unit plate input must be an object');
-  const { maker = 'INDUSTRIAL-OS', registered = true, unit, serial, title = 'PI AGENT DROID', mark = '⟁', division = ['HALDENN', 'DYNAMICS'], seed = 0 } = input;
-  for (const [name, value] of Object.entries({ maker, unit, serial, title })) if (typeof value !== 'string') throw new TypeError(`unit plate ${name} must be a string`);
+  const { maker = 'INDUSTRIAL-OS', registered = true, unit, serial, serialLabel = 'S/N', title = 'PI AGENT DROID', mark = '⟁', division = ['HALDENN', 'DYNAMICS'], seed = 0 } = input;
+  for (const [name, value] of Object.entries({ maker, unit, serial, serialLabel, title })) if (typeof value !== 'string') throw new TypeError(`unit plate ${name} must be a string`);
+  if (!/^[\x21-\x7e]{1,8}$/.test(serialLabel)) throw new RangeError('unit plate serialLabel must be 1–8 printable ASCII characters without spaces');
   if (!unit || !serial) throw new RangeError('unit plate unit and serial must not be empty');
   // The wordmark is pixel text: it throws RangeError for a character the font lacks.
   textGrid(unit);
@@ -37,11 +38,25 @@ function read(input) {
   }
   if (!Array.isArray(division) || division.length !== 2 || division.some((part) => typeof part !== 'string')) throw new TypeError('unit plate division must be two strings');
   if (!Number.isInteger(seed)) throw new RangeError('unit plate seed must be an integer');
-  return { maker, registered, unit, serial, title: mark === null ? title : `${mark} ${title}`, division, seed };
+  // Display text is printable ASCII (the text contract): any other character, such as a branch named 日本語, is `?`
+  // before it is measured or drawn.
+  const shown = { maker: safeText(maker), title: safeText(title), division: division.map((part) => safeText(part)) };
+  return { maker: shown.maker, registered, unit, serial, serialLabel, title: mark === null ? shown.title : `${mark} ${shown.title}`, division: shown.division, seed };
 }
 
-// The wordmark's pixel rows as three lines of cells; a `?`, an unknown digit, is drawn in label grey.
+// The wordmark's pixel rows as three lines of cells; a `?`, an unknown digit, is drawn in label grey. Kept for the
+// last few units (callers copy its spans).
+const WORDMARKS = new Map(), WORDMARK_LIMIT = 16;
 function wordmark(unit) {
+  let lines = WORDMARKS.get(unit);
+  if (!lines) {
+    if (WORDMARKS.size >= WORDMARK_LIMIT) WORDMARKS.delete(WORDMARKS.keys().next().value);
+    lines = drawWordmark(unit);
+    WORDMARKS.set(unit, lines);
+  }
+  return lines;
+}
+function drawWordmark(unit) {
   const grid = textGrid(unit, { ink: 'field' });
   let x = 0;
   for (const ch of unit) {
@@ -52,7 +67,7 @@ function wordmark(unit) {
   return numeralLines(grid, { width: grid.w });
 }
 
-function draw(v, width, titleBlock) {
+function draw(v, width, o) {
   const R = width - 3, grid = new CellGrid(width, UNIT_PLATE_ROWS);
   const put = (x, y, text, style) => { [...text].forEach((ch, i) => grid.put(x + i, y, ch, style)); return x + [...text].length; };
   const fitted = (text, room) => fitText(text, Math.max(0, room)).map((s) => s.text).join('');
@@ -65,35 +80,64 @@ function draw(v, width, titleBlock) {
 
   // The left block: the maker, then the wordmark when it fits whole before the right margin, else the unit as text.
   const mark = wordmark(v.unit), markWidth = lineWidth(mark[0]), pixels = L + markWidth <= width - 1;
-  // The title block hugs the right margin, exactly as wide as its title line, and only with two cells clear of the left.
-  const blockWidth = Math.max([...v.title].length, [...v.division[0]].length + 1 + [...v.division[1]].length);
   const makerWidth = [...v.maker].length + (v.registered ? 2 : 0);
   const leftEnd = L + Math.max(pixels ? markWidth : [...v.unit].length, makerWidth) - 1;
-  const bx = R - blockWidth + 1, block = titleBlock && bx >= leftEnd + 3;
+  // The title block hugs the right margin, as wide as its longest line and at least `blockWidth`, and only with two
+  // cells clear of the left. With a `blockWidth`, a division wider than the block widens it while it stays three cells
+  // clear of the left block; past that its second part is cut with … (to no fewer than four cells).
+  const titleWidth = [...v.title].length, base = Math.max(o.blockWidth, titleWidth);
+  let division = v.division, divisionWidth = [...division[0]].length + 1 + [...division[1]].length;
+  const widest = R - (leftEnd + 3);
+  if (o.blockWidth > 0 && divisionWidth > base && divisionWidth > widest) {
+    const value = fitted(division[1], Math.max(4, Math.max(base, widest) - [...division[0]].length - 1));
+    division = [division[0], value];
+    divisionWidth = [...division[0]].length + 1 + [...value].length;
+  }
+  const blockWidth = Math.max(base, divisionWidth);
+  const bx = R - blockWidth + 1, block = o.titleBlock && bx >= leftEnd + 3;
   const room = (block ? bx - 2 : width - 1) - L;
   if (v.registered && makerWidth <= room) put(put(L, 1, v.maker, BOLD), 1, ' ®', INK);
   else put(L, 1, fitted(v.maker, room), BOLD);
   if (pixels) mark.forEach((line, i) => grid.place(L, 2 + i, [line.map((s) => span(s.text, { ...s.style, bg: PAPER }))]));
   else put(L, 2, fitted(v.unit, room), BOLD);
   // The serial interrupts the bottom hairline, with one blank cell either side.
-  const serial = fitted(v.serial, width - 1 - (L - 1) - 6);
-  put(put(put(L - 1, 5, ' S/N ', LABEL), 5, serial, INK), 5, ' ', RULE);
-  if (!block) return { grid, paint: [] };
+  const label = ` ${v.serialLabel} `, serial = fitted(v.serial, width - 1 - (L - 1) - (label.length + 1));
+  put(put(put(L - 1, 5, label, LABEL), 5, serial, INK), 5, ' ', RULE);
+  const regions = {
+    wordmark: pixels ? { top: 2, left: L, rows: 3, cols: markWidth, glyphs: glyphColumns(v.unit) } : null,
+    serial: { top: 5, left: L - 1 + label.length, rows: 1, cols: [...serial].length },
+    block: null, barcode: null,
+  };
+  if (!block) return { grid, paint: [], regions };
+  regions.block = { top: 1, left: bx, rows: 4, cols: blockWidth };
 
   put(bx, 1, v.title, BOLD);
-  const r = random(v.seed), code = barcode(blockWidth, (count) => Math.floor(r() * count));
-  for (const y of [2, 3]) put(bx, y, code, INK);
-  put(bx, 4, v.division[0], LABEL);
-  put(R - [...v.division[1]].length + 1, 4, v.division[1], LABEL);
+  if (o.barcode) {
+    const r = random(v.seed), code = barcode(blockWidth, (count) => Math.floor(r() * count));
+    for (const y of [2, 3]) put(bx, y, code, INK);
+    regions.barcode = { top: 2, left: bx, rows: 2, cols: blockWidth };
+  }
+  put(bx, 4, division[0], LABEL);
+  put(R - [...division[1]].length + 1, 4, division[1], LABEL);
+  if (!o.peak) return { grid, paint: [], regions };
 
   // The peak: the slash `◢██◤` and its mirror meeting at the top as a hollow `/\`, across all six rows and centred
   // between the blocks. Each stroke moves out a cell per row; the widest that keeps two cells clear of the left block
   // (its maker, wordmark or unit text, whichever is longest) and three of the right wins, or there is none. The
   // hairlines run on under the paint in the darker accent. The edges are the Powerline full-cell triangles U+E0BA ◢,
   // U+E0BC ◤, U+E0BE ◥ and U+E0B8 ◣, so the peak stays smooth where a font draws ◢ ◤ ◥ ◣ small.
-  const left = leftEnd, mid = Math.floor((left + bx + 1) / 2);
-  const half = (b) => b + 2 + UNIT_PLATE_ROWS - 1;
-  const b = PEAK_STROKES.find((t) => mid - half(t) >= left + 3 && mid + half(t) <= bx - 3);
+  //
+  // With `peakFrom`, the peak moves right instead: its left-most painted cell at the first column from `peakFrom` (and
+  // three cells clear of the left block), its right-most at least two cells before the title block. A host whose
+  // window draws something over the plate's centre (Herdr's drag grip) clears it this way.
+  const left = leftEnd, half = (b) => b + 2 + UNIT_PLATE_ROWS - 1; // leftmost painted = mid − half, rightmost = mid + half − 1
+  let mid = Math.floor((left + bx + 1) / 2), b;
+  if (o.peakFrom === null) b = PEAK_STROKES.find((t) => mid - half(t) >= left + 3 && mid + half(t) <= bx - 3);
+  else {
+    const from = Math.max(o.peakFrom, left + 3);
+    b = PEAK_STROKES.find((t) => from + 2 * half(t) - 1 <= bx - 3);
+    if (b !== undefined) mid = from + half(b);
+  }
   const paint = [];
   if (b !== undefined) for (let k = 0; k < UNIT_PLATE_ROWS; k++) {
     const x0 = mid - (b + 2) - k, frame = k === 0 || k === UNIT_PLATE_ROWS - 1;
@@ -105,15 +149,50 @@ function draw(v, width, titleBlock) {
       paint.push({ row: k, start: x, end: x + b + 2 });
     }
   }
-  return { grid, paint };
+  return { grid, paint, regions };
+}
+
+// Each wordmark character's first column, from the left block's column.
+function glyphColumns(unit) {
+  const cols = [];
+  let x = L;
+  for (const ch of unit) { cols.push(x); x += textGrid(ch).w + 1; }
+  return cols;
 }
 
 // Every paper cell takes the aluminium ground, and a paper hairline the ground's hairline. One span per cell in.
-function brush(line, y) {
-  return line.map((s, x) => {
+// Unlit (`dark`, `standby`), every cell but the peak's takes the graphite ground and its role's PLATE_LIGHTING ink:
+// hairlines the ground's hairline, the `+` ends `corner`, labels `label`, the wordmark `word`, the barcode `bars`, the
+// peak `peak` (its paint too) and every other ink `value`.
+// The ground of every cell of a plate `width` wide at a lighting level, kept for the last few widths: a header that
+// redraws (a pane plate per frame) composes the same ground again and again.
+const GROUNDS = new Map(), GROUND_LIMIT = 12;
+function groundOf(width, lighting) {
+  const key = `${lighting}|${width}`;
+  let rows = GROUNDS.get(key);
+  if (!rows) {
+    if (GROUNDS.size >= GROUND_LIMIT) GROUNDS.delete(GROUNDS.keys().next().value);
+    rows = Array.from({ length: UNIT_PLATE_ROWS }, (_, y) => Array.from({ length: width }, (_, x) => (lighting === 'lit' ? aluminiumAt(x, y, { width }) : graphiteAt(x, y, { width, level: lighting }))));
+    GROUNDS.set(key, rows);
+  }
+  return rows;
+}
+
+function brush(line, y, lighting, regions) {
+  const width = line.length, grounds = groundOf(width, lighting)[y];
+  if (lighting === 'lit') return line.map((s, x) => {
     if (s.style.bg !== PAPER) return s;
-    const { ground, hair } = aluminiumAt(x, y, { width: line.length });
+    const { ground, hair } = grounds[x];
     return span(s.text, { ...s.style, bg: ground, ...(s.style.fg === HAIR ? { fg: hair } : {}) });
+  });
+  const P = PLATE_LIGHTING[lighting], within = (r, x) => r && y >= r.top && y < r.top + r.rows && x >= r.left && x < r.left + r.cols;
+  return line.map((s, x) => {
+    const { ground, hair } = grounds[x];
+    const { fg, bg } = s.style;
+    if (bg === 'accent') return span(s.text, { ...s.style, fg: P.peak, bg: P.peak });
+    const ink = fg === 'accent' ? P.peak : fg === HAIR ? hair : s.text === '+' && (x === 0 || x === width - 1) ? P.corner
+      : fg === SURFACE_PALETTE.aluminiumLabel ? P.label : within(regions.wordmark, x) ? P.word : within(regions.barcode, x) ? P.bars : P.value;
+    return span(s.text, { ...s.style, fg: ink, bg: ground });
   });
 }
 
@@ -128,10 +207,38 @@ function joined(line) {
   return out;
 }
 
-export function unitPlate(input, { width, titleBlock = true } = {}) {
+const LEVELS = ['lit', 'standby', 'dark'];
+export function unitPlate(input, { width, titleBlock = true, blockWidth = 0, barcode: withBarcode = true, peak = true, peakFrom = null, lighting = 'lit' } = {}) {
   const v = read(input);
   assertCells(width, 'unit plate width');
-  if (typeof titleBlock !== 'boolean') throw new TypeError('unit plate titleBlock must be boolean');
-  const { grid, paint } = draw(v, width, titleBlock);
-  return { lines: grid.lines().map((line, y) => joined(brush(line, y))), paint };
+  for (const [name, value] of Object.entries({ titleBlock, barcode: withBarcode, peak })) if (typeof value !== 'boolean') throw new TypeError(`unit plate ${name} must be boolean`);
+  if (!Number.isInteger(blockWidth) || blockWidth < 0 || blockWidth > 1000) throw new RangeError('unit plate blockWidth must be an integer 0–1000');
+  if (!LEVELS.includes(lighting)) throw new RangeError('unit plate lighting must be lit, standby or dark');
+  if (peakFrom !== null && (!Number.isInteger(peakFrom) || peakFrom < 0 || peakFrom > 1000)) throw new RangeError('unit plate peakFrom must be an integer column 0–1000, or null');
+  const { grid, paint, regions } = draw(v, width, { titleBlock, blockWidth, barcode: withBarcode, peak, peakFrom });
+  return { lines: grid.lines().map((line, y) => joined(brush(line, y, lighting, regions))), paint, regions };
+}
+
+// A Pi droid's identity from its session ID: `DRD-` and the last four hex digits; the serial from the first eight of
+// the last twelve (a UUID's last group, random and distinct from the DRD digits); the barcode seed from the last eight.
+// Null when the ID has fewer than twelve hex digits. The pane plate and the droid header both use it.
+export function sessionUnit(sessionId) {
+  const hex = (typeof sessionId === 'string' ? sessionId : '').replace(/[^0-9a-f]/gi, '').toUpperCase();
+  if (hex.length < 12) return null;
+  const group = hex.slice(-12);
+  return { unit: `DRD-${hex.slice(-4)}`, serial: `${group.slice(0, 4)}-${group.slice(4, 8)}`, seed: Number.parseInt(hex.slice(-8), 16) | 0 };
+}
+
+// A pane plate's unit code: `<prefix>-<code>` when every character has a pixel glyph and its wordmark fits whole
+// before the title block (three cells clear of a `blockWidth` block on the right margin) or, with no title block,
+// before the margin; otherwise the bare prefix, never a cut name. `code` is upper-case A–Z and 0–9 or empty.
+export function fitUnitCode(prefix, code, { width, titleBlock = true, blockWidth = 16 } = {}) {
+  if (typeof prefix !== 'string' || typeof code !== 'string') throw new TypeError('unit code prefix and code must be strings');
+  assertCells(width, 'unit code width');
+  if (!Number.isInteger(blockWidth) || blockWidth < 0) throw new RangeError('unit code blockWidth must be a non-negative integer');
+  const drawable = (ch) => Object.hasOwn(FONT, ch) || Object.hasOwn(HEX_FONT, ch) || Object.hasOwn(LETTER_FONT, ch);
+  if (!prefix || ![...prefix].every(drawable)) throw new RangeError('unit code prefix must be pixel text');
+  const limit = titleBlock ? width - 3 - blockWidth + 1 - 3 : width - 3;
+  const unit = `${prefix}-${code}`;
+  return code && [...code].every((ch) => /[A-Z0-9]/.test(ch) && drawable(ch)) && L + 4 * [...unit].length - 1 <= limit ? unit : prefix;
 }

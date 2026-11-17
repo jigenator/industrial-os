@@ -37,7 +37,7 @@ For development, install an extension from a local checkout instead, `pi install
 
 - `packages`: the single industrial-os git entry, selecting every extension in the root manifest.
 - `theme`: the [Pi theme](theme/README.md).
-- `quietStartup`: what [droid-header](droid-header/README.md#install) needs to replace Pi's startup listing.
+- `quietStartup`: `true`, what [droid-header](droid-header/README.md#install) needs to replace Pi's startup listing without blank rows, so its ledger starts right under Herdr's droid-plate pane header.
 - `steeringMode` and `followUpMode`: `all`, so the next turn takes every queued steering or follow-up message, not one per turn (Pi's default is `one-at-a-time`).
 
 Pi has no settings includes, so merge by hand:

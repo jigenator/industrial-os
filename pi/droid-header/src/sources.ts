@@ -1,5 +1,7 @@
-// The header's only I/O: the branch from `.git/HEAD`, and the manifest through Pi's public loaders. Both run once per
-// session start, off the render path, and resolve to a value rather than throwing.
+// The header's only I/O: the branch from `.git/HEAD`, whether Herdr's droid-plate pane header draws this terminal's
+// plate (one bounded `hc get`), and the manifest through Pi's public loaders. Each runs once per session start, off
+// the render path, and resolves to a value rather than throwing.
+import { execFile } from "node:child_process";
 import { open, stat } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import type * as Pi from "@earendil-works/pi-coding-agent";
@@ -46,6 +48,47 @@ export async function readBranch(cwd: string): Promise<Branch> {
 		dir = parent;
 	}
 	return { kind: "none" };
+}
+
+/** The label Herdr's droid-plate pane header mod sets to `1` on its pane's terminal while it draws a plate there. */
+export const PLATE_LABEL = "io.droid-plate.v1";
+/** The lookup's bound: Pi's header waits for it, so a slow or stuck `hc` costs at most this before the full header. */
+export const PLATE_LOOKUP_MS = 300;
+
+/** `execFile`'s shape as the lookup uses it; tests pass their own. */
+export type RunFile = (file: string, args: string[], options: { timeout: number; env: NodeJS.ProcessEnv }, done: (error: Error | null, stdout: string) => void) => void;
+const runFile: RunFile = (file, args, options, done) => {
+	execFile(file, args, { ...options, encoding: "utf8", maxBuffer: 1024 * 1024, killSignal: "SIGKILL" }, (error, stdout) => done(error, String(stdout ?? "")));
+};
+
+/**
+ * Whether the droid-plate pane header draws this terminal's plate: inside Herdr Desktop (`HC_TERMINAL_ID` set), one
+ * `hc get <terminal> --json`, bounded at 300 ms, whose labels hold `io.droid-plate.v1=1`. A missing `hc`, an error,
+ * a timeout, unreadable output or an absent label is false, so the header stays whole. Never runs npm or Git.
+ */
+export function platedTerminal(env: NodeJS.ProcessEnv, run: RunFile = runFile): Promise<boolean> {
+	const terminal = env.HC_TERMINAL_ID;
+	if (!terminal || !/^[A-Za-z0-9:._/-]{1,64}$/.test(terminal)) return Promise.resolve(false);
+	return new Promise((resolve) => {
+		let settled = false;
+		const finish = (value: boolean) => { if (!settled) { settled = true; clearTimeout(timer); resolve(value); } };
+		// A backstop beside execFile's own timeout, so a runner that never calls back still cannot hold the header. It
+		// is cleared as soon as the lookup answers.
+		const timer = setTimeout(() => finish(false), PLATE_LOOKUP_MS + 50);
+		try {
+			run("hc", ["get", terminal, "--json"], { timeout: PLATE_LOOKUP_MS, env }, (error, stdout) => {
+				if (error) return finish(false);
+				try {
+					const labels = JSON.parse(stdout)?.labels;
+					finish(!!labels && typeof labels === "object" && labels[PLATE_LABEL] === "1");
+				} catch {
+					finish(false);
+				}
+			});
+		} catch {
+			finish(false);
+		}
+	});
 }
 
 /** The public Pi exports the manifest uses; extension.ts passes the host's own. */

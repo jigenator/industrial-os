@@ -191,7 +191,7 @@ const GOLDEN_64 = {
 };
 
 const MOCK: HeaderState = {
-	unit: "C0DE", session: "0000BEEF", seed: 0x0000beef, core: "OPUS-5.5 / HIGH", version: "1.4.0", sector: "WA1.T1", pane: "WA1:P1",
+	unit: "C0DE", serial: "0000BEEF", seed: 0x0000beef, core: "OPUS-5.5 / HIGH", version: "1.4.0", sector: "WA1.T1", pane: "WA1:P1",
 	deployed: "09:30:00", assignment: "INDUSTRIAL-OS · MAIN",
 	hints: [["escape", "steer"], ["ctrl+c", "clear"], ["/", "commands"], ["!", "bash"]],
 	manifest: {
@@ -286,7 +286,7 @@ const states: Array<[string, HeaderState]> = [
 	["pending", { ...MOCK, manifest: { status: "pending" } }],
 	["unavailable", { ...MOCK, manifest: { status: "unavailable", reason: "settings.json: Unexpected token } in JSON at position 12" } }],
 	["empty holds", { ...MOCK, manifest: { status: "ready", context: [], skills: [], prompts: [], extensions: [] } }],
-	["unknown session, outside Herdr, no model, not a repository", { ...MOCK, unit: "????", session: "????????", seed: 0, core: "-- / --", sector: "--", pane: "--", assignment: "SCRATCH" }],
+	["unknown session, outside Herdr, no model, not a repository", { ...MOCK, unit: "????", serial: "????????", seed: 0, core: "-- / --", sector: "--", pane: "--", assignment: "SCRATCH" }],
 	["long and wide values", {
 		...MOCK, core: "CLAUDE-SONNET-4-5-THINKING-PREVIEW-EXPERIMENTAL / XHIGH", sector: "WA1.T1".repeat(8),
 		assignment: "プロジェクト-日本語 · FEATURE/A-VERY-LONG-BRANCH-NAME-THAT-KEEPS-GOING", hints: [["escape", "x".repeat(400)], ["ctrl+c", "clear"], ["/", "commands"], ["!", "bash"]],
@@ -432,4 +432,18 @@ test("a prime column count still lays long holds out in several columns on the c
 	assert.ok(rows[skillRow].includes("apply-author-voice") && rows[skillRow].includes("guidelines-for-review-artifacts"), rows.slice(skillRow, skillRow + 4).join("\n"));
 	assert.equal(rows[skillRow].indexOf("apply-author-voice"), 18);
 	assert.equal(rows[skillRow].indexOf("guidelines-for-review-artifacts"), 18 + 2 * 23, "the second column starts on the third column line");
+});
+
+test("under the droid-plate pane header, the ledger alone: the rows after the plate and strip, every width the same", () => {
+	for (const [width, strip] of [[104, 1], [64, 2], [48, 2], [40, 2], [120, 1]] as const) {
+		const whole = renderHeader(MOCK, width, Infinity, measure), ledger = renderHeader({ ...MOCK, ledgerOnly: true }, width, Infinity, measure);
+		assert.deepEqual(ledger, whole.slice(6 + strip), `${width}`);
+		for (const line of ledger) assert.equal(cellWidth(line), width);
+	}
+	// The intro still types the ledger in, and ends on it; below 40 columns the one line is unchanged.
+	const frame = settledFrame({ ...MOCK, ledgerOnly: true }, 104, measure);
+	assert.ok(introEnd(frame) > 0);
+	assert.notDeepEqual(text(frameAt(frame, 200)), text(frameAt(frame, Infinity)));
+	assert.deepEqual(frame.paint, []);
+	assert.deepEqual(renderHeader({ ...MOCK, ledgerOnly: true }, 39, Infinity, measure), renderHeader(MOCK, 39, Infinity, measure));
 });

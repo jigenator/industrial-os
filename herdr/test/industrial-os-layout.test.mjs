@@ -19,7 +19,7 @@ function find(node, id) {
 	return null;
 }
 
-test("the layout differs from shipped main.json only in terminal padding, flat panes, the sidebar width, the brand header, the sidebar-lists block and the lunalee column", async () => {
+test("the layout differs from shipped main.json only in terminal padding, flat panes, the pane header, the sidebar width, the brand header, the sidebar-lists block and the lunalee column", async () => {
 	const shipped = JSON.parse(await read("./fixtures/herdr-app-0.1.15-main.json"));
 	const layout = JSON.parse(await read("../layouts/industrial-os.json"));
 	// Zero so her chat fills its column; Herdr 0.1.16 reads terminal padding only from the root.
@@ -30,6 +30,9 @@ test("the layout differs from shipped main.json only in terminal padding, flat p
 	const shippedPane = find(shipped, "main").content.pane, pane = find(layout, "main").content.pane;
 	assert.deepEqual([shippedPane.radius, shippedPane.border, shippedPane.focus], [10, { width: 1, color: "border" }, { width: 1, color: "accent" }]);
 	assert.deepEqual([pane.radius, "border" in pane, "focus" in pane], [0, false, false]);
+	// The pane header: the droid-plate mod's unit plate (six 18.5 px rows and a 19 px strip) for the shipped pane mod.
+	assert.deepEqual(shippedPane.header, { content: { mod: "pane" }, height: 30, position: "top", reveal: "always" });
+	assert.deepEqual(pane.header, { content: { mod: "droid-plate" }, height: 130, position: "top", reveal: "always" });
 	find(shipped, "main").content.pane = pane;
 	assert.deepEqual(find(shipped, "sidebar-lists").children.map((c) => c.id), ["spaces", "agents"]);
 	assert.deepEqual(find(layout, "sidebar-lists").children, [{ id: "industrial-os", type: "block", content: { mod: "industrial-os" } }]);

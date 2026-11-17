@@ -33,3 +33,29 @@ test('the crate banner aluminium ground and strip frost are fixed, frozen number
   const swing = streaks.reduce((sum, s) => sum + s.amplitude, 0);
   assert.ok(base - fall - swing + Math.min(...channels) >= 0 && base + band + swing + Math.max(...channels) <= 255);
 });
+
+test('the graphite ground, the unlit plate inks and the bay inks are frozen existing colors', async () => {
+  const { GRAPHITE_GROUND, PLATE_LIGHTING, BAY_INKS } = await import('./surface-palette.mjs');
+  const { SIGNAL_COLORS } = await import('./signal-colors.mjs');
+  assert.deepEqual(GRAPHITE_GROUND, {
+    dark: { base: 30, band: 8, fall: 2, amp: 0.35, channels: [-1, 0, 2], hair: 18 },
+    standby: { base: 44, band: 10, fall: 3, amp: 0.45, channels: [-1, 0, 2], hair: 22 },
+  });
+  for (const part of [GRAPHITE_GROUND, ...Object.values(GRAPHITE_GROUND), ...Object.values(GRAPHITE_GROUND).map((g) => g.channels)]) assert.ok(Object.isFrozen(part));
+  // No new color: every ink is an Acid / Black role or a signal color.
+  const known = new Set([...Object.values(ACID_BLACK), ...Object.values(SIGNAL_COLORS).filter((v) => typeof v === 'string')]);
+  for (const level of [PLATE_LIGHTING, BAY_INKS]) {
+    assert.ok(Object.isFrozen(level));
+    for (const inks of Object.values(level)) {
+      assert.ok(Object.isFrozen(inks));
+      for (const value of Object.values(inks)) if (value !== null) assert.ok(known.has(value), value);
+    }
+  }
+  assert.deepEqual(Object.keys(PLATE_LIGHTING), ['dark', 'standby']);
+  assert.equal(PLATE_LIGHTING.standby.strip, null);
+  assert.equal(PLATE_LIGHTING.dark.strip, ACID_BLACK.surface);
+  assert.equal(PLATE_LIGHTING.dark.peak, SIGNAL_COLORS.accent25);
+  assert.equal(BAY_INKS.lit.ground, ACID_BLACK.structural);
+  assert.equal(BAY_INKS.dark.ground, SIGNAL_COLORS.decorative50);
+  assert.deepEqual(BAY_INKS.pressed, { ground: ACID_BLACK.accent, glyph: ACID_BLACK.field });
+});

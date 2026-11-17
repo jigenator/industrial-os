@@ -1,0 +1,167 @@
+// Shared seam for the motion primitives: option and time validation, plus per-cell restyling.
+// Pure and I/O-free. See motions/README.md for the contract every motion shares.
+import { graphemeSegments, isTerminalDefault, lineWidth, resolveColor, span, textSlot } from '../foundation/cells.mjs';
+
+// Shortest valid period. There is no frequency cap (../../docs/design.md#motion): any positive period is allowed,
+// and motion-off (animate: false) is what settles a motion.
+export const MIN_PERIOD_MS = 1;
+export const MAX_MS = 60_000;
+
+// Warning and critical cells are exempt from every motion unless it opts in; see restyleCells.
+const STATE_ROLES = ['warning', 'critical'];
+export const isStateCell = (style) => STATE_ROLES.includes(style.fg) || STATE_ROLES.includes(style.bg);
+
+export function assertLines(lines) {
+  if (!Array.isArray(lines)) throw new TypeError(`motion input must be an array of lines, got ${typeof lines}`);
+  for (const line of lines) {
+    if (!Array.isArray(line)) throw new TypeError('each motion input line must be an array of spans');
+    for (const s of line) {
+      if (s === null || typeof s !== 'object' || typeof s.text !== 'string') throw new TypeError('each span must be { text, style } with string text');
+    }
+  }
+}
+
+// Merge caller options over defaults. Unknown names throw so a typo cannot silently change nothing;
+// undefined means "use the default". `time` and `animate` are accepted by every motion.
+export function resolveOptions(name, options, defaults) {
+  if (options === null || typeof options !== 'object' || Array.isArray(options)) throw new TypeError(`${name} options must be an object`);
+  const allowed = [...Object.keys(defaults), 'time', 'animate'];
+  const resolved = { ...defaults, animate: true, time: undefined };
+  for (const key of Object.keys(options)) {
+    if (!allowed.includes(key)) throw new TypeError(`${name} has no option '${key}'`);
+    if (options[key] !== undefined) resolved[key] = options[key];
+  }
+  if (typeof resolved.animate !== 'boolean') throw new TypeError(`${name} animate must be a boolean, got ${typeof resolved.animate}`);
+  return resolved;
+}
+
+export function assertMs(value, name, { min = 0, max = MAX_MS } = {}) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) {
+    throw new RangeError(`${name} must be a finite number of milliseconds from ${min} to ${max}, got ${value}`);
+  }
+}
+
+// Time is required exactly when the motion is animating; motion-off ignores it.
+export function assertTime(o, name) {
+  if (o.animate && (typeof o.time !== 'number' || !Number.isFinite(o.time) || o.time < 0)) {
+    throw new RangeError(`${name} time must be a finite number of milliseconds >= 0, got ${o.time}`);
+  }
+}
+
+// A cell rectangle a motion is limited to: { top, left, rows, cols }, each a non-negative integer (rows and cols
+// may be Infinity). Omitted fields cover the whole block. Returns a frozen, complete region.
+export function resolveRegion(name, region) {
+  if (region === undefined) return Object.freeze({ top: 0, left: 0, rows: Infinity, cols: Infinity });
+  if (region === null || typeof region !== 'object' || Array.isArray(region)) throw new TypeError(`${name} region must be an object`);
+  for (const key of Object.keys(region)) if (!['top', 'left', 'rows', 'cols'].includes(key)) throw new TypeError(`${name} region has no field '${key}'`);
+  const r = { top: 0, left: 0, rows: Infinity, cols: Infinity, ...region };
+  for (const key of ['top', 'left', 'rows', 'cols']) {
+    const v = r[key];
+    const ok = typeof v === 'number' && v >= 0 && (Number.isInteger(v) || ((key === 'rows' || key === 'cols') && v === Infinity));
+    if (!ok) throw new RangeError(`${name} region ${key} must be a non-negative integer, got ${v}`);
+  }
+  return Object.freeze(r);
+}
+
+export const inRegion = (r, col, row) => row >= r.top && row < r.top + r.rows && col >= r.left && col < r.left + r.cols;
+
+// Position within a repeating cycle, in [0, 1).
+export const phase = (time, period) => (time % period) / period;
+
+export const copyLines = (lines) => lines.map((line) => line.slice());
+
+// Two styles with the same keys and values.
+export function sameStyle(a, b) {
+  if (a === b) return true;
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  for (const key of keys) if (a[key] !== b[key] || !Object.hasOwn(b, key)) return false;
+  return true;
+}
+
+// One cell per span in, adjacent cells of the same style joined into one span.
+export function joinCells(cells) {
+  const out = [];
+  for (const { ch, style } of cells) {
+    const last = out.at(-1);
+    if (last && sameStyle(last.style, style)) last.text += ch;
+    else out.push({ text: ch, style });
+  }
+  return out;
+}
+
+export const blockWidth = (lines) => lines.reduce((max, line) => Math.max(max, lineWidth(line)), 0);
+
+const norm = (s) => `${s.fg ?? 'secondary'}|${s.bg ?? 'field'}|${s.bold ?? false}`;
+const LETTER_OR_DIGIT = /[A-Za-z0-9]/;
+
+// Default foreground and background are unknown, independent host colors, not an RGB equality.
+const sameColor = (a, b) => !isTerminalDefault(a) && !isTerminalDefault(b) && resolveColor(a).toLowerCase() === resolveColor(b).toLowerCase();
+
+// Whether a cell's glyph shows. A full block paints its foreground over the whole cell, so it shows only when that
+// foreground differs from the field around it; any other glyph shows when its foreground differs from its background.
+export function glyphVisible(style, char) {
+  const fg = style.fg ?? 'secondary', bg = style.bg ?? 'field';
+  if (char === ' ') return true;
+  return char === '█' ? !sameColor(fg, 'field') : !sameColor(fg, bg);
+}
+
+// A cell with foreground and background swapped, or undefined when swapping would hide it. A full block cannot
+// swap (its background never shows), so it takes its background color instead, unless that is the field or
+// already its color.
+export function invertCell(style, char, extra = {}) {
+  const fg = style.fg ?? 'secondary', bg = style.bg ?? 'field';
+  if (char === '█') return sameColor(bg, 'field') || sameColor(fg, bg) ? undefined : { ...style, ...extra, fg: bg };
+  return sameColor(fg, bg) ? undefined : { ...style, ...extra, fg: bg, bg: fg };
+}
+
+// Warning and critical cells keep their state cue in every frame: a motion that opted in with stateCells may
+// tint, invert or resize them, but never blank one, hide its glyph (see glyphVisible), or change a letter or digit
+// of the state word. A violation is a bug in the motion, so it throws.
+function assertCue(cell, style, char) {
+  if (char === ' ' && cell.ch !== ' ') throw new Error('a motion must not blank a warning or critical cell');
+  if (char !== cell.ch && LETTER_OR_DIGIT.test(cell.ch)) throw new Error('a motion must not change a state word');
+  if (!glyphVisible(style, char)) throw new Error('a motion must not hide a warning or critical cell');
+}
+
+// Rebuild every line cell by cell. fn(style, col, row, char, state) returns undefined to keep the cell, or
+// { style?, char? } to restyle it or swap its single character. Cell count and order never change, so
+// every line keeps its exact width. Adjacent cells with the same style are merged into one span.
+// Warning and critical cells are exempt unless the caller opts in with { stateCells: true }; then fn also sees
+// them, with state true, and every change must keep the state cue readable (see assertCue).
+export function restyleCells(lines, fn, { stateCells = false, measure } = {}) {
+  if (measure !== undefined) return lines.map((line, row) => {
+    const source = textSlot(line, lineWidth(line, { measure }), { measure }).spans;
+    const out = []; let col = 0;
+    for (const s of source) for (const { segment: ch } of graphemeSegments(s.text)) {
+      const size = measure(ch), state = isStateCell(s.style);
+      const change = state && !stateCells ? undefined : fn(s.style, col, row, ch, state);
+      const style = change?.style ?? s.style, char = change?.char ?? ch;
+      textSlot([span(char, style)], size, { measure });
+      if (state && change) assertCue({ ch }, style, char);
+      const prev = out.at(-1);
+      if (prev && norm(prev.style) === norm(style) && prev.style.italic === style.italic && prev.style.underline === style.underline) prev.text += char;
+      else out.push(span(char, style));
+      col += size;
+    }
+    return out;
+  });
+  return lines.map((line, row) => {
+    const out = [];
+    let col = 0;
+    for (const s of line) {
+      for (const ch of s.text) {
+        const state = isStateCell(s.style);
+        const change = state && !stateCells ? undefined : fn(s.style, col, row, ch, state);
+        const style = change?.style ?? s.style;
+        const char = change?.char ?? ch;
+        if (state && change) assertCue({ ch }, style, char);
+        const prev = out[out.length - 1];
+        if (prev && norm(prev.style) === norm(style)) prev.text += char;
+        else out.push(span(char, style));
+        col += 1;
+      }
+    }
+    return out;
+  });
+}

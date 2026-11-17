@@ -204,3 +204,35 @@ test('aluminiumAt is the plate ground formula and its hairline, inside 8-bit RGB
   }
   for (const [x, y, width] of [[0, 6, 10], [10, 0, 10], [-1, 0, 10], [0, 0, 0], [0.5, 0, 10]]) assert.throws(() => aluminiumAt(x, y, { width }), RangeError);
 });
+
+test('graphiteAt is the aluminium formula re-based dark, per level, with a lighter hairline', async () => {
+  const { graphiteAt } = await import('./surface.mjs');
+  const { GRAPHITE_GROUND, ALUMINIUM_GROUND } = await import('./surface-palette.mjs');
+  const clamp = (v) => Math.max(0, Math.min(255, Math.round(v)));
+  const hex = (rgb) => '#' + rgb.map((v) => v.toString(16).padStart(2, '0')).join('');
+  for (const level of ['dark', 'standby']) for (const width of [1, 2, 48, 99, 160]) for (let y = 0; y < 6; y++) for (let x = 0; x < width; x += 7) {
+    const g = GRAPHITE_GROUND[level], u = width === 1 ? 0 : 2 * x / (width - 1) - 1;
+    const l = ALUMINIUM_GROUND.streaks.reduce((s, k) => s + k.amplitude * g.amp * Math.sin(x * k.x + y * k.y), g.base + g.band * (1 - u * u) - g.fall * y / 5);
+    const rgb = g.channels.map((d) => clamp(l + d));
+    assert.deepEqual(graphiteAt(x, y, { width, level }), { ground: hex(rgb), hair: hex(rgb.map((v) => clamp(v + g.hair))) });
+  }
+  assert.deepEqual(graphiteAt(3, 2, { width: 40 }), graphiteAt(3, 2, { width: 40, level: 'dark' }));
+  // Standby is lighter than dark, and both stay far darker than the aluminium.
+  assert.ok(parseInt(graphiteAt(20, 0, { width: 40, level: 'standby' }).ground.slice(3, 5), 16) > parseInt(graphiteAt(20, 0, { width: 40 }).ground.slice(3, 5), 16));
+  for (const [x, y, width] of [[0, 6, 10], [10, 0, 10], [-1, 0, 10], [0, 0, 0]]) assert.throws(() => graphiteAt(x, y, { width }), RangeError);
+  assert.throws(() => graphiteAt(0, 0, { width: 10, level: 'lit' }), RangeError);
+});
+
+test('graphemeSegments falls back to code points where the host has no Intl.Segmenter', async () => {
+  const { graphemeSegments } = await import('./cells.mjs');
+  assert.deepEqual(graphemeSegments('ab').map((s) => [s.segment, s.index]), [['a', 0], ['b', 1]]);
+  const code = await import('node:fs').then((fs) => fs.readFileSync(new URL('./cells.mjs', import.meta.url), 'utf8'));
+  // The module itself makes no segmenter at load time: a host without Intl can import it.
+  assert.doesNotMatch(code.split('export function graphemeSegments')[0], /new Intl\.Segmenter/);
+  const saved = globalThis.Intl;
+  try {
+    globalThis.Intl = undefined;
+    const fresh = await import(`./cells.mjs?no-intl=${Date.now()}`);
+    assert.deepEqual(fresh.graphemeSegments('e\u0301x').map((s) => s.segment), ['e', '\u0301', 'x']);
+  } finally { globalThis.Intl = saved; }
+});

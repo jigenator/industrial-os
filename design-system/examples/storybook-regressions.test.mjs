@@ -82,6 +82,10 @@ import { crateBanner } from '../elements/crate-banner/crate-banner.mjs';
 import { surfaceAt } from '../foundation/surface.mjs';
 import { cornerSnap } from '../motions/corner-snap.mjs';
 import { unitPlate } from '../elements/unit-plate/unit-plate.mjs';
+import { statusStrip } from '../elements/status-strip/status-strip.mjs';
+import { keycapBay } from '../elements/action-label/action-label.mjs';
+import { bankSwitch } from '../motions/bank-switch.mjs';
+import { serialRoll } from '../motions/serial-roll.mjs';
 import { crtBoot } from '../motions/crt-boot.mjs';
 const API = {
   callout, calloutGeometry, subtitle, subtitleGeometry, timestampLeader, documentHeading, listRow, quoteRows, linkLines, codeBand, inlineCode, specTable, cardState, cardHeading, sheetCard, stackCard, stackRow, sheetListRow, deskStrip, deskHeading, questionTitle, questionBody, deskFooter, operationHeading, operationRow, operationDetail, calloutEntrance, phosphorHead,
@@ -90,7 +94,7 @@ const API = {
   popupFrame, popupTitleBar, verticalRule,
   tabRule, leader, neatline, nameRule, actionLabel, keyHints, popupHeader, popupFooter, noticeRow, scopeMeter, soundingMeter, scopeTrace, soundingSweep,
   typeUnit, activityStrip, planCounter, activityTrace, alertTicker, ambientField, decode, breathe, arrivalPing, ambientSweep,
-  ambientLoad, unitPlate, crtBoot,
+  ambientLoad, unitPlate, crtBoot, statusStrip, keycapBay, bankSwitch, serialRoll,
   fitLine, span, lineMeter, columnBlock, SIGNAL_COLORS, gauge, gaugeScale, labelPlate, numberedPanel, panelInnerWidth, statusRow, COUNT_PLATES, countPlate,
   LAMP_DIM_STYLE, lamp, modePlate, pnytlPlate, stateChip, stateChips, numeralAt, numeralGrid, numeralLines, pixelNumeral, textGrid, providerColumn, providerColumnParts,
   segmentMeter, threadRail, threadRailPieces, instrumentFrame, markerBars, markerPlate, transcriptMarker, scan, pulse, reveal,
