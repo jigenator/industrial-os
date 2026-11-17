@@ -17,7 +17,7 @@ Purpose: own TUI session signals and usage read from configured source-collector
 | --- | --- |
 | Any code/test | [Architecture](docs/architecture.md), [conventions](docs/conventions.md), [contributing](CONTRIBUTING.md) |
 | Snapshot/consumer/compatibility | [Contract](docs/contract.md), `src/snapshot.ts`, matching contract/boundary tests |
-| Herdr pane visibility | `src/herdr.ts`, `src/extension.ts` gating, [contract](docs/contract.md) `visible` field |
+| `visible` field (always null) | `src/snapshot.ts`, [contract](docs/contract.md#pane-visibility) |
 | Background tasks or `/flag` | `src/background-tasks.ts`, `src/snapshot.ts` `savedFlag`, `src/extension.ts`, [contract](docs/contract.md#background-tasks-and-the-manual-flag) |
 | Herdr desktop label | `src/herdr-core.ts`, `src/extension.ts` push flush and shutdown, [contract section 4](docs/contract.md#4-herdr-desktop-publication-iosignalsv1), [decision](../../docs/decisions/signals-collector-herdr-core.md) |
 | Workspace/PR/Active | `src/workspace.ts`, `src/pr-cache.ts`, `src/extension.ts`, [PR sharing contract](docs/contract.md#3-shared-github-pr-lookup), [Active decision](docs/decisions/agent-reported-active-workspace.md) |

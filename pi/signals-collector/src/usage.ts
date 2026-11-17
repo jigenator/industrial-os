@@ -103,18 +103,17 @@ export function nextPollDelay(sources: readonly string[], reply: unknown, now: n
 }
 
 /**
- * Polls the configured usage sources now, then at `nextPollDelay` while visible, and when shown again.
+ * Polls the configured usage sources now, then at `nextPollDelay`.
  * One request at a time; disposal aborts it and suppresses its result.
  */
 export function collectUsage(
 	sources: readonly string[], publish: (usage: UsageSnapshot) => void,
 	request: (signal: AbortSignal) => Promise<unknown> = (signal) => getSources(socketPath(), sources, { signal }),
-): { setVisible(visible: boolean): void; dispose(): void } {
-	let live = sources.length > 0, visible = true, usage = pendingUsage(sources);
+): { dispose(): void } {
+	let live = sources.length > 0, usage = pendingUsage(sources);
 	let timer: ReturnType<typeof setTimeout> | undefined, controller: AbortController | undefined, runningPolls = 0;
 	async function poll() {
-		if (!live || !visible || controller) return;
-		clearTimeout(timer); timer = undefined;
+		if (!live || controller) return;
 		const own = controller = new AbortController();
 		const reply = await request(own.signal).catch(() => undefined);
 		if (controller === own) controller = undefined;
@@ -123,16 +122,10 @@ export function collectUsage(
 		publish(usage);
 		const next = nextPollDelay(sources, reply, Date.now(), runningPolls);
 		runningPolls = next.running ? runningPolls + 1 : 0;
-		if (visible) { timer = setTimeout(() => void poll(), next.delay); timer.unref(); }
+		timer = setTimeout(() => void poll(), next.delay); timer.unref();
 	}
 	void poll();
 	return {
-		setVisible(next) {
-			if (!live || visible === next) return;
-			visible = next;
-			if (!visible) { clearTimeout(timer); timer = undefined; }
-			else void poll();
-		},
 		dispose() { live = false; clearTimeout(timer); controller?.abort(); },
 	};
 }

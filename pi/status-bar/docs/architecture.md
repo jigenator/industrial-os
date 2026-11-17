@@ -62,7 +62,7 @@ The installed TUI footer owns one `MotionState` and at most one unref'd decorati
 
 ### Off-screen freeze
 
-The collector's additive `visible` field is normalized by `signals.ts`: only boolean false freezes; absent/malformed/null fails open. The [collector visibility contract](../../signals-collector/docs/contract.md#pane-visibility-and-deferred-inspection) owns what is on screen and its limits. No Herdr socket or collection I/O belongs here.
+The collector's additive `visible` field is normalized by `signals.ts`: only boolean false freezes; absent/malformed/null fails open. The current collector always publishes null ([collector contract](../../signals-collector/docs/contract.md#pane-visibility)), so the freeze below does not trigger today. No Herdr socket or collection I/O belongs here.
 
 On hiding, `stopAnimation` retains the Ponytail guard budget and clears decoration scheduling; the USG repaint timeout is cleared independently of motion. A single guarded render-request callback suppresses every adapter source (signals, Tatsu, Ponytail, lifecycle, commands and timer callbacks). Observers still retain incoming values; `/footer-motion` still records the flag. Pi or another extension may request a host render independently: at unchanged width the footer returns its last lines without sampling or advancing; missing cache/changed width draws once, settled, without timers.
 
