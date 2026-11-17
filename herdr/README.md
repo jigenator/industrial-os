@@ -27,7 +27,7 @@ herdr-app do layout.switch '{"name":"industrial-os"}'
 
 `ctrl-shift-l` (`layout.switch`) cycles back to `main`; `ctrl-alt-shift-escape` always returns to `main`. Run `herdr-app status` to see errors from the mod or layout.
 
-The layout is the shipped `main` layout of Herdr app 0.1.15 with the sidebar widened to 300 px, its header and two lists replaced by `industrial-os` blocks (the header with `props.brand`), and [Lunalee's column](#lunalee-column) added on the right. It does not follow later changes to `main`; compare it with the shipped file after an app update. Copy only the `mods/industrial-os` folder: `mods/package.json` is for the Node tests. `gpui-kit.d.ts` and `jsconfig.json` in the folder, if present, were written by `herdr-app check` for editors; the app writes its own.
+The layout is the shipped `main` layout of Herdr app 0.1.15 with zero terminal padding, the sidebar widened to 300 px, its header and two lists replaced by `industrial-os` blocks (the header with `props.brand`), and [Lunalee's column](#lunalee-column) added on the right. It does not follow later changes to `main`; compare it with the shipped file after an app update. Copy only the `mods/industrial-os` folder: `mods/package.json` is for the Node tests. `gpui-kit.d.ts` and `jsconfig.json` in the folder, if present, were written by `herdr-app check` for editors; the app writes its own.
 
 ### Lunalee column
 
