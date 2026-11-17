@@ -24,6 +24,7 @@ Scan the supporting-documents map and read every document whose condition applie
 | Work on a Pi extension | [The Pi guide](pi/AGENTS.md), then the extension's own guide, for example [claude-interrupt](pi/claude-interrupt/AGENTS.md), [signals-collector](pi/signals-collector/AGENTS.md) or [status-bar](pi/status-bar/AGENTS.md) |
 | Work on the Pi theme | [The Pi guide](pi/AGENTS.md), then [the theme guide](pi/theme/AGENTS.md) |
 | Work on pane naming, session recaps, image previews or the startup header | [The Pi guide](pi/AGENTS.md), then [herdr-pane-naming](pi/herdr-pane-naming/AGENTS.md), [session-recap](pi/session-recap/AGENTS.md), [image-preview](pi/image-preview/AGENTS.md) or [droid-header](pi/droid-header/AGENTS.md) |
+| Work on the Pi Reloader | [The Herdr guide](herdr/AGENTS.md) for the window mod, [the Pi guide](pi/AGENTS.md) then [reloader-guard](pi/reloader-guard/AGENTS.md) for the guard, and [the decision](docs/decisions/pi-reloader-desktop.md) |
 | Work on a Herdr plugin | [Plugin group guide](herdr-plugins/AGENTS.md), then the plugin's guide, [Whiteboard](herdr-plugins/whiteboard/AGENTS.md), [Dispatch feed](herdr-plugins/dispatch-feed/AGENTS.md) or [Automations monitor](herdr-plugins/automations-monitor/AGENTS.md), and its routes |
 | Work on the Herdr configuration | [The Herdr guide](herdr/AGENTS.md) and its routes |
 | Change the visual language or a palette value | [Design](docs/design.md), [the package decision](docs/decisions/in-repo-design-system-package.md), the design-system guide, then each extension that mirrors the value |
@@ -45,6 +46,7 @@ Scan the supporting-documents map and read every document whose condition applie
 | Away or detailed session recaps | `pi/session-recap/`; [architecture](pi/session-recap/docs/architecture.md) | TUI-only; calls a recap model; output UI only, never saved or main-model history |
 | Editor image previews | `pi/image-preview/`; [architecture](pi/image-preview/docs/architecture.md) | TUI-only; host peers only; reads the editor, never changes it or the submission; writes no files |
 | The startup header, droid details or its manifest | `pi/droid-header/`; [design](pi/droid-header/docs/design.md), [architecture](pi/droid-header/docs/architecture.md) | TUI-only; host peers and design-system subpaths; reads `.git/HEAD` and Pi's settings through its public loaders, never running npm or Git; never installs or writes; never takes input |
+| The Pi Reloader's draft guard, its label or wire protocol | `pi/reloader-guard/`; [architecture](pi/reloader-guard/docs/architecture.md), [contract](pi/reloader-guard/docs/contract.md) | TUI-only, with `HC_TERMINAL_ID`; host peer only; loopback listener and `hc label` on its own terminal; never writes the editor or types; acts only through Pi's `reload()`/`shutdown()` |
 | Colors of Pi's own interface | `pi/theme/`; [its architecture](pi/theme/docs/architecture.md) | One JSON theme; design-system values only, checked against the package and Pi's validator |
 | A new Pi extension | `pi/<name>/` with the [project document set](docs/architecture.md#contracts-between-the-root-and-a-project) | Its own manifest, checks, and license; the design system only by package name |
 | Scheduled sources, shared task snapshots or local triage | `source-collector/`; [architecture](source-collector/docs/architecture.md), [contract](source-collector/docs/contract.md) | Bun + Effect; private configs, one local owner, polling Unix RPC; no project imports |
@@ -52,7 +54,7 @@ Scan the supporting-documents map and read every document whose condition applie
 | Dispatch feed dashboard, source triage or pane lifecycle | `herdr-plugins/dispatch-feed/`; [architecture](herdr-plugins/dispatch-feed/docs/architecture.md), [design](herdr-plugins/dispatch-feed/docs/design.md) | Bun + TypeScript; source-collector JSON-RPC only, no source imports; design-system exported subpaths |
 | Whiteboard input, drawing or board storage | `herdr-plugins/whiteboard/`; placement in [its architecture](herdr-plugins/whiteboard/docs/architecture.md) | Rust with locked crates; colors only in `src/palette.rs`, checked against the design system; tests never touch live Herdr |
 | Automations monitor screens, Tatsu reads or terminal lifecycle | `herdr-plugins/automations-monitor/`; the [data contract](herdr-plugins/automations-monitor/docs/architecture.md#data-contract), placement in [its AGENTS](herdr-plugins/automations-monitor/AGENTS.md#placement) | Bun, TypeScript and Effect with a locked install; reads only the two `tatsu automations … --json` commands; a startup hook restarts it in panes Herdr restores; design-system colors by exported subpath; tests never touch live Herdr or the real `tatsu` |
-| Herdr desktop theme, the industrial-os sidebar mod and its layout | `herdr/`; placement in [its architecture](herdr/docs/architecture.md) | Mod imports stay inside its folder; rules in Node-tested pure modules; `theme()` colors in the mod and design-system values in the theme; reads the `io.signals.v1` label from the [signals-collector contract](pi/signals-collector/docs/contract.md) |
+| Herdr desktop theme, the industrial-os sidebar mod and its layout, the Pi Reloader mod | `herdr/`; placement in [its architecture](herdr/docs/architecture.md) | Mod imports stay inside its folder; rules in Node-tested pure modules; `theme()` colors in the mods and design-system values in the theme; reads the `io.signals.v1` label from the [signals-collector contract](pi/signals-collector/docs/contract.md); the Pi Reloader acts only through the [guard contract](pi/reloader-guard/docs/contract.md) |
 
 ## Implement and verify
 
@@ -185,6 +187,15 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [pi/droid-header/docs/conventions.md](pi/droid-header/docs/conventions.md) | droid-header engineering rules and adoption gaps | Writing or reviewing code |
 | [pi/droid-header/docs/design.md](pi/droid-header/docs/design.md) | droid-header layouts, values, states, intro rates, colors, the approved reference and its deviations | Changing anything human-facing |
 | [pi/droid-header/docs/mission.md](pi/droid-header/docs/mission.md) | droid-header goals, non-goals and constraints | Choosing or changing scope |
+| [pi/reloader-guard/README.md](pi/reloader-guard/README.md) | reloader-guard purpose, install, privacy and limits | Using the guard or changing its public surface |
+| [pi/reloader-guard/AGENTS.md](pi/reloader-guard/AGENTS.md) | reloader-guard rules, routes and placement | Working anywhere in pi/reloader-guard |
+| [pi/reloader-guard/CLAUDE.md](pi/reloader-guard/CLAUDE.md) | Runtime import of the reloader-guard guide | Checking agent entry points |
+| [pi/reloader-guard/CONTRIBUTING.md](pi/reloader-guard/CONTRIBUTING.md) | reloader-guard checks and verification records | Making or verifying a reloader-guard change |
+| [pi/reloader-guard/docs/architecture.md](pi/reloader-guard/docs/architecture.md) | reloader-guard flow, state, host seams and invariants | Changing guard behavior or its Pi dependencies |
+| [pi/reloader-guard/docs/contract.md](pi/reloader-guard/docs/contract.md) | The `io.pi-reloader.v1` label and the guard's wire protocol | Changing anything the guard or the Pi Reloader mod sends or reads |
+| [pi/reloader-guard/docs/conventions.md](pi/reloader-guard/docs/conventions.md) | reloader-guard engineering rules and gaps | Writing or reviewing guard code |
+| [pi/reloader-guard/docs/design.md](pi/reloader-guard/docs/design.md) | The guard's guarantees and its one message | Changing what a person sees from the guard |
+| [docs/decisions/pi-reloader-desktop.md](docs/decisions/pi-reloader-desktop.md) | Why the Pi Reloader is a Herdr desktop mod plus a guard, its label and loopback channel, and its shell restart | Changing the Pi Reloader's channel, restart or placement |
 | [pi/theme/README.md](pi/theme/README.md) | The Pi theme's purpose, install and limits | Using the Pi theme or changing its public usage |
 | [pi/theme/AGENTS.md](pi/theme/AGENTS.md) | Pi theme rules, routes and placement | Working anywhere in pi/theme |
 | [pi/theme/CLAUDE.md](pi/theme/CLAUDE.md) | Runtime import of the Pi theme guide | Checking agent entry points |
@@ -193,13 +204,13 @@ Every supporting guidance document is listed here with a direct link, purpose, a
 | [pi/theme/docs/conventions.md](pi/theme/docs/conventions.md) | Pi theme engineering rules and gaps | Writing or reviewing the theme or its check |
 | [pi/theme/docs/design.md](pi/theme/docs/design.md) | What each part of Pi gets, and contrast | Changing a Pi theme color |
 | [docs/decisions/pane-naming-root-dependency.md](docs/decisions/pane-naming-root-dependency.md) | Why pane naming needs root-installed pi-typesafe and peer suppression | Changing root dependencies, npm peer handling or pane-naming packaging |
-| [herdr/README.md](herdr/README.md) | Herdr desktop configuration purpose, status, how to install it, and limitations | Using the Herdr configuration |
+| [herdr/README.md](herdr/README.md) | Herdr desktop configuration purpose, status, how to install it (including the Pi Reloader), and limitations | Using the Herdr configuration |
 | [herdr/AGENTS.md](herdr/AGENTS.md) | Herdr configuration rules, routes, and placement | Working anywhere in `herdr/` |
 | [herdr/CLAUDE.md](herdr/CLAUDE.md) | Runtime import of the Herdr guide | Checking agent entry points |
 | [herdr/CONTRIBUTING.md](herdr/CONTRIBUTING.md) | Herdr configuration checks, validation sequence, and verification records | Making or verifying a Herdr configuration change |
 | [herdr/docs/architecture.md](herdr/docs/architecture.md) | The mod, layout and theme files, dependencies, invariants, and where the next file goes | Adding a mod, layout or theme, or changing what one depends on |
 | [herdr/docs/conventions.md](herdr/docs/conventions.md) | Rules for the mod, layout and theme and their checks | Writing or reviewing Herdr configuration |
-| [herdr/docs/design.md](herdr/docs/design.md) | What the sidebar shows, its states and timing; the chrome theme | Changing anything a user sees in the Herdr sidebar or Herdr's chrome colors |
+| [herdr/docs/design.md](herdr/docs/design.md) | What the sidebar and the Pi Reloader window show, their states and timing; the chrome theme | Changing anything a user sees in the Herdr sidebar, the Pi Reloader or Herdr's chrome colors |
 | [herdr-plugins/README.md](herdr-plugins/README.md) | Plugin index and operator install procedure | Using or adding a Herdr plugin |
 | [herdr-plugins/AGENTS.md](herdr-plugins/AGENTS.md) | Shared plugin rules and detach/lock boundaries | Working anywhere in herdr-plugins |
 | [herdr-plugins/CLAUDE.md](herdr-plugins/CLAUDE.md) | Runtime import of the group guide | Checking agent entry points |
