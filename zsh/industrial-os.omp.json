@@ -1,0 +1,124 @@
+{
+  "$schema": "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/schema.json",
+  "version": 4,
+  "final_space": true,
+  "palette": {
+    "primary": "#ffffff",
+    "secondary": "#cfcfcf",
+    "accent": "#c0fe04",
+    "warning": "#d79e52",
+    "critical": "#f24723"
+  },
+  "upgrade": {
+    "source": "cdn",
+    "interval": "168h",
+    "auto": false,
+    "notice": false
+  },
+  "blocks": [
+    {
+      "type": "prompt",
+      "alignment": "left",
+      "segments": [
+        {
+          "type": "session",
+          "style": "plain",
+          "foreground": "p:secondary",
+          "template": "{{ if .SSHSession }}\ueba9 {{ .UserName }}@{{ .HostName }}  {{ end }}"
+        },
+        {
+          "type": "root",
+          "style": "plain",
+          "foreground": "p:critical",
+          "template": "<b>\u26a1 root</b>  "
+        },
+        {
+          "type": "path",
+          "style": "plain",
+          "foreground": "p:primary",
+          "options": {
+            "style": "full"
+          },
+          "template": "<b>{{ .Path }}</b>  "
+        },
+        {
+          "type": "git",
+          "style": "plain",
+          "foreground": "p:secondary",
+          "options": {
+            "fetch_status": true,
+            "fetch_upstream_icon": true,
+            "branch_icon": "",
+            "branch_identical_icon": "",
+            "branch_gone_icon": "",
+            "commit_icon": "",
+            "no_commits_icon": "",
+            "untracked_modes": { "*": "normal" },
+            "ignore_submodules": { "*": "none" }
+          },
+          "template": "{{ if .HEAD }}{{ if .UpstreamURL }}{{ url .UpstreamIcon .UpstreamURL }} {{ end }}⑂ {{ .HEAD }}{{ if .BranchStatus }} {{ .BranchStatus }}{{ end }} {{ if or .Working.Changed .Staging.Changed }}<b><p:warning>modified</></b>{{ if .Working.Changed }} {{ .Working.String }}{{ end }}{{ if .Staging.Changed }} staged {{ .Staging.String }}{{ end }}{{ else }}<b><p:accent>clean</></b>{{ end }}{{ else }}<p:primary>status unavailable</>{{ end }}  "
+        },
+        {
+          "type": "status",
+          "style": "plain",
+          "foreground": "p:accent",
+          "foreground_templates": ["{{ if gt .Code 0 }}p:critical{{ end }}"],
+          "options": {
+            "always_enabled": true
+          },
+          "template": "{{ if gt .Code 0 }}<b>\u2715 {{ .Code }} \u203a</b>{{ else }}\u203a{{ end }}"
+        }
+      ]
+    },
+    {
+      "type": "rprompt",
+      "segments": [
+        {
+          "type": "node",
+          "style": "plain",
+          "foreground": "p:secondary",
+          "options": {
+            "display_mode": "files",
+            "fetch_package_manager": false,
+            "home_enabled": false
+          },
+          "template": "\ue718 "
+        },
+        {
+          "type": "go",
+          "style": "plain",
+          "foreground": "p:secondary",
+          "options": {
+            "fetch_version": false
+          },
+          "template": "\ue626 "
+        },
+        {
+          "type": "python",
+          "style": "plain",
+          "foreground": "p:secondary",
+          "options": {
+            "display_mode": "files",
+            "fetch_version": false,
+            "fetch_virtual_env": false
+          },
+          "template": "\ue235 "
+        },
+        {
+          "type": "time",
+          "style": "plain",
+          "foreground": "p:secondary",
+          "template": "{{ .CurrentDate | date \"15:04:05\" }}"
+        }
+      ]
+    }
+  ],
+  "transient_prompt": {
+    "foreground": "p:primary",
+    "template": "<b>{{ .Folder }}</b>  <p:accent>\u203a</> "
+  },
+  "secondary_prompt": {
+    "foreground": "p:secondary",
+    "template": "\u203a\u203a "
+  }
+}
