@@ -5,13 +5,13 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 import {
-	LABEL, checkReply, checkTerminal, decodeUtf8, heading, layoutTerminals, parseGuard, reloadOne, requestLine,
+	RELOADER_LABEL, checkReply, checkTerminal, decodeUtf8, heading, layoutTerminals, parseGuard, reloadOne, requestLine,
 	resetOne, restartable, resumeCommand, runAll, selectCandidates, validSession,
 } from "../mods/industrial-os/reloader/reloader.js";
 
 const MOD = new URL("../mods/industrial-os/reloader/", import.meta.url);
 const TOKEN = (n) => n.toString(16).padStart(32, "0");
-const label = (port, token) => ({ [LABEL]: JSON.stringify({ v: 2, port, token }) });
+const label = (port, token) => ({ [RELOADER_LABEL]: JSON.stringify({ v: 2, port, token }) });
 
 // A simulated machine: herdr-core terminals with a shell root (`rootPi`: Pi as the root program) and a guarded Pi
 // answering like the guard (pi/reloader-guard/docs/contract.md). Effects of reload and quit land after `delay` ms of
@@ -43,7 +43,7 @@ function world(specs, { delay = 500 } = {}) {
 		progress: (done, total) => log.push(`progress ${done}/${total}`),
 		async get(address) { return snapshot(terms.get(address)); },
 		async call(guard, line) {
-			const t = [...terms.values()].find((x) => x.pi?.port === guard.port && x.labels[LABEL]);
+			const t = [...terms.values()].find((x) => x.pi?.port === guard.port && x.labels[RELOADER_LABEL]);
 			if (!t || t.spec.unresponsive) throw new Error("connect refused");
 			const req = JSON.parse(line);
 			log.push(`${req.action} ${t.address}`);
@@ -56,7 +56,7 @@ function world(specs, { delay = 500 } = {}) {
 			if (req.action === "reload" && !t.spec.reloadHangs) later(delay, () => { if (t.pi === pi) { t.pi.token = TOKEN(next++); t.labels = { ...t.labels, ...label(pi.port, t.pi.token) }; } });
 			if (req.action === "quit") later(delay, () => {
 				t.pi = null;
-				delete t.labels[LABEL];
+				delete t.labels[RELOADER_LABEL];
 				if (t.spec.rootPi) { t.state = "finished"; return; }
 				if (!t.spec.shellStuck) { t.foreground = { pid: t.pid }; t.status = null; }
 			});
@@ -100,8 +100,8 @@ test("layoutTerminals finds terminal blocks at any depth, floating ones too", ()
 
 test("the guard label: version 2 with a port and a 32-hex token; anything else is no guard", () => {
 	assert.deepEqual(parseGuard(label(4000, TOKEN(1))), { port: 4000, token: TOKEN(1) });
-	const v1 = { [LABEL]: JSON.stringify({ v: 1, port: 4000, token: TOKEN(1), pid: 2, ppid: 1 }) };
-	for (const bad of [undefined, {}, { [LABEL]: "{" }, { [LABEL]: "null" }, label(0, TOKEN(1)), label(70_000, TOKEN(1)), label(4000, "short"), v1]) {
+	const v1 = { [RELOADER_LABEL]: JSON.stringify({ v: 1, port: 4000, token: TOKEN(1), pid: 2, ppid: 1 }) };
+	for (const bad of [undefined, {}, { [RELOADER_LABEL]: "{" }, { [RELOADER_LABEL]: "null" }, label(0, TOKEN(1)), label(70_000, TOKEN(1)), label(4000, "short"), v1]) {
 		assert.equal(parseGuard(bad), null, JSON.stringify(bad));
 	}
 });

@@ -6,13 +6,13 @@ import { SIDEBAR_COLORS as C } from "../vocabulary.js";
 import { picture } from "./drawings.js";
 import { WHITE, partId, present } from "./sheet.js";
 
-/** A lamp's slow pulse, for `.loop("opacity", LAMP)`. */
-export const LAMP = { from: 0.3, to: 1, period: 2800 };
+/** A lamp's slow pulse, for `.loop("opacity", LAMP_PULSE)`. */
+export const LAMP_PULSE = { from: 0.3, to: 1, period: 2800 };
 
 /** A drawing that pulses slowly, as a lamp does. The pulse is on a box of its own around the image. */
 export function lamp(key, make, x, y, w, h) {
 	const light = picture(key, make, 0, 0, w, h);
-	return light ? div().absolute().left(x).top(y).w(w).h(h).loop("opacity", LAMP).child(light) : null;
+	return light ? div().absolute().left(x).top(y).w(w).h(h).loop("opacity", LAMP_PULSE).child(light) : null;
 }
 /**
  * A bar with its light, as a list of elements for an absolute parent: the light first, the bar over it.

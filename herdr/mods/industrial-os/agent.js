@@ -1,6 +1,6 @@
 // One agent's block: state precedence, the unseen-work-finished rule and every row's
 // text. Pure: Herdr's data, the parsed label, a clock and remembered state in; plain values out.
-import { PATH_START, TITLE_MARKS, baseName, clean, contextBar, countText, displayPath, formatDuration, modelText } from "./format.js";
+import { PATH_START, TITLE_MARKS, baseName, clean, contextReading, countText, displayPath, formatDuration, modelText } from "./format.js";
 
 export const STATES = {
 	question: { icon: "×", code: "QNS", tone: "blocked" },
@@ -118,7 +118,7 @@ export function piBlock({ agent, signals, herdr, seen, spaceName, tab, sharedTab
 	const space = clean(spaceName) || clean(baseName(signals.active ?? ""));
 
 	// Row 2: units, context used, compactions. Unknown is never zero.
-	const bar = contextBar(signals.usedPercent);
+	const bar = contextReading(signals.usedPercent);
 	const idle = state === "idle" || state === "unknown";
 
 	// Row 5: question, finished marker, otherwise the pane name with the working phase's age.

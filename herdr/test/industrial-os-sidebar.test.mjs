@@ -6,7 +6,7 @@ import test from "node:test";
 import { markFiles } from "@industrial-os/design-system/foundation/sidebar-vocabulary";
 import * as vocabulary from "../mods/industrial-os/vocabulary.js";
 import * as source from "@industrial-os/design-system/foundation/sidebar-vocabulary";
-import { HALO_PAD, POINTER_REACH, SWEEP_REACH, advance, barGlowSvg, dotGridSvg, dotPitch, fadeSvg, groundDots, groundLight, groundSvg as fieldSvg, haloSvg, lift, litDotsSize, litDotsSvg, rulerSvg, scopeBars, scopeGlowSvg, sidewaysSvg } from "../mods/industrial-os/assets.js";
+import { HALO_PAD, POINTER_REACH, SWEEP_REACH, monoAdvance, barGlowSvg, dotGridSvg, dotPitch, fadeSvg, groundDots, groundLight, fieldSvg, haloSvg, lift, litDotsSize, litDotsSvg, rulerSvg, scopeBars, scopeGlowSvg, sidewaysSvg } from "../mods/industrial-os/assets.js";
 import { BLEED, CROSSHAIR, DARK, PLATE, VIEW_H, beltAt, beltOf, buildWorld, cameraTarget, edgeSvg, groundSvg, lightSvg, mapFrame, plateCamera, unitAt, veilSvg, zoneOf } from "../mods/industrial-os/map.js";
 
 const read = async (path) => readFile(new URL(path, import.meta.url), "utf8");
@@ -130,7 +130,7 @@ test("frames: still drawings keyed for reuse plus dots, the same for the same in
 });
 
 test("drawings under the text: sized to what they light, whole dots, well-formed", () => {
-	assert.equal(advance(11), 6.6);
+	assert.equal(monoAdvance(11), 6.6);
 	const size = (text) => text.match(/^<svg[^>]* width="([\d.]+)" height="([\d.]+)"/).slice(1).map(Number);
 	assert.deepEqual(size(haloSvg("WRK", "#c0fe04")), [3 * 6.6 + 2 * HALO_PAD, 17 + 2 * HALO_PAD]);
 	assert.deepEqual(size(barGlowSvg(3, 40, "#c0fe04", { radius: 2 })), [3 + 2 * HALO_PAD, 40 + 2 * HALO_PAD]);

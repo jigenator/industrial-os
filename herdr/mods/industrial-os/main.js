@@ -12,7 +12,7 @@ import {
 	agents, checking, exec, focused, home, keys, layout, nextCommand, openOverlay, panes, props, run, setAgentOrder, setShared, shared, spaces, terminals,
 	theme, updates, window,
 } from "herdr";
-import { fadeSvg, groundSvg as fieldSvg } from "./assets.js";
+import { fadeSvg, fieldSvg } from "./assets.js";
 import { FOLD_EXPIRE_MS, FOLD_TIMES } from "./fold.js";
 import { FLICKER_AT, flickerFrame } from "./format.js";
 import { BLEED, VIEW_H, buildWorld } from "./map.js";

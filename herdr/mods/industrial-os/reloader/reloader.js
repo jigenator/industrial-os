@@ -2,7 +2,7 @@
 // protocol (pi/reloader-guard/docs/contract.md), and the reload and reset sequences over an injected `io`.
 // main.js supplies `io`: hc get and send, the guard socket, sleep, the clock and progress.
 
-export const LABEL = "io.pi-reloader.v2";
+export const RELOADER_LABEL = "io.pi-reloader.v2";
 export const POLL_MS = 250;
 export const EXIT_MS = 15_000;
 export const READY_MS = 30_000;
@@ -15,7 +15,7 @@ const LUNALEE_CHAT = "lunalee-chat";
 
 /** The guard's label on a terminal: `{ port, token }`, or null when absent or malformed. */
 export function parseGuard(labels) {
-	const value = labels?.[LABEL];
+	const value = labels?.[RELOADER_LABEL];
 	if (typeof value !== "string") return null;
 	let guard;
 	try { guard = JSON.parse(value); } catch { return null; }

@@ -25,7 +25,7 @@ The pane header (`plate/`) and the Pi Reloader (`reloader/`) are in the same mod
 | `stage.js` | Nothing: what a root view shares with its nested views | `openStage`, `stageOf` |
 | `marks.js` | Drawn signs and state marks; the colours of a state | `sign`, `stateMark`, `toneColors`, `LIT_TONES`, `zoneColors` |
 | `text.js` | Words, one-line cuts, lit text, ticker tape; the font | `font`, `lit`, `word`, `cutLine`, `tape` |
-| `light.js` | A bar with its glow, a lamp's pulse, the gutter bar beside a pane | `LAMP`, `lamp`, `bar`, `hoverBar` |
+| `light.js` | A bar with its glow, a lamp's pulse, the gutter bar beside a pane | `LAMP_PULSE`, `lamp`, `bar`, `hoverBar` |
 | `key-plate.js` | A shortcut's plate, from a binding as keys.json writes it | `keyParts`, `keyPlate` |
 | `crate-plate.js` | The paper label at the top, open and on the rail | `cratePlate`, `cratePlateRail` |
 | `shortcut-strip.js` | The strip under the plate, open and on the rail | `shortcutStrip`, `unfoldStrip` |

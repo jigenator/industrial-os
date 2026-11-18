@@ -93,7 +93,7 @@ const BAR_CELLS = 11;
  * Context used as an 11-cell text bar and two-digit percent: lit = ceil(used × 11 / 100), used = floor(usedPercent)
  * held to 0–99, so `99%` means 99% or more. Zone: `crit` from 90%, `warn` from 70%, else `ok`; `unknown` when null.
  */
-export function contextBar(usedPercent) {
+export function contextReading(usedPercent) {
 	if (usedPercent === null || usedPercent === undefined || !Number.isFinite(usedPercent)) {
 		return { text: `${"─".repeat(BAR_CELLS)} --%`, zone: "unknown", percent: null };
 	}

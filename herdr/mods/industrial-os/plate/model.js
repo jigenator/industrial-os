@@ -59,7 +59,7 @@ const isShell = (pane) => pane?.program?.shell === true;
 const runKey = (pane) => (!isPi(pane) && !isAgent(pane) && !isShell(pane) && pane?.program ? `${pane.program.key}\u0000${pane.program.name}` : null);
 
 /** What a copy remembers about its pane between renders. */
-export const emptyMemory = () => ({ seen: false, pi: false, piSince: null, piExitedAt: null, runKey: null, runSince: null, agentWorking: false, agentSince: null });
+export const emptyPlateMemory = () => ({ seen: false, pi: false, piSince: null, piExitedAt: null, runKey: null, runSince: null, agentWorking: false, agentSince: null });
 
 /**
  * The pane's remembered times, after what Herdr reports now: when Pi was first seen (for STARTING), when it handed
@@ -68,7 +68,7 @@ export const emptyMemory = () => ({ seen: false, pi: false, piSince: null, piExi
  * the first look. Returns a new memory; the input is not changed.
  */
 export function observe(memory, pane, now) {
-	const m = { ...emptyMemory(), ...memory };
+	const m = { ...emptyPlateMemory(), ...memory };
 	const first = !m.seen;
 	m.seen = true;
 	const pi = isPi(pane);
@@ -109,7 +109,7 @@ const phaseWord = (phase) => (phase.kind === "tool" ? phase.tool.toUpperCase().r
  * the parsed io.signals.v1 label (or null), `foreground` the argv `hc get` last reported for it (or null), `memory`
  * what observe() returned. `nextAt` is when the strip next changes by itself (a clock's second, STARTING's end).
  */
-export function paneModel({ pane, terminal, signals, foreground = null, memory = emptyMemory(), now, home = null }) {
+export function paneModel({ pane, terminal, signals, foreground = null, memory = emptyPlateMemory(), now, home = null }) {
 	const address = typeof terminal?.address === "string" ? terminal.address : (pane?.terminal ?? "");
 	const dir = homePath(pane?.cwd, home) ?? "--";
 	let nextAt = null;

@@ -3,7 +3,7 @@
 // The label is untrusted input: anything missing or malformed becomes unknown (null), never zero or clean; unknown
 // fields are ignored. The mod's one reader: the sidebar (model.js) and the pane header (plate/view.js) both use it.
 
-export const LABEL = "io.signals.v1";
+export const SIGNALS_LABEL = "io.signals.v1";
 
 // The snapshot contract bounds free text to 200 UTF-16 code units; a longer value is cut here rather than trusted.
 const FREE_TEXT_LIMIT = 200;
@@ -98,5 +98,5 @@ export function parseSignals(raw) {
 export function terminalSignals(terminal, app) {
 	if (!record(terminal) || terminal.state !== "live" || app !== "pi") return null;
 	const labels = record(terminal.labels) ? terminal.labels : {};
-	return parseSignals(labels[LABEL]);
+	return parseSignals(labels[SIGNALS_LABEL]);
 }

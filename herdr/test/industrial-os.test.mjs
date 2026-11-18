@@ -3,9 +3,9 @@
 // not run here; CONTRIBUTING.md records `herdr-app check` and what is not verified.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FLICKER_AT, READ_DELAY_MS, ageText, clean, contextBar, fnv, countText, daysText, displayPath, formatDuration, modelText, nextAgeChange, flickerFrame, readoutFrame, readoutSettled, shortModel, wrapText } from "../mods/industrial-os/format.js";
+import { FLICKER_AT, READ_DELAY_MS, ageText, clean, contextReading, fnv, countText, daysText, displayPath, formatDuration, modelText, nextAgeChange, flickerFrame, readoutFrame, readoutSettled, shortModel, wrapText } from "../mods/industrial-os/format.js";
 import { FOLD_EXPIRE_MS, FOLD_TIMES, eraseRows, scanSegments } from "../mods/industrial-os/fold.js";
-import { LABEL, parseSignals, terminalSignals } from "../mods/industrial-os/signals.js";
+import { SIGNALS_LABEL, parseSignals, terminalSignals } from "../mods/industrial-os/signals.js";
 import { displayState, nextFinishedAt, paneName, piBlock } from "../mods/industrial-os/agent.js";
 import { QUIET_MS, paneState, parseAheadBehind, spacePlace, spaceRow, unitsSum } from "../mods/industrial-os/spaces.js";
 import { buildSidebar, droidCount, emptyMemory } from "../mods/industrial-os/model.js";
@@ -37,7 +37,7 @@ function snapshot(overrides = {}) {
 	};
 }
 const signals = (overrides) => parseSignals(JSON.stringify(snapshot(overrides)));
-const labels = (value) => ({ "herdr.space": "s1", "herdr.tab": "tb1", [LABEL]: typeof value === "string" ? value : JSON.stringify(value) });
+const labels = (value) => ({ "herdr.space": "s1", "herdr.tab": "tb1", [SIGNALS_LABEL]: typeof value === "string" ? value : JSON.stringify(value) });
 const program = (key = "pi", name = "Pi") => ({ key, name, icon: null, tint: false, tile: null, color: null, shell: false, agent: true });
 const terminal = (address, extra = {}) => ({ address, state: "live", labels: labels(snapshot()), status: "idle", ...extra });
 const agent = (address, extra = {}) => ({
@@ -88,13 +88,13 @@ test("Active directory: status-bar's ~, ~/child, root-near and parent/current fo
 });
 
 test("context bar: lit cells, 70% warning, 90% critical, 99% cap, unknown", () => {
-	assert.deepEqual(contextBar(0), { text: "─────────── 00%", zone: "ok", percent: 0 });
-	assert.deepEqual(contextBar(67.4), { text: "━━━━━━━━─── 67%", zone: "ok", percent: 67 });
-	assert.deepEqual(contextBar(70), { text: "━━━━━━━━─── 70%", zone: "warn", percent: 70 });
-	assert.equal(contextBar(89.9).zone, "warn");
-	assert.deepEqual(contextBar(90), { text: "━━━━━━━━━━─ 90%", zone: "crit", percent: 90 });
-	assert.deepEqual(contextBar(100), { text: "━━━━━━━━━━━ 99%", zone: "crit", percent: 99 });
-	assert.deepEqual(contextBar(null), { text: "─────────── --%", zone: "unknown", percent: null });
+	assert.deepEqual(contextReading(0), { text: "─────────── 00%", zone: "ok", percent: 0 });
+	assert.deepEqual(contextReading(67.4), { text: "━━━━━━━━─── 67%", zone: "ok", percent: 67 });
+	assert.deepEqual(contextReading(70), { text: "━━━━━━━━─── 70%", zone: "warn", percent: 70 });
+	assert.equal(contextReading(89.9).zone, "warn");
+	assert.deepEqual(contextReading(90), { text: "━━━━━━━━━━─ 90%", zone: "crit", percent: 90 });
+	assert.deepEqual(contextReading(100), { text: "━━━━━━━━━━━ 99%", zone: "crit", percent: 99 });
+	assert.deepEqual(contextReading(null), { text: "─────────── --%", zone: "unknown", percent: null });
 });
 
 test("label: version 1 JSON only; malformed fields become unknown, never zero; unknown fields ignored", () => {
@@ -447,8 +447,8 @@ test("ages and wrapped text: one unit, capitals; the next change; whole words, a
 	assert.deepEqual(wrapText("one two three four five six seven eight", 18, 2), ["one two three four", "five six seven…"]);
 	assert.deepEqual(wrapText("supercalifragilistic and more", 10, 2), ["supercalif", "ragilisti…"]);
 	assert.deepEqual([wrapText("", 5, 2), wrapText("aaaa bbbb", 4, 2), wrapText("aaaa bbbb cc", 4, 2)], [[], ["aaaa", "bbbb"], ["aaaa", "bbb…"]]);
-	assert.equal(contextBar(67.4).percent, 67);
-	assert.equal(contextBar(null).percent, null);
+	assert.equal(contextReading(67.4).percent, 67);
+	assert.equal(contextReading(null).percent, null);
 });
 
 test("the flicker dims twice in hard steps and is over; its fringes show only while it runs", () => {

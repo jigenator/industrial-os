@@ -6,7 +6,7 @@
 // elements. What `s` holds is written on the Storybook view (storybook.js).
 import { div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { groundSvg as fieldSvg } from "./assets.js";
+import { fieldSvg } from "./assets.js";
 import { FOLD_TIMES } from "./fold.js";
 import { BLEED, VIEW_H } from "./map.js";
 import { SIDEBAR_COLORS as C } from "./vocabulary.js";
@@ -49,7 +49,7 @@ const row = (...children) => h_flex().gap(14).items_center().children(present(ch
 const column = (...children) => v_flex().gap(6).children(present(children));
 const named = (element, name) => h_flex().gap(6).items_center().child(element).child(word(name, C.detail));
 const pane = (s, u, more = {}) => paneRow(s.t, { unit: u, where: "m", inner: COLUMN, now: s.now, onHover: no, onClick: no, onMove: no, ...more });
-const paneState = (label, key, more, focus) => ({ label, render: (s) => pane(s, s.unit(key, focus), typeof more === "function" ? more(s) : more) });
+const paneStory = (label, key, more, focus) => ({ label, render: (s) => pane(s, s.unit(key, focus), typeof more === "function" ? more(s) : more) });
 
 export const STORIES = [
 	{ id: "marks", title: "MARKS", moves: true, about: "sign and stateMark. A state is always a code and a mark; colour only adds emphasis. The moving marks step with the clock.", states: () => [
@@ -141,28 +141,28 @@ export const STORIES = [
 		];
 	} },
 	{ id: "pane-row", uses: ["readout"], title: "PANE ROW", moves: true, about: "paneRow. A pane: two quiet rows; the focused one opens instead, so nothing is shown twice.", states: () => [
-		paneState("WORKING, WITH SUBAGENTS", "a1"),
-		paneState("WORKING · CONTEXT CRITICAL", "c1"),
-		paneState("NEEDS YOU", "b1"),
-		paneState("A BACKGROUND TASK RUNS", "b2"),
-		paneState("FINISHED, NOT YET SEEN", "d1"),
-		paneState("IDLE", "a2"),
-		paneState("A TERMINAL", "a3"),
-		paneState("A PI BEFORE ITS LABEL · HERDR'S STATUS ONLY", "x1"),
-		paneState("UNKNOWN READINGS · NEVER ZERO", "x2"),
-		paneState("FLAGGED, WITH MORE SUBAGENTS THAN ICONS", "x3"),
-		paneState("UNDER THE POINTER · THE READOUT AND THE WHITE BAR", "c1", (s) => ({ hovered: true, readout: s.readout })),
-		paneState("UNDER THE POINTER, BEFORE THE LIST IS MEASURED · ITS OWN SCANNER", "a2", { hovered: true, ownScanner: true, readout: div() }),
-		paneState("ITS STATE CHANGED · THE FIRST 130 MS", "d1", (s) => ({ latchAt: s.now - 60 })),
-		paneState("ITS STATE CHANGED · 130 TO 260 MS", "d1", (s) => ({ latchAt: s.now - 200 })),
-		paneState("FOCUSED · OPEN", "a1", { near: null }, "a1"),
-		paneState("FOCUSED · A LIT DOT NEAR THE POINTER", "a1", { near: { x: 60, y: 30 } }, "a1"),
-		paneState("FOCUSED · ASKING", "b1", {}, "b1"),
-		paneState("FOCUSED · EVERYTHING A PANE CAN CARRY", "x3", {}, "x3"),
-		paneState("FOCUSED · UNKNOWN READINGS", "x2", {}, "x2"),
-		paneState("FOCUSED · A TERMINAL STAYS TWO ROWS", "a3", {}, "a3"),
-		paneState("IN THE AGENTS VIEW · ITS TAB IN THE SECOND ROW", "a1", { where: "g" }),
-		paneState("IN THE AGENTS VIEW · FOCUSED", "a1", { where: "g" }, "a1"),
+		paneStory("WORKING, WITH SUBAGENTS", "a1"),
+		paneStory("WORKING · CONTEXT CRITICAL", "c1"),
+		paneStory("NEEDS YOU", "b1"),
+		paneStory("A BACKGROUND TASK RUNS", "b2"),
+		paneStory("FINISHED, NOT YET SEEN", "d1"),
+		paneStory("IDLE", "a2"),
+		paneStory("A TERMINAL", "a3"),
+		paneStory("A PI BEFORE ITS LABEL · HERDR'S STATUS ONLY", "x1"),
+		paneStory("UNKNOWN READINGS · NEVER ZERO", "x2"),
+		paneStory("FLAGGED, WITH MORE SUBAGENTS THAN ICONS", "x3"),
+		paneStory("UNDER THE POINTER · THE READOUT AND THE WHITE BAR", "c1", (s) => ({ hovered: true, readout: s.readout })),
+		paneStory("UNDER THE POINTER, BEFORE THE LIST IS MEASURED · ITS OWN SCANNER", "a2", { hovered: true, ownScanner: true, readout: div() }),
+		paneStory("ITS STATE CHANGED · THE FIRST 130 MS", "d1", (s) => ({ latchAt: s.now - 60 })),
+		paneStory("ITS STATE CHANGED · 130 TO 260 MS", "d1", (s) => ({ latchAt: s.now - 200 })),
+		paneStory("FOCUSED · OPEN", "a1", { near: null }, "a1"),
+		paneStory("FOCUSED · A LIT DOT NEAR THE POINTER", "a1", { near: { x: 60, y: 30 } }, "a1"),
+		paneStory("FOCUSED · ASKING", "b1", {}, "b1"),
+		paneStory("FOCUSED · EVERYTHING A PANE CAN CARRY", "x3", {}, "x3"),
+		paneStory("FOCUSED · UNKNOWN READINGS", "x2", {}, "x2"),
+		paneStory("FOCUSED · A TERMINAL STAYS TWO ROWS", "a3", {}, "a3"),
+		paneStory("IN THE AGENTS VIEW · ITS TAB IN THE SECOND ROW", "a1", { where: "g" }),
+		paneStory("IN THE AGENTS VIEW · FOCUSED", "a1", { where: "g" }, "a1"),
 	] },
 	{ id: "readings", title: "READINGS", about: "unitCount, unitIcons, contextText and contextBar. What a pane carries. Unknown is never zero: it is grey and says so.", states: () => {
 		const bars = (s, context) => h_flex().w(200).h(15).gap(CH).items_center().child(contextBar(s.t, context, 200 - 5 * CH)).child(div().flex_none().w(4 * CH).h_flex().justify_end().child(contextText(s.t, context)));
