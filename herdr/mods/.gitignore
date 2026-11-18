@@ -1,5 +1,6 @@
-# Written into each mod folder by `herdr-app check` (gpui-shell) for editors; generated, not maintained here.
-*/gpui-kit.d.ts
+# Written by `herdr-app check` (gpui-shell) for editors, into each mod folder and each folder in it whose files
+# import gpui-kit; generated, not maintained here.
+**/gpui-kit.d.ts
 */jsconfig.json
 # Drawings the industrial-os mod writes at run time.
 */.gen/

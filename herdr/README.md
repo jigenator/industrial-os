@@ -1,6 +1,6 @@
 # Industrial OS Herdr configuration
 
-Industrial OS for the Herdr desktop app (herdr-app): the Acid / Black theme, [themes/acid-black.json](themes/acid-black.json), the Industrial OS sidebar, a mod, [mods/industrial-os](mods/industrial-os/main.js), shown by its layout, [layouts/industrial-os.json](layouts/industrial-os.json), which also holds [Lunalee's column](#lunalee-column) and frames every pane with the [droid-plate pane header](#droid-plate-pane-header), [mods/droid-plate](mods/droid-plate/main.js), and the [Pi Reloader](#pi-reloader) window, [mods/pi-reloader](mods/pi-reloader/main.js). The experience is in [the design](docs/design.md).
+Industrial OS for the Herdr desktop app (herdr-app): the Acid / Black theme, [themes/acid-black.json](themes/acid-black.json), the Industrial OS sidebar, a mod, [mods/industrial-os](mods/industrial-os/main.js), drawn from [parts](docs/parts.md) that its [storybook](#storybook) shows alone, and shown by its layout, [layouts/industrial-os.json](layouts/industrial-os.json), which also holds [Lunalee's column](#lunalee-column) and frames every pane with the [droid-plate pane header](#droid-plate-pane-header), [mods/droid-plate](mods/droid-plate/main.js), and the [Pi Reloader](#pi-reloader) window, [mods/pi-reloader](mods/pi-reloader/main.js). The experience is in [the design](docs/design.md).
 
 Status: the theme was installed and checked live on 2026-11-12. The redesigned sidebar passes its Node tests and `herdr-app check`, was looked at with live data in a floating probe window, and was installed as the layout's sidebar on 2026-11-18, where its three blocks drew without errors; hover, clicks and the rail have not been checked there. See the [record](CONTRIBUTING.md#sidebar-redesign). The droid-plate pane header passes its Node tests and `herdr-app check`; its live looks are in its [record](CONTRIBUTING.md#droid-plate-pane-header).
 
@@ -35,7 +35,17 @@ To fold and unfold the sidebar from the keyboard, bind a key to the mod's `fold`
 
 The mod writes its drawings (glows, dot grids, the map) as SVG files into `~/.config/herdr-app/mods/industrial-os/.gen/`, a few megabytes, and empties that folder itself when it grows past 1500 files. It is safe to delete. The sidebar wants the `JetBrainsMono NFM` font for its heavy weights and falls back to the app's font without it.
 
-The layout is the shipped `main` layout of Herdr app 0.1.15 with zero terminal padding, flat panes (square corners, no border or focus outline) under the 130 px [droid-plate](#droid-plate-pane-header) header in place of the shipped `pane` header, the sidebar widened to 300 px, its header (now 130 px), two lists and footer (now 46 px) replaced by `industrial-os` blocks, and [Lunalee's column](#lunalee-column) added on the right. It does not follow later changes to `main`; compare it with the shipped file after an app update. Copy only the `mods/industrial-os` and `mods/droid-plate` folders: `mods/package.json` is for the Node tests. `gpui-kit.d.ts` and `jsconfig.json` in the folder, if present, were written by `herdr-app check` for editors; the app writes its own.
+The layout is the shipped `main` layout of Herdr app 0.1.15 with zero terminal padding, flat panes (square corners, no border or focus outline) under the 130 px [droid-plate](#droid-plate-pane-header) header in place of the shipped `pane` header, the sidebar widened to 300 px, its header (now 130 px), two lists and footer (now 46 px) replaced by `industrial-os` blocks, and [Lunalee's column](#lunalee-column) added on the right. It does not follow later changes to `main`; compare it with the shipped file after an app update. Copy only the `mods/industrial-os` and `mods/droid-plate` folders, whole, with `parts/` and `marks/`: `mods/package.json` is for the Node tests, and so is `stand-in/`. `gpui-kit.d.ts` and `jsconfig.json` in the folder, if present, were written by `herdr-app check` for editors; the app writes its own.
+
+### Storybook
+
+The mod carries a storybook: a window with every part of the sidebar alone, in each of its states (19 pages, from the state marks to the fold), on invented data. Nothing in it reads your panes or runs a command.
+
+- Bind a key to the mod's `storybook` command in `~/.config/herdr-app/keys.json`, for example `"cmd-alt-s": "industrial-os.storybook"`, or run `herdr-app do industrial-os.storybook`. The `industrial-os` layout must be shown: its sidebar opens the window.
+- Pick a page in the index, or bind keys to `industrial-os.story-next` and `industrial-os.story-prev`. Drag the window by its header; `CLOSE` closes it, and so does switching layout. Running the command again opens it afresh where it was left.
+- A layout block can show it too: `{ "mod": "industrial-os", "props": { "part": "storybook" } }`.
+
+It has been looked at only in an isolated second Herdr, with commands sent by `herdr-app do`: not with a real key press or pointer, and not in the installed app. See the [record](CONTRIBUTING.md#sidebar-parts-and-storybook) and [how the parts are organized](docs/parts.md).
 
 ### Lunalee column
 
@@ -136,4 +146,4 @@ The theme colors every layout that does not set its own theme, including every m
 
 - [Agent guide](AGENTS.md): rules and routes for this project.
 - [Contributing](CONTRIBUTING.md): commands, checks and verification records.
-- [Architecture](docs/architecture.md), [conventions](docs/conventions.md) and [design](docs/design.md).
+- [Architecture](docs/architecture.md), [conventions](docs/conventions.md), [parts and the storybook](docs/parts.md) and [design](docs/design.md).
