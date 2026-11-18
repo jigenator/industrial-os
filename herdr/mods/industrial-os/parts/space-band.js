@@ -2,7 +2,7 @@
 // you there.
 import { div } from "gpui-kit";
 import { h_flex } from "gpui-base";
-import { advance, dotGridSvg } from "../assets.js";
+import { monoAdvance, dotGridSvg } from "../assets.js";
 import { twoDigits } from "../format.js";
 import { SIDEBAR_ALPHA as A, SIDEBAR_COLORS as C } from "../vocabulary.js";
 import { picture } from "./drawings.js";
@@ -35,6 +35,6 @@ export function spaceBand(t, { space: m, width, hot = false, add = false, tabKey
 				.child(h_flex().flex_none().gap(8).pr(4).items_center().whitespace_nowrap().font_weight(800).text_color(BLACK).child("NEW TAB").when(tabKey, (x) => x.child(keyPlate(tabKey, BLACK, t.working))))))
 		.child(div().flex_1())
 		.when(!add, (el) => el.child(h_flex().flex_none().gap(10).items_center().text_size(10)
-			.when(m.need > 0, (x) => x.child(h_flex().gap(advance(10)).items_center().child(lit(twoDigits(m.need), t.blocked, { size: 10, line: 14 })).child(word("NEED YOU", C.reading))))
+			.when(m.need > 0, (x) => x.child(h_flex().gap(monoAdvance(10)).items_center().child(lit(twoDigits(m.need), t.blocked, { size: 10, line: 14 })).child(word("NEED YOU", C.reading))))
 			.when(m.behind > 0, (x) => x.child(word(`↓${m.behind}`, C.keyRest)))));
 }

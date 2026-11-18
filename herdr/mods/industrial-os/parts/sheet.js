@@ -1,11 +1,11 @@
 // The sheet every part is set on: the sidebar's column and row measures, in px, and two small conversions.
 // Everything starts 18 in from the left (INNER + PAD) and ends 18 from the right.
-import { advance } from "../assets.js";
+import { monoAdvance } from "../assets.js";
 import { SIDEBAR_COLORS as C } from "../vocabulary.js";
 
 export const INNER = 14, PAD = 4;
 /** One character of the 11 px text; a state code's column; where a pane's name starts. */
-export const CH = advance(11), CODE_W = 4 * CH, NAME_X = 14 + CODE_W + CH;
+export const CH = monoAdvance(11), CODE_W = 4 * CH, NAME_X = 14 + CODE_W + CH;
 /** A terminal row; the crate plate's six rows; a space's band. */
 export const ROW = 18.5, PLATE_H = ROW * 6, BAND_H = 25;
 /** One step of a state mark and of ticker tape, in ms. */

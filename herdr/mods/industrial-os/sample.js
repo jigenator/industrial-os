@@ -1,6 +1,6 @@
 // An invented window for the storybook and the checks, in the shapes Herdr gives the mod: five spaces and nine
 // panes in every state. Nothing here is read from Herdr; a story shows a part with this data and says so.
-import { LABEL } from "./signals.js";
+import { SIGNALS_LABEL } from "./signals.js";
 
 const HOME = "/Users/operator";
 
@@ -71,7 +71,7 @@ export function sampleWindow(now, { spaces: list = sampleSpaces(), focus = "a1",
 			for (const p of t.panes) {
 				const pi = p.kind !== "shell", focused = p.key === focus, sig = p.sig ?? {};
 				const status = pi ? (sig.question ? "blocked" : p.status ?? (sig.working ? "working" : "idle")) : "idle";
-				out.terminals.push({ address: p.key, state: "live", status, labels: { "herdr.space": sid, "herdr.tab": tid, ...(pi && p.kind !== "unlabelled" ? { [LABEL]: JSON.stringify(snapshot(folder, s.branch ?? "main", sig, now, seq)) } : {}) } });
+				out.terminals.push({ address: p.key, state: "live", status, labels: { "herdr.space": sid, "herdr.tab": tid, ...(pi && p.kind !== "unlabelled" ? { [SIGNALS_LABEL]: JSON.stringify(snapshot(folder, s.branch ?? "main", sig, now, seq)) } : {}) } });
 				const prog = pi ? program("pi", "Pi", true) : program("shell", "zsh", false);
 				if (pi) out.agents.push({ address: p.key, pane: `p-${p.key}`, space: sid, space_name: s.name, tab: tid, tab_index: ti + 1, tab_name: t.name ?? String(ti + 1), status, app: "pi", program: prog, title: p.title, seq, pinned: false, focused });
 				out.panes.push({ pane: `p-${p.key}`, terminal: p.key, tab: tid, title: p.title, cwd: folder, branch: null, status: pi ? status : null, app: pi ? "pi" : null, program: prog, focused, zoomed: false, movable: false });

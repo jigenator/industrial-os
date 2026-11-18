@@ -4,8 +4,8 @@
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
-import { addressSeed, agentCode, clockText, commandText, emptyMemory, homePath, isAgent, isPi, lightingOf, observe, paneModel, PI_HINTS, presession, shellCode, STARTING_GRACE_MS, timeOfDay } from "../mods/industrial-os/plate/model.js";
-import { LABEL, parseSignals, terminalSignals } from "../mods/industrial-os/signals.js";
+import { addressSeed, agentCode, clockText, commandText, emptyPlateMemory, homePath, isAgent, isPi, lightingOf, observe, paneModel, PI_HINTS, presession, shellCode, STARTING_GRACE_MS, timeOfDay } from "../mods/industrial-os/plate/model.js";
+import { SIGNALS_LABEL, parseSignals, terminalSignals } from "../mods/industrial-os/signals.js";
 import { BLOCK_WIDTH, cellPlan, cellWidthOf, coarsen, columnsOf, composeHeader, PIECE_BUDGET, DRAW_LIMIT, GRIP_PX, KEY_ACTIONS, MIN_WIDTH, PEAK_CLEAR, peakFromOf, ROW_HEIGHTS, ROW_TOPS, ROWS, scanPolygon } from "../mods/industrial-os/plate/plate.js";
 import { glyphShape } from "../mods/industrial-os/ds/foundation/glyph-shapes.mjs";
 import { advance, BANKS, emptyTimeline, frame, frameStep, ghostDelay, GHOST_EVERY, headerDurations, LAYER_LIMIT, layerBanks, needsPrime, nextWake, playingUntil, prime, PRIME_MS, REVEAL, ROLL, settle, STANDBY_IN, STANDBY_OUT, wordmarkGlyphs } from "../mods/industrial-os/plate/motion.js";
@@ -53,7 +53,7 @@ const pane = (over = {}) => ({
 const PI = { app: "pi", status: "idle", program: { key: "pi", name: "Pi", shell: false, agent: true } };
 const term = (labels = {}) => ({ address: "t3h", argv: ["/bin/zsh", "-l"], cols: 99, state: "live", labels });
 const signals = (over = {}) => parseSignals(JSON.stringify({ version: 1, sessionId: SESSION, root: { working: false, lastSettledAt: null }, ...over }));
-const model = (p, extra = {}) => paneModel({ pane: p, terminal: term(), signals: null, memory: observe(emptyMemory(), p, NOW - 10_000), now: NOW, home: "/Users/u", ...extra });
+const model = (p, extra = {}) => paneModel({ pane: p, terminal: term(), signals: null, memory: observe(emptyPlateMemory(), p, NOW - 10_000), now: NOW, home: "/Users/u", ...extra });
 
 test("units: DRD from the session, AGT from the app, TERM from the shell; unknown degrades, never guesses", () => {
 	const droid = model(pane(PI), { signals: signals() });
@@ -61,7 +61,7 @@ test("units: DRD from the session, AGT from the app, TERM from the shell; unknow
 	assert.deepEqual(droid.plate, { unit: "DRD-FA03", serial: "150C-4F01", seed: 0x4f01fa03 | 0 });
 	assert.deepEqual(droid.options, { barcode: true, peak: true });
 	// No label after the grace: the pre-session plate, its barcode seeded from the terminal address.
-	const unknown = model(pane(PI), { memory: { ...emptyMemory(), pi: true, piSince: NOW - STARTING_GRACE_MS } });
+	const unknown = model(pane(PI), { memory: { ...emptyPlateMemory(), pi: true, piSince: NOW - STARTING_GRACE_MS } });
 	assert.deepEqual([unknown.kind, unknown.known, unknown.plate], ["droid", false, { unit: "DRD-????", serial: "????-????", seed: addressSeed("t3h") }]);
 	assert.deepEqual(presession(droid).plate, unknown.plate);
 	// The address seed is the mod's hash as a signed 32-bit number, as the barcode has always been seeded.
@@ -92,7 +92,7 @@ test("the plate's code fits whole or falls back to its prefix, and every unit's 
 	for (const W of [MIN_WIDTH, 40, 55, 56, 64, 80, 99, 160, 200]) {
 		const cases = [
 			model(pane(PI), { signals: signals() }),
-			model(pane(PI), { memory: { ...emptyMemory(), pi: true, piSince: NOW - STARTING_GRACE_MS } }),
+			model(pane(PI), { memory: { ...emptyPlateMemory(), pi: true, piSince: NOW - STARTING_GRACE_MS } }),
 			model(pane({ app: "claude-code", status: "working", program: { key: "claude", name: "Claude Code", agent: true } })),
 			model(pane()),
 		];
@@ -209,7 +209,7 @@ test("Pi's strip: idle hints, working with its phase, target and elapsed, needs 
 });
 
 test("Pi starting: STARTING on the terminal plate for 3 s, then the pre-session plate; the label ends it at once", () => {
-	let memory = observe(emptyMemory(), pane(), NOW - 5000);
+	let memory = observe(emptyPlateMemory(), pane(), NOW - 5000);
 	memory = observe(memory, pane(PI), NOW);
 	assert.equal(memory.piSince, NOW);
 	const starting = paneModel({ pane: pane(PI), terminal: term(), signals: null, memory, now: NOW + 1000 });
@@ -220,7 +220,7 @@ test("Pi starting: STARTING on the terminal plate for 3 s, then the pre-session 
 });
 
 test("terminal strip: READY, RUNNING the full command with its clock, PI EXITED until the next command", () => {
-	let memory = observe(emptyMemory(), pane(), NOW - 9000);
+	let memory = observe(emptyPlateMemory(), pane(), NOW - 9000);
 	assert.deepEqual(model(pane(), { memory }).strip, [{ kind: "status", glyph: "○", word: "READY", tone: "ready" }]);
 	const npm = pane({ program: { key: "npm", name: "npm", shell: false, agent: false } });
 	memory = observe(memory, npm, NOW - 761_000);
@@ -245,20 +245,20 @@ test("terminal strip: READY, RUNNING the full command with its clock, PI EXITED 
 
 test("what was under way at the first look has no clock: a running command, a working agent; a running Pi is not starting", () => {
 	const npm = pane({ program: { key: "npm", name: "npm", shell: false, agent: false } });
-	const running = paneModel({ pane: npm, terminal: term(), signals: null, memory: observe(emptyMemory(), npm, NOW), now: NOW + 5000 });
+	const running = paneModel({ pane: npm, terminal: term(), signals: null, memory: observe(emptyPlateMemory(), npm, NOW), now: NOW + 5000 });
 	assert.deepEqual(running.strip.map((s) => s.kind), ["status", "text"]);
 	const claude = pane({ app: "claude-code", status: "working", program: { key: "claude", name: "Claude Code", agent: true } });
-	const memory = observe(emptyMemory(), claude, NOW);
+	const memory = observe(emptyPlateMemory(), claude, NOW);
 	assert.deepEqual(paneModel({ pane: claude, terminal: term(), signals: null, memory, now: NOW + 5000 }).strip.map((s) => s.kind), ["status"]);
 	// herdr-core's status time, when the terminal record carries it, is the agent's start.
 	const withStatus = paneModel({ pane: claude, terminal: { ...term(), status_ms: NOW - 192_000 }, signals: null, memory, now: NOW });
 	assert.equal(withStatus.strip[1].text, "03:12");
-	assert.equal(paneModel({ pane: pane(PI), terminal: term(), signals: null, memory: observe(emptyMemory(), pane(PI), NOW), now: NOW }).kind, "droid");
+	assert.equal(paneModel({ pane: pane(PI), terminal: term(), signals: null, memory: observe(emptyPlateMemory(), pane(PI), NOW), now: NOW }).kind, "droid");
 });
 
 test("agent strip: READY, WORKING with the time since it started, NEEDS YOU, DONE", () => {
 	const claude = (status) => pane({ app: "claude-code", status, program: { key: "claude", name: "Claude Code", agent: true, shell: false } });
-	let memory = observe(emptyMemory(), claude("idle"), NOW - 200_000);
+	let memory = observe(emptyPlateMemory(), claude("idle"), NOW - 200_000);
 	memory = observe(memory, claude("working"), NOW - 192_000);
 	assert.deepEqual(paneModel({ pane: claude("working"), terminal: term(), signals: null, memory, now: NOW }).strip.map((s) => s.word ?? s.text), ["WORKING", "03:12"]);
 	assert.deepEqual(model(claude("blocked")).strip, [{ kind: "chip", glyph: "▲", word: "NEEDS YOU" }]);
@@ -276,12 +276,12 @@ test("formats, lighting and the signals label", () => {
 	assert.equal(lightingOf({ focused: false, hovered: true, active: true }), "standby");
 	assert.equal(lightingOf({ focused: false, hovered: false, active: true }), "dark");
 	assert.equal(lightingOf({ focused: true, hovered: true, active: false }), "dark");
-	assert.equal(LABEL, "io.signals.v1");
+	assert.equal(SIGNALS_LABEL, "io.signals.v1");
 	assert.equal(PLATE_LABEL, "io.droid-plate.v1");
 	for (const raw of [undefined, "", "{", "[]", JSON.stringify({ version: 2 })]) assert.equal(parseSignals(raw), null);
 	const s = parseSignals(JSON.stringify({ version: 1, sessionId: 7, root: { working: true, lastSettledAt: "x" }, phase: { kind: "tool", tool: "read", target: "a".repeat(300), since: 1 }, question: { text: 3 } }));
 	assert.deepEqual([s.sessionId, s.lastSettledAt, s.phase.target.length, s.question], [null, null, 200, null]);
-	const live = { address: "t1", state: "live", labels: { [LABEL]: JSON.stringify({ version: 1, sessionId: SESSION }) } };
+	const live = { address: "t1", state: "live", labels: { [SIGNALS_LABEL]: JSON.stringify({ version: 1, sessionId: SESSION }) } };
 	assert.equal(terminalSignals(live, "pi").sessionId, SESSION);
 	assert.equal(terminalSignals(live, "claude-code"), null);
 	assert.equal(terminalSignals({ ...live, state: "dead" }, "pi"), null);
@@ -354,7 +354,7 @@ test("Pi starts: the boot draws the pre-session plate, then K5 rolls the identit
 	// Each lighting layer plays the same motion in its own lighting.
 	assert.notDeepEqual(frame(t, NOW + 400, "dark", h.get, h.getUnknown, h.durations), frame(t, NOW + 400, "lit", h.get, h.getUnknown, h.durations));
 	// Unknown at the boot, known later: the roll starts when the label lands.
-	const unknown = model(pane(PI), { memory: { ...emptyMemory(), pi: true, piSince: NOW - STARTING_GRACE_MS } });
+	const unknown = model(pane(PI), { memory: { ...emptyPlateMemory(), pi: true, piSince: NOW - STARTING_GRACE_MS } });
 	let u = advance(advance(emptyTimeline(), view(shell), NOW), view(unknown), NOW, { durations: h.durations });
 	assert.equal(u.roll, null);
 	u = advance(u, view(droid), NOW + 9000, { durations: h.durations });
@@ -464,7 +464,7 @@ test("missing or malformed signals keep what Herdr knows: WORKING and NEEDS YOU 
 	for (const status of ["working", "blocked", "done", "idle", null]) {
 		for (const sig of malformed) {
 			const p = pane({ ...PI, status });
-			const m = model(p, { signals: sig, memory: observe(emptyMemory(), p, NOW - 10_000) });
+			const m = model(p, { signals: sig, memory: observe(emptyPlateMemory(), p, NOW - 10_000) });
 			const strip = m.strip.map((x) => x.word ?? x.text ?? "").join(" ");
 			const [word, state] = expect[String(status)];
 			if (word) {

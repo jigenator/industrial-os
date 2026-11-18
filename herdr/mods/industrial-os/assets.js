@@ -13,15 +13,15 @@ export const blur = (deviation, id = "g", reach = 100) => `<filter id="${id}" x=
 
 /** A halo's clear margin on every side. */
 export const HALO_PAD = 8;
-/** A monospace advance: 0.6 of the font size. */
-export const advance = (size) => size * 0.6;
+/** A monospace character's advance: 0.6 of the font size. */
+export const monoAdvance = (size) => size * 0.6;
 
 /**
  * Colour is light: whatever is acid, red or yellow bleeds a little of its own colour. This is that light for one
  * line of text, without the text; it lies under the crisp text, `HALO_PAD` past it on every side.
  */
 export function haloSvg(text, color, { size = 11, weight = 800, line = 17 } = {}) {
-	const w = text.length * advance(size) + 2 * HALO_PAD, h = line + 2 * HALO_PAD;
+	const w = text.length * monoAdvance(size) + 2 * HALO_PAD, h = line + 2 * HALO_PAD;
 	return svg(w, h, `<defs>${blur(3)}</defs><text x="${HALO_PAD}" y="${r2(HALO_PAD + line / 2 + size * 0.35)}" font-family="${FONT}" font-size="${size}" font-weight="${weight}" fill="${color}" fill-opacity="${A.glow}" filter="url(#g)">${esc(text)}</text>`);
 }
 
@@ -90,7 +90,7 @@ export function groundDots(w, h) {
 	return dots;
 }
 /** The sidebar's ground: the surface's gradient from top to bottom, and its dots at rest, held back. */
-export function groundSvg(w, h) {
+export function fieldSvg(w, h) {
 	const circles = (major) => groundDots(w, h).filter((d) => d.major === major).map((d) => `<circle cx="${d.x}" cy="${d.y}" r="${GROUND_DOT}"/>`).join("");
 	return svg(w, h, `<defs><linearGradient id="f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C.groundTop}"/><stop offset="1" stop-color="${C.groundBottom}"/></linearGradient></defs>`
 		+ `<rect width="${r2(w)}" height="${r2(h)}" fill="url(#f)"/><g fill-opacity="${A.groundDotRest}"><g fill="${C.groundDot}">${circles(false)}</g><g fill="${C.groundDotMajor}">${circles(true)}</g></g>`);
@@ -138,6 +138,6 @@ export function rulerSvg(w) {
 
 /** A word turned on its side, reading upwards, as on the hide grip. */
 export function sidewaysSvg(text, color, { size = 11, weight = 800, spacing = 1.3 } = {}) {
-	const length = text.length * advance(size) + (text.length - 1) * spacing, w = size + 2;
+	const length = text.length * monoAdvance(size) + (text.length - 1) * spacing, w = size + 2;
 	return svg(w, length, `<text transform="translate(${r2(w / 2 + size * 0.35)} ${r2(length)}) rotate(-90)" font-family="${FONT}" font-size="${size}" font-weight="${weight}" letter-spacing="${spacing}" fill="${color}">${esc(text)}</text>`);
 }

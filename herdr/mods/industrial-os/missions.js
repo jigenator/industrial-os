@@ -153,11 +153,11 @@ export function roster(missions) {
 }
 
 // The folded rail's lamp per tone: a lit cell for working, the plain signs otherwise.
-const LAMP = { working: "█", blocked: HERDR_ICONS.blocked, done: HERDR_ICONS.done, idle: HERDR_ICONS.idle, unknown: HERDR_ICONS.unknown };
+const LAMP_GLYPH = { working: "█", blocked: HERDR_ICONS.blocked, done: HERDR_ICONS.done, idle: HERDR_ICONS.idle, unknown: HERDR_ICONS.unknown };
 
 /** The folded rail: one lamp per pane, grouped by mission, in the list's order; `gap` opens each later mission. */
 export const railLamps = (missions) => missions.flatMap((m, mi) => m.tabs.flatMap((t) => t.units).map((u, k) => ({
-	id: u.id, address: u.address, name: u.name, tone: u.tone, code: u.code, lamp: LAMP[u.tone], focused: u.focused, gap: mi > 0 && k === 0,
+	id: u.id, address: u.address, name: u.name, tone: u.tone, code: u.code, lamp: LAMP_GLYPH[u.tone], focused: u.focused, gap: mi > 0 && k === 0,
 })));
 
 /** The agents the shown view lists, in its order, for `agent.next` and `agent.prev`. */

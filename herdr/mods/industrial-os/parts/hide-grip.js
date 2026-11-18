@@ -4,7 +4,7 @@ import { v_flex } from "gpui-base";
 import { HALO_PAD, barGlowSvg, sidewaysSvg } from "../assets.js";
 import { picture } from "./drawings.js";
 import { keyParts } from "./key-plate.js";
-import { LAMP } from "./light.js";
+import { LAMP_PULSE } from "./light.js";
 import { BLACK, CH, partId, present } from "./sheet.js";
 
 /**
@@ -30,6 +30,6 @@ export function hideGrip(t, { width, height, hot = false, binding = null, now, o
 				.when(binding, (x) => { const text = keyParts(binding), label = `${text.command ? "⌘" : ""}${text.text}`, len = label.length * (CH + 1.3);
 					return x.child(div().relative().flex_none().w(15).h(len + 8).rounded(2).bg(BLACK).children(present([picture(`side/${label}`, () => sidewaysSvg(label, t.working), 1, 4, 13, len)]))); }))
 			// At rest its ridges breathe.
-			: el.child(v_flex().gap(3).children(Array.from({ length: 9 }, () => div().flex_none().w(5).h(1).bg(t.dim))).loop("opacity", LAMP))));
+			: el.child(v_flex().gap(3).children(Array.from({ length: 9 }, () => div().flex_none().w(5).h(1).bg(t.dim))).loop("opacity", LAMP_PULSE))));
 	return present([glow, grip]);
 }

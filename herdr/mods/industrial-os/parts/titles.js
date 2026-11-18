@@ -1,7 +1,7 @@
 // Titles over a set of panes: a tab's in the missions view, a space's in the agents view. Labels, not controls.
 import { div } from "gpui-kit";
 import { h_flex } from "gpui-base";
-import { advance, fadeSvg } from "../assets.js";
+import { monoAdvance, fadeSvg } from "../assets.js";
 import { twoDigits } from "../format.js";
 import { SIDEBAR_COLORS as C } from "../vocabulary.js";
 import { picture } from "./drawings.js";
@@ -9,7 +9,7 @@ import { PAD, STEP_MS, partId, present } from "./sheet.js";
 import { tape, word } from "./text.js";
 
 /** The characters of a tab title that fit a column `inner` px wide. */
-export const tabTitleChars = (inner) => Math.floor((inner - 2 * PAD - 8 - 3 * 6) / advance(12));
+export const tabTitleChars = (inner) => Math.floor((inner - 2 * PAD - 8 - 3 * 6) / monoAdvance(12));
 
 /**
  * A tab's title: capitals, one line, its reference at the right. `tab`: { id, name, ref, quiet }. One longer than
@@ -22,7 +22,7 @@ export function tabTitle({ tab, chars, running = false, ground, onHover, onMenu 
 		.on_mouse_down("right", onMenu)
 		.child(div().relative().flex_1().min_w(0).h(17).line_height("17px").overflow_hidden().whitespace_nowrap().text_size(12).text_color(tab.quiet ? C.titleQuiet : C.title)
 			.map((el) => (run ? el.frames(tape(name, chars), STEP_MS) : el.child(name)))
-			.when(long && !run, (el) => el.children(present([picture(`fade/26x17/${ground}/left`, () => fadeSvg(26, 17, ground, "left"), chars * advance(12) - 26 + 4, 0, 26, 17)]))))
+			.when(long && !run, (el) => el.children(present([picture(`fade/26x17/${ground}/left`, () => fadeSvg(26, 17, ground, "left"), chars * monoAdvance(12) - 26 + 4, 0, 26, 17)]))))
 		.child(div().flex_none().text_size(10).text_color(C.label).child(tab.ref));
 }
 
