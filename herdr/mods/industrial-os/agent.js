@@ -1,4 +1,4 @@
-// One agent's block: state precedence, the unseen-work-finished rule, ACT/MDL access decay and every row's
+// One agent's block: state precedence, the unseen-work-finished rule and every row's
 // text. Pure: Herdr's data, the parsed label, a clock and remembered state in; plain values out.
 import { baseName, clean, contextBar, countText, displayPath, formatDuration, modelText } from "./format.js";
 
@@ -45,16 +45,6 @@ export function nextFinishedAt({ previousUnits, units, previousBackground, backg
 	const backgroundFinished = previousBackground !== null && previousBackground !== undefined && previousBackground >= 1 && background === 0;
 	return unitsFinished || backgroundFinished ? now : null;
 }
-
-export const DECAY_THRESHOLDS_MS = [3_600_000, 14_400_000, 86_400_000];
-
-/** Access is fresh while the terminal is seen, its row shows WRK/SUB/RUN, or Herdr's status is unknown. */
-export const accessIsFresh = ({ state, herdr, seen }) =>
-	seen || herdr === "unknown" || state === "working" || state === "subagents" || state === "background";
-
-/** 0 under an hour since last access, 1 from an hour, 2 from four hours, 3 from a day. A future time is 0. */
-export const decayStage = (lastAccessAt, now) =>
-	DECAY_THRESHOLDS_MS.filter((threshold) => Math.max(0, now - lastAccessAt) >= threshold).length;
 
 const BLAND = /^[^\p{L}\p{N}]+/u;
 
@@ -104,8 +94,8 @@ function prText(pr) {
 
 /**
  * The block for one Pi agent with signals. `memory` is what the mod remembered for this terminal
- * ({ units, background, finishedAt, lastAccessAt }); the result carries the next memory and the next time any
- * shown text changes on its own (a running clock or a decay boundary).
+ * ({ units, background, finishedAt }); the result carries the next memory and the next time any
+ * shown text changes on its own (a running clock).
  */
 export function piBlock({ agent, signals, herdr, seen, spaceName, tab, sharedTab = false, now, home, memory = {} }) {
 	const finishedAt = nextFinishedAt({
@@ -114,9 +104,6 @@ export function piBlock({ agent, signals, herdr, seen, spaceName, tab, sharedTab
 		herdr, seen, finishedAt: memory.finishedAt ?? null, now,
 	});
 	const state = displayState({ signals, herdr, finishedAt });
-	const fresh = accessIsFresh({ state, herdr, seen });
-	const lastAccessAt = fresh || !Number.isFinite(memory.lastAccessAt) ? now : memory.lastAccessAt;
-	const decay = decayStage(lastAccessAt, now);
 	const clocks = [];
 
 	// Row 1: state, SPACE (Active basename while unknown), the manual flag, goal time.
@@ -153,8 +140,13 @@ export function piBlock({ agent, signals, herdr, seen, spaceName, tab, sharedTab
 		}
 	}
 
+	// Since when it has been in the state it shows: the working phase, the unseen finish, else when the root agent
+	// last settled. Subagents and background tasks carry no start time, so SUB and RUN count from that settle too.
+	const since = state === "working" ? signals.phase?.since ?? tab?.working_since ?? null
+		: state === "done" ? finishedAt ?? signals.lastSettledAt
+		: signals.phase?.since ?? signals.lastSettledAt;
+
 	const changes = clocks.map((clock) => nextDurationChange(clock, now)).filter((at) => at !== null);
-	if (!fresh && decay < DECAY_THRESHOLDS_MS.length) changes.push(lastAccessAt + DECAY_THRESHOLDS_MS[decay]);
 	const model = modelText(signals.model, signals.thinking);
 	return {
 		block: {
@@ -167,15 +159,15 @@ export function piBlock({ agent, signals, herdr, seen, spaceName, tab, sharedTab
 			flag: signals.flag,
 			goal,
 			units: { text: countText(signals.units, "AU"), active: (signals.units ?? 0) >= 1, count: signals.units },
-			context: { text: bar.text, zone: bar.zone === "unknown" ? "unknown" : idle ? "idle" : bar.zone },
+			context: { text: bar.text, zone: bar.zone === "unknown" ? "unknown" : idle ? "idle" : bar.zone, percent: bar.percent },
 			compactions: `CMP×${countText(signals.compactions, "")}`,
+			since: Number.isFinite(since) ? since : null,
 			act: actText(signals, home),
 			pr: prText(signals.pr),
 			model,
-			decay,
 			row5,
 		},
-		memory: { units: signals.units, background: signals.backgroundTasks, finishedAt, lastAccessAt },
+		memory: { units: signals.units, background: signals.backgroundTasks, finishedAt },
 		nextChangeAt: changes.length ? Math.min(...changes) : null,
 	};
 }

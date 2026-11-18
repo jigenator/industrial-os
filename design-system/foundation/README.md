@@ -138,6 +138,24 @@ State colors are role names so motions recognise warning and critical cells. `CA
 
 `PI_CHROME`, exported from the same module, is a frozen object of the product colors [the Pi theme](../../pi/theme/industrial-os.json) and the Pi extensions use that are neither roles nor status-bar colors: `bone` `#e2dccb`, a warm off-white for the editor border at every thinking level, and `lamp` `#ff5c00`, the Pi droid header's signal lamp. `bone` is a Marathon-inspired value chosen for this theme, not a published Marathon brand color. `lamp` has the same value as `SIGNAL_COLORS.cld`, the Marathon signal orange, in a separate role, and a different name because no `PI_CHROME` name may shadow another object's. The theme's other values are roles or signal colors. Like `HERDR_TERMINAL`, they are not part of Acid / Black and are kept out of `SIGNAL_COLORS`, which status-bar maps to footer aliases. No storybook story shows them.
 
+## Sidebar vocabulary
+
+[sidebar-vocabulary.mjs](sidebar-vocabulary.mjs), exported as `@industrial-os/design-system/foundation/sidebar-vocabulary`, holds the values and words of the Industrial OS sidebar in the Herdr desktop app. It is values and vocabulary only: nothing in it draws terminal cells, and no element or storybook story renders it. The [Herdr mod](../../herdr/mods/industrial-os) is the only renderer. A mod cannot import a package, so the mod keeps a committed copy (`vocabulary.js`) and the drawn marks (`marks/*.svg`), both written by `herdr/scripts/sync-vocabulary.mjs` and compared with this module by `herdr/test/industrial-os-sidebar.test.mjs`. Change a value here, then run the script. How the sidebar uses them is in [the Herdr design](../../herdr/docs/design.md).
+
+| Export | What it is |
+| --- | --- |
+| `SIDEBAR_COLORS` | Frozen lowercase `#rrggbb` values the sidebar uses beside the Acid / Black roles, which it takes from the app theme: the crate plate's paper, print and hairlines; the map's inks on its dark board and printed on the plate; the list's greys and rules; key plates; the context warning; the ground and its dots; a flicker's red and cyan fringes; plain black and white. `light` is paper × accent, channel by channel (checked). |
+| `SIDEBAR_ALPHA` | Frozen opacities, each in (0, 1]: glass, dot grids, the light band, the map's backing, `glow` (how much of its own color a lit element bleeds), `groundDotRest` (the ground's dots at rest), `sweep` (the line that sweeps the ground), `latch` (a pane's block as its state changes) and the two fringes' strengths. |
+| `UNIT_STATUS` | What a pane's unit reports on the map, by state code: QNS `RFI`, BLK `HOLD`, DNE `SITREP`, WRK and SUB `ON TASK`, RUN `EXEC`, IDL `STBY`, UNK `NO COMMS`. |
+| `ZONE_STATUS`, `zoneStatus(codes)` | A tab is a zone. The first that applies: every pane blocked is `halted`; any WRK, SUB or RUN `active`; any QNS or BLK `pending`; else `secure`. A zone without panes is secure. |
+| `UNIT_KINDS`, `spaceLetter`, `gridReference`, `designation` | Designations. A space's letter from its position (A–Z, then AA), a tab's grid reference `A01` (two digits from 01, capped at 99), and a unit's designation `DRD-A01-1`: its kind (`drd` Pi droid, `agt` another agent, `trm` terminal, `mod` mod pane), its tab's reference and its place from 1. Invalid indexes and unknown or inherited kinds throw `RangeError`. |
+| `STATE_MARKS`, `markFrame(code, ms)` | One mark per state code on a 9 × 9 grid: `{ lit, stepMs, frames }`. QNS a ringed diamond whose ring blinks (440 ms); BLK a crossed box; WRK a core with one satellite (8 frames, 110 ms); SUB a core with three (4 frames, 110 ms); RUN a frame with a scan line (4 frames, 220 ms); DNE a solid grid; IDL a ring; UNK one cell. Moving marks advance in hard steps; `markFrame` gives the frame at `ms` on any clock, 0 for a still mark. Lit marks (the first five) bleed their color; the others are print. |
+| `MARK_PAD`, `MARK_BOX`, `markSvg(code, frame)` | A drawn mark is a one-color mask the drawer tints, centered in a `MARK_BOX` (17) box with `MARK_PAD` (4) clear on each side for a lit mark's halo. |
+| `SIDEBAR_ICONS`, `iconSvg(name, lit)` | The other drawn signs on the same grid: `droid` (the Industrial OS mark), `machine`, `spaces`, `command`, `search`, `flag`, `pointer`. The flag, pointer and search lens also come lit. |
+| `markFiles()` | Every file the mod ships, `[name, SVG]` in a fixed order: `wrk-0.svg` … for each mark frame, then each sign and its `-lit` form. |
+
+The module ships `.d.mts` declarations. Unknown or inherited state codes and sign names throw `RangeError`.
+
 ## Barcode
 
 [barcode.mjs](barcode.mjs) draws a plate's barcode: `barcode(n, pick)` returns exactly `n` cells (1–1000), a `▌` guard, `n − 2` bars and a `▐` guard (one cell is the `▌` guard only), each bar `BARCODE_BARS[pick(BARCODE_BARS.length)]`. `BARCODE_BARS` is the frozen list of ten bar cells, eighth-block and half bars, a full block and two spaces, with thin bars repeated so the code reads as a code. The caller's `pick(count)` returns an integer in `[0, count)`: the crate banner derives it from the serial, the unit plate from a `random(seed)` generator, so the same input always draws the same bars. A non-function `pick` throws `TypeError`; an invalid `n` or pick `RangeError`.
@@ -156,7 +174,7 @@ Status-bar's consumed element, token, seeded and motion subpaths also have decla
 
 ## Checks
 
-`node --test foundation/*.test.mjs` covers seeded determinism and bounds, the signal colors' format and `mixOver`'s rounding, range and declared mixes, the Herdr chrome colors' format and 30% mix, the Pi chrome colors' format and names, sanitization, truncation, exact line widths, unchanged named-role SGR, literal RGB and invalid-style boundaries, color/plain equivalence for all 110 color/ramp swatches, the 22 color records (unique ids, uppercase hex, families) and their immutability, exact ramp centers and all 256 channel values. Full validation remains in [Contributing](../CONTRIBUTING.md).
+`node --test foundation/*.test.mjs` covers seeded determinism and bounds, the signal colors' format and `mixOver`'s rounding, range and declared mixes, the Herdr chrome colors' format and 30% mix, the Pi chrome colors' format and names, sanitization, truncation, exact line widths, unchanged named-role SGR, literal RGB and invalid-style boundaries, color/plain equivalence for all 110 color/ramp swatches, the 22 color records (unique ids, uppercase hex, families) and their immutability, exact ramp centers and all 256 channel values, and the sidebar vocabulary's value formats, the paper-light product, status words, zone order, designations, mark frames and one-color mark files. Full validation remains in [Contributing](../CONTRIBUTING.md).
 
 ## Dashboard foundation
 

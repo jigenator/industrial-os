@@ -370,3 +370,12 @@ Node v22.23.4, macOS, herdr-app 0.1.16, branch `feat/sticky-droid-plate`. The He
 - **Types:** strict NodeNext `package-types.ts` with `pi/status-bar/test/design-system-types.ts` and every `.d.mts`, claude-interrupt's TypeScript 5.9.3: exit 0.
 - **Live:** the Herdr pane plate drawing these shapes, in a `herdr-app shot`: solid peak triangles and unbroken barcode bars.
 - **Not run:** a story (foundation data, like the barcode, has none); other display scales.
+
+## Sidebar vocabulary (2026-11-18)
+
+Node v22.23.4, macOS, herdr-app 0.1.16. New `foundation/sidebar-vocabulary.mjs` with `.d.mts`, exported as `./foundation/sidebar-vocabulary`: the Herdr sidebar's colors and opacities, unit and zone status words, designations, and eight state marks and seven signs as one-color SVG masks. Values and vocabulary only, at David's choice: no element, motion or story renders it, and the Herdr mod is its only renderer through a committed copy.
+
+- **Passed:** `node --test` **676/676**, 6 of them new: value formats and frozenness, `light` equal to paper × accent, status words, zone order, designations and their `RangeError`s, mark frames, and every mark file as a one-color mask with a halo only when lit. `package.test.mjs` imports the new subpath with every other export.
+- **Consumer:** herdr **56/56**, including the copy and marks equal to this module; the marks were seen tinted, lit and stepping in the Herdr probe window ([record](../herdr/CONTRIBUTING.md#sidebar-redesign)).
+- **After merging `main`** (the droid-plate additions): `node --test` **708/708**.
+- **Not run:** the storybook and showcase, which this change does not touch; any terminal rendering, since there is none.
