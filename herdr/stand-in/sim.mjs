@@ -31,6 +31,8 @@ export class Sim {
 			stop_propagation: () => { sim.stopped = true; },
 			new: (C, p) => sim.create(C, p),
 			spawn: (fn) => { Promise.resolve().then(() => fn(entity.cx)).catch((e) => { sim.errors.push(e); }); return { cancel() {} }; },
+			focus_handle: () => ({ focus() {} }),
+			sleep: (ms) => new Promise((resolve) => { sim.timer(entity, ms ?? 0, () => resolve(), false); }),
 			timer: { every: (ms, fn) => sim.timer(entity, ms, fn, true), after: (ms, fn) => sim.timer(entity, ms, fn, false) },
 		};
 		this.entities.push(entity);
@@ -89,6 +91,7 @@ export class Sim {
 			if (Object.keys(n.style).length) out.style = n.style;
 			if (n.hover) out.hover = n.hover;
 			if (n.active) out.active = n.active;
+			if (n.tooltip) out.tooltip = n.tooltip;
 			if (n.transitions.length) out.transitions = n.transitions;
 			if (n.loop) out.loop = n.loop;
 			if (n.frames) out.frames = n.frames;

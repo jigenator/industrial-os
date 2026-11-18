@@ -1,20 +1,22 @@
-// Checks the droid-plate pane header mod: its pure rules (unit, strip, lighting, the signals label, the header's rows
-// and the motion timeline), its imports, and that its ds/ folder is exactly the design-system files it imports.
+// Checks the droid-plate pane header (the industrial-os mod's `part: "plate"`, in mods/industrial-os/plate/): its
+// pure rules (unit, strip, lighting, the signals label, the header's rows and the motion timeline), its folder, and
+// that the mod's ds/ folder is exactly the design-system files it imports.
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
-import { agentCode, clockText, commandText, emptyMemory, fnv, homePath, isAgent, isPi, lightingOf, observe, paneModel, PI_HINTS, presession, shellCode, STARTING_GRACE_MS, timeOfDay } from "../mods/droid-plate/model.js";
-import { LABEL, parseSignals, PLATE_LABEL, terminalSignals } from "../mods/droid-plate/signals.js";
-import { BLOCK_WIDTH, cellPlan, cellWidthOf, coarsen, columnsOf, composeHeader, PIECE_BUDGET, DRAW_LIMIT, GRIP_PX, KEY_ACTIONS, MIN_WIDTH, PEAK_CLEAR, peakFromOf, ROW_HEIGHTS, ROW_TOPS, ROWS, scanPolygon } from "../mods/droid-plate/plate.js";
-import { glyphShape } from "../mods/droid-plate/ds/foundation/glyph-shapes.mjs";
-import { advance, BANKS, emptyTimeline, frame, frameStep, ghostDelay, GHOST_EVERY, headerDurations, LAYER_LIMIT, layerBanks, needsPrime, nextWake, playingUntil, prime, PRIME_MS, REVEAL, ROLL, settle, STANDBY_IN, STANDBY_OUT, wordmarkGlyphs } from "../mods/droid-plate/motion.js";
-import { LabelPublisher, RETRY_LIMIT, WRITE_TIMEOUT_MS } from "../mods/droid-plate/labels.js";
-import { Scheduler } from "../mods/droid-plate/clock.js";
+import { agentCode, clockText, commandText, emptyMemory, fnv, homePath, isAgent, isPi, lightingOf, observe, paneModel, PI_HINTS, presession, shellCode, STARTING_GRACE_MS, timeOfDay } from "../mods/industrial-os/plate/model.js";
+import { LABEL, parseSignals, PLATE_LABEL, terminalSignals } from "../mods/industrial-os/plate/signals.js";
+import { BLOCK_WIDTH, cellPlan, cellWidthOf, coarsen, columnsOf, composeHeader, PIECE_BUDGET, DRAW_LIMIT, GRIP_PX, KEY_ACTIONS, MIN_WIDTH, PEAK_CLEAR, peakFromOf, ROW_HEIGHTS, ROW_TOPS, ROWS, scanPolygon } from "../mods/industrial-os/plate/plate.js";
+import { glyphShape } from "../mods/industrial-os/ds/foundation/glyph-shapes.mjs";
+import { advance, BANKS, emptyTimeline, frame, frameStep, ghostDelay, GHOST_EVERY, headerDurations, LAYER_LIMIT, layerBanks, needsPrime, nextWake, playingUntil, prime, PRIME_MS, REVEAL, ROLL, settle, STANDBY_IN, STANDBY_OUT, wordmarkGlyphs } from "../mods/industrial-os/plate/motion.js";
+import { LabelPublisher, RETRY_LIMIT, WRITE_TIMEOUT_MS } from "../mods/industrial-os/plate/labels.js";
+import { Scheduler } from "../mods/industrial-os/plate/clock.js";
 import { check, closure, modEntries, relativeImports } from "../scripts/sync-design-system.mjs";
 // The mod's own copy: the package name resolves through the root install, which may link another checkout.
-import { unitPlate } from "../mods/droid-plate/ds/elements/unit-plate/unit-plate.mjs";
+import { unitPlate } from "../mods/industrial-os/ds/elements/unit-plate/unit-plate.mjs";
 
-const MOD = new URL("../mods/droid-plate/", import.meta.url);
+const MOD = new URL("../mods/industrial-os/plate/", import.meta.url);
+const MOD_ROOT = new URL("../mods/industrial-os/", import.meta.url);
 const SESSION = "01a1e81c-27f3-70f3-b278-150c4f01fa03";
 const NOW = 1_794_909_494_000;
 const text = (line) => line.map((s) => s.text).join("");
@@ -659,27 +661,20 @@ test("the peak clears Herdr's drag grip: its first cell is the pane centre plus 
 	assert.deepEqual(composeHeader(shell, { width: 99, peakFrom: 54 }).lines, composeHeader(shell, { width: 99 }).lines);
 });
 
-test("imports stay inside the mod folder: main.js uses the app's modules, the pure modules only ./ and ./ds/", async () => {
+test("the plate's folder: one view and six pure modules, which import only each other and ../ds/", async () => {
+	// What each file may import from the app is checked for the whole mod in industrial-os-layout.test.mjs.
 	const files = (await readdir(MOD)).filter((f) => f.endsWith(".js"));
-	assert.deepEqual(files.sort(), ["clock.js", "labels.js", "main.js", "model.js", "motion.js", "plate.js", "signals.js"]);
-	for (const file of files) {
+	assert.deepEqual(files.sort(), ["clock.js", "labels.js", "model.js", "motion.js", "plate.js", "signals.js", "view.js"]);
+	for (const file of files.filter((f) => f !== "view.js")) {
 		const source = await readFile(new URL(file, MOD), "utf8");
 		const specifiers = [...source.matchAll(/^\s*import\s[^"']*["']([^"']+)["']/gm)].map((m) => m[1]);
-		for (const specifier of specifiers) {
-			const local = /^\.\/[\w-]+\.js$/.test(specifier) && files.includes(specifier.slice(2));
-			const ds = /^\.\/ds\/[\w/-]+\.mjs$/.test(specifier) && file !== "main.js";
-			const host = file === "main.js" && ["gpui-kit", "gpui-base", "herdr"].includes(specifier);
-			assert.ok(local || ds || host, `${file} imports ${specifier}`);
-		}
-		assert.doesNotMatch(source, /\b(setTimeout|setInterval|Intl\.|structuredClone|TextDecoder|WebSocket|require\()/, file);
-		if (file !== "main.js") assert.doesNotMatch(source, /from "(gpui-kit|gpui-base|herdr)"/, file);
+		for (const specifier of specifiers) assert.match(specifier, /^\.\/[\w-]+\.js$|^\.\.\/ds\/[\w/-]+\.mjs$/, `${file} imports ${specifier}`);
 	}
-	assert.deepEqual(JSON.parse(await readFile(new URL("mod.json", MOD), "utf8")), { place: "none", title: "Droid plate" });
 });
 
 test("ds/ is a byte-for-byte copy of exactly the design-system files the mod imports", async () => {
 	assert.deepEqual(await check(), []);
-	const entries = await modEntries(new URL(".", MOD).pathname);
+	const entries = await modEntries(MOD_ROOT.pathname);
 	assert.ok(entries.includes("elements/unit-plate/unit-plate.mjs") && entries.includes("motions/bank-switch.mjs"));
 	const files = await closure(entries);
 	assert.ok(files.includes("foundation/cells.mjs") && !files.some((f) => f.endsWith(".test.mjs") || f.endsWith(".d.mts")));

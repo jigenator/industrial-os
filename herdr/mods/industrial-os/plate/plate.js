@@ -1,10 +1,10 @@
 // The pane header's seven rows: the design system's unit plate (rows 0–5) and status strip with its keycap bay
 // (row 6), for a model from model.js at one width and lighting. Pure; the view turns the rows into elements.
 
-import { fitUnitCode, unitPlate, UNIT_PLATE_ROWS } from "./ds/elements/unit-plate/unit-plate.mjs";
-import { statusStrip } from "./ds/elements/status-strip/status-strip.mjs";
-import { resolveStyle } from "./ds/foundation/cells.mjs";
-import { glyphShape } from "./ds/foundation/glyph-shapes.mjs";
+import { fitUnitCode, unitPlate, UNIT_PLATE_ROWS } from "../ds/elements/unit-plate/unit-plate.mjs";
+import { statusStrip } from "../ds/elements/status-strip/status-strip.mjs";
+import { resolveStyle } from "../ds/foundation/cells.mjs";
+import { glyphShape } from "../ds/foundation/glyph-shapes.mjs";
 
 /** The droid header's title-block threshold: narrower plates have no title block, barcode or bay alignment. */
 export const TITLE_BLOCK_MIN = 56;

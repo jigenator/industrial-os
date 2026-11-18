@@ -1,6 +1,7 @@
 // The Industrial OS pane header: a unit plate over every tab pane, drawn by the design system. The plate says who
 // is in the pane (a Pi droid, another agent, or a terminal); the strip under it says what the pane is doing and holds
-// the split, zoom and close keys. Props from the app: { pane, terminal }. Click: focus the pane.
+// the split, zoom and close keys. Props from the app: { pane, terminal }, beside the layout's `part: "plate"`.
+// Click: focus the pane. main.js runs this view as the copy's root: it calls init, render and close with its own cx.
 //
 // The rules live in the pure modules beside this file; this view reads Herdr, looks up the foreground command with
 // `hc get`, keeps the remembered times and the motion timeline, runs the pane commands and draws. Herdr interrupts a
@@ -26,6 +27,7 @@ import { cellPlan, cellWidthOf, coarsen, columnsOf, composeHeader, KEY_ACTIONS, 
 import { advance, emptyTimeline, frame, frameStep, headerDurations, layerBanks, lightingNow, needsPrime, nextWake, prime, PRIME_MS, REVEAL, settle } from "./motion.js";
 import { LabelPublisher } from "./labels.js";
 import { Scheduler } from "./clock.js";
+import { MOD } from "../parts/drawings.js";
 
 // The terminal's font, as Herdr defaults it, when the settings name none.
 const DEFAULT_FONT = "JetBrains Mono";
@@ -72,7 +74,7 @@ function command(action, pane) {
 	else if (action === "close") run("pane.close", { pane });
 }
 
-export default class DroidPlate extends View {
+export class DroidPlate extends View {
 	init(_props, cx) {
 		this.memory = emptyMemory();
 		this.timeline = emptyTimeline();
@@ -331,7 +333,7 @@ export default class DroidPlate extends View {
 		for (const t of plan.texts) {
 			if (!keep(t)) continue;
 			if (t.ch === MARK) {
-				out.push(svg("mods/droid-plate/mark.svg").absolute().left(t.x - dx + (t.w - MARK_PX) / 2).top(t.y - dy + (t.h - MARK_PX) / 2).size(MARK_PX).text_color(t.color));
+				out.push(svg(`${MOD}/plate/mark.svg`).absolute().left(t.x - dx + (t.w - MARK_PX) / 2).top(t.y - dy + (t.h - MARK_PX) / 2).size(MARK_PX).text_color(t.color));
 				continue;
 			}
 			let el = at(h_flex(), t).justify_center().items_center().line_height(`${t.h}px`).text_color(t.color ?? "#ffffff");

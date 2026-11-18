@@ -4,6 +4,8 @@ Status: current at the change that split `mods/industrial-os/main.js` into parts
 
 A part is one piece of the sidebar that draws itself from what it is given: a pane's row, a space's band, the crate plate. The sidebar places the parts; the storybook shows each one alone, in its states. Both import the same files, so there is one copy of each part.
 
+The pane header (`plate/`) and the Pi Reloader (`reloader/`) are in the same mod, so either can import a part as the sidebar does. Neither does yet, and neither has a story: a piece of theirs becomes a part, with a story, when a second view needs it.
+
 ## What a part is
 
 - A file in `mods/industrial-os/parts/`. It imports `gpui-kit` and `gpui-base` itself, the pure modules one folder up (`../format.js`, `../assets.js`, `../vocabulary.js`, …) and other parts.
@@ -68,6 +70,6 @@ Its files:
 
 ## The stand-in
 
-`herdr/stand-in/` lets Node load code that imports `gpui-kit`, `gpui-base`, `herdr` and `fs/promises`: an element builder that records what was asked of it and throws on any method it was not told the app has, a `herdr` whose window a test sets, an in-memory file system, and `Sim`, which runs views on a clock a test moves. A test registers `stand-in/hooks.mjs` and then imports the mod.
+`herdr/stand-in/` lets Node load code that imports `gpui-kit`, `gpui-base`, `herdr`, `fs/promises` and `net`: an element builder that records what was asked of it and throws on any method it was not told the app has, a `herdr` whose window a test sets and whose `hc` always fails, an in-memory file system, a `net` that opens no socket, and `Sim`, which runs views on a clock a test moves. A test registers `stand-in/hooks.mjs` and then imports the mod.
 
 It proves that the code runs and what tree it builds. It does not lay out or paint: sizes, fonts, clipping and real motion are seen only in the app. A `gpui-kit` method new to the mod is added to `stand-in/kit.mjs` after checking it in the app's `gpui-kit.d.ts`.

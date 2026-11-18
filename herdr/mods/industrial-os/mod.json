@@ -1,1 +1,1 @@
-{ "place": "none", "title": "Industrial OS" }
+{ "place": "none", "title": "Industrial OS", "overlay": { "kind": "window", "width": 620, "height": 460, "props": { "part": "reloader" } } }

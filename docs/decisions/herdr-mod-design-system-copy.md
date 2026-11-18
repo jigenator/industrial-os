@@ -1,6 +1,6 @@
 # A Herdr desktop mod carries a generated copy of the design system
 
-Status: current. Date: 2026-11-17; approved by the maintainer with the droid-plate pane header. Adds one exception to the [module and dependency rule](../conventions.md#module-and-dependency-rules); the [package decision](in-repo-design-system-package.md) is otherwise unchanged.
+Status: current. Date: 2026-11-17; approved by the maintainer with the droid-plate pane header, then a mod of its own. Since 2026-11-18 the pane header is the `plate/` folder of the one `industrial-os` mod ([decision](herdr-combined-mod.md)) and `ds/` is that mod's; the choice is unchanged. Adds one exception to the [module and dependency rule](../conventions.md#module-and-dependency-rules); the [package decision](in-repo-design-system-package.md) is otherwise unchanged.
 
 ## Problem
 
@@ -8,9 +8,9 @@ The approved sticky droid plate is a Herdr desktop pane header drawn from the de
 
 ## Choice
 
-The mod keeps a `ds/` folder that is a byte-for-byte copy of exactly the design-system files its pure modules import, plus everything those import, in the design system's own tree (`ds/elements/unit-plate/unit-plate.mjs`, …). Its pure modules import `./ds/…` paths; `main.js` imports only the app's modules and its own files.
+The mod keeps a `ds/` folder that is a byte-for-byte copy of exactly the design-system files its pure modules import, plus everything those import, in the design system's own tree (`ds/elements/unit-plate/unit-plate.mjs`, …). Its pure modules import `ds/` paths (`../ds/…` from `plate/`); the files that draw import only the app's modules and the mod's own files, never `ds/`.
 
-- `herdr/scripts/sync-design-system.mjs` (Node standard library) computes the import closure of every mod's `./ds/…` imports and rewrites `ds/`; `--check` reports missing, extra and changed files.
+- `herdr/scripts/sync-design-system.mjs` (Node standard library) computes the import closure of every import that lands in a mod's `ds/`, from any folder of the mod, and rewrites `ds/`; `--check` reports missing, extra and changed files.
 - `herdr/test/droid-plate.test.mjs` fails while `ds/` differs from the design system by a byte, or holds a file outside the closure.
 - `ds/` is never edited. A change starts in `design-system/`, with its tests, README and story, then the sync, then the mod.
 - Only design-system files that are already standard library only and free of host I/O are copied; the design system's own rule already guarantees that.
@@ -24,7 +24,7 @@ The mod keeps a `ds/` folder that is a byte-for-byte copy of exactly the design-
 
 ## Consequences
 
-The repository holds a second copy of 21 design-system files under `herdr/mods/droid-plate/ds/`; a design-system change that touches them makes `herdr/` tests fail until the sync runs, in the same change. Reviewers see the copied diff twice. The copy is this repository's own code, so it needs no notice. The industrial-os sidebar can adopt design-system elements the same way, closing its adoption gap.
+The repository holds a second copy of 21 design-system files under `herdr/mods/industrial-os/ds/`; a design-system change that touches them makes `herdr/` tests fail until the sync runs, in the same change. Reviewers see the copied diff twice. The copy is this repository's own code, so it needs no notice. The sidebar's pure modules, in the same mod, can import `ds/` the same way, closing its adoption gap.
 
 ## Revisit when
 

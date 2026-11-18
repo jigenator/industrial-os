@@ -1,14 +1,15 @@
-// Checks the pi-reloader mod's pure rules (reloader.js): candidate selection and protection, the guard label and
-// wire checks, and the reload and reset sequences against a simulated herdr-core and guard. No Herdr, Pi or socket.
+// Checks the Pi Reloader's pure rules (the industrial-os mod's reloader/reloader.js): candidate selection and
+// protection, the guard label and wire checks, and the reload and reset sequences against a simulated herdr-core and
+// guard. No Herdr, Pi or socket.
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 import {
 	LABEL, checkReply, checkTerminal, decodeUtf8, heading, layoutTerminals, parseGuard, reloadOne, requestLine,
 	resetOne, restartable, resumeCommand, runAll, selectCandidates, validSession,
-} from "../mods/pi-reloader/reloader.js";
+} from "../mods/industrial-os/reloader/reloader.js";
 
-const MOD = new URL("../mods/pi-reloader/", import.meta.url);
+const MOD = new URL("../mods/industrial-os/reloader/", import.meta.url);
 const TOKEN = (n) => n.toString(16).padStart(32, "0");
 const label = (port, token) => ({ [LABEL]: JSON.stringify({ v: 2, port, token }) });
 
@@ -208,17 +209,10 @@ test("heading: errors first, then success or nothing to do", () => {
 	assert.equal(heading({ completed: 1, failed: 1 }), "Completed with errors");
 });
 
-test("the mod folder: imports stay inside it, the pure module imports nothing, no missing runtime globals", async () => {
+test("the reloader's folder: one view and one pure module, with no color value of its own", async () => {
+	// What each file may import from the app, and the shipped mod.json, are checked in industrial-os-layout.test.mjs.
 	const files = (await readdir(MOD)).filter((f) => f.endsWith(".js"));
-	assert.deepEqual(files.sort(), ["main.js", "reloader.js"]);
-	for (const file of files) {
-		const source = await readFile(new URL(file, MOD), "utf8");
-		const specifiers = [...source.matchAll(/^\s*import\s[^"']*["']([^"']+)["']/gm)].map((m) => m[1]);
-		const allowed = file === "main.js" ? ["gpui-kit", "gpui-base", "herdr", "net"] : [];
-		for (const specifier of specifiers) assert.ok(allowed.includes(specifier) || /^\.\/[\w-]+\.js$/.test(specifier), `${file} imports ${specifier}`);
-		assert.doesNotMatch(source, /\b(setTimeout|setInterval|Intl\.|TextDecoder|WebSocket|require\()/, file);
-		assert.doesNotMatch(source, /#[0-9a-f]{6}\b/i, `${file} holds a color value`);
-	}
-	// The shipped window has no `only` prop, so it acts on every eligible Pi.
-	assert.deepEqual(JSON.parse(await readFile(new URL("mod.json", MOD), "utf8")), { place: "none", title: "Pi Reloader", overlay: { kind: "window", width: 620, height: 460 } });
+	assert.deepEqual(files.sort(), ["reloader.js", "view.js"]);
+	for (const file of files) assert.doesNotMatch(await readFile(new URL(file, MOD), "utf8"), /#[0-9a-f]{6}\b/i, `${file} holds a color value`);
+	assert.doesNotMatch(await readFile(new URL("reloader.js", MOD), "utf8"), /^\s*import\s/m, "reloader.js imports nothing");
 });

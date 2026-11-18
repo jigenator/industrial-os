@@ -17,7 +17,7 @@ Then the [repository-wide checks](../../CONTRIBUTING.md#repository-wide-checks).
 
 ## Making a change
 
-A protocol change starts in [the contract](docs/contract.md), then this extension and `herdr/mods/pi-reloader/reloader.js` with both test files. Keep every new refusal path covered by a test that shows no action was taken.
+A protocol change starts in [the contract](docs/contract.md), then this extension and `herdr/mods/industrial-os/reloader/reloader.js` with both test files. Keep every new refusal path covered by a test that shows no action was taken.
 
 ## Verification records
 

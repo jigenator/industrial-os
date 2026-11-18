@@ -1,6 +1,9 @@
 // Pi Reloader: lists the Pi agents Herdr reports as idle or done, and reloads or restarts them through each Pi's
-// draft guard (pi/reloader-guard). Opened as a window (mod.json) by `mod.open:pi-reloader`; `pi-reloader.reload`,
-// `pi-reloader.reset` and `pi-reloader.close` reach it as mod commands. Every rule is in reloader.js.
+// draft guard (pi/reloader-guard). Opened as a window by `mod.open:industrial-os`: mod.json's overlay carries
+// `part: "reloader"`, and main.js runs this view as that copy's root, calling init, render and close with its own cx.
+// `industrial-os.reloader-reload`, `industrial-os.reloader-reset` and `industrial-os.reloader-close` reach it as mod
+// commands; every copy of the mod hears every command, so these names are this window's alone. Every rule is in
+// reloader.js.
 
 import { View, div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
@@ -16,7 +19,7 @@ const GUARD_TIMEOUT_MS = 3_000;
 const MAX_REPLY_BYTES = 8_192;
 const TIMED_OUT = Symbol("timed out");
 
-export default class PiReloader extends View {
+export class PiReloader extends View {
 	init(_props, cx) {
 		this.selected = 0;
 		this.running = null; // { action, done, total }
@@ -26,9 +29,9 @@ export default class PiReloader extends View {
 		cx.spawn(async (cx) => {
 			for (;;) {
 				const command = await nextCommand();
-				if (command === "close") this.close();
+				if (command === "reloader-close") this.close();
 				else if (command === "focus") this.handle.focus();
-				else this.start(ACTIONS.find((a) => a.id === command), cx);
+				else this.start(ACTIONS.find((a) => `reloader-${a.id}` === command), cx);
 				cx.notify();
 			}
 		});

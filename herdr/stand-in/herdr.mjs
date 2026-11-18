@@ -1,7 +1,7 @@
 // A stand-in for the app's `herdr` module. A test sets `state` to the window it wants (lists in herdr.d.ts's
-// shapes), and reads back what the mod asked for: `state.runs`, `state.overlays`, `state.shared`.
+// shapes), and reads back what the mod asked for: `state.runs`, `state.overlays`, `state.shared`, `state.hc`.
 export const state = {
-	spaces: [], agents: [], terminals: [], panes: [], focused: null, props: {}, width: 300, shared: {}, runs: [], overlays: [], waiting: [], git: {},
+	spaces: [], agents: [], terminals: [], panes: [], focused: null, props: {}, width: 300, shared: {}, runs: [], overlays: [], waiting: [], git: {}, hc: [],
 	keys: [{ keys: "cmd-p", action: "mod.open:picker" }, { keys: "cmd-t", action: "tab.new" }, { keys: "cmd-\\", action: "industrial-os.fold" }],
 	machine: "mac", update: false, checking: false,
 	changed() {}, // set by the simulation: live data or a shared value changed
@@ -22,10 +22,12 @@ export const exec = async (cmd, _args, options) => {
 	const g = state.git[options?.cwd];
 	return g ? { code: 0, stdout: `${g[0]}\t${g[1]}\n` } : { code: 1, stdout: "" };
 };
+// There is no core behind the stand-in: every `hc` call is recorded and fails.
+export const hc = async (args) => { state.hc.push(args); return { code: 1, stdout: "", stderr: "no core in the stand-in" }; };
 export const setAgentOrder = () => {}, shared = (k) => state.shared[k];
 export const setShared = (k, v) => { state.shared[k] = v; state.changed(); };
 // The acid-black theme's values.
-export const theme = () => ({ working: "#c0fe04", blocked: "#f24723", done: "#ffffff", foreground: "#ffffff", dim: "#717171", muted: "#cfcfcf", input: "#555555", selected: "#1c1c1c", hover: "#333333", surface: "#111111", raised: "#1c1c1c" });
+export const theme = () => ({ working: "#c0fe04", blocked: "#f24723", done: "#ffffff", foreground: "#ffffff", dim: "#717171", muted: "#cfcfcf", input: "#555555", selected: "#1c1c1c", hover: "#333333", surface: "#111111", raised: "#1c1c1c", popover: "#111111" });
 export const updates = () => ({ app: { ready: state.update } }), window = () => ({ active: true, platform: "macos" });
 export const openOverlay = (spec) => { state.overlays.push(spec); return `o${state.overlays.length}`; };
 export const closeOverlay = (id) => { state.runs.push(["closeOverlay", id]); return null; };

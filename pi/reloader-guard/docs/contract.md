@@ -1,6 +1,6 @@
 # Guard contract
 
-Status: current, version 2. This is the canonical wire protocol between the guard (`src/extension.ts`) and its one client, the Herdr desktop [Pi Reloader mod](../../../herdr/mods/pi-reloader/reloader.js). Change it here first, then both sides and their tests together. Version 2 removed `pid`, `ppid` and `terminal` from the label and the wire; version 1 labels and requests are refused.
+Status: current, version 2. This is the canonical wire protocol between the guard (`src/extension.ts`) and its one client, the Herdr desktop [Pi Reloader](../../../herdr/mods/industrial-os/reloader/reloader.js), a window of the industrial-os mod. Change it here first, then both sides and their tests together. Version 2 removed `pid`, `ppid` and `terminal` from the label and the wire; version 1 labels and requests are refused.
 
 ## The label
 
