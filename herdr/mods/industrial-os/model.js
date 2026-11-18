@@ -4,10 +4,11 @@
 import { herdrStatus, otherLine, piBlock } from "./agent.js";
 import { terminalSignals } from "./signals.js";
 import { spaceRow } from "./spaces.js";
+import { actionList, agentOrder, buildMissions, railLamps, roster } from "./missions.js";
 
 // Remembered state for a terminal or space absent this long is dropped.
 export const FORGET_MS = 30 * 86_400_000;
-// Refreshed timestamps are saved at most this often; decay and quiet ages are hours and days.
+// Refreshed timestamps are saved at most this often; quiet ages are hours and days.
 const SAVE_MS = 60_000;
 
 /**
@@ -38,7 +39,7 @@ function differs(before, after) {
 	for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
 		const a = before[key], b = after[key];
 		if (a === b) continue;
-		if (["lastAccessAt", "at", "present"].includes(key) && Number.isFinite(a) && Number.isFinite(b) && Math.abs(b - a) < SAVE_MS) continue;
+		if (["at", "present"].includes(key) && Number.isFinite(a) && Number.isFinite(b) && Math.abs(b - a) < SAVE_MS) continue;
 		return true;
 	}
 	return false;
@@ -46,9 +47,10 @@ function differs(before, after) {
 
 /**
  * Builds the sidebar. Inputs are what the `herdr` module returns (`spaces()`, `agents()`, `terminals()`, `panes()`),
- * plus `now` (ms), `home` (this computer's home folder) and `git` (space ID → `{ ahead, behind }` or null).
+ * plus `now` (ms), `home` (this computer's home folder), `git` (space ID → `{ ahead, behind }` or null), `fold` (space
+ * ID → shut by the person, or opened), `focusedPane` (the pane with the keyboard) and `view` ("missions" or "agents").
  */
-export function buildSidebar({ spaces = [], agents = [], terminals = [], panes = [], git = {}, home = null, now, memory }) {
+export function buildSidebar({ spaces = [], agents = [], terminals = [], panes = [], git = {}, home = null, now, memory, fold = {}, focusedPane = null, view = "missions" }) {
 	const previous = memory && typeof memory === "object" ? memory : emptyMemory();
 	const nextMemory = emptyMemory();
 	let dirty = false;
@@ -81,12 +83,11 @@ export function buildSidebar({ spaces = [], agents = [], terminals = [], panes =
 		const before = previous.agents?.[a.address];
 		if (!signals) {
 			// No signals: counts become unknown, so a later drop to zero is not a completion.
-			const fresh = seen || herdr === "working" || herdr === "unknown" || !Number.isFinite(before?.lastAccessAt);
-			const entry = { units: null, background: null, finishedAt: null, lastAccessAt: fresh ? now : before.lastAccessAt, present: now };
+			const entry = { units: null, background: null, finishedAt: null, present: now };
 			if (differs(before, entry)) {
 				dirty = true;
 				nextMemory.agents[a.address] = entry;
-			} else nextMemory.agents[a.address] = { ...entry, lastAccessAt: before.lastAccessAt, present: before.present };
+			} else nextMemory.agents[a.address] = { ...entry, present: before.present };
 			return otherLine({ agent: a, herdr, spaceName: a.space_name ?? space?.name });
 		}
 		// A home folder applies only to this computer's agents; another machine's address is `machine/tN`.
@@ -101,7 +102,7 @@ export function buildSidebar({ spaces = [], agents = [], terminals = [], panes =
 		if (differs(before, entry)) {
 			dirty = true;
 			nextMemory.agents[a.address] = entry;
-		} else nextMemory.agents[a.address] = { ...entry, lastAccessAt: before.lastAccessAt, present: before.present };
+		} else nextMemory.agents[a.address] = { ...entry, present: before.present };
 		if (built.nextChangeAt !== null) changes.push(built.nextChangeAt);
 		return built.block;
 	});
@@ -131,10 +132,20 @@ export function buildSidebar({ spaces = [], agents = [], terminals = [], panes =
 		for (const [key, value] of Object.entries(kept)) if (!present.has(key)) nextMemory[kind][key] = value;
 	}
 
+	// The list: every pane as a unit, by space and tab, and what is read off it.
+	const built = buildMissions({ spaces, panes, agents, blocks, rows, fold, focusedPane, now });
+	if (built.nextChangeAt !== null) changes.push(built.nextChangeAt);
+	const action = actionList(built.missions);
+
 	return {
 		spaces: rows,
 		agents: blocks,
-		order: blocks.map((b) => b.address),
+		missions: built.missions,
+		action,
+		roster: view === "agents" ? roster(built.missions) : null,
+		lamps: railLamps(built.missions),
+		counts: { droids: droidCount(blocks), spaces: spaces.length, need: built.missions.reduce((n, m) => n + m.need, 0) },
+		order: agentOrder(built.missions, view),
 		memory: nextMemory,
 		dirty,
 		nextChangeAt: changes.length ? Math.min(...changes) : null,

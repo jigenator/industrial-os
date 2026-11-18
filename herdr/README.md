@@ -2,18 +2,22 @@
 
 Industrial OS for the Herdr desktop app (herdr-app): the Acid / Black theme, [themes/acid-black.json](themes/acid-black.json), the Industrial OS sidebar, a mod, [mods/industrial-os](mods/industrial-os/main.js), shown by its layout, [layouts/industrial-os.json](layouts/industrial-os.json), which also holds [Lunalee's column](#lunalee-column), and the [Pi Reloader](#pi-reloader) window, [mods/pi-reloader](mods/pi-reloader/main.js). The experience is in [the design](docs/design.md).
 
-Status: the theme was installed and checked live on 2026-11-12. The sidebar passes its Node tests and `herdr-app check`; it has not been installed or looked at in a running app. It shows information as plain text: its visual design is deferred.
+Status: the theme was installed and checked live on 2026-11-12. The redesigned sidebar passes its Node tests and `herdr-app check`, was looked at with live data in a floating probe window, and was installed as the layout's sidebar on 2026-11-18, where its three blocks drew without errors; hover, clicks and the rail have not been checked there. See the [record](CONTRIBUTING.md#sidebar-redesign).
 
 The herdr-tui configuration this project used to hold (the agents and Spaces sidebar fragments, their parser check) and the herdr-tui Spaces plugin have been removed; their histories are in [contributing](CONTRIBUTING.md#verification-records).
 
 ## Sidebar
 
-One mod, `industrial-os`, in place of Herdr's own spaces and agents lists:
+One mod, `industrial-os`, in place of Herdr's sidebar header, its spaces and agents lists and its footer:
 
-- **Spaces**: one row per space, with its state, panes, agents, Pi units, name, ahead/behind and, when quiet, its idle days. Click a row to show that space.
-- **Agents**: one block per Pi agent that publishes the `io.signals.v1` label (state, SPACE, `/flag` dot, goal time; units, context used, compactions; branch or directory and PR; model; question, finished or pane name), and one line for every other agent (Herdr's status, space and title). Click one to focus it. `agent.next` / `agent.prev` follow the list.
+- **The crate plate** at the top: this computer's name, droids running and spaces, with a window onto the map that keeps the focused pane under its crosshair. Under it, `SETTINGS` and `ADD MACHINE`.
+- **ACTION REQUIRED**: the panes with a question, a block or work finished unseen, most urgent first. Click one to focus it.
+- **Missions**: a band per space with its map window, a title per tab, and every pane as two rows: state, name and age, then subagents and context used. The focused pane opens to show its branch, PR, model, goal and question. Click a pane to focus it, a band to shut or open the space, `+` for a new tab.
+- **Agents**: the same panes in one list, what is active first.
+- **The map**: one map of every space, tab and pane; each window looks onto it.
+- **Search** at the bottom is a hint with the picker's key; a click opens the picker too. The grip on the right edge folds the sidebar to a rail of one lamp per pane.
 
-What every value means is in [the design](docs/design.md#sidebar). The values come from Pi's signals-collector, which publishes its snapshot as the `io.signals.v1` label on its own terminal in Herdr desktop; without it, Pi agents show as one line.
+What every value means is in [the design](docs/design.md#sidebar). A Pi's readings come from Pi's signals-collector, which publishes its snapshot as the `io.signals.v1` label on its own terminal in Herdr desktop; without it a Pi shows Herdr's status only.
 
 ### Install
 
@@ -27,7 +31,11 @@ herdr-app do layout.switch '{"name":"industrial-os"}'
 
 `ctrl-shift-l` (`layout.switch`) cycles back to `main`; `ctrl-alt-shift-escape` always returns to `main`. Run `herdr-app status` to see errors from the mod or layout.
 
-The layout is the shipped `main` layout of Herdr app 0.1.15 with zero terminal padding, flat panes (square corners, no border or focus outline), the sidebar widened to 300 px, its header and two lists replaced by `industrial-os` blocks (the header with `props.brand`), and [Lunalee's column](#lunalee-column) added on the right. It does not follow later changes to `main`; compare it with the shipped file after an app update. Copy only the `mods/industrial-os` folder: `mods/package.json` is for the Node tests. `gpui-kit.d.ts` and `jsconfig.json` in the folder, if present, were written by `herdr-app check` for editors; the app writes its own.
+To fold and unfold the sidebar from the keyboard, bind a key to the mod's `fold` command in `~/.config/herdr-app/keys.json`, for example `"cmd-\\": "industrial-os.fold"`; the hide grip then shows that key. The sidebar's other key plates show whatever is bound to `tab.new` and `mod.open:picker`.
+
+The mod writes its drawings (glows, dot grids, the map) as SVG files into `~/.config/herdr-app/mods/industrial-os/.gen/`, a few megabytes, and empties that folder itself when it grows past 1500 files. It is safe to delete. The sidebar wants the `JetBrainsMono NFM` font for its heavy weights and falls back to the app's font without it.
+
+The layout is the shipped `main` layout of Herdr app 0.1.15 with zero terminal padding, flat panes (square corners, no border or focus outline), the sidebar widened to 300 px, its header (now 130 px), two lists and footer (now 46 px) replaced by `industrial-os` blocks, and [Lunalee's column](#lunalee-column) added on the right. It does not follow later changes to `main`; compare it with the shipped file after an app update. Copy only the `mods/industrial-os` folder: `mods/package.json` is for the Node tests. `gpui-kit.d.ts` and `jsconfig.json` in the folder, if present, were written by `herdr-app check` for editors; the app writes its own.
 
 ### Lunalee column
 
@@ -43,10 +51,13 @@ Herdr behaviours to know:
 
 ### Limitations
 
-- Visual design is deferred: plain text, theme colors only, no design-system elements, no rail form when the sidebar is collapsed (the text is cut instead).
-- Unseen-finished state, access ages and space activity are kept in the mod's `localStorage`, on this screen only. Space activity starts when the mod first sees a space, so quiet ages count from installation, not from the space's real history.
+- Not yet looked at in the installed sidebar: the macOS window buttons over the plate, the rail at 76 px, hover, clicks and the crosshair following ACTION REQUIRED across blocks.
+- Subagents show as a count and one spinner each: Pi publishes no per-subagent state.
+- The map, the ground's light and the glows cost CPU (see the [record](CONTRIBUTING.md#sidebar-redesign)), and keep moving while another app is in front.
+- A drawing appears a moment after the text it belongs to, the first time that text is shown.
+- Unseen-finished state and space activity are kept in the mod's `localStorage`, on this screen only. Space activity starts when the mod first sees a space, so quiet ages count from installation, not from the space's real history.
 - Spaces keep Herdr's order: quiet spaces are not moved to the bottom, and worktree spaces are not nested.
-- Ahead/behind is read with `git` from each space's first terminal's folder, on that space's machine, at once for a new place and every 30 seconds while the window is in front.
+- Commits behind (ahead is read but not shown) are read with `git` from each space's first terminal's folder, on that space's machine, at once for a new place and every 30 seconds while the window is in front.
 
 ## Pi Reloader
 

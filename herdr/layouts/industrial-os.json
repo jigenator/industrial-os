@@ -3,8 +3,8 @@
   "type": "row",
   "titlebar": "none",
   "traffic_lights": [
-    12,
-    16
+    17,
+    10
   ],
   "background": "canvas",
   "terminal_padding": [
@@ -31,13 +31,13 @@
           "id": "brand",
           "type": "block",
           "size": {
-            "px": 46
+            "px": 130
           },
           "window_drag": true,
           "content": {
             "mod": "industrial-os",
             "props": {
-              "brand": true
+              "part": "top"
             }
           }
         },
@@ -58,12 +58,12 @@
           "id": "sidebar-footer",
           "type": "block",
           "size": {
-            "px": 69
+            "px": 46
           },
           "content": {
-            "mod": "workspace-chrome",
+            "mod": "industrial-os",
             "props": {
-              "footer": true
+              "part": "bottom"
             }
           }
         }

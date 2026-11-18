@@ -341,3 +341,11 @@ Node v22.23.4, macOS, herdr-app 0.1.15. The unit plate's peak (the droid header'
 - **Consumers:** droid-header **39/39** with the installed Pi host (after the root `npm install`); Lesson Maker **134/134**.
 - **Live, Herdr Desktop:** one space (`plate-test`) printed the 104- and 80-cell plates from the previous and the new code, was shown with `space.select`, and a `herdr-app shot` was taken before the previous space was selected again; the new peak is smooth, the old one stepped. The space was then closed. No key or pointer input was sent.
 - **Not run:** dispatch-feed and automations-monitor suites (their installs are absent in this worktree); the droid header in a live Pi; a physical font review in other terminals.
+
+## Sidebar vocabulary (2026-11-18)
+
+Node v22.23.4, macOS, herdr-app 0.1.16. New `foundation/sidebar-vocabulary.mjs` with `.d.mts`, exported as `./foundation/sidebar-vocabulary`: the Herdr sidebar's colors and opacities, unit and zone status words, designations, and eight state marks and seven signs as one-color SVG masks. Values and vocabulary only, at David's choice: no element, motion or story renders it, and the Herdr mod is its only renderer through a committed copy.
+
+- **Passed:** `node --test` **676/676**, 6 of them new: value formats and frozenness, `light` equal to paper × accent, status words, zone order, designations and their `RangeError`s, mark frames, and every mark file as a one-color mask with a halo only when lit. `package.test.mjs` imports the new subpath with every other export.
+- **Consumer:** herdr **56/56**, including the copy and marks equal to this module; the marks were seen tinted, lit and stepping in the Herdr probe window ([record](../herdr/CONTRIBUTING.md#sidebar-redesign)).
+- **Not run:** the storybook and showcase, which this change does not touch; any terminal rendering, since there is none.

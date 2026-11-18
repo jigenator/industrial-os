@@ -1,13 +1,15 @@
 // Checks the industrial-os mod's pure modules: the io.signals.v1 label, every agent state and row, unknowns, caps,
-// access decay, the unseen-work-finished rule, space aggregation and quiet ages. The view (main.js) and live Herdr are
+// the unseen-work-finished rule, space aggregation and quiet ages. The view (main.js) and live Herdr are
 // not run here; CONTRIBUTING.md records `herdr-app check` and what is not verified.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { clean, contextBar, countText, daysText, displayPath, formatDuration, modelText, shortModel } from "../mods/industrial-os/format.js";
+import { FLICKER_AT, READ_DELAY_MS, ageText, clean, contextBar, countText, daysText, displayPath, formatDuration, modelText, nextAgeChange, flickerFrame, readoutFrame, readoutSettled, shortModel, wrapText } from "../mods/industrial-os/format.js";
+import { FOLD_EXPIRE_MS, FOLD_TIMES, eraseRows, scanSegments } from "../mods/industrial-os/fold.js";
 import { LABEL, parseSignals, terminalSignals } from "../mods/industrial-os/signals.js";
-import { decayStage, displayState, nextFinishedAt, paneName, piBlock } from "../mods/industrial-os/agent.js";
+import { displayState, nextFinishedAt, paneName, piBlock } from "../mods/industrial-os/agent.js";
 import { QUIET_MS, paneState, parseAheadBehind, spacePlace, spaceRow, unitsSum } from "../mods/industrial-os/spaces.js";
 import { buildSidebar, droidCount, emptyMemory } from "../mods/industrial-os/model.js";
+import { ACTION_SHOWN, contextZone, tabName, unitName } from "../mods/industrial-os/missions.js";
 
 // Fixtures: a SignalsSnapshot v1 label value and Herdr app data in the shapes ~/.config/herdr-app/herdr.d.ts
 // documents. Every value is invented.
@@ -81,13 +83,13 @@ test("Active directory: status-bar's ~, ~/child, root-near and parent/current fo
 });
 
 test("context bar: lit cells, 70% warning, 90% critical, 99% cap, unknown", () => {
-	assert.deepEqual(contextBar(0), { text: "─────────── 00%", zone: "ok" });
-	assert.deepEqual(contextBar(67.4), { text: "━━━━━━━━─── 67%", zone: "ok" });
-	assert.deepEqual(contextBar(70), { text: "━━━━━━━━─── 70%", zone: "warn" });
+	assert.deepEqual(contextBar(0), { text: "─────────── 00%", zone: "ok", percent: 0 });
+	assert.deepEqual(contextBar(67.4), { text: "━━━━━━━━─── 67%", zone: "ok", percent: 67 });
+	assert.deepEqual(contextBar(70), { text: "━━━━━━━━─── 70%", zone: "warn", percent: 70 });
 	assert.equal(contextBar(89.9).zone, "warn");
-	assert.deepEqual(contextBar(90), { text: "━━━━━━━━━━─ 90%", zone: "crit" });
-	assert.deepEqual(contextBar(100), { text: "━━━━━━━━━━━ 99%", zone: "crit" });
-	assert.deepEqual(contextBar(null), { text: "─────────── --%", zone: "unknown" });
+	assert.deepEqual(contextBar(90), { text: "━━━━━━━━━━─ 90%", zone: "crit", percent: 90 });
+	assert.deepEqual(contextBar(100), { text: "━━━━━━━━━━━ 99%", zone: "crit", percent: 99 });
+	assert.deepEqual(contextBar(null), { text: "─────────── --%", zone: "unknown", percent: null });
 });
 
 test("label: version 1 JSON only; malformed fields become unknown, never zero; unknown fields ignored", () => {
@@ -161,7 +163,7 @@ test("unseen work finished: a known drop to zero while not working and not seen;
 	assert.equal(nextFinishedAt({ ...base, previousUnits: 0, units: 0, finishedAt: NOW - 5000 }), NOW - 5000);
 	assert.equal(nextFinishedAt({ ...base, units: 1, finishedAt: NOW - 5000 }), null);
 
-	const finished = block({ units: 0 }, { memory: { units: 3, background: 0, finishedAt: null, lastAccessAt: NOW } });
+	const finished = block({ units: 0 }, { memory: { units: 3, background: 0, finishedAt: null } });
 	assert.equal(finished.block.state.code, "DNE");
 	assert.deepEqual(finished.block.row5, { kind: "rdy", label: "RDY", text: "finished", age: "0s" });
 	assert.equal(finished.memory.finishedAt, NOW);
@@ -170,30 +172,13 @@ test("unseen work finished: a known drop to zero while not working and not seen;
 	assert.equal(block({ units: 0 }, { seen: true, memory: finished.memory }).block.state.code, "IDL");
 });
 
-test("access decay: d0 under 1 h, d1, d2 from 4 h, d3 from 1 d; seen and WRK/SUB/RUN refresh, QNS/BLK do not", () => {
-	assert.deepEqual([0, HOUR - 1, HOUR, 4 * HOUR, DAY, 9 * DAY].map((age) => decayStage(NOW - age, NOW)), [0, 0, 1, 2, 3, 3]);
-	assert.equal(decayStage(NOW + HOUR, NOW), 0);
-	const old = { units: 0, background: 0, finishedAt: null, lastAccessAt: NOW - 5 * HOUR };
-	assert.equal(block({}, { memory: old }).block.decay, 2);
-	assert.equal(block({}, { memory: old, seen: true }).block.decay, 0);
-	assert.equal(block({}, { memory: old, herdr: "working" }).block.decay, 0);
-	assert.equal(block({ units: 1 }, { memory: { ...old, units: 1 } }).block.decay, 0);
-	assert.equal(block({ backgroundTasks: 1 }, { memory: { ...old, background: 1 } }).block.decay, 0);
-	assert.equal(block({}, { memory: old, herdr: "blocked" }).block.decay, 2);
-	assert.equal(block({}, { memory: old, herdr: "unknown" }).block.decay, 0);
-	// No memory yet: starts fresh, never guessed old.
-	assert.equal(block({}).block.decay, 0);
-	// The next decay boundary is scheduled.
-	assert.equal(block({}, { memory: old }).nextChangeAt, NOW - 5 * HOUR + DAY);
-});
-
 test("rows 1–4: space, flag, live goal, units, context zones, compactions, ACT and MDL", () => {
 	const { block: b } = block({ flag: true, goal: { status: "active", usedSeconds: 600, activeSince: NOW - 3_000_000 }, units: 2 }, { herdr: "working" });
 	assert.equal(b.space, "release");
 	assert.equal(b.flag, true);
 	assert.deepEqual(b.goal, { text: "1h0m", active: true });
 	assert.deepEqual(b.units, { text: "02AU", active: true, count: 2 });
-	assert.deepEqual(b.context, { text: "━━━━━━━━─── 67%", zone: "ok" });
+	assert.deepEqual(b.context, { text: "━━━━━━━━─── 67%", zone: "ok", percent: 67 });
 	assert.equal(b.compactions, "CMP×18");
 	assert.deepEqual(b.act, { kind: "branch", text: "feat/sidebar", dirty: false });
 	assert.deepEqual(b.pr, { text: "#42", known: true });
@@ -368,7 +353,8 @@ test("sidebar: Pi blocks for valid labels, one line otherwise, Herdr's order, st
 	// The unlabeled Pi makes the release AU unknown; the Claude terminal's stale label adds nothing to tooling.
 	assert.deepEqual([release.icon, release.panes, release.agents.text, release.units.text, release.ahead], ["◐", "03PN", "02AG", "??AU", 1]);
 	assert.deepEqual([tooling.icon, tooling.panes, tooling.agents.text, tooling.units.text], ["×", "01PN", "01AG", "00AU"]);
-	assert.equal(result.nextChangeAt, NOW + 1001);
+	// The working pane's age reads 4S and turns 5S a second on.
+	assert.equal(result.nextChangeAt, NOW + 1000);
 });
 
 test("header: droids are agents shown working plus every Pi's known subagents; unknown subagents add nothing", () => {
@@ -382,6 +368,134 @@ test("header: droids are agents shown working plus every Pi's known subagents; u
 	w.terminals[0] = terminal("t1", { labels: labels(snapshot({ units: null })) });
 	assert.equal(droidCount(buildSidebar(w).agents), 2); // WRK with unknown units: the agent alone
 	assert.equal(droidCount([]), 0);
+});
+
+test("rail: one lamp per pane, grouped by space in the list's order; Pi codes, Herdr codes for others; the shape carries the state", () => {
+	const w = world();
+	w.agents.push(agent("t5", { status: "done", tab: "tb2", app: "codex", program: program("codex", "Codex") }));
+	w.panes.push(pane("p-t5", "tb2", { terminal: "t5", status: "done", app: "codex" }));
+	assert.deepEqual(buildSidebar({ ...w, focusedPane: "p-shell" }).lamps.map((l) => [l.id, l.lamp, l.code, l.tone, l.focused, l.gap]), [
+		["p-t1", "█", "WRK", "working", false, false],
+		["p-shell", "○", "IDL", "idle", true, false],
+		["p-t2", "○", "IDL", "idle", false, false],
+		["p-t5", "✓", "DNE", "done", false, false],
+		["p-t3", "×", "BLK", "blocked", false, true], // the next space opens with a gap
+	]);
+	w.terminals[0] = terminal("t1", { labels: labels(snapshot({ question: { text: "Ship it?", more: 0 } })) });
+	assert.deepEqual(buildSidebar(w).lamps[0], { id: "p-t1", address: "t1", name: "π - industrial-os", tone: "blocked", code: "QNS", lamp: "×", focused: false, gap: false });
+	assert.deepEqual(buildSidebar({ ...w, spaces: [], panes: [] }).lamps, []);
+});
+
+test("missions: every pane is a unit under its space and tab, with a designation, a state mark and what it lacks", () => {
+	const result = buildSidebar({ ...world(), focusedPane: "p-t1" });
+	const [release, tooling] = result.missions;
+	assert.deepEqual([release.name, release.letter, release.current, release.open, release.need, tooling.need], ["release", "A", true, true, 0, 1]);
+	assert.deepEqual(release.tabs.map((t) => [t.ref, t.name, t.quiet, t.units.map((u) => u.designation)]), [
+		["A01", "TAB 01", false, ["DRD-A01-1", "TRM-A01-2"]],
+		["A02", "TAB 02", true, ["AGT-A02-1"]],
+	]);
+	const [pi, shell] = release.tabs[0].units, other = release.tabs[1].units[0], claude = tooling.tabs[0].units[0];
+	// A working Pi whose own subagents work keeps WRK and takes the three-satellite mark.
+	assert.deepEqual([pi.kind, pi.code, pi.mark, pi.status, pi.focused, pi.age], ["drd", "WRK", "SUB", "ON TASK", true, "4S"]);
+	assert.deepEqual([pi.units, pi.context, pi.note], [{ count: 2, text: "02AU" }, { text: "67%", percent: 67, zone: "ok" }, null]);
+	assert.deepEqual([pi.detail.model, pi.detail.compactions, pi.detail.act.text, pi.detail.pr.text, pi.detail.ask], ["opus-5.5/hi", "CMP 18", "feat/sidebar", "#42", null]);
+	// A terminal and an agent without Pi's signals say what they are; they have no readings to invent.
+	assert.deepEqual([shell.kind, shell.code, shell.tone, shell.note, shell.units, shell.context, shell.detail], ["trm", "IDL", "idle", "TERMINAL", null, null, null]);
+	assert.deepEqual([other.kind, other.note, claude.code, claude.status, claude.waits], ["agt", "HERDR STATUS ONLY", "BLK", "HOLD", "waiting on approval"]);
+	assert.deepEqual(result.counts, { droids: 3, spaces: 2, need: 1 });
+	// Unknown is never zero.
+	const unknown = buildSidebar({ ...world(), terminals: [terminal("t1", { labels: labels(snapshot({ units: null, context: null })) })] }).missions[0].tabs[0].units[0];
+	assert.deepEqual([unknown.units, unknown.context], [{ count: null, text: "??AU" }, { text: "--%", percent: null, zone: "off" }]);
+});
+
+test("missions: a space is open unless it is quiet, until the person says; names and context zones", () => {
+	// The tooling space: not shown, its one agent idle, nothing changed for three days.
+	const quiet = world({ memory: { agents: {}, spaces: { s2: { at: NOW - QUIET_MS - DAY, panes: 1, agents: 1 } } } });
+	quiet.agents[2] = agent("t3", { space: "s2", space_name: "tooling", tab: "tb3", app: "claude-code", program: program("claude", "Claude Code") });
+	quiet.panes[3] = pane("p-t3", "tb3", { terminal: "t3", status: "idle", app: "claude-code" });
+	assert.deepEqual(buildSidebar(quiet).missions.map((m) => m.open), [true, false]);
+	assert.deepEqual(buildSidebar({ ...quiet, fold: { s1: true, s2: false } }).missions.map((m) => m.open), [false, true]);
+	assert.deepEqual([tabName(tab("x", { name: " Docs ", named: true })), tabName(tab("x", { index: 3, name: "3" }))], ["Docs", "TAB 03"]);
+	assert.deepEqual([unitName({ title: " π - x ", program: program() }), unitName({ title: "", program: program("shell", "zsh") }), unitName({ title: "", mod: "files" })], ["π - x", "zsh", "files"]);
+	assert.deepEqual([contextZone(null, "working"), contextZone(95, "idle"), contextZone(70, "idle"), contextZone(10, "working"), contextZone(10, "blocked"), contextZone(10, "idle")], ["off", "crit", "warn", "ok", "ok", "off"]);
+});
+
+test("ACTION REQUIRED and the agents view: urgency first, a space's panes together; agent.next follows the shown view", () => {
+	const w = world();
+	w.terminals[0] = terminal("t1", { labels: labels(snapshot({ question: { text: "Ship it?", more: 1 } })) });
+	w.agents.push(agent("t5", { status: "done", tab: "tb2", app: "codex", program: program("codex", "Codex") }));
+	w.panes.push(pane("p-t5", "tb2", { terminal: "t5", status: "done", app: "codex" }));
+	const result = buildSidebar({ ...w, view: "agents" });
+	assert.deepEqual(result.action.map((u) => [u.id, u.code, u.waits]), [["p-t1", "QNS", "Ship it? (+1)"], ["p-t3", "BLK", "waiting on approval"], ["p-t5", "DNE", "finished, not yet seen"]]);
+	assert.equal(ACTION_SHOWN, 4);
+	assert.deepEqual(result.roster.map((g) => [g.name, g.units.map((u) => u.id)]), [["release", ["p-t1"]], ["tooling", ["p-t3"]], ["release", ["p-t5"]], ["release", ["p-shell", "p-t2"]]]);
+	assert.deepEqual(result.order, ["t1", "t3", "t5", "t2"]);
+	assert.deepEqual([buildSidebar(w).order, buildSidebar(w).roster], [["t1", "t2", "t5", "t3"], null]);
+});
+
+test("ages and wrapped text: one unit, capitals; the next change; whole words, an ellipsis when text is left over", () => {
+	assert.deepEqual([0, 59_999, 60_000, 59 * 60_000, HOUR, 23 * HOUR, DAY, 400 * DAY].map(ageText), ["0S", "59S", "1M", "59M", "1H", "23H", "1D", "99D"]);
+	assert.deepEqual([nextAgeChange(NOW - 4000, NOW), nextAgeChange(NOW - 61_000, NOW), nextAgeChange(NOW - HOUR - 1, NOW)], [NOW + 1000, NOW + 59_000, NOW + HOUR - 1]);
+	assert.deepEqual(wrapText("approve the rollback plan? (+1)", 32, 2), ["approve the rollback plan? (+1)"]);
+	assert.deepEqual(wrapText("one two three four five six seven eight", 18, 2), ["one two three four", "five six seven…"]);
+	assert.deepEqual(wrapText("supercalifragilistic and more", 10, 2), ["supercalif", "ragilisti…"]);
+	assert.deepEqual([wrapText("", 5, 2), wrapText("aaaa bbbb", 4, 2), wrapText("aaaa bbbb cc", 4, 2)], [[], ["aaaa", "bbbb"], ["aaaa", "bbb…"]]);
+	assert.equal(contextBar(67.4).percent, 67);
+	assert.equal(contextBar(null).percent, null);
+});
+
+test("the flicker dims twice in hard steps and is over; its fringes show only while it runs", () => {
+	const [dim, back, dip, over] = FLICKER_AT, rest = { opacity: 1, fringe: false };
+	for (const ms of [0, dim - 1, over, 5000, NaN]) assert.deepEqual(flickerFrame(ms), rest, String(ms));
+	assert.deepEqual([dim, back - 1, back, dip - 1, dip, over - 1].map((ms) => flickerFrame(ms).opacity), [0.2, 0.2, 1, 1, 0.45, 0.45]);
+	assert.ok([dim, back, dip, over - 1].every((ms) => flickerFrame(ms).fringe));
+});
+
+test("the readout types in from the right and its digits settle left to right", () => {
+	const text = "DRD-B01-1 · STBY", nine = () => 0.99;
+	assert.equal(readoutFrame(text, 0, nine), "");
+	assert.equal(readoutFrame(text, READ_DELAY_MS - 1, nine), "");
+	// Seven steps: each shows more of the end of the text.
+	const frames = [60, 90, 120, 150, 180].map((ms) => readoutFrame(text, ms, nine));
+	assert.deepEqual(frames, ["TBY", " STBY", " · STBY", "B99-9 · STBY", "D-B01-9 · STBY"]);
+	// Letters and signs never change; only digits re-read, and the leftmost holds first.
+	for (let ms = 0; ms < 400; ms += 10) {
+		const shown = readoutFrame(text, ms), end = text.slice(text.length - shown.length);
+		assert.ok([...shown].every((ch, i) => (/[0-9]/.test(end[i]) ? /[0-9]/.test(ch) : ch === end[i])), `${ms}: ${shown}`);
+	}
+	assert.equal(readoutSettled(text), 330);
+	assert.equal(readoutFrame(text, 330, nine), text);
+	assert.equal(readoutFrame("TRM-A12-3 · EXEC", 10_000, nine), "TRM-A12-3 · EXEC");
+	assert.ok(readoutSettled("X") >= 210); // never before it is typed in
+});
+
+test("the fold in motion: rows are erased before the snap and come in before the end; the scan line fills its height", () => {
+	for (const kind of ["fold", "unfold"]) {
+		const [go, snap, show, done] = FOLD_TIMES[kind];
+		assert.ok(0 < go && go < snap && snap < show && show < done && done < FOLD_EXPIRE_MS, kind);
+	}
+	const erased = eraseRows("1/list", 400);
+	// Every row is gone before the sidebar changes width.
+	assert.ok(erased.every((row) => row.delay >= 0 && row.duration >= 20 && row.delay + row.duration <= FOLD_TIMES.fold[1] - FOLD_TIMES.fold[0]));
+	const share = (rows, test) => rows.filter(test).length / rows.length;
+	assert.ok(Math.abs(share(erased, (row) => row.flicker) - 0.2) < 0.07 && Math.abs(share(erased, (row) => row.duration === 20) - 0.4) < 0.08);
+	// The same seed gives the same rows: both renders of a step agree.
+	assert.deepEqual(eraseRows("1/list", 20), eraseRows("1/list", 20));
+	assert.notDeepEqual(eraseRows("1/list", 20), eraseRows("2/list", 20));
+	// The new rows come in the same way, in no order, and are all in before the fold is over.
+	for (const kind of ["fold", "unfold"]) assert.ok(eraseRows("1/list/in", 400).every((row) => FOLD_TIMES[kind][2] + row.delay + row.duration <= FOLD_TIMES[kind][3]), kind);
+	const delays = eraseRows("1/list/in", 40).map((row) => row.delay);
+	assert.notDeepEqual(delays, [...delays].sort((a, b) => a - b));
+	// The scan line: pieces from top to bottom without a gap, none past the end, broken ones 22 px at most.
+	const pieces = scanSegments("1/list", 900);
+	assert.equal(pieces[0].y, 0);
+	pieces.forEach((piece, i) => {
+		assert.ok(piece.h > 0 && piece.y + piece.h <= 900 && [1, 2].includes(piece.w) && [-2, 0, 2].includes(piece.dx) && piece.opacity >= 0 && piece.opacity <= 1);
+		if (i) assert.ok(piece.y >= pieces[i - 1].y + pieces[i - 1].h);
+		if (piece.broken) assert.ok(piece.h <= 22); else assert.deepEqual([piece.dx, piece.w, piece.opacity], [0, 2, 1]);
+	});
+	assert.ok(pieces.some((piece) => piece.broken) && pieces.some((piece) => !piece.broken));
+	assert.deepEqual(scanSegments("1/list", 0), []);
 });
 
 test("sidebar: a Pi SUB lifts its space to working; another machine's agent gets no home folder", () => {

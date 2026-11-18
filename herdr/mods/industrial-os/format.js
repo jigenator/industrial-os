@@ -77,15 +77,81 @@ const BAR_CELLS = 11;
  */
 export function contextBar(usedPercent) {
 	if (usedPercent === null || usedPercent === undefined || !Number.isFinite(usedPercent)) {
-		return { text: `${"─".repeat(BAR_CELLS)} --%`, zone: "unknown" };
+		return { text: `${"─".repeat(BAR_CELLS)} --%`, zone: "unknown", percent: null };
 	}
 	const percent = Math.max(0, Math.min(99, Math.floor(usedPercent)));
 	const lit = Math.ceil((percent * BAR_CELLS) / 100);
 	const zone = usedPercent >= 90 ? "crit" : usedPercent >= 70 ? "warn" : "ok";
-	return { text: `${"━".repeat(lit)}${"─".repeat(BAR_CELLS - lit)} ${twoDigits(percent)}%`, zone };
+	return { text: `${"━".repeat(lit)}${"─".repeat(BAR_CELLS - lit)} ${twoDigits(percent)}%`, zone, percent };
+}
+
+/**
+ * Breaks text into at most `max` lines of at most `chars` characters, at spaces where it can; a word longer than a
+ * line is cut. When text is left over, the last line ends in `…`.
+ */
+export function wrapText(text, chars, max) {
+	const words = clean(text).split(/\s+/).filter(Boolean), lines = [];
+	let line = "";
+	const push = () => { lines.push(line); line = ""; };
+	for (let i = 0; i < words.length; i++) {
+		let word = words[i];
+		while (word) {
+			const room = chars - line.length - (line ? 1 : 0);
+			if (word.length <= room) { line += (line ? " " : "") + word; word = ""; }
+			else if (!line) { line = word.slice(0, chars); word = word.slice(chars); push(); }
+			else push();
+			if (lines.length === max) {
+				// Out of lines with text left: the last one gives its end to the ellipsis.
+				if (word || i < words.length - 1 || line) lines[max - 1] = `${lines[max - 1].slice(0, chars - 1).trimEnd()}…`;
+				return lines;
+			}
+		}
+	}
+	if (line) lines.push(line);
+	return lines;
 }
 
 export const DAY_MS = 86_400_000;
 
+/** How long, in one unit: `NNS` under a minute, `NM` under an hour, `NH` under a day, then `ND` capped at `99D`. */
+export function ageText(ms) {
+	const s = Math.floor(Math.max(0, Number.isFinite(ms) ? ms : 0) / 1000);
+	if (s < 60) return `${s}S`;
+	if (s < 3600) return `${Math.floor(s / 60)}M`;
+	return s < 86_400 ? `${Math.floor(s / 3600)}H` : `${Math.min(99, Math.floor(s / 86_400))}D`;
+}
+
+/** The next time `ageText` of the time since `since` changes; null once it is capped. */
+export function nextAgeChange(since, now) {
+	const s = Math.floor(Math.max(0, now - since) / 1000);
+	const step = s < 60 ? 1 : s < 3600 ? 60 : s < 86_400 ? 3600 : 86_400;
+	return s >= 99 * 86_400 ? null : since + (Math.floor(s / step) + 1) * step * 1000;
+}
+
 /** Floor days, capped at `99d`. */
 export const daysText = (ms) => `${Math.min(99, Math.floor(Math.max(0, ms) / DAY_MS))}d`;
+
+/** The scanner's readout: one step, the wait before it types in, and how long the typing takes, in ms. */
+export const READ_STEP_MS = 30, READ_DELAY_MS = 60, READ_TYPE_MS = 150;
+const READ_STEPS = 7;
+/** When a readout of `text` has settled, in ms after it started. */
+/** A flicker under the pointer: the ms at which it dims, recovers, dims less and is over. Hard steps, no fades. */
+export const FLICKER_AT = Object.freeze([36, 72, 132, 168]);
+/** `{ opacity, fringe }` of a bar `elapsed` ms after the pointer reached it; its colour fringes show from the first dip to the end. */
+export function flickerFrame(elapsed) {
+	const [dim, back, dip, over] = FLICKER_AT;
+	if (!(elapsed >= dim && elapsed < over)) return { opacity: 1, fringe: false };
+	return { opacity: elapsed < back ? 0.2 : elapsed < dip ? 1 : 0.45, fringe: true };
+}
+export const readoutSettled = (text) => Math.max(READ_DELAY_MS + READ_TYPE_MS, Math.ceil(3 + text.length * 0.45) * READ_STEP_MS);
+/**
+ * A readout `elapsed` ms after the scanner reached its row: it types in from the right in seven steps, and its
+ * digits re-read, cycling until they settle left to right. Returns what is shown so far, the end of the text.
+ * `random` picks the cycling digits.
+ */
+export function readoutFrame(text, elapsed, random = Math.random) {
+	if (elapsed >= readoutSettled(text)) return text;
+	const typed = elapsed < READ_DELAY_MS ? 0 : Math.min(READ_STEPS, Math.floor((elapsed - READ_DELAY_MS) / (READ_TYPE_MS / READ_STEPS)) + 1);
+	const from = text.length - Math.ceil((text.length * typed) / READ_STEPS), step = Math.floor(elapsed / READ_STEP_MS);
+	return [...text].map((ch, j) => (/[0-9]/.test(ch) && step < 3 + j * 0.45 ? String(Math.floor(random() * 10)) : ch)).slice(from).join("");
+}

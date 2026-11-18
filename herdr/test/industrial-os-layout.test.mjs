@@ -1,7 +1,6 @@
-// Checks the industrial-os layout and mod folder: the layout is the shipped `main` layout with the sidebar's two
-// lists replaced by the one industrial-os block, its brand header drawn by the same mod, and Lunalee's column added
-// on the right, and the mod imports
-// nothing from outside its folder.
+// Checks the industrial-os layout and mod folder: the layout is the shipped `main` layout with the sidebar's header,
+// two lists and footer each replaced by an industrial-os block, and Lunalee's column added on the right, and the mod
+// imports nothing from outside its folder but the host's own modules.
 // The recorded shipped layout is fixtures/herdr-app-0.1.15-main.json (Herdr app 0.1.15's layouts/main.json).
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
@@ -19,13 +18,17 @@ function find(node, id) {
 	return null;
 }
 
-test("the layout differs from shipped main.json only in terminal padding, flat panes, the sidebar width, the brand header, the sidebar-lists block and the lunalee column", async () => {
+test("the layout differs from shipped main.json only in terminal padding, the window buttons' place, flat panes, the sidebar width, the sidebar's three blocks and the lunalee column", async () => {
 	const shipped = JSON.parse(await read("./fixtures/herdr-app-0.1.15-main.json"));
 	const layout = JSON.parse(await read("../layouts/industrial-os.json"));
 	// Zero so her chat fills its column; Herdr 0.1.16 reads terminal padding only from the root.
 	assert.deepEqual(shipped.terminal_padding, [14, 12]);
 	assert.deepEqual(layout.terminal_padding, [0, 0]);
 	shipped.terminal_padding = layout.terminal_padding;
+	// The window buttons stand on the plate's 18 px gutter, level with its heading. Herdr draws them 1 px right of
+	// and 2 px below this point (measured on macOS, herdr-app 0.1.16).
+	assert.deepEqual([shipped.traffic_lights, layout.traffic_lights], [[12, 16], [17, 10]]);
+	shipped.traffic_lights = layout.traffic_lights;
 	// Flat panes: square corners, no border and no focus outline.
 	const shippedPane = find(shipped, "main").content.pane, pane = find(layout, "main").content.pane;
 	assert.deepEqual([shippedPane.radius, shippedPane.border, shippedPane.focus], [10, { width: 1, color: "border" }, { width: 1, color: "accent" }]);
@@ -34,10 +37,15 @@ test("the layout differs from shipped main.json only in terminal padding, flat p
 	assert.deepEqual(find(shipped, "sidebar-lists").children.map((c) => c.id), ["spaces", "agents"]);
 	assert.deepEqual(find(layout, "sidebar-lists").children, [{ id: "industrial-os", type: "block", content: { mod: "industrial-os" } }]);
 	find(shipped, "sidebar-lists").children = find(layout, "sidebar-lists").children;
-	assert.deepEqual(find(shipped, "brand").content, { mod: "workspace-chrome" });
-	assert.deepEqual(find(layout, "brand").content, { mod: "industrial-os", props: { brand: true } });
-	find(shipped, "brand").content = find(layout, "brand").content;
-	// Wide enough for the header's plates and buttons beside the macOS window buttons.
+	// The top block is the crate plate over the shortcut strip: six terminal rows and one, 18.5 px each.
+	assert.deepEqual([find(shipped, "brand").size, find(shipped, "brand").content], [{ px: 46 }, { mod: "workspace-chrome" }]);
+	assert.deepEqual([find(layout, "brand").size, find(layout, "brand").content], [{ px: 130 }, { mod: "industrial-os", props: { part: "top" } }]);
+	Object.assign(find(shipped, "brand"), { size: find(layout, "brand").size, content: find(layout, "brand").content });
+	// The footer is the search bar; its two rows, settings and add machine, are the top block's shortcut strip.
+	assert.deepEqual([find(shipped, "sidebar-footer").size, find(shipped, "sidebar-footer").content], [{ px: 69 }, { mod: "workspace-chrome", props: { footer: true } }]);
+	assert.deepEqual([find(layout, "sidebar-footer").size, find(layout, "sidebar-footer").content], [{ px: 46 }, { mod: "industrial-os", props: { part: "bottom" } }]);
+	Object.assign(find(shipped, "sidebar-footer"), { size: find(layout, "sidebar-footer").size, content: find(layout, "sidebar-footer").content });
+	// The mockup's width: everything in the sidebar is set on a 300 px sheet.
 	assert.deepEqual([find(shipped, "sidebar").size, find(layout, "sidebar").size], [{ px: 268 }, { px: 300 }]);
 	find(shipped, "sidebar").size = find(layout, "sidebar").size;
 	// The frozen Lunalee column contract: ids, terminal name and 580 px (about 67 columns at font 14, no terminal padding).
@@ -67,7 +75,8 @@ test("imports stay inside the mod folder; the pure modules import neither gpui-k
 	for (const file of files) {
 		const source = await read(`${MOD}${file}`);
 		const specifiers = [...source.matchAll(/^\s*import\s[^"']*["']([^"']+)["']/gm)].map((m) => m[1]);
-		const allowed = file === "main.js" ? ["gpui-kit", "gpui-base", "herdr"] : [];
+		// fs/promises: main.js writes its drawings (halos, grids, the map) as SVG files, which is all Herdr can show them from.
+		const allowed = file === "main.js" ? ["gpui-kit", "gpui-base", "herdr", "fs/promises"] : [];
 		for (const specifier of specifiers) {
 			const local = /^\.\/[\w-]+\.js$/.test(specifier) && files.includes(specifier.slice(2));
 			assert.ok(local || allowed.includes(specifier), `${file} imports ${specifier}`);

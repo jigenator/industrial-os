@@ -32,6 +32,8 @@ The product colors status-bar uses beside the Acid / Black roles (count tiers, m
 
 The [Herdr desktop theme](../../herdr/themes/acid-black.json) restates roles, `SIGNAL_COLORS.ghost`, and the [Herdr terminal colors](../foundation/README.md#herdr-terminal-colors) in `HERDR_TERMINAL`: Ghostty's Terminal Basic Dark ANSI palette, cursor and selection. They are a separate object because status-bar does not use them; the SIGNAL COLORS story does not show them.
 
+The [Herdr sidebar](../../herdr/docs/design.md#sidebar) takes its paper, map inks, greys, opacities, status words, designations and drawn state marks from the [sidebar vocabulary](../foundation/README.md#sidebar-vocabulary). It is vocabulary only: the sidebar is drawn in pixels by the Herdr mod, not in terminal cells, so no element or storybook story shows it.
+
 The [Pi theme](../../pi/theme/industrial-os.json) likewise restates roles and signal colors, plus one [Pi chrome color](../foundation/README.md#pi-chrome-colors) in `PI_CHROME`: `bone` `#e2dccb`, the warm off-white of Pi's editor border. `PI_CHROME.lamp` `#ff5c00` is the Pi droid header's signal lamp, the Marathon signal orange in its own role. The SIGNAL COLORS story shows neither.
 
 Usage sources select the [usage families](../foundation/README.md#usage-color-families) by exact token, independently of provider id or tag. Existing GPT/CLD/KMI lit, used and mid inks are unchanged; absent/unknown tokens use secondary-grey lit with its derived 20%/50% mixes. No additional provider brand mapping is implied.

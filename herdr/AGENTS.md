@@ -4,19 +4,19 @@ Purpose: Industrial OS in the Herdr desktop app: the Acid / Black theme, the Ind
 
 ## Critical engineering rules
 
-- A mod imports only inside its folder: `gpui-kit`, `gpui-base` and `herdr` in `main.js` (pi-reloader's also `net`), otherwise `./name.js`. Rules live in pure modules with no host import. Check: `test/industrial-os-layout.test.mjs`, `test/pi-reloader.test.mjs`.
+- A mod imports only inside its folder: `gpui-kit`, `gpui-base` and `herdr` in `main.js` (pi-reloader's also `net`; industrial-os's also `fs/promises`, to write its drawings), otherwise `./name.js`. Rules live in pure modules with no host import. Check: `test/industrial-os-layout.test.mjs`, `test/pi-reloader.test.mjs`.
 - The Pi Reloader acts only through each Pi's guard, under [its contract](../pi/reloader-guard/docs/contract.md): never a slash command or other terminal input to Pi, never a kill, nothing on a protected terminal (no pane, a layout block, `lunalee-chat`) or another machine, and the one shell line, `pi --session '<file>'`, only once the root POSIX shell is back in front. It never moves focus. The shipped `mod.json` has no `only` prop. Check: `test/pi-reloader.test.mjs`.
 - Unknown is never zero, and a label counts only on a live terminal whose agent `app` is `pi`, with `version` 1. The label is the frozen `io.signals.v1` publication of the [signals-collector snapshot](../pi/signals-collector/docs/contract.md); change it there first. Check: `test/industrial-os.test.mjs`.
-- Every color is a `theme()` name in the mod, or a design-system value in a theme file; the design system owns the values. Check: `test/app-theme.test.mjs` imports `@industrial-os/design-system/foundation/palette` and `signal-colors` by package name.
-- Never change the running app to check this project: no installing, `herdr-app do`, `layout.*` or `mod.*` commands. `herdr-app check` and the tests only read. Commands are in [CONTRIBUTING.md](CONTRIBUTING.md).
-- The layout is Herdr's shipped `main` with six changes, zero terminal padding, flat panes (no radius, border or focus outline), the sidebar width (300 px), the sidebar header, the sidebar lists and Lunalee's column; keep it that way, and record the shipped copy it follows in `test/fixtures/`. The column's ids, size and terminal name are a frozen contract with Lunalee; Lunalee's install supplies its mod and terminal, never this project. Check: `test/industrial-os-layout.test.mjs`.
+- Every color is a `theme()` name or a design-system value; the design system owns the values. The sidebar's come from its [sidebar vocabulary](../design-system/foundation/README.md#sidebar-vocabulary): `mods/industrial-os/vocabulary.js` and `marks/*.svg` are committed copies, changed only by changing the design system and running `node scripts/sync-vocabulary.mjs`. Check: `test/app-theme.test.mjs` and `test/industrial-os-sidebar.test.mjs` import the package by name.
+- Never change the running app to check this project: no installing, `herdr-app do`, `layout.*` or `mod.*` commands. `herdr-app check` and the tests only read. The one exception needs the operator's word each time: a [probe window](CONTRIBUTING.md#probe-window), a copy of the mod under another name in a floating window, deleted afterwards. Commands are in [CONTRIBUTING.md](CONTRIBUTING.md).
+- The layout is Herdr's shipped `main` with eight changes, zero terminal padding, the window buttons' place (`traffic_lights`, on the plate's gutter), flat panes (no radius, border or focus outline), the sidebar width (300 px), the sidebar's three blocks (the header at 130 px, the lists, the footer at 46 px, each an `industrial-os` block) and Lunalee's column; keep it that way, and record the shipped copy it follows in `test/fixtures/`. The column's ids, size and terminal name are a frozen contract with Lunalee; Lunalee's install supplies its mod and terminal, never this project. Check: `test/industrial-os-layout.test.mjs`.
 
 ## Read for the task
 
 | Task | Read before changing |
 | --- | --- |
 | A sidebar value, rule or state | [Design](docs/design.md#sidebar), the [snapshot contract](../pi/signals-collector/docs/contract.md), then [contributing](CONTRIBUTING.md) |
-| How the sidebar looks | [Design](docs/design.md), [root design](../docs/design.md) and [the design-system rule](../docs/conventions.md#design-system-components); the visual design is deferred, a decision for the operator |
+| How the sidebar looks | [Design](docs/design.md#sidebar), [root design](../docs/design.md) and the design system's [sidebar vocabulary](../design-system/foundation/README.md#sidebar-vocabulary), which changes first |
 | The layout or a Herdr app update | [Architecture](docs/architecture.md), `~/.config/herdr-app/AGENTS.md` (Layouts, Mods) and `herdr.d.ts` |
 | A palette value | [Root design](../docs/design.md#acid--black) and [the package decision](../docs/decisions/in-repo-design-system-package.md); the design system changes first |
 | A new mod, layout or theme | [Architecture](docs/architecture.md#where-the-next-change-belongs) and [conventions](docs/conventions.md) |
@@ -26,9 +26,11 @@ Purpose: Industrial OS in the Herdr desktop app: the Acid / Black theme, the Ind
 
 | Change | Start here | Boundary |
 | --- | --- | --- |
-| What a sidebar value means | `mods/industrial-os/` pure modules (`signals.js`, `agent.js`, `spaces.js`, `format.js`, `model.js`) | No `gpui-kit` or `herdr` imports; Node-tested |
-| How the sidebar draws, reads Herdr or runs commands | `mods/industrial-os/main.js` | herdr-app's `gpui-kit`, `gpui-base` and `herdr` modules; `theme()` colors |
-| The sidebar's place in the window, and Lunalee's column | `layouts/industrial-os.json` | Shipped `main` with only zero terminal padding, flat panes, the sidebar at 300 px, its header and lists replaced, and the `lunalee` column added; the column's contents come from Lunalee's install |
+| What a sidebar value means | `mods/industrial-os/` pure modules (`signals.js`, `agent.js`, `spaces.js`, `format.js`, `model.js`, `missions.js`, `fold.js` for the fold's timing) | No `gpui-kit` or `herdr` imports; Node-tested |
+| The map, or a drawing under the text (halo, dot grid, fade) | `mods/industrial-os/map.js`, `assets.js` | Pure: they return SVG documents and positions; colors from `vocabulary.js` |
+| A sidebar color, opacity, status word, designation or state mark | [design-system/foundation/sidebar-vocabulary.mjs](../design-system/foundation/sidebar-vocabulary.mjs), then `node scripts/sync-vocabulary.mjs` | Never edit `vocabulary.js` or `marks/` |
+| How the sidebar lays out, reads Herdr or runs commands | `mods/industrial-os/main.js` | herdr-app's `gpui-kit`, `gpui-base`, `herdr` and `fs/promises`; `theme()` state colors; writes only `.gen/` |
+| The sidebar's place in the window, and Lunalee's column | `layouts/industrial-os.json` | Shipped `main` with only zero terminal padding, flat panes, the sidebar at 300 px, its header, lists and footer replaced, and the `lunalee` column added; the column's contents come from Lunalee's install |
 | What the Pi Reloader decides: candidates, protection, the guard wire, the reload and reset sequences | `mods/pi-reloader/reloader.js` | No host imports; Node-tested against a simulated herdr-core and guard |
 | How the Pi Reloader draws, reads Herdr and talks to herdr-core and the guard | `mods/pi-reloader/main.js`; its window size in `mod.json`, its key in `keys/pi-reloader.json` | herdr-app's `gpui-kit`, `gpui-base`, `herdr` and `net`; `theme()` colors |
 | The guard's side of the protocol | [pi/reloader-guard](../pi/reloader-guard/AGENTS.md) | Not here |
