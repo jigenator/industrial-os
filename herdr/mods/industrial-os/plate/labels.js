@@ -11,7 +11,8 @@
 // close() supersedes everything: nothing is desired, the worker stops before its next write, and close clears every
 // terminal that may carry the label itself, after that terminal's earlier write has landed (bounded).
 
-import { PLATE_LABEL } from "./signals.js";
+/** The label the pane header sets on its pane's terminal while it draws a plate there, for the droid header to read. */
+export const PLATE_LABEL = "io.droid-plate.v1";
 
 /** How long one `hc label` may take before it counts as failed. */
 export const WRITE_TIMEOUT_MS = 2000;

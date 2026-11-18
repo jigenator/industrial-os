@@ -22,7 +22,7 @@ import { View, div, svg } from "gpui-kit";
 import { h_flex } from "gpui-base";
 import { panes, terminals, props, run, hc, home, settings, window as herdrWindow } from "herdr";
 import { emptyMemory, lightingOf, observe, paneModel, presession } from "./model.js";
-import { terminalSignals } from "./signals.js";
+import { terminalSignals } from "../signals.js";
 import { cellPlan, cellWidthOf, coarsen, columnsOf, composeHeader, KEY_ACTIONS, peakFromOf, PIECE_BUDGET, plannedColumns, ROW_HEIGHTS, ROW_TOPS, ROWS, spreadOf } from "./plate.js";
 import { advance, emptyTimeline, frame, frameStep, headerDurations, layerBanks, lightingNow, needsPrime, nextWake, prime, PRIME_MS, REVEAL, settle } from "./motion.js";
 import { LabelPublisher } from "./labels.js";

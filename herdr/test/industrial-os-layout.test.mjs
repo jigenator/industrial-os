@@ -120,8 +120,9 @@ test("imports stay inside the mod folder; only the views and parts/ draw, only p
 			assert.ok(files.includes(inside), `${file} imports ${specifier}`);
 			// A part is used by the sidebar and the storybook, never the other way round, and shows no invented data of its own.
 			if (file.startsWith("parts/")) assert.doesNotMatch(inside, /^(main|storybook|stories|sample)\.js$|^(plate|reloader)\//, `${file} imports ${specifier}`);
-			// The pane header and the Pi Reloader take nothing from the sidebar but the mod's folder name.
-			if (/^(plate|reloader)\//.test(file) && !inside.startsWith(file.split("/")[0] + "/")) assert.equal(inside, "parts/drawings.js", `${file} imports ${specifier}`);
+			// From outside its own folder the Pi Reloader takes only the mod's folder name, and the pane header that and
+			// the mod's one reader of the signals label.
+			if (/^(plate|reloader)\//.test(file) && !inside.startsWith(file.split("/")[0] + "/")) assert.ok(inside === "parts/drawings.js" || (file === "plate/view.js" && inside === "signals.js"), `${file} imports ${specifier}`);
 		}
 		// No host features the runtime lacks.
 		assert.doesNotMatch(source, /\b(setTimeout|setInterval|Intl\.|structuredClone|TextDecoder|WebSocket|require\()/, file);

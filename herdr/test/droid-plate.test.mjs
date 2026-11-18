@@ -5,11 +5,11 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 import { agentCode, clockText, commandText, emptyMemory, fnv, homePath, isAgent, isPi, lightingOf, observe, paneModel, PI_HINTS, presession, shellCode, STARTING_GRACE_MS, timeOfDay } from "../mods/industrial-os/plate/model.js";
-import { LABEL, parseSignals, PLATE_LABEL, terminalSignals } from "../mods/industrial-os/plate/signals.js";
+import { LABEL, parseSignals, terminalSignals } from "../mods/industrial-os/signals.js";
 import { BLOCK_WIDTH, cellPlan, cellWidthOf, coarsen, columnsOf, composeHeader, PIECE_BUDGET, DRAW_LIMIT, GRIP_PX, KEY_ACTIONS, MIN_WIDTH, PEAK_CLEAR, peakFromOf, ROW_HEIGHTS, ROW_TOPS, ROWS, scanPolygon } from "../mods/industrial-os/plate/plate.js";
 import { glyphShape } from "../mods/industrial-os/ds/foundation/glyph-shapes.mjs";
 import { advance, BANKS, emptyTimeline, frame, frameStep, ghostDelay, GHOST_EVERY, headerDurations, LAYER_LIMIT, layerBanks, needsPrime, nextWake, playingUntil, prime, PRIME_MS, REVEAL, ROLL, settle, STANDBY_IN, STANDBY_OUT, wordmarkGlyphs } from "../mods/industrial-os/plate/motion.js";
-import { LabelPublisher, RETRY_LIMIT, WRITE_TIMEOUT_MS } from "../mods/industrial-os/plate/labels.js";
+import { LabelPublisher, PLATE_LABEL, RETRY_LIMIT, WRITE_TIMEOUT_MS } from "../mods/industrial-os/plate/labels.js";
 import { Scheduler } from "../mods/industrial-os/plate/clock.js";
 import { check, closure, modEntries, relativeImports } from "../scripts/sync-design-system.mjs";
 // The mod's own copy: the package name resolves through the root install, which may link another checkout.
@@ -661,10 +661,10 @@ test("the peak clears Herdr's drag grip: its first cell is the pane centre plus 
 	assert.deepEqual(composeHeader(shell, { width: 99, peakFrom: 54 }).lines, composeHeader(shell, { width: 99 }).lines);
 });
 
-test("the plate's folder: one view and six pure modules, which import only each other and ../ds/", async () => {
+test("the plate's folder: one view and five pure modules, which import only each other and ../ds/", async () => {
 	// What each file may import from the app is checked for the whole mod in industrial-os-layout.test.mjs.
 	const files = (await readdir(MOD)).filter((f) => f.endsWith(".js"));
-	assert.deepEqual(files.sort(), ["clock.js", "labels.js", "model.js", "motion.js", "plate.js", "signals.js", "view.js"]);
+	assert.deepEqual(files.sort(), ["clock.js", "labels.js", "model.js", "motion.js", "plate.js", "view.js"]);
 	for (const file of files.filter((f) => f !== "view.js")) {
 		const source = await readFile(new URL(file, MOD), "utf8");
 		const specifiers = [...source.matchAll(/^\s*import\s[^"']*["']([^"']+)["']/gm)].map((m) => m[1]);
