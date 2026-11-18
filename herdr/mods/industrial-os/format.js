@@ -1,12 +1,30 @@
-// Pure text formats for the Industrial OS sidebar. No Herdr or gpui-kit imports, so Node tests load it.
-// The rules are the old herdr-tui contracts' (see herdr/docs/design.md), without their fixed-cell geometry.
+// Pure text formats for the Industrial OS mod: the sidebar's, and the cleaner and hash the pane header shares.
+// No Herdr or gpui-kit imports, so Node tests load it. The sidebar's rules are the old herdr-tui contracts' (see
+// herdr/docs/design.md), without their fixed-cell geometry.
 
-// Terminal and bidi controls are removed and surrounding whitespace trimmed before anything is shown.
+// What a line break or tab is shown as, and the terminal and bidi controls that are never shown.
+const BREAKS = /[\t\n\v\f\r\u0085\u2028\u2029]/g;
 const CONTROLS = /[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
 
-/** Removes terminal and bidi controls and surrounding whitespace. Non-strings become "". */
+/**
+ * Text made safe to show on one line: line breaks and tabs become a space, other terminal and bidi controls go,
+ * runs of spaces become one and the ends are trimmed. Non-strings become "".
+ */
 export function clean(text) {
-	return typeof text === "string" ? text.replace(CONTROLS, "").trim() : "";
+	return typeof text === "string" ? text.replace(BREAKS, " ").replace(CONTROLS, "").replace(/\s+/g, " ").trim() : "";
+}
+
+/** The marks a program puts before its terminal title (a spinner, a bullet), up to the first letter, digit or path. */
+export const TITLE_MARKS = /^[^\p{L}\p{N}~/]+/u;
+
+/** How a title that is only a folder starts: `~`, `/` or a drive letter. */
+export const PATH_START = /^[~/]|^[A-Za-z]:\\/;
+
+/** FNV-1a over the UTF-16 code units, as an unsigned 32-bit number: names a drawing by its content, seeds a barcode. */
+export function fnv(text) {
+	let h = 0x811c9dc5;
+	for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
+	return h;
 }
 
 /** pi-goal's duration format: under a minute `Ns`, under an hour `Nm`, then `HhMm`. Whole seconds, floored. */

@@ -3,8 +3,11 @@
 // package. The copied set is exactly the import closure of the imports that reach into `ds/` from the mod's own
 // files, in any of its folders (`./ds/…`, and `../ds/…` from one folder down). Node standard library only.
 //
-//   node herdr/scripts/sync-design-system.mjs           rewrite every mod's ds/ that imports the design system
-//   node herdr/scripts/sync-design-system.mjs --check   exit 1 when a copy is missing, extra or different
+// A mod whose ds/ holds the sidebar vocabulary also gets its `marks/` folder: herdr-app draws an SVG only from a
+// file, so the vocabulary's drawn marks (`markFiles()`) are written there, one file each, and nothing else is kept.
+//
+//   node herdr/scripts/sync-design-system.mjs           rewrite every mod's ds/ (and marks/) from the design system
+//   node herdr/scripts/sync-design-system.mjs --check   exit 1 when a copy or a mark is missing, extra or different
 import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, normalize, relative, sep } from "node:path";
@@ -13,7 +16,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const MODS = join(HERE, "..", "mods");
 export const DESIGN_SYSTEM = join(HERE, "..", "..", "design-system");
-const DS_DIR = "ds";
+const DS_DIR = "ds", MARKS_DIR = "marks", VOCABULARY = "foundation/sidebar-vocabulary.mjs";
 
 // Static relative specifiers: `import … from "./x"`, `import "./x"` and `export … from "./x"`.
 const SPECIFIER = /(?:^|[;\n])\s*(?:import|export)\s*(?:[\w*{}\s,$]*?\sfrom\s*)?["'](\.{1,2}\/[^"']+)["']/g;
@@ -66,34 +69,55 @@ export async function plan() {
 		if (!entry.isDirectory()) continue;
 		const modDir = join(MODS, entry.name), entries = await modEntries(modDir);
 		if (!entries.length) continue;
-		out.push({ mod: entry.name, dir: join(modDir, DS_DIR), files: await closure(entries), present: await listFiles(join(modDir, DS_DIR)) });
+		const files = await closure(entries);
+		out.push({ mod: entry.name, dir: join(modDir, DS_DIR), files, present: await listFiles(join(modDir, DS_DIR)), marksDir: join(modDir, MARKS_DIR), marks: await marksOf(files) });
 	}
 	return out;
+}
+
+// The mark files of a mod that copies the sidebar vocabulary, as [name, text] pairs; null for a mod that does not.
+async function marksOf(files) {
+	if (!files.includes(VOCABULARY)) return null;
+	// By package name, as every project reads the design system (the root install links it); the files above are
+	// read as files only because they are copied.
+	return (await import("@industrial-os/design-system/foundation/sidebar-vocabulary")).markFiles();
 }
 
 // Differences between each mod's ds/ and the design system: missing, extra and changed files.
 export async function check() {
 	const problems = [];
-	for (const { mod, dir, files, present } of await plan()) {
+	for (const { mod, dir, files, present, marksDir, marks } of await plan()) {
 		for (const file of files) {
 			if (!present.includes(file)) { problems.push(`${mod}: missing ds/${file}`); continue; }
 			const [a, b] = await Promise.all([readFile(join(DESIGN_SYSTEM, file)), readFile(join(dir, file))]);
 			if (!a.equals(b)) problems.push(`${mod}: ds/${file} differs from design-system/${file}`);
 		}
 		for (const file of present) if (!files.includes(file)) problems.push(`${mod}: extra ds/${file}`);
+		if (!marks) continue;
+		const drawn = await listFiles(marksDir);
+		for (const [name, text] of marks) {
+			if (!drawn.includes(name)) problems.push(`${mod}: missing marks/${name}`);
+			else if (await readFile(join(marksDir, name), "utf8") !== text) problems.push(`${mod}: marks/${name} differs from the vocabulary's`);
+		}
+		for (const name of drawn) if (!marks.some(([file]) => file === name)) problems.push(`${mod}: extra marks/${name}`);
 	}
 	return problems;
 }
 
 export async function sync() {
 	const written = [];
-	for (const { mod, dir, files } of await plan()) {
+	for (const { mod, dir, files, marksDir, marks } of await plan()) {
 		await rm(dir, { recursive: true, force: true });
 		for (const file of files) {
 			await mkdir(dirname(join(dir, file)), { recursive: true });
 			await writeFile(join(dir, file), await readFile(join(DESIGN_SYSTEM, file)));
 		}
-		written.push(`${mod}: ${files.length} files`);
+		if (marks) {
+			await rm(marksDir, { recursive: true, force: true });
+			await mkdir(marksDir, { recursive: true });
+			for (const [name, text] of marks) await writeFile(join(marksDir, name), text);
+		}
+		written.push(`${mod}: ${files.length} files${marks ? `, ${marks.length} marks` : ""}`);
 	}
 	return written;
 }

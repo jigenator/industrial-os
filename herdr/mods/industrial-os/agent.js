@@ -1,6 +1,6 @@
 // One agent's block: state precedence, the unseen-work-finished rule and every row's
 // text. Pure: Herdr's data, the parsed label, a clock and remembered state in; plain values out.
-import { baseName, clean, contextBar, countText, displayPath, formatDuration, modelText } from "./format.js";
+import { PATH_START, TITLE_MARKS, baseName, clean, contextBar, countText, displayPath, formatDuration, modelText } from "./format.js";
 
 export const STATES = {
 	question: { icon: "×", code: "QNS", tone: "blocked" },
@@ -57,7 +57,7 @@ export function paneName({ tab, title, program, sharedTab }) {
 	const prog = program?.name;
 	const raw = typeof title === "string" ? title : "";
 	const live = clean(raw.replace(BLAND, ""));
-	const path = /^[~/]|^[A-Za-z]:\\/.test(raw.replace(/^[^\p{L}\p{N}~/]+/u, ""));
+	const path = PATH_START.test(raw.replace(TITLE_MARKS, ""));
 	const telling = live && live !== prog && !path && !live.includes("@") && live.toLowerCase() !== program?.key;
 	const named = tab?.named && !sharedTab;
 	const name = (!named || tab?.name === prog) && telling ? live : named ? clean(tab.name) : "";
@@ -125,7 +125,7 @@ export function piBlock({ agent, signals, herdr, seen, spaceName, tab, sharedTab
 	let row5 = null;
 	if (signals.question) {
 		const more = signals.question.more > 0 ? ` (+${signals.question.more})` : "";
-		row5 = { kind: "ask", label: "ASK", text: `${clean(signals.question.text.replace(/\s+/g, " "))}${more}`, age: null };
+		row5 = { kind: "ask", label: "ASK", text: `${clean(signals.question.text)}${more}`, age: null };
 	} else if (state === "done") {
 		const since = finishedAt ?? signals.lastSettledAt;
 		const clock = since === null ? null : { base: 0, start: since };

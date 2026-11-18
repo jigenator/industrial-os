@@ -79,6 +79,9 @@ const hostOf = (file) => file === "parts/drawings.js" ? [...DRAWS, "fs/promises"
 	: file === "reloader/view.js" ? [...DRAWS, "net"] // the one file that opens a socket: the Pi Reloader's, to each Pi's guard on loopback
 	: /^(parts\/[\w-]+|plate\/view|main|storybook|stories)\.js$/.test(file) ? DRAWS
 	: []; // a pure module: rules and data, loadable by Node as it is
+// What every piece may import from outside its own folder: the mod's folder name, the reader of Pi's signals label,
+// and the text formats. Anything else of the sidebar's stays the sidebar's.
+const SHARED = ["parts/drawings.js", "signals.js", "format.js"];
 // The mod's own folders. ds/ is the design system's files, copied by a script and checked in droid-plate.test.mjs.
 const FOLDERS = ["parts", "plate", "reloader"];
 
@@ -120,9 +123,8 @@ test("imports stay inside the mod folder; only the views and parts/ draw, only p
 			assert.ok(files.includes(inside), `${file} imports ${specifier}`);
 			// A part is used by the sidebar and the storybook, never the other way round, and shows no invented data of its own.
 			if (file.startsWith("parts/")) assert.doesNotMatch(inside, /^(main|storybook|stories|sample)\.js$|^(plate|reloader)\//, `${file} imports ${specifier}`);
-			// From outside its own folder the Pi Reloader takes only the mod's folder name, and the pane header that and
-			// the mod's one reader of the signals label.
-			if (/^(plate|reloader)\//.test(file) && !inside.startsWith(file.split("/")[0] + "/")) assert.ok(inside === "parts/drawings.js" || (file === "plate/view.js" && inside === "signals.js"), `${file} imports ${specifier}`);
+			// From outside its own folder the pane header or the Pi Reloader takes only what the pieces share on purpose.
+			if (/^(plate|reloader)\//.test(file) && !inside.startsWith(file.split("/")[0] + "/")) assert.ok(SHARED.includes(inside), `${file} imports ${specifier}`);
 		}
 		// No host features the runtime lacks.
 		assert.doesNotMatch(source, /\b(setTimeout|setInterval|Intl\.|structuredClone|TextDecoder|WebSocket|require\()/, file);

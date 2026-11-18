@@ -24,7 +24,7 @@ The mod keeps a `ds/` folder that is a byte-for-byte copy of exactly the design-
 
 ## Consequences
 
-The repository holds a second copy of 21 design-system files under `herdr/mods/industrial-os/ds/`; a design-system change that touches them makes `herdr/` tests fail until the sync runs, in the same change. Reviewers see the copied diff twice. The copy is this repository's own code, so it needs no notice. The sidebar's pure modules, in the same mod, can import `ds/` the same way, closing its adoption gap.
+The repository holds a second copy of the design-system files the mod imports (22 on 2026-11-19) under `herdr/mods/industrial-os/ds/`; a design-system change that touches them makes `herdr/` tests fail until the sync runs, in the same change. Reviewers see the copied diff twice. The copy is this repository's own code, so it needs no notice. Since 2026-11-19 the sidebar's vocabulary comes through `ds/` too, and the same script writes the vocabulary's drawn marks into `marks/`: the older second script, `sync-vocabulary.mjs`, and its copy `vocabulary.js` are gone, so this is the mod's only generated copy.
 
 ## Revisit when
 

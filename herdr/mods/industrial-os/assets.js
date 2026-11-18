@@ -3,11 +3,13 @@
 // pattern, and its SVG images have all three.
 import { SIDEBAR_ALPHA as A, SIDEBAR_COLORS as C } from "./vocabulary.js";
 
-const FONT = "JetBrainsMono NFM, JetBrains Mono, monospace";
-const r2 = (n) => Math.round(n * 100) / 100;
-const esc = (text) => text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const svg = (w, h, inner) => `<svg xmlns="http://www.w3.org/2000/svg" width="${r2(w)}" height="${r2(h)}" viewBox="0 0 ${r2(w)} ${r2(h)}">${inner}</svg>`;
-const blur = (deviation, id = "g") => `<filter id="${id}" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="${deviation}"/></filter>`;
+// What every drawing is written with, here and in map.js: the font stack, two decimals, escaped text, the document.
+export const FONT = "JetBrainsMono NFM, JetBrains Mono, monospace";
+export const r2 = (n) => Math.round(n * 100) / 100;
+export const esc = (text) => text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+export const svg = (w, h, inner) => `<svg xmlns="http://www.w3.org/2000/svg" width="${r2(w)}" height="${r2(h)}" viewBox="0 0 ${r2(w)} ${r2(h)}">${inner}</svg>`;
+/** A blur filter named `id`, which reaches `reach` percent of the shape's box past each of its sides. */
+export const blur = (deviation, id = "g", reach = 100) => `<filter id="${id}" x="-${reach}%" y="-${reach}%" width="${100 + 2 * reach}%" height="${100 + 2 * reach}%"><feGaussianBlur stdDeviation="${deviation}"/></filter>`;
 
 /** A halo's clear margin on every side. */
 export const HALO_PAD = 8;
@@ -63,12 +65,17 @@ export const litDotsSize = (w, h) => { const [px, py] = dotPitch(w, h); return [
 
 /** The hover scanner's corner marks: at each corner two small bars that meet only at their corner point, out of focus. */
 export function scopeGlowSvg(w, h, color) {
-	const P = HALO_PAD, bars = [[1.5, 0, 7, 1.5], [0, 1.5, 1.5, 7], [1.5, h - 1.5, 7, 1.5], [0, h - 8.5, 1.5, 7], [w - 8.5, 0, 7, 1.5], [w - 1.5, 1.5, 1.5, 7], [w - 8.5, h - 1.5, 7, 1.5], [w - 1.5, h - 8.5, 1.5, 7]]
+	const P = HALO_PAD, bars = scopeBars(w, h)
 		.map(([x, y, bw, bh]) => `<rect x="${r2(x + P)}" y="${r2(y + P)}" width="${bw}" height="${bh}"/>`).join("");
 	return svg(w + 2 * P, h + 2 * P, `<defs>${blur(3)}${blur(1, "t")}</defs><g fill="${color}"><g filter="url(#g)" opacity="0.85">${bars}${bars}${bars}</g><g filter="url(#t)">${bars}</g></g>`);
 }
+/** A scanner corner bar: how long it is and how thick. Each starts its own thickness in from the corner. */
+export const SCOPE_ARM = 7, SCOPE_STROKE = 1.5;
 /** Those corner bars' places in a `w` × `h` frame, `[x, y, w, h]` each. */
-export const scopeBars = (w, h) => [[1.5, 0, 7, 1.5], [0, 1.5, 1.5, 7], [1.5, h - 1.5, 7, 1.5], [0, h - 8.5, 1.5, 7], [w - 8.5, 0, 7, 1.5], [w - 1.5, 1.5, 1.5, 7], [w - 8.5, h - 1.5, 7, 1.5], [w - 1.5, h - 8.5, 1.5, 7]];
+export function scopeBars(w, h) {
+	const L = SCOPE_ARM, T = SCOPE_STROKE;
+	return [[T, 0, L, T], [0, T, T, L], [T, h - T, L, T], [0, h - T - L, T, L], [w - T - L, 0, L, T], [w - T, T, T, L], [w - T - L, h - T, L, T], [w - T, h - T - L, T, L]];
+}
 
 // One terminal cell at Herdr's 14 px font: the ground's dots stand on its grid, every fourth column and second row.
 const CELL_W = 8.4, CELL_H = 18.5;

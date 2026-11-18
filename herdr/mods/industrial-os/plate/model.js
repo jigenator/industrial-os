@@ -4,6 +4,7 @@
 
 import { sessionUnit } from "../ds/elements/unit-plate/unit-plate.mjs";
 import { hintSegments } from "../ds/elements/status-strip/status-strip.mjs";
+import { clean, fnv } from "../format.js";
 
 /** Pi's idle hints, as its editor offers them. */
 export const PI_HINTS = Object.freeze([["esc", "steer"], ["ctrl+c", "clear"], ["/", "commands"], ["!", "bash"]]);
@@ -12,15 +13,8 @@ export const STARTING_GRACE_MS = 3000;
 /** Free text on the strip (a command, a target, a question) is cut to this many characters before it is fitted. */
 const TEXT_LIMIT = 200;
 
-/** FNV-1a over the UTF-16 code units: the barcode seed of a plate whose unit has no session (an address). */
-export function fnv(text) {
-	let h = 0x811c9dc5;
-	for (let i = 0; i < text.length; i++) {
-		h ^= text.charCodeAt(i);
-		h = Math.imul(h, 0x01000193);
-	}
-	return h | 0;
-}
+/** The barcode seed of a plate whose unit has no session: its terminal's address, hashed, as a signed 32-bit number. */
+export const addressSeed = (address) => fnv(address) | 0;
 
 const upperCode = (text) => text.toUpperCase().replace(/[^A-Z0-9]/g, "");
 /** TERM's code: the basename of the terminal's argv[0], a login shell's leading "-" dropped (`/bin/zsh` → `ZSH`). */
@@ -35,8 +29,8 @@ export function homePath(path, home) {
 	return home && path.startsWith(`${home}/`) ? `~${path.slice(home.length)}` : path;
 }
 
-// Printable text only: control characters become spaces, runs of spaces one space.
-const clean = (text) => String(text).slice(0, TEXT_LIMIT).replace(/[\u0000-\u001f\u007f-\u009f]/g, " ").replace(/\s+/g, " ").trim();
+// Free text for the strip: cut, then cleaned to one printable line.
+const oneLine = (text) => clean(String(text).slice(0, TEXT_LIMIT));
 
 const pad2 = (n) => String(n).padStart(2, "0");
 /** An elapsed time: `mm:ss`, or `hh:mm:ss` with `long`. Negative or unknown times are not shown (null). */
@@ -100,7 +94,7 @@ export function observe(memory, pane, now) {
 /** The command a RUNNING strip shows: argv[0]'s basename and its arguments, from `hc get`'s foreground. */
 export function commandText(argv) {
 	if (!Array.isArray(argv) || !argv.length || argv.some((a) => typeof a !== "string")) return null;
-	const text = clean([argv[0].split("/").pop(), ...argv.slice(1)].join(" "));
+	const text = oneLine([argv[0].split("/").pop(), ...argv.slice(1)].join(" "));
 	return text || null;
 }
 
@@ -138,13 +132,13 @@ export function paneModel({ pane, terminal, signals, foreground = null, memory =
 			nextAt = memory.piSince + STARTING_GRACE_MS;
 			return { kind: "terminal", pi: true, ...terminalPlate(terminal, pane, dir), strip: [status("▶", "STARTING", "accent"), { kind: "text", text: "pi" }], state: "pi:starting", idle: false, nextAt };
 		}
-		const identity = unit ?? { unit: "DRD-????", serial: "????-????", seed: fnv(address) };
+		const identity = unit ?? { unit: "DRD-????", serial: "????-????", seed: addressSeed(address) };
 		let strip, state, idle = false;
 		// The label's detail wins where it knows; where it is missing or malformed, Herdr's status stands, with no
 		// phase, question or clock made up. Herdr's blocked always shows: a question is actionable.
 		const known = typeof signals?.working === "boolean";
 		if (signals?.question) {
-			strip = [{ kind: "chip", glyph: "▲", word: "NEEDS YOU" }, { kind: "text", text: clean(signals.question.text), clip: true }];
+			strip = [{ kind: "chip", glyph: "▲", word: "NEEDS YOU" }, { kind: "text", text: oneLine(signals.question.text), clip: true }];
 			state = "pi:blocked";
 		} else if (pane.status === "blocked") {
 			strip = [{ kind: "chip", glyph: "▲", word: "NEEDS YOU" }];
@@ -155,7 +149,7 @@ export function paneModel({ pane, terminal, signals, foreground = null, memory =
 		} else if (signals?.working === true) {
 			const phase = signals.phase;
 			const word = phase ? phaseWord(phase) : "WORKING";
-			const target = phase?.kind === "tool" && phase.target ? [{ kind: "text", text: clean(phase.target), clip: true }] : [];
+			const target = phase?.kind === "tool" && phase.target ? [{ kind: "text", text: oneLine(phase.target), clip: true }] : [];
 			strip = [status("■", word, "accent"), ...target, ...clockSeg(phase ? elapsed(phase.since) : null), STEER];
 			state = `pi:working:${word}`;
 		} else if (pane.status === "done") {
@@ -168,7 +162,7 @@ export function paneModel({ pane, terminal, signals, foreground = null, memory =
 			idle = true;
 		}
 		return {
-			kind: "droid", pi: true, known: !!unit, presessionSeed: fnv(address),
+			kind: "droid", pi: true, known: !!unit, presessionSeed: addressSeed(address),
 			plate: { unit: identity.unit, serial: identity.serial, seed: identity.seed },
 			options: { barcode: true, peak: true },
 			strip, state, idle, nextAt,
@@ -184,7 +178,7 @@ export function paneModel({ pane, terminal, signals, foreground = null, memory =
 		else { strip = [READY]; state = "agent:ready"; idle = true; }
 		return {
 			kind: "agent", pi: false, prefix: "AGT", code,
-			plate: { serial: dir, serialLabel: "DIR", title: "", mark: null, division: ["EXTERNAL", "AGENT"], seed: fnv(address) },
+			plate: { serial: dir, serialLabel: "DIR", title: "", mark: null, division: ["EXTERNAL", "AGENT"], seed: addressSeed(address) },
 			options: { barcode: true, peak: false },
 			strip, state, idle, nextAt,
 		};
@@ -192,7 +186,7 @@ export function paneModel({ pane, terminal, signals, foreground = null, memory =
 
 	const base = terminalPlate(terminal, pane, dir);
 	if (runKey(pane)) {
-		const command = commandText(foreground) ?? clean(pane.program?.name ?? "") ?? "";
+		const command = commandText(foreground) ?? oneLine(pane.program?.name ?? "") ?? "";
 		const strip = [status("▶", "RUNNING", "accent"), ...(command ? [{ kind: "text", text: command, clip: true }] : []), ...clockSeg(elapsed(memory.runSince, true))];
 		return { kind: "terminal", pi: false, ...base, strip, state: "terminal:running", idle: false, nextAt };
 	}
@@ -206,7 +200,7 @@ const statusSince = (terminal, now) => (typeof terminal?.status_ms === "number" 
 
 function terminalPlate(terminal, pane, dir) {
 	const argv0 = Array.isArray(terminal?.argv) ? terminal.argv[0] : null;
-	const branch = typeof pane?.branch === "string" && pane.branch ? clean(pane.branch).toUpperCase() : "--";
+	const branch = typeof pane?.branch === "string" && pane.branch ? oneLine(pane.branch).toUpperCase() : "--";
 	return {
 		prefix: "TERM", code: shellCode(argv0),
 		plate: { serial: dir, serialLabel: "DIR", title: "", mark: null, division: ["BRANCH", branch] },

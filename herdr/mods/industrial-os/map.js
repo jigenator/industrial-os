@@ -3,6 +3,8 @@
 // window shows the same moment. Pure: no gpui-kit or herdr import. It returns SVG documents for what stands still
 // (the ground, the zones, the tags, the dissolving edge) and, each frame, where those and the moving dots go;
 // main.js writes the documents to files and places them.
+import { FONT, blur, esc, r2, svg } from "./assets.js";
+import { ACTIVE, RANK } from "./missions.js";
 import { SIDEBAR_ALPHA as A, SIDEBAR_COLORS as C, ZONE_STATUS } from "./vocabulary.js";
 
 /** A space's window: four terminal rows tall, drawn `BLEED` px past its place on every side. */
@@ -17,14 +19,9 @@ const RISE = 1.5, CELLW = 170, BELT = 190, MX = 170, MY = 40, LX = 4, LY = 2, LI
 const REACH = 96;
 // A sprite's clear margin, for its halo.
 const PAD = 12;
-const FONT = "JetBrainsMono NFM, JetBrains Mono, monospace";
 
 const hash = (text) => { let h = 7; for (let i = 0; i < text.length; i++) h = (Math.imul(h, 31) + text.charCodeAt(i)) >>> 0; return h; };
 const rs = (key) => (hash(`io-map#${key}`) % 1000) / 1000;
-const r2 = (n) => Math.round(n * 100) / 100;
-const esc = (text) => text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const svg = (w, h, inner) => `<svg xmlns="http://www.w3.org/2000/svg" width="${r2(w)}" height="${r2(h)}" viewBox="0 0 ${r2(w)} ${r2(h)}">${inner}</svg>`;
-const blur = (id, deviation) => `<filter id="${id}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${deviation}"/></filter>`;
 // Exposure: what is drawn is added back over itself out of focus, once as a tight halo and once as a wide one, so
 // whatever is lit bleeds light and comes out brighter than it was drawn, as a hologram does. Only on the dark board.
 // `w` × `h` is the whole drawing: the light may reach its edge.
@@ -208,7 +205,7 @@ export function zoneSvg(z, color, phase, lit) {
 /** On the plate the watched unit's zone has its dot matrix exposed in acid: the same dots out of focus, as light on paper. */
 export function zoneGlowSvg(z) {
 	const b = zoneBox(z), wide = '<use href="#m" filter="url(#b)"/>', tight = '<use href="#m" filter="url(#a)"/>';
-	return svg(b.w, b.h, `<defs>${blur("a", 1.5)}${blur("b", 5)}<g id="m" fill="${C.light}">${blanket(z, 0)}</g></defs>${wide.repeat(5)}${tight.repeat(2)}`);
+	return svg(b.w, b.h, `<defs>${blur(1.5, "a", 50)}${blur(5, "b", 50)}<g id="m" fill="${C.light}">${blanket(z, 0)}</g></defs>${wide.repeat(5)}${tight.repeat(2)}`);
 }
 
 /** A unit's marker, centred in a `MARKER` px box: its state as a shape, on its own small board. */
@@ -311,9 +308,7 @@ export function lightSvg(w, h) {
 	return svg(w + 2 * B, h + 2 * B, `<defs><linearGradient id="l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C.light}" stop-opacity="${A.lightTop}"/><stop offset="1" stop-color="${C.light}" stop-opacity="${A.lightBottom}"/></linearGradient></defs><polygon points="${band}" fill="url(#l)"/>`);
 }
 
-// Priority for a camera at rest: what is active first, then what needs the person, what finished, what works.
-const RANK = { blocked: 0, done: 1, working: 2, idle: 3, unknown: 3 };
-const ACTIVE = new Set(["QNS", "BLK", "WRK", "SUB", "RUN"]);
+// A camera at rest looks at what is active first, then by the missions' own priority (RANK).
 /**
  * Where a space's camera rests: on the hovered unit, else the hovered zone, else the focused unit's station if it is
  * in this space, else the unit that most needs a look, else its first zone. The window's top-left corner, held

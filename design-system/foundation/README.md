@@ -140,7 +140,7 @@ State colors are role names so motions recognise warning and critical cells. `CA
 
 ## Sidebar vocabulary
 
-[sidebar-vocabulary.mjs](sidebar-vocabulary.mjs), exported as `@industrial-os/design-system/foundation/sidebar-vocabulary`, holds the values and words of the Industrial OS sidebar in the Herdr desktop app. It is values and vocabulary only: nothing in it draws terminal cells, and no element or storybook story renders it. The [Herdr mod](../../herdr/mods/industrial-os) is the only renderer. A mod cannot import a package, so the mod keeps a committed copy (`vocabulary.js`) and the drawn marks (`marks/*.svg`), both written by `herdr/scripts/sync-vocabulary.mjs` and compared with this module by `herdr/test/industrial-os-sidebar.test.mjs`. Change a value here, then run the script. How the sidebar uses them is in [the Herdr design](../../herdr/docs/design.md).
+[sidebar-vocabulary.mjs](sidebar-vocabulary.mjs), exported as `@industrial-os/design-system/foundation/sidebar-vocabulary`, holds the values and words of the Industrial OS sidebar in the Herdr desktop app. It is values and vocabulary only: nothing in it draws terminal cells, and no element or storybook story renders it. The [Herdr mod](../../herdr/mods/industrial-os) is the only renderer. A mod cannot import a package, so the mod reads this module from its generated `ds/` copy (its `vocabulary.js` only names it) and keeps the drawn marks as files (`marks/*.svg`), both written by `herdr/scripts/sync-design-system.mjs` and compared with this module by `herdr/test/industrial-os-sidebar.test.mjs`. Change a value here, then run the script. How the sidebar uses them is in [the Herdr design](../../herdr/docs/design.md).
 
 | Export | What it is |
 | --- | --- |

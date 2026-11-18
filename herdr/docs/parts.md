@@ -35,7 +35,7 @@ The pane header (`plate/`) and the Pi Reloader (`reloader/`) are in the same mod
 | `space-band.js` | A space's band | `spaceBand` |
 | `titles.js` | A tab's title and a group's | `tabTitle`, `tabTitleChars`, `groupTitle` |
 | `pane-row.js` | A pane's rows, quiet and open, and the readings it carries | `paneRow`, `paneRowHeight`, `latchOf`, `readoutOf`, `unitCount`, `unitIcons`, `contextText`, `contextBar`, `detailLine`, `labelCell` |
-| `scanner.js` | The scanner's frame and the readout it types | `scannerFrame`, `scannerStill`, `readoutWidth`, `ReadoutView` |
+| `scanner.js` | The scanner's frame and the readout it types | `scannerFrame`, `scannerStill`, `readoutWidth`, `ReadoutView`, `startReadout` |
 | `map-window.js` | A window onto the map (nested view) | `MapView`, `FRAME_MS` |
 | `ground-light.js` | The list's ground and its light (nested view) | `GroundView` |
 | `hide-grip.js` | The hide grip | `hideGrip` |

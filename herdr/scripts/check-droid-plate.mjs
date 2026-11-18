@@ -113,6 +113,23 @@ function planText(plan, shown) {
 }
 `;
 
+// `herdr-app check` ends a callback that runs past its time budget with `interrupted`, on the wall clock, so a busy
+// machine now and then ends a state that is well inside it (about 1 run of this script in 20, at any state). Such a
+// run is repeated; a state that is really too slow is interrupted every time and still fails.
+const ATTEMPTS = 3;
+function check(dir) {
+	let out = "";
+	for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+		try {
+			return { ok: true, attempt, out: execFileSync("herdr-app", ["check", dir, "--print-spec"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 60_000 }) };
+		} catch (error) {
+			out = `${error.stdout ?? ""}${error.stderr ?? ""}`;
+			if (!/^interrupted$/m.test(out)) break;
+		}
+	}
+	return { ok: false, attempt: ATTEMPTS, out };
+}
+
 const names = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(STATES);
 let failed = 0;
 for (const name of names) {
@@ -128,13 +145,7 @@ for (const name of names) {
 		const pane = { pane: "p1", terminal: "t3h", tab: "tb", title: "zsh", cwd: "/Users/sample/projects/lunalee", branch: "main", focused: true, zoomed: false, movable: true, ...state.pane };
 		const terminal = { address: "t3h", argv: ["/bin/zsh", "-l"], cols: state.cols ?? 99, state: "live", labels: state.labels };
 		writeFileSync(join(dir, "sample-state.js"), `export const STATE = ${JSON.stringify({ panes: [pane], terminals: [terminal], active: state.active ?? true, mode: state.mode ?? null })};\n`);
-		let out, ok = true;
-		try {
-			out = execFileSync("herdr-app", ["check", dir, "--print-spec"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 60_000 });
-		} catch (error) {
-			ok = false;
-			out = `${error.stdout ?? ""}${error.stderr ?? ""}`;
-		}
+		const { ok, out, attempt } = check(dir);
 		const [, ms, drawMs, frameMs] = /COMPOSE_MS (\d+) DRAW_MS (\d+) FRAME_MS (\d+)/.exec(out) ?? [];
 		const planLine = /text "PLAN (.*)"\s*$/m.exec(out)?.[1]?.replace(/\\\\/g, "\\").replace(/\\"/g, '"');
 		const parts = planLine ? planLine.split("@@") : [];
@@ -144,7 +155,7 @@ for (const name of names) {
 		const revealOk = (state.mode === "reveal") === /REVEAL rows/.test(checks);
 		const grid = rows.length === 7 && off === 0 && (cols < 24 || bayEnd === cols - 2) && layers === expectLayers && revealOk;
 		if (!ok || !grid) { failed++; console.log(`${name}: FAILED ${checks}\n${out.split("\n").filter((l) => /interrupted|error|at |check/i.test(l)).slice(0, 12).join("\n")}`); if (process.env.DP_DEBUG) console.log(out.slice(0, 3000)); continue; }
-		console.log(`${name}: passed, first compose ${ms} ms, a warm frame ${frameMs} ms, draw ${drawMs} ms in the runtime; ${checks}\n${rows.map((r) => `  |${r}|`).join("\n")}`);
+		console.log(`${name}: passed${attempt > 1 ? ` on attempt ${attempt} (interrupted before)` : ""}, first compose ${ms} ms, a warm frame ${frameMs} ms, draw ${drawMs} ms in the runtime; ${checks}\n${rows.map((r) => `  |${r}|`).join("\n")}`);
 	} finally {
 		rmSync(dir, { recursive: true, force: true });
 	}
@@ -154,10 +165,9 @@ if (!process.argv.slice(2).length) {
 	try {
 		cpSync(MOD, dir, { recursive: true, filter: (path) => !path.endsWith(".gen") });
 		writeFileSync(join(dir, "main.js"), 'export { PiReloader as default } from "./reloader/view.js";\n');
-		let out;
-		try { out = execFileSync("herdr-app", ["check", dir, "--print-spec"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 60_000 }); } catch (error) { out = `FAILED ${error.stdout ?? ""}${error.stderr ?? ""}`; }
-		const drawn = !out.startsWith("FAILED") && ["Pi Reloader", "Reload all Pi", "Reset all Pi", "IDLE OR DONE PI (0)"].every((text) => out.includes(text));
-		if (!drawn) { failed++; console.log(`pi-reloader: FAILED\n${out.slice(0, 1500)}`); } else console.log("pi-reloader: passed, the empty window drew in the runtime");
+		const { ok, out, attempt } = check(dir);
+		const drawn = ok && ["Pi Reloader", "Reload all Pi", "Reset all Pi", "IDLE OR DONE PI (0)"].every((text) => out.includes(text));
+		if (!drawn) { failed++; console.log(`pi-reloader: FAILED\n${out.slice(0, 1500)}`); } else console.log(`pi-reloader: passed${attempt > 1 ? ` on attempt ${attempt} (interrupted before)` : ""}, the empty window drew in the runtime`);
 	} finally {
 		rmSync(dir, { recursive: true, force: true });
 	}
