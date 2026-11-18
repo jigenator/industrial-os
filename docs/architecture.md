@@ -11,7 +11,7 @@ Industrial OS is one repository holding several independent projects. A project 
 
 | Project | Language and runtime | Public entry point | Dependencies | Guides |
 | --- | --- | --- | --- | --- |
-| `zsh/` | zsh 5.9; Node 22 tests | `industrial-os.zsh-theme`, direct source or oh-my-zsh | Git; mirrors design-system palette, tests import palette by package name | [README](../zsh/README.md), [AGENTS](../zsh/AGENTS.md), [architecture](../zsh/docs/architecture.md), [contributing](../zsh/CONTRIBUTING.md) |
+| `zsh/` | oh-my-posh 29.10 config for zsh 5.9; Node 22 tests | `industrial-os.omp.json`, `oh-my-posh init zsh --config` | oh-my-posh and Git; mirrors design-system palette, tests import palette by package name | [README](../zsh/README.md), [AGENTS](../zsh/AGENTS.md), [architecture](../zsh/docs/architecture.md), [contributing](../zsh/CONTRIBUTING.md) |
 | `source-collector/` | TypeScript 7.1 beta on Bun 1.4.4; Effect 4; Bun lockfile | `bin/source-collector.ts`; v1 polling Unix RPC | Pinned Effect/Bun/SQLite packages; private local command/checklist configs; no project imports | [README](../source-collector/README.md), [AGENTS](../source-collector/AGENTS.md), [architecture](../source-collector/docs/architecture.md), [contract](../source-collector/docs/contract.md), [contributing](../source-collector/CONTRIBUTING.md) |
 | `design-system/` | Plain Node.js 22 ES modules (`.mjs`), standard library only; a private `package.json` with an `exports` map and no dependencies or scripts | `@industrial-os/design-system/<foundation, elements, or motions>/<name>`, by package name in this repository; Lunalee may use pinned root-package public paths under the package decision; `node examples/storybook.mjs`, `node examples/showcase.mjs`. Never published; the module contracts are first-pass, not a stable API | None outside Node | [README](../design-system/README.md), [AGENTS](../design-system/AGENTS.md), [architecture](../design-system/docs/architecture.md), [conventions](../design-system/docs/conventions.md), [design](../design-system/docs/design.md), [contributing](../design-system/CONTRIBUTING.md) |
 | `pi/claude-interrupt/` | TypeScript ES modules run by Node 22 type stripping; npm; `tsc --noEmit` | `package.json` `pi.extensions` → `src/index.ts`, loaded by the Pi host | Host-provided Pi packages as peer dependencies; development dependencies pin Pi 0.99.1. Imports exported design-system marker/token/motion subpaths through a Pi adapter | [README](../pi/claude-interrupt/README.md), [AGENTS](../pi/claude-interrupt/AGENTS.md), [architecture](../pi/claude-interrupt/docs/architecture.md), [contributing](../pi/claude-interrupt/CONTRIBUTING.md) |
@@ -36,7 +36,7 @@ Industrial OS is one repository holding several independent projects. A project 
 ```mermaid
 flowchart LR
     subgraph repo["industrial-os"]
-        Zsh["zsh/<br/>shell theme, tests, specimens"]
+        Zsh["zsh/<br/>oh-my-posh prompt, tests, specimens"]
         SourceEngine["source-collector/<br/>local polling engine"]
         DS["design-system/<br/>elements, foundation, motions, examples"]
         CI["pi/claude-interrupt/<br/>src/index.ts"]

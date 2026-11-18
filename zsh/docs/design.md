@@ -1,24 +1,30 @@
 # Design
 
-A minimal static shell prompt in the shared [Acid / Black language](../../docs/design.md#acid--black):
+A static shell prompt in the shared [Acid / Black language](../../docs/design.md#acid--black):
 
 ```text
-~/projects/demo  ⑂ main clean  ›
+~/projects/demo  ⑂ main ↑1 modified ~1 ?1 staged +1  ›                 12:04:31
 ```
 
-The full path is bold primary white; branch text is secondary grey. Double spaces separate path, Git segment and input mark. Every input mark has a trailing space; successful commands use an acid `›`.
+The full path is bold primary white; Git text is secondary grey. Double spaces separate segments and the input mark. Every input mark has a trailing space; successful commands use an acid `›`.
 
-## States
+## Left prompt
 
-- **Clean:** bold acid `clean` only after successful status with no records.
-- **Modified:** bold warning `modified` for any porcelain v1 record: staged or unstaged tracked changes, untracked files (`--untracked-files=normal`), and submodule changes (`--ignore-submodules=none`). This is the same dirty definition and status flags as `pi/signals-collector/src/workspace.ts`; fsmonitor is disabled there and here. Ignored files do not count.
-- **Detached:** replace the branch name with `detached @<short sha>`; still show clean/modified from status.
-- **Unavailable:** status failure shows regular primary-white `status unavailable`, retaining the branch when known. Branch/revision lookup failure also shows unavailable, without inventing a name or clean state.
-- **Non-Git:** omit the entire Git segment. Home-prefixed paths use `~`; nested directories keep the full path, not the Git root.
-- **Command failure:** preserve the repository state independently. Insert bold critical `✕ <code>` before a critical `›` (the mark remains bold). Successful commands add no exit segment.
+- **Remote:** in an SSH session only, a Nerd Font SSH icon and grey `user@host` lead the line.
+- **Root:** bold critical `⚡ root` when the shell runs as root.
+- **Path:** full path, home-prefixed with `~`; nested directories keep the full path, not the Git root.
+- **Git:** omitted outside a repository. In order: the upstream host's Nerd Font icon (linked to the remote), `⑂`, the branch, then ahead/behind (`↑n ↓n`) when an upstream differs. Detached HEAD reads `detached at <short sha>`.
+- **Clean:** bold acid `clean` when status has no records.
+- **Modified:** bold warning `modified` for any record, followed by working-tree counts (`~` modified, `?` untracked, `-` deleted, `+` added, `x` unmerged) and `staged` with staged counts. Untracked files use `--untracked-files=normal`, submodules `--ignore-submodules=none`; ignored files do not count.
+- **Unavailable:** when `git status` fails, regular primary-white `status unavailable` replaces the whole Git segment; it never claims `clean`.
+- **Command failure:** bold critical `✕ <code> ›`. Successful commands add no exit segment.
+
+## Right prompt, past prompts and continuation
+
+The right prompt is grey: a Node, Go or Python Nerd Font icon when the folder has their project files (Node not in the home directory), then the clock `HH:MM:SS`. After a command runs, its prompt shrinks to the bold folder name and an acid `›`. Multi-line input continues after a grey `››`.
 
 ## Narrow terminals and limits
 
-Paths and long refs wrap naturally with input; no truncation or width parser. No animation, extra environment/host/version segments, ASCII fallback or 256-color adaptation.
+Paths and long refs wrap naturally with input; no truncation or width parser. No animation, ASCII fallback or 256-color adaptation.
 
-Require a black background, truecolor and a font with `⑂`, `›`, `✕`. The state words/codes remain meaningful without color. Controls/bidi overrides become `?`, and prompt syntax in names is literal. Herdr glyph alignment, narrow resizing and color contrast have not been interactively verified; no accessibility certification is claimed.
+Require a black background, truecolor, a Nerd Font, and glyphs `⑂`, `›`, `✕`, `⚡`. The state words/codes remain meaningful without color. Prompt syntax in names is literal. Herdr glyph alignment, narrow resizing and color contrast have not been interactively verified; no accessibility certification is claimed.
