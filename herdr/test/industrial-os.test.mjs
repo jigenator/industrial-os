@@ -3,7 +3,7 @@
 // not run here; CONTRIBUTING.md records `herdr-app check` and what is not verified.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FLICKER_AT, READ_DELAY_MS, ageText, clean, contextBar, countText, daysText, displayPath, formatDuration, modelText, nextAgeChange, flickerFrame, readoutFrame, readoutSettled, shortModel, wrapText } from "../mods/industrial-os/format.js";
+import { FLICKER_AT, READ_DELAY_MS, ageText, clean, contextBar, fnv, countText, daysText, displayPath, formatDuration, modelText, nextAgeChange, flickerFrame, readoutFrame, readoutSettled, shortModel, wrapText } from "../mods/industrial-os/format.js";
 import { FOLD_EXPIRE_MS, FOLD_TIMES, eraseRows, scanSegments } from "../mods/industrial-os/fold.js";
 import { LABEL, parseSignals, terminalSignals } from "../mods/industrial-os/signals.js";
 import { displayState, nextFinishedAt, paneName, piBlock } from "../mods/industrial-os/agent.js";
@@ -60,6 +60,11 @@ test("formats: pi-goal durations, two-digit caps, unknown counts, days", () => {
 	assert.deepEqual([countText(0, "AU"), countText(2, "AU"), countText(99, "AU"), countText(140, "AU"), countText(null, "AU")], ["00AU", "02AU", "99AU", "99AU", "??AU"]);
 	assert.deepEqual([daysText(2 * DAY + HOUR), daysText(150 * DAY)], ["2d", "99d"]);
 	assert.equal(clean("  a\u001b[31mb\u202e\n "), "a[31mb");
+	// One line: a line break or tab is a space, runs of spaces are one, and no bidi control survives.
+	assert.equal(clean("npm  run\tdev\n--watch\u200f \u2066x"), "npm run dev --watch x");
+	assert.equal(clean(7), "");
+	// FNV-1a, unsigned: the known vectors.
+	assert.deepEqual([fnv(""), fnv("a"), fnv("foobar")], [0x811c9dc5, 0xe40c292c, 0xbf9cf968]);
 });
 
 test("model row: short model and thinking, verbatim outside the table, dated IDs kept", () => {

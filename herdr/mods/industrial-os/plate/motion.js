@@ -13,6 +13,7 @@ import { revealDuration } from "../ds/motions/reveal.mjs";
 import { serialRoll, serialRollDuration } from "../ds/motions/serial-roll.mjs";
 import { hash } from "../ds/foundation/seeded.mjs";
 import { numeralLines, textGrid } from "../ds/elements/pixel-numeral/pixel-numeral.mjs";
+import { ROWS } from "./plate.js";
 
 /** T2: focus and window changes switch a plate's lighting in four banks, 30 ms apart, 40 ms each (130 ms). */
 export const BANKS = Object.freeze({ banks: 4, stagger: 30, fade: 40 });
@@ -31,8 +32,7 @@ export const PRIME_MS = 20;
 /** At most this many lighting layers are stacked; a fourth change drops the oldest one above the base. */
 export const LAYER_LIMIT = 3;
 /** The strip's row. */
-const STRIP_ROW = 6;
-const ROWS = 7;
+const STRIP_ROW = ROWS - 1;
 
 const HEX = "0123456789ABCDEF";
 let hexGlyphs = null;

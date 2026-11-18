@@ -3,6 +3,7 @@
 import { image } from "gpui-kit";
 import { appHome, checking } from "herdr";
 import { mkdir, readdir, unlink, writeFile } from "fs/promises";
+import { fnv } from "../format.js";
 
 /** This mod's folder under the app's home. A copy under another name (a probe window) rewrites it. */
 export const MOD = "mods/industrial-os";
@@ -16,7 +17,6 @@ const gen = { ready: new Map(), pending: new Map(), flight: new Set(), names: nu
 // A refused path throws at the call instead of rejecting (a home outside the user's folder cannot be listed), so
 // `.catch` alone would miss it and no drawing would ever be written.
 const quiet = async (run, otherwise) => { try { return await run(); } catch { return otherwise; } };
-const fnv = (text) => { let h = 0x811c9dc5; for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0; return h; };
 
 /** The file a drawing was written to, or null until it is. `make` returns its SVG; `key` names it. */
 export function asset(key, make) {

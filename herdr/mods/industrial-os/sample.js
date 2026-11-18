@@ -1,6 +1,8 @@
 // An invented window for the storybook and the checks, in the shapes Herdr gives the mod: five spaces and nine
 // panes in every state. Nothing here is read from Herdr; a story shows a part with this data and says so.
-const LABEL = "io.signals.v1", HOME = "/Users/operator";
+import { LABEL } from "./signals.js";
+
+const HOME = "/Users/operator";
 
 /**
  * The spaces, plainly: [{ name, branch, git: [ahead, behind], tabs: [{ name?, panes: [{ key, kind?, title, status?, sig }] }] }].

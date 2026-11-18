@@ -3,25 +3,24 @@
 // blocks model.js built and a clock in; plain values out. The words and designations are the design system's
 // sidebar vocabulary.
 import { HERDR_ICONS } from "./agent.js";
-import { ageText, clean, countText, nextAgeChange, twoDigits } from "./format.js";
+import { PATH_START, TITLE_MARKS, ageText, clean, countText, nextAgeChange, twoDigits } from "./format.js";
 import { UNIT_STATUS, designation, gridReference, spaceLetter, zoneStatus } from "./vocabulary.js";
 
 // Herdr's status word as a state code, for agents without signals.
 const HERDR_CODE = { working: "WRK", blocked: "BLK", done: "DNE", idle: "IDL", unknown: "UNK" };
-// Priority: what needs the person, what finished, what works, what stands by.
-const RANK = { blocked: 0, done: 1, working: 2, idle: 3, unknown: 3 };
-const ACTIVE = new Set(["QNS", "BLK", "WRK", "SUB", "RUN"]);
+/** Priority by tone: what needs the person, what finished, what works, what stands by. The map's cameras use it too. */
+export const RANK = { blocked: 0, done: 1, working: 2, idle: 3, unknown: 3 };
+/** The state codes of a unit that is doing or wanting something. */
+export const ACTIVE = new Set(["QNS", "BLK", "WRK", "SUB", "RUN"]);
 /** ACTION REQUIRED shows this many; the rest fold into `+ NN MORE`. */
 export const ACTION_SHOWN = 4;
 /** A row shows one icon for each of this many subagents, then `+N`. */
 export const UNIT_ICONS = 12;
 
-const BLAND = /^[^\p{L}\p{N}~/]+/u;
-
 /** What a pane is called: its terminal's title when that says something, else the program it runs. */
 export function unitName({ title, program, mod }) {
-	const raw = clean(typeof title === "string" ? title.replace(BLAND, "") : "");
-	const telling = raw && !/^[~/]|^[A-Za-z]:\\/.test(raw) && !/^\S+@\S+/.test(raw);
+	const raw = clean(typeof title === "string" ? title.replace(TITLE_MARKS, "") : "");
+	const telling = raw && !PATH_START.test(raw) && !/^\S+@\S+/.test(raw);
 	return telling ? raw : clean(program?.name) || clean(mod) || raw || "terminal";
 }
 

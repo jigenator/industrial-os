@@ -4,7 +4,6 @@
 import { View, div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { checking, closeOverlay, nextCommand, props, theme } from "herdr";
-import { READ_STEP_MS } from "./format.js";
 import { buildWorld } from "./map.js";
 import { buildSidebar, emptyMemory } from "./model.js";
 import { SIDEBAR_ALPHA as A, SIDEBAR_COLORS as C } from "./vocabulary.js";
@@ -13,7 +12,7 @@ import { GroundView } from "./parts/ground-light.js";
 import { bar } from "./parts/light.js";
 import { MapView } from "./parts/map-window.js";
 import { readoutOf } from "./parts/pane-row.js";
-import { ReadoutView } from "./parts/scanner.js";
+import { ReadoutView, startReadout } from "./parts/scanner.js";
 import { BLACK, INNER, ROW, STEP_MS, WHITE, hold, present, rgba, scoped } from "./parts/sheet.js";
 import { openStage } from "./parts/stage.js";
 import { font, word } from "./parts/text.js";
@@ -75,14 +74,9 @@ export class Storybook extends View {
 		cx.notify();
 	}
 
-	// A readout is redrawn by its owner, as the sidebar does it: at its own step, until it has settled and its light is drawn.
+	// A readout is redrawn by its owner, as the sidebar does it.
 	read(cx) {
-		const at = this.stage.readAt = Date.now(), view = this.views.readout;
-		this.reading?.cancel();
-		this.reading = cx.timer.every(READ_STEP_MS, (cx) => {
-			cx.notify(view);
-			if (Date.now() - at > 1200) this.reading.cancel();
-		});
+		this.reading = startReadout(cx, this.stage, this.views.readout, this.reading);
 	}
 
 	tick(cx) {

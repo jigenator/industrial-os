@@ -1,7 +1,7 @@
 // Sidebar vocabulary: the values and words of the Industrial OS sidebar in the Herdr desktop app. Values and
 // vocabulary only: nothing here draws terminal cells. The Herdr mod (../../herdr/mods/industrial-os) is the only
-// renderer; it cannot import a package, so its vocabulary.js is a copy of this file that herdr's tests compare
-// with it, and its marks/*.svg are written from markSvg() and iconSvg(). Contract: README.md#sidebar-vocabulary.
+// renderer; it cannot import a package, so it reads this file from its ds/ copy, and its marks/*.svg are written
+// from markFiles(), both by herdr/scripts/sync-design-system.mjs. Contract: README.md#sidebar-vocabulary.
 
 // Colors the sidebar uses beside the Acid / Black roles, which it takes from the app theme.
 export const SIDEBAR_COLORS = Object.freeze({

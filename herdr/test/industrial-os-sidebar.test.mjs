@@ -4,7 +4,6 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 import { markFiles } from "@industrial-os/design-system/foundation/sidebar-vocabulary";
-import { HEADER, body } from "../scripts/sync-vocabulary.mjs";
 import * as vocabulary from "../mods/industrial-os/vocabulary.js";
 import * as source from "@industrial-os/design-system/foundation/sidebar-vocabulary";
 import { HALO_PAD, POINTER_REACH, SWEEP_REACH, advance, barGlowSvg, dotGridSvg, dotPitch, fadeSvg, groundDots, groundLight, groundSvg as fieldSvg, haloSvg, lift, litDotsSize, litDotsSvg, rulerSvg, scopeBars, scopeGlowSvg, sidewaysSvg } from "../mods/industrial-os/assets.js";
@@ -25,8 +24,10 @@ function assertSvg(text, name) {
 	assert.deepEqual(open, [], name);
 }
 
-test("vocabulary.js and marks/ are the design system's sidebar vocabulary, as sync-vocabulary.mjs writes them", async () => {
-	assert.equal(await read(`${MOD}vocabulary.js`), HEADER + body(await read("../../design-system/foundation/sidebar-vocabulary.mjs")));
+test("vocabulary.js is the design system's sidebar vocabulary through ds/, and marks/ holds exactly its drawn marks", async () => {
+	// No values of its own: the one line names the copied file, which droid-plate.test.mjs holds byte for byte to the design system's.
+	assert.deepEqual((await read(`${MOD}vocabulary.js`)).split("\n").filter((line) => line && !line.startsWith("//")), ['export * from "./ds/foundation/sidebar-vocabulary.mjs";']);
+	assert.equal(await read(`${MOD}ds/foundation/sidebar-vocabulary.mjs`), await read("../../design-system/foundation/sidebar-vocabulary.mjs"));
 	assert.deepEqual(Object.keys(vocabulary), Object.keys(source));
 	assert.deepEqual(vocabulary.SIDEBAR_COLORS, source.SIDEBAR_COLORS);
 	const files = markFiles();

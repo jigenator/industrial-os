@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
-import { agentCode, clockText, commandText, emptyMemory, fnv, homePath, isAgent, isPi, lightingOf, observe, paneModel, PI_HINTS, presession, shellCode, STARTING_GRACE_MS, timeOfDay } from "../mods/industrial-os/plate/model.js";
+import { addressSeed, agentCode, clockText, commandText, emptyMemory, homePath, isAgent, isPi, lightingOf, observe, paneModel, PI_HINTS, presession, shellCode, STARTING_GRACE_MS, timeOfDay } from "../mods/industrial-os/plate/model.js";
 import { LABEL, parseSignals, terminalSignals } from "../mods/industrial-os/signals.js";
 import { BLOCK_WIDTH, cellPlan, cellWidthOf, coarsen, columnsOf, composeHeader, PIECE_BUDGET, DRAW_LIMIT, GRIP_PX, KEY_ACTIONS, MIN_WIDTH, PEAK_CLEAR, peakFromOf, ROW_HEIGHTS, ROW_TOPS, ROWS, scanPolygon } from "../mods/industrial-os/plate/plate.js";
 import { glyphShape } from "../mods/industrial-os/ds/foundation/glyph-shapes.mjs";
@@ -62,11 +62,13 @@ test("units: DRD from the session, AGT from the app, TERM from the shell; unknow
 	assert.deepEqual(droid.options, { barcode: true, peak: true });
 	// No label after the grace: the pre-session plate, its barcode seeded from the terminal address.
 	const unknown = model(pane(PI), { memory: { ...emptyMemory(), pi: true, piSince: NOW - STARTING_GRACE_MS } });
-	assert.deepEqual([unknown.kind, unknown.known, unknown.plate], ["droid", false, { unit: "DRD-????", serial: "????-????", seed: fnv("t3h") }]);
+	assert.deepEqual([unknown.kind, unknown.known, unknown.plate], ["droid", false, { unit: "DRD-????", serial: "????-????", seed: addressSeed("t3h") }]);
 	assert.deepEqual(presession(droid).plate, unknown.plate);
+	// The address seed is the mod's hash as a signed 32-bit number, as the barcode has always been seeded.
+	assert.deepEqual([addressSeed("t3h"), addressSeed("t1")], [-1233379576, 138734806]);
 
 	const agent = model(pane({ app: "claude-code", status: "idle", program: { key: "claude", name: "Claude Code", agent: true, shell: false } }));
-	assert.deepEqual([agent.kind, agent.prefix, agent.code, agent.plate.serial, agent.plate.seed], ["agent", "AGT", "CLAUDE", "~/projects/lunalee", fnv("t3h")]);
+	assert.deepEqual([agent.kind, agent.prefix, agent.code, agent.plate.serial, agent.plate.seed], ["agent", "AGT", "CLAUDE", "~/projects/lunalee", addressSeed("t3h")]);
 	assert.deepEqual(agent.plate.division, ["EXTERNAL", "AGENT"]);
 	assert.deepEqual(agent.options, { barcode: true, peak: false });
 	assert.equal(agentCode(null, "Codex"), "CODEX");
@@ -192,6 +194,10 @@ test("Pi's strip: idle hints, working with its phase, target and elapsed, needs 
 	assert.deepEqual(strip({ status: "working" }, signals({ root: { working: true } })).map((s) => s.kind), ["status", "hint"]);
 	const blocked = strip({ status: "blocked" }, signals({ question: { text: "Which trade-off?", more: 1, since: NOW } }));
 	assert.deepEqual(blocked, [{ kind: "chip", glyph: "▲", word: "NEEDS YOU" }, { kind: "text", text: "Which trade-off?", clip: true }]);
+	// Free text reaches the strip through the mod's one cleaner: no bidi control or line break in a question, a target or a branch.
+	assert.equal(strip({ status: "blocked" }, signals({ question: { text: "Ship\u202e it\nnow?", more: 0, since: NOW } }))[1].text, "Ship it now?");
+	assert.equal(strip({ status: "working" }, signals({ root: { working: true }, phase: { kind: "tool", tool: "bash", target: "ls\u2066 -la", since: NOW } }))[1].text, "ls -la");
+	assert.equal(model(pane({ branch: "feat/\u202ex\ty" })).plate.division[1], "FEAT/X Y");
 	const settled = new Date(2026, 10, 17, 15, 2).getTime();
 	const done = strip({ status: "done" }, signals({ root: { working: false, lastSettledAt: settled } }));
 	assert.deepEqual(done.slice(0, 2), [{ kind: "status", glyph: "●", word: "DONE", tone: "primary" }, { kind: "field", label: "SETTLED", value: "15:02", drop: 5 }]);
@@ -223,7 +229,9 @@ test("terminal strip: READY, RUNNING the full command with its clock, PI EXITED 
 	assert.equal(running.state, "terminal:running");
 	// Without the looked-up command, the program's name.
 	assert.equal(paneModel({ pane: npm, terminal: term(), signals: null, memory, now: NOW }).strip[1].text, "npm");
-	assert.equal(commandText(["a\u0007b"]), "a b");
+	// The mod's one cleaner: a line break or tab is a space, any other control or bidi mark goes.
+	assert.equal(commandText(["a\u0007b"]), "ab");
+	assert.equal(commandText(["python3", "-", "<<EOF\nimport\tsys\u202e"]), "python3 - <<EOF import sys");
 	assert.equal(commandText([]), null);
 	// Pi exits back to the shell.
 	memory = observe(observe(memory, pane(PI), NOW), pane(), NOW + 1000);
@@ -661,14 +669,14 @@ test("the peak clears Herdr's drag grip: its first cell is the pane centre plus 
 	assert.deepEqual(composeHeader(shell, { width: 99, peakFrom: 54 }).lines, composeHeader(shell, { width: 99 }).lines);
 });
 
-test("the plate's folder: one view and five pure modules, which import only each other and ../ds/", async () => {
+test("the plate's folder: one view and five pure modules, which import only each other, ../ds/ and the mod's text formats", async () => {
 	// What each file may import from the app is checked for the whole mod in industrial-os-layout.test.mjs.
 	const files = (await readdir(MOD)).filter((f) => f.endsWith(".js"));
 	assert.deepEqual(files.sort(), ["clock.js", "labels.js", "model.js", "motion.js", "plate.js", "view.js"]);
 	for (const file of files.filter((f) => f !== "view.js")) {
 		const source = await readFile(new URL(file, MOD), "utf8");
 		const specifiers = [...source.matchAll(/^\s*import\s[^"']*["']([^"']+)["']/gm)].map((m) => m[1]);
-		for (const specifier of specifiers) assert.match(specifier, /^\.\/[\w-]+\.js$|^\.\.\/ds\/[\w/-]+\.mjs$/, `${file} imports ${specifier}`);
+		for (const specifier of specifiers) assert.match(specifier, /^\.\/[\w-]+\.js$|^\.\.\/ds\/[\w/-]+\.mjs$|^\.\.\/format\.js$/, `${file} imports ${specifier}`);
 	}
 });
 

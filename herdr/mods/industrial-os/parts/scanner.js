@@ -2,13 +2,31 @@
 // readout it types at the end of that pane's row.
 import { View, div } from "gpui-kit";
 import { h_flex } from "gpui-base";
-import { HALO_PAD, scopeBars, scopeGlowSvg } from "../assets.js";
-import { readoutFrame, readoutSettled } from "../format.js";
+import { HALO_PAD, SCOPE_ARM as L, SCOPE_STROKE as T, scopeBars, scopeGlowSvg } from "../assets.js";
+import { READ_STEP_MS, readoutFrame, readoutSettled } from "../format.js";
 import { SIDEBAR_ALPHA as A } from "../vocabulary.js";
 import { lamp } from "./light.js";
 import { CH, partId, present, rgba } from "./sheet.js";
 import { stageOf } from "./stage.js";
 import { lit } from "./text.js";
+
+// A readout is redrawn this long after it starts: past the longest text's settling, and its light.
+const READ_REDRAW_MS = 1200;
+
+/**
+ * Starts a readout over on `stage` and redraws `view` (a ReadoutView) at the readout's own step until it has settled
+ * and its light is drawn. Returns the timer; pass the last one back as `running` and it is cancelled first.
+ */
+export function startReadout(cx, stage, view, running) {
+	const at = stage.readAt = Date.now();
+	cx.notify(view);
+	running?.cancel();
+	const timer = cx.timer.every(READ_STEP_MS, (cx) => {
+		cx.notify(view);
+		if (Date.now() - at > READ_REDRAW_MS) timer.cancel();
+	});
+	return timer;
+}
 
 /**
  * One frame per list that slides to the pane the pointer reaches, and stays on the last one until the pointer
@@ -18,8 +36,9 @@ import { lit } from "./text.js";
 export function scannerFrame(color, { id, rect: r, on }) {
 	if (!r) return null;
 	const w = r.w + 2, h = r.h + 2, slide = { duration: 170, easing: "ease-out" };
+	// scopeBars' eight bars, each held to its own corner so it keeps its place while the frame changes size.
 	const corners = [["left", "top"], ["left", "bottom"], ["right", "top"], ["right", "bottom"]]
-		.flatMap(([x, y]) => [div().absolute()[x](1.5)[y](0).w(7).h(1.5).bg(color), div().absolute()[x](0)[y](1.5).w(1.5).h(7).bg(color)]);
+		.flatMap(([x, y]) => [div().absolute()[x](T)[y](0).w(L).h(T).bg(color), div().absolute()[x](0)[y](T).w(T).h(L).bg(color)]);
 	return div().id(partId(id)).absolute().left(r.x - 1).top(r.y - 1).w(w).h(h).bg(rgba(color, A.scopeGlass)).opacity(on ? 1 : 0)
 		.transition("top", slide).transition("height", slide).transition("left", slide).transition("width", slide).transition("opacity", { duration: 120 })
 		.children(present([lamp(`scope/${w}x${h}/${color}`, () => scopeGlowSvg(w, h, color), -HALO_PAD, -HALO_PAD, w + 2 * HALO_PAD, h + 2 * HALO_PAD), ...corners]));

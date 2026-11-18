@@ -14,7 +14,7 @@ import {
 } from "herdr";
 import { fadeSvg, groundSvg as fieldSvg } from "./assets.js";
 import { FOLD_EXPIRE_MS, FOLD_TIMES } from "./fold.js";
-import { FLICKER_AT, READ_STEP_MS, flickerFrame } from "./format.js";
+import { FLICKER_AT, flickerFrame } from "./format.js";
 import { BLEED, VIEW_H, buildWorld } from "./map.js";
 import { buildSidebar, emptyMemory } from "./model.js";
 import { parseAheadBehind, spacePlace } from "./spaces.js";
@@ -28,7 +28,7 @@ import { hideGrip } from "./parts/hide-grip.js";
 import { MapView } from "./parts/map-window.js";
 import { latchOf, paneRow, paneRowHeight, readoutOf } from "./parts/pane-row.js";
 import { railLamp } from "./parts/rail-lamp.js";
-import { ReadoutView, scannerFrame } from "./parts/scanner.js";
+import { ReadoutView, scannerFrame, startReadout } from "./parts/scanner.js";
 import { searchHint } from "./parts/search-hint.js";
 import { CH, INNER, PAD, ROW, STEP_MS, present } from "./parts/sheet.js";
 import { shortcutStrip, unfoldStrip } from "./parts/shortcut-strip.js";
@@ -316,13 +316,7 @@ export default class IndustrialOs extends View {
 
 	// The readout starts over on each pane the scanner reaches, and is stepped until it has settled and its light is drawn.
 	startReadout(cx) {
-		const at = this.stage.readAt = Date.now();
-		cx.notify(this.readout);
-		this.reading?.cancel();
-		this.reading = cx.timer.every(READ_STEP_MS, (cx) => {
-			cx.notify(this.readout);
-			if (Date.now() - at > 1200) this.reading.cancel();
-		});
+		this.reading = startReadout(cx, this.stage, this.readout, this.reading);
 	}
 
 	// ================= the top: the crate plate and the shortcut strip =================
