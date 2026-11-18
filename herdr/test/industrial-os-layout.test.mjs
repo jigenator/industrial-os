@@ -72,17 +72,27 @@ test("mod.json places the mod nowhere by itself; only the layout puts it in the 
 	assert.deepEqual(JSON.parse(await read(`${MOD}mod.json`)), { place: "none", title: "Industrial OS" });
 });
 
-test("imports stay inside the mod folder; the pure modules import neither gpui-kit nor herdr", async () => {
-	const files = (await readdir(new URL(MOD, import.meta.url))).filter((f) => f.endsWith(".js"));
-	assert.ok(files.includes("main.js"));
+// What each file may import from the app. Everything else is a file of this mod.
+const DRAWS = ["gpui-kit", "gpui-base", "herdr"];
+const hostOf = (file) => file === "parts/drawings.js" ? [...DRAWS, "fs/promises"] // the one file that writes: SVG drawings are all Herdr can show them from
+	: /^(parts\/[\w-]+|main|storybook|stories)\.js$/.test(file) ? DRAWS
+	: []; // a pure module: rules and data, loadable by Node as it is
+
+test("imports stay inside the mod folder; only main.js, the storybook and parts/ draw, and only parts/drawings.js writes files", async () => {
+	const top = (await readdir(new URL(MOD, import.meta.url))).filter((f) => f.endsWith(".js"));
+	const parts = (await readdir(new URL(`${MOD}parts/`, import.meta.url))).filter((f) => f.endsWith(".js")).map((f) => `parts/${f}`);
+	assert.ok(top.includes("main.js") && parts.includes("parts/sheet.js"));
+	const files = [...top, ...parts], root = new URL(MOD, import.meta.url).href;
 	for (const file of files) {
 		const source = await read(`${MOD}${file}`);
 		const specifiers = [...source.matchAll(/^\s*import\s[^"']*["']([^"']+)["']/gm)].map((m) => m[1]);
-		// fs/promises: main.js writes its drawings (halos, grids, the map) as SVG files, which is all Herdr can show them from.
-		const allowed = file === "main.js" ? ["gpui-kit", "gpui-base", "herdr", "fs/promises"] : [];
 		for (const specifier of specifiers) {
-			const local = /^\.\/[\w-]+\.js$/.test(specifier) && files.includes(specifier.slice(2));
-			assert.ok(local || allowed.includes(specifier), `${file} imports ${specifier}`);
+			if (hostOf(file).includes(specifier)) continue;
+			assert.match(specifier, /^\.\.?\//, `${file} imports ${specifier}`);
+			const target = new URL(specifier, new URL(file, root)).href;
+			assert.ok(target.startsWith(root) && files.includes(target.slice(root.length)), `${file} imports ${specifier}`);
+			// A part is used by the sidebar and the storybook, never the other way round, and shows no invented data of its own.
+			if (file.startsWith("parts/")) assert.doesNotMatch(target.slice(root.length), /^(main|storybook|stories|sample)\.js$/, `${file} imports ${specifier}`);
 		}
 		// No host features the runtime lacks.
 		assert.doesNotMatch(source, /\b(setTimeout|setInterval|Intl\.|TextDecoder|WebSocket|require\()/, file);

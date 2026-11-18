@@ -4,7 +4,7 @@ Follow the [repository workflow](../CONTRIBUTING.md) as well as this project's c
 
 ## Toolchain and setup
 
-The maintained content is three herdr-app mods in plain JavaScript (droid-plate with a generated `ds/` copy of design-system files), a layout, a theme and a keys snippet in JSON. The checks use Node.js 22 with its standard library and the design-system package; there is no dependency or lockfile in this project, and `mods/package.json` only marks the mod's files as ES modules for Node. Run `npm install` once at the repository root so `@industrial-os/design-system` resolves; see [setup](../CONTRIBUTING.md#setup). `herdr-app check` needs an installed Herdr desktop app; it was last run with herdr-app 0.1.16.
+The maintained content is three herdr-app mods in plain JavaScript (droid-plate with a generated `ds/` copy of design-system files), a layout, a theme and a keys snippet in JSON. The checks use Node.js 22 with its standard library and the design-system package; there is no dependency or lockfile in this project, and `mods/package.json` only marks the mod's files as ES modules for Node. `stand-in/` is what Node loads in place of the app's own modules, so the tests can run the sidebar's drawing code ([parts](docs/parts.md#the-stand-in)). Run `npm install` once at the repository root so `@industrial-os/design-system` resolves; see [setup](../CONTRIBUTING.md#setup). `herdr-app check` needs an installed Herdr desktop app; it was last run with herdr-app 0.1.16.
 
 `mods/industrial-os/vocabulary.js` and `marks/*.svg` are copies of the design system's [sidebar vocabulary](../design-system/foundation/README.md#sidebar-vocabulary). After changing it, run `node scripts/sync-vocabulary.mjs` from `herdr/`; it rewrites both and removes marks that no longer exist. Step 1 fails while they differ.
 
@@ -13,19 +13,54 @@ The maintained content is three herdr-app mods in plain JavaScript (droid-plate 
 | Order | Directory | Command | Prerequisites/effects | Coverage |
 | --- | --- | --- | --- | --- |
 | 0 | repository root | `node herdr/scripts/sync-design-system.mjs --check` (after a design-system change, without `--check` to regenerate) | Node 22; reads `design-system/` and `herdr/mods/*/ds/`; writes only without `--check` | droid-plate's `ds/` is byte for byte the design system's files, exactly its import closure |
-| 1 | `herdr/` | `node --test` | Root install; reads the mods' pure modules, `layouts/industrial-os.json`, `test/fixtures/`, `themes/acid-black.json` and the design system's sidebar vocabulary; no writes | Label parsing and stale labels; every state, unknowns, caps, the finished rule, space aggregation and quiet ages; missions, units, ACTION REQUIRED, the agents view and the rail's lamps; the vocabulary copy and marks equal the design system; the map's world, cameras and frames; every drawing is a well-formed SVG; the layout differs from shipped `main` only in the listed changes, among them the pane header, the sidebar's three blocks and the frozen Lunalee column; the Pi Reloader's selection, protection, guard label and wire checks, and its reload and reset sequences against a simulated herdr-core and guard; the pane plate's units, strips, lighting, rows at 24–200 columns, keys and motion timeline, and `ds/` against the design system; every mod's imports; desktop theme values |
-| 2 | `herdr/` | `herdr-app check mods/industrial-os`, `herdr-app check mods/pi-reloader` and `herdr-app check mods/droid-plate` | Installed herdr-app; loads each mod once with empty in-memory state, in a hidden window; changes nothing in the running app. It writes `gpui-kit.d.ts` and `jsconfig.json` into the mod folder for editors; Git ignores them | Each mod loads and its initial description materializes: prints `check passed: mods/<name>`, exit 0. Only the empty state renders |
+| 1 | `herdr/` | `node --test` | Root install; reads the mods' pure modules, `layouts/industrial-os.json`, `test/fixtures/`, `themes/acid-black.json` and the design system's sidebar vocabulary, and loads the sidebar's drawing code on `stand-in/`; no writes | Every sidebar part has a story, every story builds each of its states over time with no element id used twice, a story left stops its clocks, drawings are written without a folder listing and never during a check, and the sidebar's three blocks build the sample window (trees only: nothing is laid out or painted); label parsing and stale labels; every state, unknowns, caps, the finished rule, space aggregation and quiet ages; missions, units, ACTION REQUIRED, the agents view and the rail's lamps; the vocabulary copy and marks equal the design system; the map's world, cameras and frames; every drawing is a well-formed SVG; the layout differs from shipped `main` only in the listed changes, among them the pane header, the sidebar's three blocks and the frozen Lunalee column; the Pi Reloader's selection, protection, guard label and wire checks, and its reload and reset sequences against a simulated herdr-core and guard; the pane plate's units, strips, lighting, rows at 24–200 columns, keys and motion timeline, and `ds/` against the design system; every mod's imports; desktop theme values |
+| 2 | `herdr/` | `herdr-app check mods/industrial-os`, `herdr-app check mods/pi-reloader` and `herdr-app check mods/droid-plate` | Installed herdr-app; loads each mod once with empty in-memory state, in a hidden window; changes nothing in the running app. It writes `gpui-kit.d.ts` and `jsconfig.json` into the mod folder for editors, and `gpui-kit.d.ts` into `parts/`; Git ignores them | Each mod loads and its initial description materializes: prints `check passed: mods/<name>`, exit 0. Only the empty state renders |
 | 2a | repository root | `node herdr/scripts/check-droid-plate.mjs` | Installed herdr-app; runs `herdr-app check --print-spec` on temporary copies of droid-plate whose `herdr` import returns sample panes; changes nothing in the running app | The plate composes and renders in herdr-app's runtime for thirteen sample states (Pi idle, working, needs you, done and before its label; an agent; a shell, a running command; unfocused, inactive, zoomed, 40 and 198 columns), with the header width and font advance given as 2x samples; fails unless every piece starts on a cell boundary and the bay ends on W − 3; prints the cells as placed and the compose, warm-frame and draw times. Not layout, paint, timers, motion or input |
+| 2b | An [isolated app](#isolated-app) | Show the storybook and the sidebar there; `herdr-app shot` each changed story, `herdr-app status` for `errors` | A second Herdr with its own home and core; changes nothing in the running app or its files | How each part looks in each state, on invented data; the sidebar on the isolated app's own spaces. Not the operator's data, and no real pointer |
 | 3 | Herdr app | Manual, by an operator: install as in the [README](README.md#install), switch to the layout, and watch Pi agents with the signals publication and other agents, and every pane plate state, lighting level, key and motion | Changes the live app's files and layout | Populated rendering, every state, clicks, agent order, ahead/behind, live clocks, the look |
 
 Then follow the [repository-wide checks](../CONTRIBUTING.md#repository-wide-checks). Record every check as passed, failed, skipped or not run. Step 2 proves the mod loads, not how populated rows look or behave.
 
+### Isolated app
+
+A second Herdr that the running one never sees: its own app home (`HERDR_APP_HOME`) and its own core (`HC_SESSION`, with the state and config folders moved). Nothing under `~/.config/herdr-app` is read or written, and the running app keeps the keyboard. macOS, herdr-app 0.1.16 and herdr-core 0.1.21.
+
+```sh
+S=/tmp/herdr-iso
+iso() { env -u HC_TERMINAL_SOCKET -u HC_SCOPE -u HC_TERMINAL_ID HERDR_APP_HOME=$S/app HC_SESSION=iso XDG_STATE_HOME=$S/state XDG_CONFIG_HOME=$S/config "$@"; }
+
+# Install into the isolated home: the mod, and a layout that is the storybook alone.
+mkdir -p $S/app/mods $S/app/layouts $S/app/themes $S/state $S/config
+rsync -a --delete --exclude .gen --exclude gpui-kit.d.ts --exclude jsconfig.json mods/industrial-os/ $S/app/mods/industrial-os/
+cp themes/acid-black.json $S/app/themes/
+printf '%s\n' '{ "id": "root", "type": "row", "background": "canvas", "children": [ { "id": "book", "type": "block", "content": { "mod": "industrial-os", "props": { "part": "storybook" } } } ] }' > $S/app/layouts/storybook.json
+
+# Start it behind the other windows, then drive it.
+open -g -n -a /Applications/Herdr.app --env HERDR_APP_HOME=$S/app --env HC_SESSION=iso --env XDG_STATE_HOME=$S/state --env XDG_CONFIG_HOME=$S/config
+iso herdr-app status                                  # wait until it answers
+iso herdr-app do layout.switch '{"name":"storybook"}'
+iso herdr-app do industrial-os.story-next             # turn the page
+iso herdr-app shot /tmp/story.png
+iso herdr-app status                                  # "errors" must be []
+
+# Stop it: the app that holds the isolated socket, then the isolated core.
+kill "$(lsof -t $S/app/herdr-app.sock | head -1)"
+iso hc server stop
+herdr-app status                                      # the running app: still answering, "errors": []
+```
+
+- Every `herdr-app` and `hc` command for it goes through `iso`. Without it the command reaches the running app. Never run `hc server stop` without it.
+- Set `"theme": "acid-black"` in `$S/app/settings.json`; `iso herdr-app do overlay.close` dismisses the first start's welcome window; `$S/app/window.json` (`{ "state": "windowed", "bounds": [x, y, w, h] }`) places the window before the first start.
+- For the sidebar itself, also copy `mods/droid-plate` and `layouts/industrial-os.json`, add a `lunalee` mod that draws nothing (the layout names it), and switch to `industrial-os`. Its spaces are the isolated core's own: `iso hc` makes them. `iso herdr-app do industrial-os.storybook` then opens the storybook as a window; a layout switch closes it.
+- Saving into `$S/app/mods/industrial-os` reloads the mod there, so re-running the `rsync` shows a change at once.
+- What it cannot show: the operator's data, a real pointer or key press (commands are sent with `do`), and the first-start state of a real install. With the home outside the user's folder the mod cannot list `.gen/` ([limits](docs/architecture.md#limits-and-evolution)).
+
 ### Probe window
 
-A way to see the sidebar with live data without touching the installed sidebar, layout or keys. It opens a window in the running app, so it needs the operator's word each time.
+A way to see the sidebar with live data without touching the installed sidebar, layout or keys. It opens a window in the running app, so it needs the operator's word each time. To see the parts on invented data, use the [isolated app](#isolated-app) instead.
 
 1. Copy `mods/industrial-os` to `~/.config/herdr-app/mods/io-probe`, without `.gen`.
-2. In the copy: `mod.json` becomes `{ "place": "none", "title": "IO probe", "overlay": { "kind": "window", "width": 300, "height": 1000 } }`; in `main.js`, `MOD` becomes `"mods/io-probe"` and the default part `"all"` (`p.part ?? "all"`), which draws the three blocks in one view. `rail: true` in that default draws the rail forms.
+2. In the copy: `mod.json` becomes `{ "place": "none", "title": "IO probe", "overlay": { "kind": "window", "width": 300, "height": 1000 } }`; in `parts/drawings.js`, `MOD` becomes `"mods/io-probe"`, and in `main.js` the default part `"all"` (`p.part ?? "all"`), which draws the three blocks in one view. `rail: true` in that default draws the rail forms.
 3. `herdr-app check mods/io-probe`, then `herdr-app do mod.open '{"name":"io-probe"}'` (the same command closes it), `herdr-app shot <file>` and `herdr-app status` for `errors`.
 4. Delete `~/.config/herdr-app/mods/io-probe`.
 
@@ -35,7 +70,7 @@ The theme has its own manual step: install as in the [README](README.md#theme), 
 
 ## Making a change
 
-Change the source first: a color, opacity, word or mark in the design system's sidebar vocabulary (then `node scripts/sync-vocabulary.mjs`), a label field in [the snapshot contract](../pi/signals-collector/docs/contract.md). Then change the pure module and its test, then `main.js` if what is laid out changes, update [the design](docs/design.md), and run the sequence.
+Change the source first: a color, opacity, word or mark in the design system's sidebar vocabulary (then `node scripts/sync-vocabulary.mjs`), a label field in [the snapshot contract](../pi/signals-collector/docs/contract.md). Then change the pure module and its test, then the part in `parts/` and its story if what is drawn changes ([parts](docs/parts.md#adding-or-changing-a-part)), then `main.js` if what is placed, read or run changes; update [the design](docs/design.md), and run the sequence.
 
 ## Verification records
 
@@ -104,6 +139,19 @@ Record each run with its date, app version and results.
 - **Fourth round:** the `CTX` light at 0.55 of the gutter bar's; a right click on a tab title opens Herdr's `menu` popup for that tab; the plate's camera pans to a new watched unit (`swing`, `beltAt`) instead of jumping; new rows come in after a fold or unfold as they go out (`eraseRows`, `typeRows` deleted). `node --test` **58/58**. In the Node stand-in the right click asked for `{ mod: "menu", kind: "popup", props: { tab: "tab", target: { id, space } } }`. Not seen in the live app: the menu, the pan and the unfold.
 - **Third round:** the fold and unfold motion (`fold.js`, covers of ground over each block, a scan line), one sliding scanner per list in place of one per pane, and a stronger light on the `CTX` bar. `node --test` **58/58**, 1 new (the fold's timing, rows and scan line). In the Node stand-in: every step of both motions drew covers over all three blocks at both widths, a grip click ran `layout.resize` once and cleared its state, and the scanner kept one element while it moved between four panes. `⌘\` was bound to `industrial-os.fold` in the operator's keys.json (backup beside it).
 - **Not run:** the fold and unfold in the live app, and whether the pane and the list body both receive a pointer move (the sliding scanner needs it; without it each pane shows its own still scanner, as before). Anything that needs the pointer or keyboard in the live app, since nothing moved the operator's: the grip growing, the readout typing, the scanner and bar coming up, the ground's light under the pointer, the lamps' pulse, the rail's strip and lens. The window buttons' new place (`herdr-app shot` does not capture them). Motion with another app in front. CPU with the ground's light: `top` showed 46 to 54 against 39 to 52 before, with other terminals busy both times, so no difference can be claimed.
+
+### Sidebar parts and storybook
+
+2026-11-18, macOS, Node 22.23.4, herdr-app 0.1.16, herdr-core 0.1.21, branch `feat/herdr-gpui-parts-storybook`. `main.js` (979 lines) was split into 21 files in `mods/industrial-os/parts/` and a 508-line `main.js` that places them; the storybook (`storybook.js`, `stories.js`, `sample.js`) and `stand-in/` were added ([decision](../docs/decisions/herdr-combined-mod.md)). No look was meant to change. The running app was not touched: everything seen was in an [isolated app](#isolated-app).
+
+- `cd herdr && node --test`: **86/86 passed**, 0 failed, skipped or cancelled: the 80 existing checks (the import check rewritten for `parts/`) and 6 new ones in `test/industrial-os-parts.test.mjs`. Three of the new checks were each seen to fail with the thing they guard taken out, then restored: the storybook's `scoped` call ("no element named twice"), the readout's rest, and the writer going on without a folder listing.
+- `herdr-app check mods/industrial-os`, `mods/droid-plate`, `mods/pi-reloader`: each `check passed`. `node herdr/scripts/sync-design-system.mjs --check`: `ds copies match the design system`. `node herdr/scripts/check-droid-plate.mjs`: `all 20 states passed`.
+- **The sidebar draws what it drew before, by hand, not kept:** the mod at `origin/main` and the split mod were each loaded on the stand-in and put through one scripted session on the sample window (every element hovered in both views, every band shut and opened, focus moved to seven panes, a long machine name, overlong titles, seven more questions, unknown readings, an update, the fold to the rail and back frame by frame from the key and from the grip, an empty window, the probe's one-view forms, and every click and right click). **All 1754 drawn trees, the commands run and the overlays opened were equal**, hover and pressed styles included. Changing the lamp's period from 2800 to 2801 made 1361 trees differ, so the comparison sees a change. The stand-in records styles, ids, handlers and motions; it does not lay out or paint.
+- **Isolated app, the storybook in a layout block:** all 19 stories shot with `herdr-app shot` after `industrial-os.story-next`, `herdr-app status` showing `errors: []` throughout. Seen: every specimen labelled and inside its box, marks, lit text with halos, glows, dot grids, the map on dark and on paper, the open grip, ACTION REQUIRED with its `+ 03 MORE`, the 22 pane-row states, the rail's forms. One specimen (`keyParts`) ran past its box and was widened.
+- **Isolated app, the `industrial-os` layout:** the three blocks drew two spaces made there, a shell in each, with `errors: []`; `herdr-app do industrial-os.storybook` opened the window over it (`overlays: ["industrial-os"]`), with `CLOSE` in its header, and `industrial-os.story-next` turned its page. A layout switch closed it.
+- Found on the way: herdr-app writes `gpui-kit.d.ts` into `parts/` too (now ignored); it refuses to list a folder outside the user's home by throwing at the call, which the drawings' writer did not catch, so with the isolated home in `/tmp` no drawing was ever written, at `origin/main` as well. The writer now goes on without the listing; 115 drawings were written there afterwards. `overlay.close` does not close a window: only the mod (`CLOSE`) or a layout switch does.
+- **Review:** one independent reviewer read the whole diff and found no correctness defect and four smaller things, all fixed: ACTION REQUIRED worked out every row's place on each draw (now when the pointer reaches the row, as before the split); the storybook redrew a settled readout every 30 ms (now it steps for 1.2 s and rests until it types again, seen typing again in the isolated app); the stand-in took any `on_…` method and dropped pressed styles (now it knows four events and records them); the writer's fix had no check (now it has). The trees were compared again afterwards.
+- **Not run:** the installed app, the operator's data, a real key press or pointer (hover styles, the ground's light, dragging the window, `CLOSE` clicked), the storybook's index scrolled in a short window, a theme other than Acid / Black, and a font other than `JetBrainsMono NFM`. Whether the sidebar looks the same in the app after the split was not compared pixel for pixel: the trees are equal and the isolated sidebar drew without errors.
 
 ### Flat panes
 

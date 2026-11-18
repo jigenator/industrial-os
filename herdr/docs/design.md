@@ -180,7 +180,18 @@ The hide grip, the rail's `»` strip and the `industrial-os.fold` key fold the s
 
 ### Keys
 
-A shortcut is the same plate everywhere: 11 px, weight 800, the drawn command sign, radius 2. The plates read the live bindings (`keys()`), so they show what is bound and nothing when unbound. `"<key>": "industrial-os.fold"` in keys.json folds and unfolds the sidebar.
+A shortcut is the same plate everywhere: 11 px, weight 800, the drawn command sign, radius 2. The plates read the live bindings (`keys()`), so they show what is bound and nothing when unbound. `"<key>": "industrial-os.fold"` in keys.json folds and unfolds the sidebar; `industrial-os.storybook` opens the storybook, and `industrial-os.story-next` and `industrial-os.story-prev` turn its page.
+
+### Storybook
+
+A window, 900 × 760, that shows the sidebar's parts one at a time. It is for whoever changes the sidebar: every form a part can take is in view at once, without waiting for a pane to reach that state.
+
+- **Header**: a paper strip, as the crate plate: `INDUSTRIAL-OS ® PARTS`, at the right the count of stories and `INVENTED DATA`, and `CLOSE` when it is a window. The window drags by it.
+- **Index**, 190 px at the left: one line per story, the small pieces first (marks, text, light, key plate), then the blocks built from them. The shown one is white with the focused pane's acid gutter bar.
+- **Page**: the part's name, one or two sentences on what it is, then its states as specimens that wrap across the page. A specimen is a grey label over the part on the sidebar's own ground, at the sidebar's width (300 px) unless the part is narrower (the rail's forms, 76 px).
+- **States**: one for each form the part takes, among them unknown readings (`??AU`, `--%`), text too long to fit, and no key bound. A state "under the pointer" is drawn as if the pointer were there; a state with two forms changes between them every 1.6 s so its motion plays, and the readout types itself again every 3 s and rests in between. Only the ground's light follows the real pointer.
+- **Data**: an invented window of six spaces. No pane, space or agent of yours is read, and a click on a specimen does nothing.
+- Only the shown page's map, ground and readout run their clocks.
 
 ### Colors and readability
 

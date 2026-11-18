@@ -1,13 +1,17 @@
 # Architecture
 
-Status: current at Pi Reloader contract version 2, with the droid-plate pane header and the sidebar redesign of 2026-11-18.
+Status: current at Pi Reloader contract version 2, with the droid-plate pane header, the sidebar redesign of 2026-11-18 and its split into parts with a storybook ([decision](../../docs/decisions/herdr-combined-mod.md)).
 Evidence: the mods and layout, their tests, the redesign's [probe-window record](../CONTRIBUTING.md#sidebar-redesign), and Herdr app 0.1.15's own documentation in `~/.config/herdr-app` (`AGENTS.md` "Layouts", "Keys", "Commands" and "Mods", `herdr.d.ts`, `gpui-kit.d.ts`, whose `net` module offers only `connect(host, port)`), `herdr-app commands`, herdr-core 0.1.20's `hc --help` and `hc --skill`, its shipped `main` layout and `agents`, `spaces`, `confirm` and `picker` mods.
 
 ## Files and dependencies
 
 | File | Owns | Depends on |
 | --- | --- | --- |
-| `mods/industrial-os/main.js` | The sidebar's three blocks, chosen by `props().part` (`top`, the list, `bottom`), and their rail forms: reads Herdr's live data, keeps the remembered state in `localStorage`, looks up ahead/behind with `git`, writes drawings to `.gen/`, runs click commands and lays elements out. `MapView`, a nested view with its own clock, is one window onto the map | The app's `gpui-kit`, `gpui-base`, `herdr` and `fs/promises` modules; the pure modules beside it |
+| `mods/industrial-os/main.js` | The sidebar's three blocks, chosen by `props().part` (`top`, the list, `bottom`), and their rail forms: reads Herdr's live data, keeps the remembered state in `localStorage`, looks up ahead/behind with `git`, runs click and key commands, and places the parts. `part: "storybook"` shows the storybook instead, and the `storybook` command opens it as a window | The app's `gpui-kit`, `gpui-base` and `herdr` modules; the pure modules beside it; `parts/`; `storybook.js` |
+| `mods/industrial-os/parts/*.js` | One piece of the sidebar each, drawn from what it is given: the crate plate, a space's band, a pane's rows, ACTION REQUIRED, the scanner, the key plate and the rest ([the list](parts.md#the-parts)). `MapView`, `GroundView` and `ReadoutView` are nested views with their own clocks. `sheet.js` holds the shared measures and `partId`; `stage.js` what a root view shares with its nested views | The app's `gpui-kit` and `gpui-base`; `herdr` in four files, for fonts, the app's folder, `checking()` and `theme()`; the pure modules; each other. Never `main.js`, the storybook or the sample |
+| `mods/industrial-os/parts/drawings.js` | The queue of SVG drawings a part asks for by key, and `flush`, the mod's only writer, into `.gen/` | The app's `herdr` and `fs/promises` |
+| `mods/industrial-os/storybook.js`, `stories.js` | The storybook: a header, an index and one page per part, each state of it drawn alone on invented data; the stories and what each state shows | The app's modules; `parts/`; `sample.js`; `model.js`, `map.js`, `format.js` |
+| `mods/industrial-os/sample.js` | An invented window in the shapes Herdr gives (spaces, agents, terminals, panes, labels): five spaces, nine panes, every state | Nothing |
 | `mods/industrial-os/model.js` | The whole sidebar as plain data: agent blocks, space rows, the missions, ACTION REQUIRED, the agents view, the rail's lamps, the counts, the agent order, the next memory and the next time shown text changes | `agent.js`, `signals.js`, `spaces.js`, `missions.js` |
 | `mods/industrial-os/missions.js` | Every pane as a unit under its space and tab: designation, state mark, name, age, readings and detail lines; ACTION REQUIRED's order, the agents view's groups, the rail's lamps | `format.js`, `agent.js` icons, `vocabulary.js` |
 | `mods/industrial-os/map.js` | The shared map: the world for a set of missions, where each unit is at a time, each window's camera, and one frame as still drawings (SVG documents named by key) plus dots | `vocabulary.js` |
@@ -15,7 +19,7 @@ Evidence: the mods and layout, their tests, the redesign's [probe-window record]
 | `mods/industrial-os/fold.js` | The fold's motion as plain data: when each step starts, how each row is erased or typed in, the scan line's pieces | Nothing |
 | `mods/industrial-os/vocabulary.js`, `marks/*.svg` | Committed copies of the design system's sidebar vocabulary and its drawn marks. Never edited | `scripts/sync-vocabulary.mjs` writes them |
 | `scripts/sync-vocabulary.mjs` | Writes those copies from the design system | `@industrial-os/design-system/foundation/sidebar-vocabulary` by package name |
-| `mods/industrial-os/.gen/` | Drawings written at run time, named by content. Not in the repository; emptied by the mod at start past 1500 files | `main.js` |
+| `mods/industrial-os/.gen/` | Drawings written at run time, named by content. Not in the repository; emptied by the mod at start past 1500 files | `parts/drawings.js` |
 | `mods/industrial-os/signals.js` | Reading and validating the `io.signals.v1` label; the stale-label rule | Nothing; the frozen label contract |
 | `mods/industrial-os/agent.js` | State precedence, the unseen-work-finished rule, the pane name and every agent row | `format.js` |
 | `mods/industrial-os/spaces.js` | Space state, counts, units, activity and quiet ages, ahead/behind parsing and a space's place | `format.js`, `agent.js` icons |
@@ -37,11 +41,13 @@ Evidence: the mods and layout, their tests, the redesign's [probe-window record]
 | `mods/pi-reloader/mod.json`, `LICENSE` | The window it opens as (`kind: "window"`, 620 × 460; a test copy adds `overlay.props.only`, the addresses it may act on); MIT, keeping the notice of the code it was adapted from | herdr-app's mod format |
 | `keys/pi-reloader.json` | The keys.json snippet a person merges: `cmd-alt-r` → `mod.open:pi-reloader` | herdr-app's keys format |
 | `mods/package.json` | Marks the mods' `.js` files as ES modules for Node; not part of the mod | Node 22 |
-| `mods/.gitignore` | Keeps out the `gpui-kit.d.ts` and `jsconfig.json` that `herdr-app check` writes into a mod folder for editors | Git |
+| `mods/.gitignore` | Keeps out the `gpui-kit.d.ts` and `jsconfig.json` that `herdr-app check` writes for editors into a mod folder, and the `gpui-kit.d.ts` it writes into each folder inside one whose files import `gpui-kit` | Git |
 | `themes/acid-black.json` | The Herdr desktop app's theme: terminal and panel colors | herdr-app's theme file format (`~/.config/herdr-app/AGENTS.md`, "The look"); design-system colors, including `HERDR_TERMINAL` |
 | `test/industrial-os.test.mjs` | The pure modules on fixtures: every state, unknowns, caps, the finished rule, space aggregation, missions and units, ACTION REQUIRED, the agents view, the rail's lamps, ages and wrapping | The mod's pure modules |
 | `test/industrial-os-sidebar.test.mjs` | The copies equal the design system's vocabulary and marks; the map's world, units, cameras and frames; every drawing is a well-formed SVG | The mod's pure modules; the design-system package by name; `scripts/sync-vocabulary.mjs` |
-| `test/industrial-os-layout.test.mjs` | The layout differs from the recorded shipped `main.json` only in the listed changes and the frozen Lunalee column; mod.json; imports stay in the mod folder | `test/fixtures/herdr-app-0.1.15-main.json` |
+| `test/industrial-os-layout.test.mjs` | The layout differs from the recorded shipped `main.json` only in the listed changes and the frozen Lunalee column; mod.json; imports stay in the mod folder, only the files that draw import the app, only `parts/drawings.js` imports `fs/promises`, and no part imports `main.js`, the storybook or the sample | `test/fixtures/herdr-app-0.1.15-main.json` |
+| `test/industrial-os-parts.test.mjs` | Every part has a story; every story draws each of its states over time with no element id used twice, and the page turns from the keys; a story keeps only its own clocks and a settled readout rests; drawings are written where the folder cannot be listed and never during a check; `partId` and `scoped`; the sidebar's three blocks draw the sample window and the `storybook` command opens one window | `stand-in/`; the mod's drawing code |
+| `stand-in/` | What Node loads in place of the app's modules: `kit.mjs` and `base.mjs` (an element builder that records and throws on an unknown method), `herdr.mjs` (a window a test sets; what the mod asked for), `fs.mjs` (in memory; a test can make listing fail as the app does), `hooks.mjs` (maps the imports) and `sim.mjs` (views on a clock a test moves; the drawn tree as data) | Node's standard library |
 | `test/pi-reloader.test.mjs` | The Pi Reloader's rules against a simulated herdr-core and guard; its folder's imports, globals and the shipped `mod.json` | `mods/pi-reloader/` |
 | `test/droid-plate.test.mjs` | The pane header's rules: units, strips, lighting, the label, the rows at 24–200 columns, the keys, the motion timeline; its imports and globals; `ds/` equal to the design system's closure | `mods/droid-plate/`, `scripts/sync-design-system.mjs` |
 | `test/app-theme.test.mjs` | Each desktop theme color holds its approved design-system value | `foundation/palette` and `/signal-colors` (`SIGNAL_COLORS`, `HERDR_TERMINAL`) by package name |
@@ -131,10 +137,12 @@ Commands from `nextCommand()` (`reload`, `reset`, `close`) reach the window only
 | A label counts only on a live terminal whose agent `app` is `pi`, with `version` 1 | `test/industrial-os.test.mjs` |
 | State precedence `QNS` > `BLK` > `WRK` > `SUB` > `RUN` > `DNE` > `IDL`/`UNK` | `test/industrial-os.test.mjs` |
 | The layout is shipped `main` with only zero terminal padding, flat panes, the 130 px `droid-plate` pane header, the sidebar at 300 px, its header, lists and footer replaced, and the frozen `lunalee` column (ids `lunalee`, `lunalee-host`, `lunalee-chat`; terminal `lunalee-chat`; 580 px, 420–900) as `root`'s third child | `test/industrial-os-layout.test.mjs` |
-| The sidebar mod imports only `gpui-kit`, `gpui-base`, `herdr` and `fs/promises` (in `main.js`) and its own files; no `setTimeout`, `Intl`, `TextDecoder` or `WebSocket` | `test/industrial-os-layout.test.mjs` |
+| The sidebar mod imports only `gpui-kit`, `gpui-base` and `herdr` (in `main.js`, `storybook.js`, `stories.js` and `parts/`), `fs/promises` (in `parts/drawings.js`) and its own files; no `setTimeout`, `Intl`, `TextDecoder` or `WebSocket` | `test/industrial-os-layout.test.mjs` |
+| A part imports no `main.js`, storybook or sample; every part has a story, and every story draws with no element id used twice | `test/industrial-os-layout.test.mjs`, `test/industrial-os-parts.test.mjs` |
+| The storybook reads no space, pane, agent or terminal from Herdr (only the theme, the fonts, its props and its page-turning commands), and its stories' handlers do nothing | Review of `storybook.js` and `stories.js` |
 | `vocabulary.js` and `marks/` equal the design system's sidebar vocabulary | `test/industrial-os-sidebar.test.mjs` |
 | A drawing's key names one document: the same key always writes the same SVG, and every document is well formed | `test/industrial-os-sidebar.test.mjs` |
-| The mod writes only inside its own `.gen/` folder | Review `main.js`: `flush` is the only writer |
+| The mod writes only inside its own `.gen/` folder | `test/industrial-os-layout.test.mjs` (one file imports `fs/promises`); review `parts/drawings.js`: `flush` is the only writer |
 | The mod loads and renders in herdr-app | `herdr-app check mods/industrial-os` |
 | The droid-plate mod imports only the app's modules (in `main.js`), its own files and `ds/` (in the pure modules); no host global the runtime lacks | `test/droid-plate.test.mjs` |
 | `mods/droid-plate/ds/` is byte for byte the design system's files, exactly the import closure | `test/droid-plate.test.mjs`, `node herdr/scripts/sync-design-system.mjs --check` |
@@ -155,14 +163,17 @@ Commands from `nextCommand()` (`reload`, `reset`, `close`) reach the window only
 - A rule about what a value means: the pure module that owns it, with its test, then [the design](design.md#sidebar).
 - A color, opacity, status word, designation or state mark: the design system's `sidebar-vocabulary.mjs` first, then `node scripts/sync-vocabulary.mjs`.
 - Something the map shows: `map.js`. A halo, grid or fade: `assets.js`. Both return SVG documents; neither places anything.
-- Where things sit, what the pointer does, which command a click runs: `main.js`.
+- How one piece of the sidebar is drawn: its file in `parts/`, with its contract comment and its story in `stories.js` ([parts](parts.md#adding-or-changing-a-part)). A piece drawn in two places becomes a part before it is drawn a second time.
+- Where the parts sit, what the pointer does, which command a click runs: `main.js`.
 - What a pane plate shows or when it moves: `mods/droid-plate/model.js` or `motion.js` and their test, then [the design](design.md#pane-plate); how it looks: the design system first, then `ds/` regenerated.
 - Another Herdr desktop mod or layout: its own folder under `mods/` or file under `layouts/`, with a test beside the others and an install section in the README. A keys.json snippet it needs goes in `keys/`.
 - A Pi Reloader rule: `reloader.js` and its test; a protocol change starts in the [guard contract](../../pi/reloader-guard/docs/contract.md).
 
 ## Limits and evolution
 
-- `herdr-app check` loads a mod with empty in-memory state and renders once (droid-plate renders nothing then: it has no pane); it does not lay out, run timers, later async states or real data. Populated rendering and clicks need the live app.
+- `herdr-app check` loads a mod with empty in-memory state and renders once (droid-plate renders nothing then: it has no pane); it does not lay out, run timers, later async states or real data. The stand-in builds populated trees and runs timers and handlers in Node, but paints nothing; a populated look needs the storybook or the sidebar in an [isolated app](../CONTRIBUTING.md#isolated-app), or the live app.
+- The storybook's states are set by its stories, not by the pointer: a state "under the pointer" is drawn as if it were. Only the ground's light and each part's own `hover` styles follow the real pointer there.
+- herdr-app lets a mod list folders only inside the user's home folder. With an app home outside it (an isolated app in `/tmp`), the mod cannot list `.gen/`, so it rewrites the drawings it needs at each start and never empties the folder.
 - The three blocks are separate copies of the view. Whether they share module state is herdr-app's choice, so nothing relies on it: each keeps its own drawings queue and stage, and they talk only through `shared()`.
 - Drawings are files: a new text's halo appears a tick after the text. Names are content hashes (FNV-1a and length), so a changed drawing is a new file and the folder only grows; past 1500 files the mod empties it at its next start and rewrites what it needs.
 - The map and the marks cost CPU: roughly 16 points of one core for three open spaces and the plate at 30 frames a second (6 to 9 at 20), measured roughly in a probe window ([record](../CONTRIBUTING.md#sidebar-redesign)). They do not stop while another app is in front, by the operator's choice, and the ground's light adds a redraw of its own at the same rate that was not measured. 30 frames a second is the operator's choice over the 20 first shipped.
