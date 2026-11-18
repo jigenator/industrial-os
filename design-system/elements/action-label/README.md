@@ -4,8 +4,12 @@
 
 `keyHints([{key?,label}],{width,measure})` returns one exact-width row, starting at column 1. Keys are bone on surface; labels are decorative. Tokens drop whole at the first one that cannot fit; no clipped chord. No action, focus ownership, input listener or hit rectangle lives here. Host owns keyboard and mouse activation.
 
+## Keycap bay
+
+`keycapBay(keys, { width = 16, lighting = 'lit', hover = null, pressed = null })` returns `{ line, keys }`: one-glyph bracket keys `[g]`, adjacent and centred on a ground `width` cells wide, the pane plate's 16-column title block (2 + 4 × 3 + 2 for its `[|][-][^][x]`). `keys` are `{ glyph }`, one printable ASCII character each. The ground is the bay's edge: its two end cells belong to the end keys' click areas, so no cell is dead. Each returned key has its three cells (`col`, `len`) and click area (`hitCol`, `hitLen`), from the bay's first cell. Brackets are regular and glyphs bold, in `BAY_INKS[lighting]`; `hover` and `pressed` (key indexes; pressed wins) fill that key's three cells, white or acid. The host owns hit-testing and the commands. The [status strip](../status-strip/README.md) places it at `W − 18 … W − 3`. Keys that are not a non-empty array of one-glyph keys, a width under three cells a key, another lighting, or a hover or pressed index out of range throws.
+
 ## Text, errors and checks
 
 Block budgets are integer width (and height when supplied) 1–1000; inline budgets are 0–1000 or Infinity unless stated otherwise. Text slots use the [foundation measured-text contract](../../foundation/README.md#measured-text-slots): supply `measure` for Unicode or rich slots; otherwise strings retain ASCII sanitizing. Output spans are new; inputs are not mutated. Backgrounds are transparent except explicitly filled plates/keycaps. Plain painting preserves geometry and state words. Invalid types throw TypeError; invalid ranges/enums throw RangeError. Structural glyphs require one-cell terminal rendering.
 
-Run the colocated `*.test.mjs` with `node --test`, then the [full validation sequence](../../CONTRIBUTING.md#full-validation-sequence). The storybook uses actual public calls with synthetic fixtures. Unit checks are not native appearance, input or image-alpha certification.
+Run the colocated `*.test.mjs` with `node --test` (it covers the bay's centring, hit areas, every level and the hover and pressed fills), then the [full validation sequence](../../CONTRIBUTING.md#full-validation-sequence). The storybook uses actual public calls with synthetic fixtures. Unit checks are not native appearance, input or image-alpha certification.

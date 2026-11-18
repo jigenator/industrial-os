@@ -104,9 +104,163 @@ test('invalid input throws and the input is not changed', () => {
   for (const [field, value] of [['unit', 7], ['serial', null], ['maker', 1], ['title', 2], ['registered', 'yes'], ['mark', 'ab'], ['mark', '日'], ['division', ['A']], ['division', 'AB']]) {
     assert.throws(() => unitPlate({ ...UNIT, [field]: value }, { width: 60 }), TypeError, field);
   }
-  for (const [field, value] of [['unit', ''], ['unit', 'drd'], ['unit', 'DRD-XYZ'], ['serial', ''], ['seed', 1.5]]) {
+  for (const [field, value] of [['unit', ''], ['unit', 'drd'], ['unit', 'DRD-#'], ['serialLabel', ''], ['serialLabel', 'A B'], ['serial', ''], ['seed', 1.5]]) {
     assert.throws(() => unitPlate({ ...UNIT, [field]: value }, { width: 60 }), RangeError, field);
   }
   for (const width of [0, 1001, 1.5, undefined]) assert.throws(() => unitPlate(UNIT, { width }), RangeError);
   assert.throws(() => unitPlate(UNIT, { width: 60, titleBlock: 'no' }), TypeError);
+});
+
+// The pane plates (the Herdr pane header's terminal and agent plates). Their cells were compared with the approved
+// sticky droid plate mockup (revision 7) at 40–120 cells and every lighting level; see CONTRIBUTING.md.
+const TERM = { unit: 'TERM-ZSH', serial: '~/projects/lunalee', serialLabel: 'DIR', title: '', mark: null, division: ['BRANCH', 'MAIN'] };
+const AGT = { unit: 'AGT-CLAUDE', serial: '~/projects/lunalee', serialLabel: 'DIR', title: '', mark: null, division: ['EXTERNAL', 'AGENT'], seed: 7 };
+const PANE = { blockWidth: 16, peak: false };
+
+test('a terminal plate: DIR serial, an empty title slot, no barcode, no peak, BRANCH on the block\'s row 4', () => {
+  const plate = unitPlate(TERM, { width: 64, ...PANE, barcode: false });
+  assert.deepEqual(text(plate.lines), [
+    '+──────────────────────────────────────────────────────────────+',
+    '  INDUSTRIAL-OS ®                                               ',
+    '  ▀█▀ █▀▀ █▀▄ █▄█     ▀▀█ ▄▀▀ █ █                               ',
+    '   █  █▀▀ █▀▄ █ █ ▀▀▀ ▄▀   ▀▄ █▀█                               ',
+    '   ▀  ▀▀▀ ▀ ▀ ▀ ▀     ▀▀▀ ▀▀  ▀ ▀             BRANCH      MAIN  ',
+    '+ DIR ~/projects/lunalee ──────────────────────────────────────+',
+  ]);
+  assert.deepEqual(plate.paint, []);
+  assert.deepEqual(plate.regions, {
+    wordmark: { top: 2, left: 2, rows: 3, cols: 31, glyphs: [2, 6, 10, 14, 18, 22, 26, 30] },
+    serial: { top: 5, left: 6, rows: 1, cols: 18 }, block: { top: 1, left: 46, rows: 4, cols: 16 }, barcode: null,
+  });
+});
+
+test('an agent plate: its barcode and EXTERNAL AGENT fill the same 16-column block as the droid\'s, at W − 18 … W − 3', () => {
+  for (const width of [64, 99]) {
+    const agent = unitPlate(AGT, { width, ...PANE }), droid = unitPlate(UNIT, { width });
+    assert.deepEqual(agent.regions.barcode, { top: 2, left: width - 18, rows: 2, cols: 16 });
+    assert.equal(droid.regions.barcode.left, width - 18);
+    assert.deepEqual(agent.paint, []);
+    assert.equal(text(agent.lines)[4].slice(width - 18), 'EXTERNAL   AGENT  ');
+    // The barcode is still seeded by the input.
+    assert.equal(text(agent.lines)[2].slice(width - 18, width - 2), text(unitPlate(AGT, { width, ...PANE }).lines)[2].slice(width - 18, width - 2));
+    assert.notEqual(text(agent.lines)[2], text(unitPlate({ ...AGT, seed: 8 }, { width, ...PANE }).lines)[2]);
+  }
+});
+
+test('with a blockWidth, a long division widens the block three cells clear of the wordmark, then is cut with …', () => {
+  const long = { ...TERM, division: ['BRANCH', 'FEATURE/STICKY-DROID-PLATE-VERY-LONG'] };
+  const row = text(unitPlate(long, { width: 72, ...PANE, barcode: false }).lines)[4];
+  assert.equal(row.slice(33), '   BRANCH FEATURE/STICKY-DROID-PLATE…  ');
+  // A division that fits stays right-aligned in its 16-column block.
+  assert.equal(text(unitPlate({ ...TERM, division: ['BRANCH', 'FEATURE/X'] }, { width: 99, ...PANE, barcode: false }).lines)[4].slice(81), 'BRANCH FEATURE/X  ');
+  // Without a blockWidth the old rule holds: the block is as wide as its widest line, or left out.
+  assert.equal(unitPlate({ ...TERM, division: ['BRANCH', 'X'.repeat(40)] }, { width: 72, barcode: false, peak: false }).regions.block, null);
+});
+
+test('regions name the wordmark glyphs, the serial and the barcode for motions', () => {
+  const plate = unitPlate({ unit: 'DRD-FA03', serial: '150C-4F01', seed: 1 }, { width: 99 });
+  assert.deepEqual(plate.regions.wordmark.glyphs, [2, 6, 10, 14, 18, 22, 26, 30]);
+  assert.deepEqual(plate.regions.serial, { top: 5, left: 6, rows: 1, cols: 9 });
+  assert.equal(text(plate.lines)[5].slice(6, 15), '150C-4F01');
+  assert.deepEqual(plate.regions.barcode, { top: 2, left: 81, rows: 2, cols: 16 });
+  assert.equal(unitPlate(UNIT, { width: 48, titleBlock: false }).regions.barcode, null);
+});
+
+test('unlit levels: the same glyphs on the graphite ground, with PLATE_LIGHTING inks by role', async () => {
+  const { graphiteAt } = await import('../../foundation/surface.mjs');
+  const { PLATE_LIGHTING } = await import('../../foundation/surface-palette.mjs');
+  for (const level of ['dark', 'standby']) for (const width of [1, 20, 48, 64, 99, 104, 160]) for (const [input, options] of [[UNIT, {}], [TERM, { ...PANE, barcode: false }], [AGT, PANE], [{ ...UNIT, unit: 'DRD-????' }, {}]]) {
+    const lit = unitPlate(input, { width, ...options }), dim = unitPlate(input, { width, ...options, lighting: level });
+    assert.deepEqual(text(dim.lines), text(lit.lines));
+    assert.deepEqual(dim.paint, lit.paint);
+    const P = PLATE_LIGHTING[level], painted = new Set(lit.paint.flatMap(({ row, start, end }) => Array.from({ length: end - start }, (_, i) => `${row}/${start + i}`)));
+    dim.lines.forEach((line, y) => {
+      let x = 0;
+      for (const s of line) for (const ch of s.text) {
+        const g = graphiteAt(x, y, { width, level });
+        if (s.style.bg === P.peak) assert.ok(painted.has(`${y}/${x}`));
+        else assert.equal(s.style.bg, g.ground);
+        if (ch === '─' && !painted.has(`${y}/${x}`)) assert.equal(s.style.fg, g.hair);
+        if (ch === '+' && (x === 0 || x === width - 1)) assert.equal(s.style.fg, P.corner);
+        x++;
+      }
+    });
+  }
+  const dark = unitPlate(UNIT, { width: 104, lighting: 'dark' }), P = PLATE_LIGHTING.dark;
+  const cellAt = (lines, row, col) => { let x = 0; for (const s of lines[row]) for (const ch of s.text) { if (x === col) return { ch, ...s.style }; x++; } };
+  assert.equal(cellAt(dark.lines, 2, 2).fg, P.word); // the wordmark
+  assert.equal(cellAt(dark.lines, 2, 86).fg, P.bars); // the barcode's first bar
+  assert.equal(cellAt(dark.lines, 4, 86).fg, P.label); // HALDENN
+  assert.equal(cellAt(dark.lines, 1, 2).fg, P.value); // the maker
+  assert.equal(cellAt(dark.lines, 5, 6).fg, P.value); // the serial
+  assert.equal(cellAt(unitPlate({ ...UNIT, unit: 'DRD-????' }, { width: 104, lighting: 'standby' }).lines, 2, 18).fg, PLATE_LIGHTING.standby.label); // unknown digit
+});
+
+test('fitUnitCode: the whole name when its wordmark fits before the block, else the bare prefix, never a cut name', async () => {
+  const { fitUnitCode } = await import('./unit-plate.mjs');
+  const fit = (prefix, code, width, titleBlock = width >= 56) => fitUnitCode(prefix, code, { width, titleBlock });
+  assert.equal(fit('TERM', 'ZSH', 56), 'TERM-ZSH');
+  assert.equal(fit('TERM', 'BASH', 56), 'TERM');
+  assert.equal(fit('TERM', 'XONSH', 64), 'TERM-XONSH');
+  assert.equal(fit('TERM', 'ELVISH', 64), 'TERM');
+  assert.equal(fit('AGT', 'CLAUDE', 64), 'AGT-CLAUDE');
+  assert.equal(fit('AGT', 'GEMINI', 64), 'AGT-GEMINI');
+  assert.equal(fit('AGT', 'OPENCODE', 64), 'AGT');
+  assert.equal(fit('AGT', 'CLAUDE', 56), 'AGT');
+  assert.equal(fit('TERM', 'ZSH', 48), 'TERM-ZSH'); // no title block: up to the margin
+  for (const code of ['', 'zsh', 'Z_SH', 'ZS H']) assert.equal(fit('TERM', code, 99), 'TERM');
+  assert.throws(() => fitUnitCode('term', 'ZSH', { width: 64 }), RangeError);
+  assert.throws(() => fitUnitCode('TERM', 1, { width: 64 }), TypeError);
+  assert.throws(() => fitUnitCode('TERM', 'ZSH', { width: 0 }), RangeError);
+});
+
+test('invalid pane-plate options throw', () => {
+  for (const [name, value] of [['barcode', 'no'], ['peak', 1]]) assert.throws(() => unitPlate(UNIT, { width: 60, [name]: value }), TypeError);
+  for (const [name, value] of [['blockWidth', -1], ['blockWidth', 1.5], ['lighting', 'off']]) assert.throws(() => unitPlate(UNIT, { width: 60, [name]: value }), RangeError);
+});
+
+test('display text is printable ASCII: a Unicode branch, maker or title is drawn as ? and never throws', () => {
+  const plate = unitPlate({ unit: 'TERM-ZSH', serial: '~/日本', serialLabel: 'DIR', maker: 'ÏNDUSTRIAL', mark: null, title: 'tést', division: ['BRANCH', '日本語'] }, { width: 99, blockWidth: 16, barcode: false, peak: false });
+  const rows = text(plate.lines);
+  assert.match(rows[4], /BRANCH +\?\?\?  $/);
+  assert.ok(rows[1].includes('?NDUSTRIAL'));
+  assert.ok(rows[1].includes('t?st'));
+  assert.ok(rows[5].includes('~/??'));
+  for (const W of [1, 24, 56, 64, 99, 160]) {
+    for (const branch of ['日本語', '🙂🙂', 'é'.repeat(40), 'a\u0301b']) {
+      const p = unitPlate({ unit: 'TERM', serial: '~', serialLabel: 'DIR', mark: null, title: '', division: ['BRANCH', branch] }, { width: W, blockWidth: 16, barcode: false, peak: false });
+      assert.ok(p.lines.every((line) => lineWidth(line) === W), `${W} ${branch}`);
+      assert.ok(text(p.lines).every((row) => [...row].every((ch) => /[\x20-\x7e]/.test(ch) || GLYPHS.includes(ch))), `${W} ${branch}`);
+    }
+  }
+});
+
+test('peakFrom moves the peak right: its left-most painted cell at that column, two cells clear of the title block, else none', () => {
+  const from = (W) => Math.ceil(W / 2 + 14 / 8.5 + 2); // the Herdr pane plate's rule: the grip's half-width and two cells right of centre
+  const spans = (p) => ({ lo: Math.min(...p.paint.map((r) => r.start)), hi: Math.max(...p.paint.map((r) => r.end)) - 1 });
+  for (let W = 56; W <= 200; W++) {
+    const p = unitPlate(UNIT, { width: W, blockWidth: 16, peakFrom: from(W) });
+    if (W < 80) { assert.deepEqual(p.paint, [], `${W}: no room`); continue; }
+    const { lo, hi } = spans(p), bx = W - 18;
+    assert.equal(lo, from(W), `${W}`);
+    assert.ok(hi <= bx - 3, `${W}: two clear cells before the block`);
+    // Its strokes are the widest that fit, as the centred peak's are.
+    const b = p.paint[0].end - p.paint[0].start - 2;
+    assert.equal(b, W >= 88 ? 3 : W >= 84 ? 2 : 1, `${W}`);
+    assert.equal([...text(p.lines)[5]][lo], '\uE0BA', `${W}: the bottom row's left edge`);
+  }
+  // A column inside the left block is moved past it; the default (null) keeps the centred peak.
+  const inside = spans(unitPlate(UNIT, { width: 104, peakFrom: 5 }));
+  assert.equal(inside.lo, 32 + 3); // the wordmark ends in column 32
+  assert.deepEqual(unitPlate(UNIT, { width: 104, peakFrom: null }).paint, unitPlate(UNIT, { width: 104 }).paint);
+  for (const bad of [-1, 1.5, 1001, '40']) assert.throws(() => unitPlate(UNIT, { width: 104, peakFrom: bad }), RangeError);
+});
+
+test('sessionUnit: DRD from the last four hex digits, the serial from the last group, the seed from the last eight', async () => {
+  const { sessionUnit } = await import('./unit-plate.mjs');
+  assert.deepEqual(sessionUnit('01a1e81c-27f3-70f3-b278-150c4f01fa03'), { unit: 'DRD-FA03', serial: '150C-4F01', seed: 0x4f01fa03 | 0 });
+  // Two sessions started in the same second share their first eight digits but not their serial.
+  assert.notEqual(sessionUnit('01a1e81c-5b10-7a42-9c3e-2d7e88b1a4c9').serial, sessionUnit('01a1e81c-27f3-70f3-b278-150c4f01fa03').serial);
+  assert.equal(sessionUnit('ABCDEF012345').serial, 'ABCD-EF01');
+  for (const id of [undefined, null, '', 'abc', '01a1e81c-27f', 42]) assert.equal(sessionUnit(id), null);
 });

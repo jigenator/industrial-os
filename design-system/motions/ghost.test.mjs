@@ -140,3 +140,21 @@ test('ghost: active decorative fixtures retain widths 1–160 and immutable opti
     assert.equal(JSON.stringify(lines), before);
   }
 });
+
+test('ghost offset mode: the registration ghost of a wordmark, one cell right in acid then one left in accent75', async () => {
+  const { span } = await import('../foundation/cells.mjs');
+  const { SIGNAL_COLORS } = await import('../foundation/signal-colors.mjs');
+  const { ghost: g, ghostDuration: d } = await import('./ghost.mjs');
+  const lines = [[span('  █▀█ █ ', { fg: 'field', bg: '#cccccc' })]];
+  const region = { top: 0, left: 2, rows: 1, cols: 5 };
+  const text = (out) => out[0].map((s) => s.text).join('');
+  assert.equal(d(lines, { mode: 'offset', region }), 100);
+  const right = g(lines, { mode: 'offset', region, time: 10 });
+  assert.equal(text(right), '  █▀████');
+  assert.equal(right[0].find((s) => s.style.fg === 'accent').text, '█');
+  const left = g(lines, { mode: 'offset', region, time: 60 });
+  assert.equal(text(left), ' ██▀███ ');
+  assert.ok(left[0].some((s) => s.style.fg === SIGNAL_COLORS.accent75 && s.style.bold));
+  assert.equal(text(g(lines, { mode: 'offset', region, time: 100 })), text(lines));
+  assert.equal(text(g(lines, { mode: 'offset', region, time: 0, animate: false })), text(lines));
+});

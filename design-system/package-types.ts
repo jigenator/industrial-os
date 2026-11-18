@@ -282,14 +282,28 @@ crateBanner({ serial: 'X' }, { width: 60, form: 'tall' });
 
 // The unit plate, the CRT boot and their shared plate furniture (the Pi droid header), through their package subpaths.
 import { barcode, BARCODE_BARS } from '@industrial-os/design-system/foundation/barcode';
+import { GLYPH_SHAPES, glyphShape, type GlyphPart } from '@industrial-os/design-system/foundation/glyph-shapes';
 import { aluminiumAt } from '@industrial-os/design-system/foundation/surface';
 import { LETTER_FONT } from '@industrial-os/design-system/elements/pixel-numeral';
 import { UNIT_PLATE_ROWS, unitPlate } from '@industrial-os/design-system/elements/unit-plate';
 import { CRT_BOOT_TIMING, crtBoot, crtBootDuration } from '@industrial-os/design-system/motions/crt-boot';
+import { fitUnitCode } from '@industrial-os/design-system/elements/unit-plate';
+import { graphiteAt } from '@industrial-os/design-system/foundation/surface';
+import { BAY_INKS, GRAPHITE_GROUND, PLATE_LIGHTING } from '@industrial-os/design-system/foundation/surface-palette';
+import { keycapBay } from '@industrial-os/design-system/elements/action-label';
+import { hintSegments, statusStrip } from '@industrial-os/design-system/elements/status-strip';
+import { bankLevels, bankSchedule, bankSwitch, bankSwitchDuration } from '@industrial-os/design-system/motions/bank-switch';
+import { serialRoll, serialRollDuration } from '@industrial-os/design-system/motions/serial-roll';
 barcode(16, (count) => count - 1).length satisfies number;
+const blockShape: readonly GlyphPart[] | null = glyphShape('█');
+for (const part of GLYPH_SHAPES['─'] ?? []) if ('line' in part) part.line satisfies 'h' | 'v';
+blockShape?.length satisfies number | undefined;
+// @ts-expect-error a glyph is a string
+glyphShape(9);
 BARCODE_BARS.length satisfies number;
 aluminiumAt(0, 0, { width: 60 }).hair satisfies `#${string}`;
 LETTER_FONT.R.length satisfies number;
+LETTER_FONT.Z.length satisfies number;
 const unit = unitPlate({ unit: 'DRD-C0DE', serial: '0000-BEEF', seed: 0xbeef }, { width: 104 });
 unit.lines.length satisfies number;
 UNIT_PLATE_ROWS satisfies 6;
@@ -305,3 +319,28 @@ unitPlate({ serial: 'X' }, { width: 40 });
 crtBoot(unit.lines, { time: 0, late: { row: 1 } });
 // @ts-expect-error dot clearance is 1 or 2 cells
 composeSurface([[{ text: ' ' }]], { width: 1, height: 1, dotClearance: 3 });
+// The sticky droid plate's pane plates, strip and motions.
+const pane = unitPlate({ unit: 'TERM-ZSH', serial: '~', serialLabel: 'DIR', title: '', mark: null, division: ['BRANCH', 'MAIN'] }, { width: 64, blockWidth: 16, barcode: false, peak: false, lighting: 'dark' });
+pane.regions.wordmark?.glyphs.length satisfies number | undefined;
+unitPlate({ unit: 'DRD-C0DE', serial: '0000-BEEF' }, { width: 99, blockWidth: 16, peakFrom: 54 }).paint[0]?.start satisfies number | undefined;
+// @ts-expect-error peakFrom is a column number or null
+unitPlate({ unit: 'DRD-C0DE', serial: '0000-BEEF' }, { width: 99, peakFrom: 'right' });
+fitUnitCode('AGT', 'CLAUDE', { width: 64 }) satisfies string;
+graphiteAt(0, 0, { width: 60, level: 'standby' }).ground satisfies `#${string}`;
+GRAPHITE_GROUND.dark.base satisfies number;
+PLATE_LIGHTING.dark.word satisfies `#${string}`;
+BAY_INKS.hover.ground satisfies `#${string}`;
+keycapBay([{ glyph: 'x' }], { lighting: 'dark', hover: 0 }).keys[0].hitLen satisfies number;
+const strip = statusStrip([{ kind: 'status', glyph: '○', word: 'READY', tone: 'ready' }, ...hintSegments([['esc', 'steer']])], { width: 64, keys: [{ glyph: '|' }] });
+strip.status?.col satisfies number | undefined;
+bankSchedule(64)[0].delay satisfies number;
+bankLevels({ time: 10, from: [0, 0, 0, 0] }).length satisfies number;
+bankSwitch(pane.lines, pane.lines, { time: 0 }).length satisfies number;
+bankSwitchDuration() satisfies number;
+serialRoll(pane.lines, { time: 0, slots: [{ kind: 'text', row: 5, col: 6, lock: 0 }] }).length satisfies number;
+serialRollDuration({ slots: [] }) satisfies number;
+reveal(pane.lines, { time: 0, outgoing: pane.lines });
+// @ts-expect-error lighting is lit, standby or dark
+unitPlate({ unit: 'A', serial: 'B' }, { width: 40, lighting: 'off' });
+// @ts-expect-error a status segment needs a tone
+statusStrip([{ kind: 'status', glyph: '○', word: 'READY' }], { width: 40 });

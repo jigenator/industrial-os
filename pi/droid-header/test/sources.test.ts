@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test, { after } from "node:test";
-import { buildManifest, readBranch } from "../src/sources.ts";
+import { buildManifest, PLATE_LABEL, PLATE_LOOKUP_MS, platedTerminal, readBranch, type RunFile } from "../src/sources.ts";
 import { hostEntry } from "./host.ts";
 
 const root = await realpath(await mkdtemp(join(tmpdir(), "droid-header-")));
@@ -114,4 +114,38 @@ test("against the installed Pi: no process starts and nothing installs, with npm
 test("a Pi loader that throws makes the manifest unavailable with the first line of its message", async () => {
 	const broken = { ...pi, SettingsManager: { create() { throw new Error("cannot read\n    at somewhere"); } } };
 	assert.deepEqual(await buildManifest(broken, { ...(await fixtureTree("broken")), trusted: true }), { status: "unavailable", reason: "cannot read" });
+});
+
+test("the plate lookup: one bounded hc get inside Herdr Desktop; present only with the label set to 1", async () => {
+	const calls: Array<[string, string[], number]> = [];
+	const answer = (stdout: string, error: Error | null = null): RunFile => (file, args, options, done) => { calls.push([file, args, options.timeout]); done(error, stdout); };
+	const env = { HC_TERMINAL_ID: "t3h" };
+	assert.equal(PLATE_LABEL, "io.droid-plate.v1");
+	assert.equal(PLATE_LOOKUP_MS, 300);
+	assert.equal(await platedTerminal(env, answer(JSON.stringify({ labels: { [PLATE_LABEL]: "1", "io.signals.v1": "{}" } }))), true);
+	assert.deepEqual(calls[0], ["hc", ["get", "t3h", "--json"], 300]);
+	// Absent, cleared or another value; an error, a timeout, unreadable output: the whole header.
+	for (const labels of [{}, { [PLATE_LABEL]: "" }, { [PLATE_LABEL]: "0" }, null]) assert.equal(await platedTerminal(env, answer(JSON.stringify({ labels }))), false);
+	assert.equal(await platedTerminal(env, answer("", Object.assign(new Error("spawn hc ENOENT"), { code: "ENOENT" }))), false);
+	assert.equal(await platedTerminal(env, answer("", Object.assign(new Error("Command failed"), { killed: true, signal: "SIGKILL" }))), false);
+	assert.equal(await platedTerminal(env, answer("not json")), false);
+	assert.equal(await platedTerminal(env, () => { throw new Error("cannot spawn"); }), false);
+	// A runner that never answers is cut off just after the bound.
+	const started = Date.now();
+	assert.equal(await platedTerminal(env, () => undefined), false);
+	assert.ok(Date.now() - started < PLATE_LOOKUP_MS + 250);
+	// Outside Herdr Desktop, or with a strange terminal ID, nothing runs.
+	const before = calls.length;
+	for (const outside of [{}, { HC_TERMINAL_ID: "" }, { HC_TERMINAL_ID: "t1; rm -rf /" }]) assert.equal(await platedTerminal(outside, answer("{}")), false);
+	assert.equal(calls.length, before);
+});
+
+test("the plate lookup's real runner gives up on an hc that does not answer within the bound", async () => {
+	const dir = await mkdtemp(join(root, "hc-"));
+	await writeFile(join(dir, "hc"), "#!/bin/sh\nsleep 5\n", { mode: 0o755 });
+	const started = Date.now();
+	assert.equal(await platedTerminal({ HC_TERMINAL_ID: "t3h", PATH: `${dir}:${process.env.PATH}` }), false);
+	assert.ok(Date.now() - started < PLATE_LOOKUP_MS + 1000, `took ${Date.now() - started} ms`);
+	await writeFile(join(dir, "hc"), `#!/bin/sh\necho '{"labels":{"${PLATE_LABEL}":"1"}}'\n`, { mode: 0o755 });
+	assert.equal(await platedTerminal({ HC_TERMINAL_ID: "t3h", PATH: `${dir}:${process.env.PATH}` }), true);
 });

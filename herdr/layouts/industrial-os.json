@@ -103,9 +103,9 @@
                   "lone": true,
                   "header": {
                     "content": {
-                      "mod": "pane"
+                      "mod": "droid-plate"
                     },
-                    "height": 30,
+                    "height": 130,
                     "position": "top",
                     "reveal": "always"
                   }

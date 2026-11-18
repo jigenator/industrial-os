@@ -15,7 +15,7 @@
     }
   ],
   "theme": "industrial-os",
-  "quietStartup": "header",
+  "quietStartup": true,
   "steeringMode": "all",
   "followUpMode": "all"
 }

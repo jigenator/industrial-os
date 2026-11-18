@@ -54,7 +54,7 @@ Separate focus, selection, active work, saved state, and historical state. A tra
 
 ### Herdr configuration
 
-The Herdr desktop app draws its own chrome from a theme file, so a project there has no Pi styling API: it sets colors by value in the theme, and those values are design-system roles checked against the design system. A mod draws with the theme's named colors, not values, and follows the same rules as text Pi draws: state carried by a code and shape, not color alone, and unknown never shown as zero. [The Herdr sidebar](../herdr/docs/design.md) is the first example: the industrial-os mod, which reads each Pi session's `io.signals.v1` label published by [signals-collector](../pi/signals-collector/docs/contract.md#4-herdr-desktop-publication-iosignalsv1). Its visual design is deferred; for now it draws plain text.
+The Herdr desktop app draws its own chrome from a theme file, so a project there has no Pi styling API: it sets colors by value in the theme, and those values are design-system roles checked against the design system. A mod draws states with the theme's named colors, and follows the same rules as text Pi draws: state carried by a code and shape, not color alone, and unknown never shown as zero. [The Herdr sidebar](../herdr/docs/design.md) is the first example: the industrial-os mod, which reads each Pi session's `io.signals.v1` label published by [signals-collector](../pi/signals-collector/docs/contract.md#4-herdr-desktop-publication-iosignalsv1). Its other colors, opacities, status words and state marks are the design system's [sidebar vocabulary](../design-system/foundation/README.md#sidebar-vocabulary), which the mod carries as a committed copy.
 
 ### Herdr plugin panes
 

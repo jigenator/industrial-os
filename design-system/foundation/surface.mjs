@@ -1,8 +1,8 @@
-import { assertCells, resolveColor, resolveStyle, cells } from './cells.mjs';
-import { ALUMINIUM_GROUND, SURFACE_PALETTE } from './surface-palette.mjs';
+import { assertCells, graphemeSegments, resolveColor, resolveStyle, cells } from './cells.mjs';
+import { ALUMINIUM_GROUND, GRAPHITE_GROUND, SURFACE_PALETTE } from './surface-palette.mjs';
 
-const graphemes = new Intl.Segmenter('und', { granularity: 'grapheme' });
-const hex = (channels) => '#' + channels.map((v) => v.toString(16).padStart(2, '0')).join('');
+// Channels are integers 0–255 here; the 24-bit form is the same text as each channel padded to two digits.
+const hex = ([r, g, b]) => '#' + (0x1000000 | (r << 16) | (g << 8) | b).toString(16).slice(1);
 const rgb = (value) => [1, 3, 5].map((i) => parseInt(resolveColor(value).slice(i, i + 2), 16));
 const mix = (fill, under, alpha) => hex(fill.map((v, i) => Math.round(v * alpha + under[i] * (1 - alpha))));
 const integer = (n, name) => {
@@ -65,6 +65,20 @@ export function aluminiumAt(x, y, { width } = {}) {
   return { ground: hex(rgb), hair: hex(rgb.map((v) => channel(v + hair))) };
 }
 
+// The graphite ground of an unlit six-row plate at cell (x, y) and its hairline, at `level` 'dark' or 'standby': the
+// aluminium formula with GRAPHITE_GROUND's numbers and ALUMINIUM_GROUND's streaks scaled by `amp`; the hairline is the
+// ground plus `hair` on each channel (lighter). Same coordinates and errors as aluminiumAt.
+export function graphiteAt(x, y, { width, level = 'dark' } = {}) {
+  assertCells(width, 'graphite width');
+  coordinate(x, y);
+  if (x >= width || y > 5) throw new RangeError('graphite coordinate is outside its six-row plate');
+  if (!Object.hasOwn(GRAPHITE_GROUND, level)) throw new RangeError('graphite level must be dark or standby');
+  const g = GRAPHITE_GROUND[level], t = y / 5, u = width === 1 ? 0 : 2 * x / (width - 1) - 1;
+  const l = ALUMINIUM_GROUND.streaks.reduce((sum, s) => sum + s.amplitude * g.amp * Math.sin(x * s.x + y * s.y), g.base + g.band * (1 - u * u) - g.fall * t);
+  const rgb = g.channels.map((d) => channel(l + d));
+  return { ground: hex(rgb), hair: hex(rgb.map((v) => channel(v + g.hair))) };
+}
+
 export function blendFill(fill, under, alpha) {
   if (typeof alpha !== 'number') throw new TypeError('alpha must be a number');
   if (!Number.isFinite(alpha) || alpha < 0 || alpha > 1) throw new RangeError('alpha must be 0–1');
@@ -118,7 +132,7 @@ export function composeSurface(rows, { width, height, origin = { x: 0, y: 0 }, f
         if (cell.text !== '' || !x || row[x - 1].continuation) throw new RangeError('continuation must follow a leading cell and have empty text');
       } else {
         // Measurement here only validates one safe grapheme; the host supplies its cell geometry.
-        if (cells(cell.text, { measure: (text) => [...graphemes.segment(text)].length }) !== 1) throw new RangeError('cell text must be one grapheme');
+        if (cells(cell.text, { measure: (text) => graphemeSegments(text).length }) !== 1) throw new RangeError('cell text must be one grapheme');
       }
       resolveStyle(cell.style);
       if (cell.text !== ' ' || cell.continuation) {

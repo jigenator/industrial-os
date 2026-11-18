@@ -25,7 +25,7 @@ This only finds an existing installation; never install a host to make a test pa
 
 Then run the [repository-wide checks](../../CONTRIBUTING.md#repository-wide-checks). RPC mode does not draw the header, so step 3 proves loading only. For a design-system change, also run its checks; the goldens here fail if the unit plate, the surface or a consumed color changes.
 
-Interactive validation is separate and is not part of the sequence: in a disposable Pi session inside Herdr, with `quietStartup` set to `"header"`, check the intro on `pi` and `/new`, that typing during it settles at once and keeps the keystroke, `/resume` and `/reload` showing it settled, resizing across 100, 56 and 40 columns, `/new` once claude-interrupt is enabled (the Escape hint turns to `steer` when the manifest arrives), and the colors.
+Interactive validation is separate and is not part of the sequence: in a disposable Pi session inside Herdr, with `quietStartup` set to `true`, check the intro on `pi` and `/new`, that typing during it settles at once and keeps the keystroke, `/resume` and `/reload` showing it settled, resizing across 100, 56 and 40 columns, `/new` once claude-interrupt is enabled (the Escape hint turns to `steer` when the manifest arrives), and the colors. Under the industrial-os layout's droid-plate pane header, also check that a new Pi shows the ledger alone under the plate, and that the same Pi outside it (another layout, or a terminal outside Herdr Desktop) shows the whole header.
 
 ## Making a change
 
@@ -90,3 +90,16 @@ Trace state → `facts.ts` → `header.ts` → `extension.ts` before changing sh
 - **Automated, step 2:** `PI_HOST_ROOT="$PI_HOST_ROOT" npm test`: **39/39**, 0 failed, skipped or cancelled.
 - **Pi load, step 3:** exit 0, `"success":true`, empty command list, empty stderr.
 - **Live, Herdr Desktop:** in the pane-naming check's throwaway space (see [its record](../herdr-pane-naming/CONTRIBUTING.md#verification-records)), the header showed `PANE T2K` for terminal `t2k` and `SECTOR --`. The intro, resize and colors were not looked at.
+
+2026-11-17, sticky droid plate (branch `feat/sticky-droid-plate`), same machine, Node 22.23.4, installed Pi 1.5.2. The serial and seed rule moved to the design system's `sessionUnit` (the session ID's last group), and the header shows the ledger alone when Herdr's droid-plate pane header has labelled the terminal `io.droid-plate.v1=1`.
+
+- **Automated, step 2, against this branch's design system:** **43/43**, 0 failed, skipped or cancelled. The root `node_modules` link in this worktree resolved `@industrial-os/design-system` to another checkout without `sessionUnit`, so step 2 was run from a temporary tree whose `node_modules/@industrial-os/design-system` linked this branch's `design-system/`, with this folder copied beside it. Run in place it reported 29 tests, 18 passed and 11 failed, every failure `sessionUnit is not a function`. New: the session-ID rule (`test/facts.test.ts`), the ledger alone at 40–120 columns and its intro (`test/header.test.ts`), the lookup with stub runners for present, absent, cleared, error, missing `hc`, unreadable output, a runner that never answers and no `HC_TERMINAL_ID`, and the real runner against a fake `hc` that sleeps 5 s (cut off within the bound) and one that answers (`test/sources.test.ts`), and the extension with the label present, absent and a failing lookup (`test/extension.test.ts`). The goldens did not change.
+- **Pi load, step 3, from the same temporary tree:** exit 0, `"success":true`, empty command list, empty stderr.
+- **Not run:** the ledger-only header in a live Herdr Desktop under the droid-plate pane header, and a real `hc get` against herdr-core from Pi; the label handshake itself is unverified live (see [herdr contributing](../../herdr/CONTRIBUTING.md#verification-records)).
+
+2026-11-17, review fix, same machine and host. Session start awaited the plate lookup, delaying Pi by up to about 350 ms. Now it never waits: the header is set at once, undecided, draws no rows and starts no intro until the lookup answers or `DECIDE_LIMIT_MS` (350 ms) passes, then decides once.
+
+- **Automated, step 2, against this branch's design system (same temporary tree):** **44/44**, 0 failed, skipped or cancelled. New: a late lookup leaves the header set and empty, input passing through, and decides on the answer with the limit cleared; a lookup that never answers decides whole at 350 ms on the manual clock, the intro starting then, and a later answer changes nothing. The harness now always passes a fake lookup, so no test runs the real `hc`.
+- **Pi load, step 3:** exit 0, `"success":true`, empty command list, empty stderr.
+- One-off strict typecheck (TypeScript 5.9.3, as above) over the four `src/` files: exit 0.
+- **Not run:** interactive Pi in Herdr (the blank header's at most 350 ms, inside Herdr only, was not watched).

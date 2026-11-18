@@ -7,12 +7,17 @@ import type { TUI } from "@earendil-works/pi-tui";
 import { backgroundAnsi, foregroundAnsi, rgbColor, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { assignment, clock, coreValue, herdrCodes, interruptAction, sessionCodes } from "./facts.ts";
 import { type Frame, frameAt, type HeaderState, introEnd, type Line, type Manifest, settledFrame } from "./header.ts";
-import { buildManifest, failure, readBranch } from "./sources.ts";
+import { buildManifest, failure, PLATE_LOOKUP_MS, platedTerminal, readBranch } from "./sources.ts";
 
 /** At most 20 frames a second during the intro, none after it. */
 export const FRAME_MS = 50;
 /** A backstop: the intro settles by now even if no frame has said it ended, such as a header Pi never draws. */
 export const INTRO_LIMIT_MS = 8000;
+/**
+ * The plate lookup never holds session start: the header is set at once and draws nothing until it knows whether
+ * Herdr's pane plate draws this droid, from the lookup's answer or, at the latest, this long after start (then whole).
+ */
+export const DECIDE_LIMIT_MS = PLATE_LOOKUP_MS + 50;
 
 export interface Clock {
 	now(): number;
@@ -56,23 +61,42 @@ export class DroidHeader {
 	private frame: Frame | undefined;
 	private state: HeaderState;
 	private readonly time: Clock;
+	/** Whether the header still waits to know if it is the ledger alone; it draws nothing until then. */
+	private deciding: boolean;
 
-	constructor(state: HeaderState, animate: boolean, time: Clock = systemClock) {
+	constructor(state: HeaderState, animate: boolean, time: Clock = systemClock, { deciding = false } = {}) {
 		this.state = state;
 		this.settled = !animate;
 		this.time = time;
+		this.deciding = deciding;
 	}
 
 	get animating() { return !this.settled; }
+	get undecided() { return this.deciding; }
+
+	/** Ledger alone or whole, once known; the intro clock starts now if Pi has mounted the header. Later calls do nothing. */
+	decide(ledgerOnly: boolean) {
+		if (!this.deciding || this.disposed) return;
+		this.deciding = false;
+		this.state = { ...this.state, ledgerOnly };
+		this.cache = undefined;
+		this.frame = undefined;
+		this.startIntro();
+		this.tui?.requestRender();
+	}
+
+	private startIntro() {
+		if (this.tui && !this.deciding && !this.settled && this.startedAt === undefined) {
+			this.startedAt = this.time.now();
+			this.cleanups.push(this.time.every(FRAME_MS, () => this.tick()));
+		}
+	}
 	get manifest() { return this.state.manifest; }
 
 	/** The component Pi's setHeader factory returns; the intro clock starts when Pi mounts it. */
 	attach(tui: Pick<TUI, "requestRender">, theme: Pick<Theme, "getColorMode">) {
 		this.tui = tui;
-		if (!this.settled && this.startedAt === undefined) {
-			this.startedAt = this.time.now();
-			this.cleanups.push(this.time.every(FRAME_MS, () => this.tick()));
-		}
+		this.startIntro();
 		return {
 			render: (width: number) => this.render(width, theme.getColorMode()),
 			invalidate: () => { this.cache = undefined; this.frame = undefined; },
@@ -146,6 +170,7 @@ export class DroidHeader {
 	}
 
 	render(width: number, mode: ColorMode): string[] {
+		if (this.deciding) return [];
 		const waiting = this.firstRender;
 		this.firstRender = undefined;
 		for (const run of waiting ?? []) this.afterFirstRender(run);
@@ -171,11 +196,12 @@ const seen: Map<string, Date> = ((globalThis as Record<symbol, unknown>)[SEEN] ?
 const SETTING_ENTRIES = new Set(["thinking_level_change", "model_change", "session_info"]);
 
 type ManifestSource = (options: { cwd: string; trusted: boolean; prompts: string[] }) => Promise<Manifest>;
+type PlateSource = (env: NodeJS.ProcessEnv) => Promise<boolean>;
 const piManifest: ManifestSource = (options) =>
 	buildManifest({ SettingsManager, DefaultPackageManager, loadSkills, loadProjectContextFiles }, { ...options, agentDir: getAgentDir(), home: homedir() });
 
-/** The extension. Tests may pass their own clock and manifest source; Pi passes only `pi`. */
-export default function droidHeader(pi: ExtensionAPI, time: Clock = systemClock, manifestOf: ManifestSource = piManifest) {
+/** The extension. Tests may pass their own clock, manifest source and plate lookup; Pi passes only `pi`. */
+export default function droidHeader(pi: ExtensionAPI, time: Clock = systemClock, manifestOf: ManifestSource = piManifest, plated: PlateSource = platedTerminal) {
 	let current: DroidHeader | undefined;
 	let generation = 0;
 	const drop = () => { generation++; current?.dispose(); current = undefined; };
@@ -185,6 +211,8 @@ export default function droidHeader(pi: ExtensionAPI, time: Clock = systemClock,
 		if (ctx.mode !== "tui") return;
 		const mine = generation;
 		const sessionId = ctx.sessionManager.getSessionId();
+		// The plate lookup starts now and is never awaited: the header is set without it and decides when it answers.
+		const lookup = plated(process.env).catch(() => false);
 		const branch = await readBranch(ctx.cwd);
 		if (mine !== generation) return;
 		if (!seen.has(sessionId)) seen.set(sessionId, new Date());
@@ -202,7 +230,11 @@ export default function droidHeader(pi: ExtensionAPI, time: Clock = systemClock,
 		// starting thinking level before `session_start`, so setting entries alone still count as empty.
 		const animate = !process.env.NO_MOTION && (event.reason === "startup" || event.reason === "new")
 			&& ctx.sessionManager.getEntries().every((entry) => SETTING_ENTRIES.has(entry.type));
-		const header = (current = new DroidHeader(state, animate, time));
+		const header = (current = new DroidHeader(state, animate, time, { deciding: true }));
+		// Ledger alone or whole: the lookup's answer, or whole at DECIDE_LIMIT_MS if it has not answered by then.
+		const stopLimit: () => void = time.every(DECIDE_LIMIT_MS, () => { stopLimit(); header.decide(false); });
+		header.onDispose(stopLimit);
+		void lookup.then((ledgerOnly) => { stopLimit(); header.decide(ledgerOnly === true); });
 		ctx.ui.setHeader((tui, theme) => header.attach(tui, theme));
 		// The first keystroke settles the intro; the listener never consumes input.
 		if (header.animating) header.onSettle(ctx.ui.onTerminalInput(() => { header.settle(); return undefined; }));

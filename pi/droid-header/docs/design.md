@@ -92,15 +92,17 @@ The plate is the design system's [unit plate](../../../design-system/elements/un
 
 Every line is exactly the terminal width at every width; above 1000 columns the 1000-column header is padded with the field. Layout never throws.
 
+**Ledger only, under Herdr's pane plate.** When the industrial-os layout's [droid-plate pane header](../../../herdr/docs/design.md#pane-plate) draws this droid's plate and hints above the terminal, the header drops its own plate and strip and shows the ledger alone, from its blank first row, on the same surface and at the same rows it has under the strip. Every layout below keeps its ledger; below 40 columns the one line is unchanged. The intro types the ledger in the same way. The header knows from one `hc get` at session start ([architecture](architecture.md#flow)); without the pane header's label, or when the lookup fails, it is whole. Until the answer comes (at most 350 ms, inside Herdr Desktop) the header has no rows and the intro has not started; Pi and its editor do not wait for it.
+
 ## Values
 
 | Field | Rule |
 | --- | --- |
-| Unit, `DRD-` | The last four hex digits of the session ID, uppercased; `????` when the ID has fewer than eight |
-| `S/N` | The first eight hex digits as `0000-BEEF`; `????-????` when unknown. They also seed the barcode and the intro |
+| Unit, `DRD-` | The last four hex digits of the session ID, uppercased; `????` when the ID has fewer than twelve |
+| `S/N` | The first eight hex digits of the ID's last twelve (a UUID's last group) as `150C-4F01`; `????-????` when unknown. The last eight seed the barcode and the intro. The rule is the design system's `sessionUnit`, shared with Herdr's pane plate, so both draw the same plate |
 | `MODEL` | A short model label, then the thinking level uppercased: the provider prefix, a `claude-` word and a date or `-latest` suffix are dropped, a trailing `N-N` reads `N.N` (`anthropic/claude-sonnet-4-5-20250929` → `SONNET-4.5`). Pi's placeholder model (provider and ID `unknown`) and a missing level are `--` |
 | `FRAMEWORK`, `PI-` | `PI` and Pi's `VERSION` |
-| `SECTOR` | `--`. Herdr Desktop names a terminal's space and tab only in its labels, which take a command to read, and the header runs none. The sample states keep `WA1.T1` to match the approved reference |
+| `SECTOR` | `--`. Herdr Desktop names a terminal's space and tab only in its labels, which take a command to read; the header's one `hc get` reads only the pane plate label. The sample states keep `WA1.T1` to match the approved reference |
 | `PANE` | `HC_TERMINAL_ID`, the Herdr Desktop terminal, uppercased (`t7` → `T7`). An ID that is not 1–32 of `A-Za-z0-9:._-` counts as absent; absent is `--` |
 | `MANIFEST` and each hold's count | The total and each hold's count as two digits or more, from the manifest; `--` until it is ready. The minimal line's `MOD` and `SKL` are three-digit extension and skill counts |
 | Escape hint | Pi's interrupt key, then `steer` once the ready manifest shows claude-interrupt enabled (an extension named `claude-interrupt` or `…/claude-interrupt`, or any enabled extension whose path has a `claude-interrupt` or `pi-claude-interrupt` folder or file), and `interrupt` while the manifest is pending or unavailable, or does not show it |
@@ -180,4 +182,6 @@ The operator's approved droid-header concept work, outside this repository: `wor
 - **States the mockup lacks.** Pending, unavailable and unknown values, and a late manifest typing from its arrival.
 - **Real names.** Manifest names follow [values](#values), not the mockup's hand-written list. The mockup's sample state, which the goldens use, has synthetic IDs (`DRD-C0DE`, `0000-BEEF`, `WA1:P1`, `WA1.T1`, `09:30:00`) and public-safe names.
 - **Once.** The mockup replays its intro in a loop; the header plays it once.
+- **Serial and seed rule.** The approved reference took `S/N` and the barcode seed from the session ID's first eight hex digits, a UUIDv7 timestamp, so sessions started in the same second shared a serial. Both now come from the ID's last group: the serial its first eight digits, the seed its last eight (rule in [values](#values)). The goldens are unchanged: they render the reference's explicit sample state (`C0DE`, `0000BEEF`, seed `0x0000BEEF`), not a session ID; `test/facts.test.ts` holds the new rule and the extension tests derive their states from IDs under it. Decided with the sticky droid plate (mockup revision 4), 2026-11-17.
+- **Ledger only.** Under Herdr's droid-plate pane header the header shows no plate and no strip, a layout the reference lacks. Decided with the sticky droid plate (revision 7).
 - **Peak edges.** The mockup's peak edges are the font's `◢ ◤ ◥ ◣`, which Herdr Desktop draws as small triangles, so the peak stepped. The plate draws them with the Powerline full-cell triangles U+E0BA, U+E0BC, U+E0BE and U+E0B8 (see the [unit plate](../../../design-system/elements/unit-plate/README.md#geometry)); the goldens differ from the mockup in those cells' glyph only, and the text layouts on this page still show `◢ ◤ ◥ ◣`. A terminal with neither built-in Powerline shapes nor a Powerline font shows empty boxes there. Approved by David on 2026-11-12.

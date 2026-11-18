@@ -84,12 +84,19 @@ test('hex text grids: exact width, distinct letters, the same packing and recons
   assert.deepEqual(numeralAt(unit, { w: 15, g: Array.from({ length: 6 }, () => Array(15).fill(null)) }, 1, 7), unit);
   // numeralGrid keeps its digit-only reading contract.
   assert.deepEqual(textGrid('64.0'), numeralGrid(64));
-  for (const bad of ['', 'c0de', 'G', 'r', '1 2', 'A'.repeat(251)]) assert.throws(() => textGrid(bad), RangeError, JSON.stringify(bad));
+  for (const bad of ['', 'c0de', 'g', '_', 'r', '1 2', 'A'.repeat(251)]) assert.throws(() => textGrid(bad), RangeError, JSON.stringify(bad));
   for (const bad of [null, 12, ['A']]) assert.throws(() => textGrid(bad), TypeError);
   assert.throws(() => textGrid('A', { ink: 'bad' }), TypeError);
 });
-test('unit-code letters: R draws DRD- in the same stroke, never as A, in the instrument and dashboard faces', () => {
-  assert.deepEqual(Object.keys(LETTER_FONT), ['R']);
+test('unit-code letters: with HEX_FONT the whole A–Z; R draws DRD- in the same stroke, never as A, in the instrument and dashboard faces', () => {
+  assert.deepEqual(Object.keys(LETTER_FONT), [...'GHIJKLMNOPQRSTUVWXYZ']);
+  assert.deepEqual([...Object.keys(HEX_FONT), ...Object.keys(LETTER_FONT)].sort().join(''), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+  for (const rows of Object.values(LETTER_FONT)) assert.ok(rows.length === 5 && rows.every((row) => /^[01]{3}$/.test(row)));
+  // Letters that could be taken for a digit differ from it: S/5, Z/2, I/1, O/0, G/6, T/7, Q/9.
+  for (const [letter, digit] of [['S', 5], ['Z', 2], ['I', 1], ['O', 0], ['G', 6], ['T', 7], ['Q', 9]]) assert.notDeepEqual(LETTER_FONT[letter], FONT[digit]);
+  // The pane plates' unit codes draw as pixels.
+  assert.equal(textGrid('TERM-ZSH').w, 31);
+  assert.equal(textGrid('AGT-CLAUDE').w, 39);
   assert.ok(Object.isFrozen(LETTER_FONT) && Object.values(LETTER_FONT).every(Object.isFrozen));
   assert.deepEqual(LETTER_FONT.R, ['110', '101', '110', '101', '101']);
   // The droid header's wordmark: eight glyphs and seven gaps.

@@ -2,7 +2,7 @@
 // row typing left to right behind an acid cursor, one rolling refresh bar and six seeded glitches, then exactly the
 // input. A declared exception to the shared motion rule: the typing hides cells it has not reached. Contract:
 // README.md#crtbootlines-options-and-crtbootdurationlines-options.
-import { lineWidth, resolveColor, textSlot } from '../foundation/cells.mjs';
+import { graphemeSegments, lineWidth, resolveColor, textSlot } from '../foundation/cells.mjs';
 import { hash } from '../foundation/seeded.mjs';
 import { blendFill } from '../foundation/surface.mjs';
 import { assertLines, assertTime, copyLines, isStateCell, resolveOptions } from './frame.mjs';
@@ -16,7 +16,6 @@ export const CRT_BOOT_TIMING = Object.freeze({
 const T = CRT_BOOT_TIMING;
 const GARBLE = 'ABCDEF0123456789#%&*+=<>/\\?$';
 const GLITCHES = ['tear', 'tear', 'flicker', 'tear', 'flicker', 'tear'];
-const segmenter = new Intl.Segmenter('und', { granularity: 'grapheme' });
 
 const rangeList = (name, value) => {
   if (value === undefined) return [];
@@ -52,7 +51,7 @@ function cellsOf(lines, o) {
     const out = [];
     const spans = o.measure ? textSlot(line, lineWidth(line, { measure: o.measure }), { measure: o.measure }).spans : line;
     for (const s of spans) {
-      const parts = o.measure ? [...segmenter.segment(s.text)].map((p) => p.segment) : [...s.text];
+      const parts = o.measure ? graphemeSegments(s.text).map((p) => p.segment) : [...s.text];
       for (const ch of parts) {
         const w = o.measure ? o.measure(ch) : 1;
         if (w < 1) continue;

@@ -18,10 +18,18 @@ export const HEX_FONT = Object.freeze(Object.fromEntries(Object.entries({
   C: ['111', '100', '100', '100', '111'], D: ['110', '101', '101', '101', '110'],
   E: ['111', '100', '111', '100', '111'], F: ['111', '100', '111', '100', '100'],
 }).map(([key, rows]) => [key, Object.freeze(rows)])));
-// Letters a unit code needs beyond hex, drawn in the same stroke: R keeps B's notched top corner, so it never reads
-// as A (the droid header's DRD- prefix). Separate from HEX_FONT, whose keys are hex digits; textGrid draws from all three.
+// Letters a unit code needs beyond hex, drawn in the same stroke, so with HEX_FONT the whole A–Z: R keeps B's notched
+// top corner, so it never reads as A (the droid header's DRD- prefix); the pane plates' TERM-<shell> and AGT-<agent>
+// need the rest. S and Z take a diagonal middle stroke so they never read as 5 and 2, I has serifs unlike 1, O is
+// rounded unlike 0, N is not M. Separate from HEX_FONT, whose keys are hex digits; textGrid draws from all three.
 export const LETTER_FONT = Object.freeze(Object.fromEntries(Object.entries({
-  R: ['110', '101', '110', '101', '101'],
+  G: ['111', '100', '101', '101', '111'], H: ['101', '101', '111', '101', '101'], I: ['111', '010', '010', '010', '111'],
+  J: ['001', '001', '001', '101', '111'], K: ['101', '101', '110', '101', '101'], L: ['100', '100', '100', '100', '111'],
+  M: ['101', '111', '101', '101', '101'], N: ['110', '101', '101', '101', '101'], O: ['010', '101', '101', '101', '010'],
+  P: ['111', '101', '111', '100', '100'], Q: ['111', '101', '101', '111', '001'], R: ['110', '101', '110', '101', '101'],
+  S: ['011', '100', '010', '001', '110'], T: ['111', '010', '010', '010', '010'], U: ['101', '101', '101', '101', '111'],
+  V: ['101', '101', '101', '101', '010'], W: ['101', '101', '101', '111', '101'], X: ['101', '101', '010', '101', '101'],
+  Y: ['101', '101', '111', '010', '010'], Z: ['111', '001', '010', '100', '111'],
 }).map(([key, rows]) => [key, Object.freeze(rows)])));
 // The dashboard face: rounded strokes for digits and ?, as the dispatch-feed type units draw counts. Other
 // characters keep their FONT or HEX_FONT glyph. Selected by textGrid's face option; FONT itself is unchanged.

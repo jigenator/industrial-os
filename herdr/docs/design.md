@@ -1,10 +1,10 @@
 # Design
 
-Industrial OS in the Herdr desktop app: the [sidebar](#sidebar) mod, [Lunalee's column](#lunalee-column), the [Pi Reloader](#pi-reloader) window and the [chrome theme](#theme), in the [shared language](../../docs/design.md).
+Industrial OS in the Herdr desktop app: the [sidebar](#sidebar) mod, the [pane plate](#pane-plate), [Lunalee's column](#lunalee-column), the [Pi Reloader](#pi-reloader) window and the [chrome theme](#theme), in the [shared language](../../docs/design.md).
 
 The window is `sidebar | work | lunalee`: the sidebar on the left, Herdr's tabs, panes, Files/Changes panel and status bar in the middle, and Lunalee's column on the right edge.
 
-Panes are flat: square corners, no border and no focus outline, at the operator's choice. The focused pane is not outlined; the sidebar's focused pane block marks it.
+Panes are flat: square corners, no border and no focus outline, at the operator's choice. The focused pane is not outlined: its [pane plate](#pane-plate) is lit while the others are dark, and for an agent's pane the sidebar's focused pane block marks it too.
 
 ## Lunalee column
 
@@ -205,6 +205,83 @@ State colors are `theme()` names, so they follow the theme: `working`, `blocked`
 - The map's exposure is per drawing: a zone's light does not fall on a tag beside it.
 - The rail's paper carries no map.
 - Unseen-finished state and space activity are per mod copy and per screen.
+
+## Pane plate
+
+The approved sticky droid plate (mockup revision 7, `sticky-droid-plate-mockup/gen.mjs`, outside this repository): a 130 px header over every pane, six plate rows of 18.5 px (the terminal's cell height at font 14) and a 19 px strip, drawn cell for cell on the terminal's column grid by the design system's [unit plate](../../design-system/elements/unit-plate/README.md), [status strip](../../design-system/elements/status-strip/README.md) and [keycap bay](../../design-system/elements/action-label/README.md). No divider and no title row. The plate says who is in the pane; the strip says what it is doing. The plate itself never takes a state color.
+
+### Units
+
+| Unit | Picked when | Plate |
+| --- | --- | --- |
+| Droid | The pane's agent app is `pi`, or Herdr's program table names Pi | `DRD-` and the session ID's last four hex digits; `S/N` the first eight of its last twelve; the barcode seeded from its last eight (`sessionUnit`, shared with the droid header); `⟁ PI AGENT DROID`, `HALDENN DYNAMICS`, the acid peak. No usable `io.signals.v1` label: `DRD-????`, `S/N ????-????`, the barcode seeded from the terminal address |
+| Agent | Any other agent: Herdr's table marks the program as one, or it reports an app | `AGT-` and the first word of the app it reports (`claude-code` → `CLAUDE`), else of the program name; plain `AGT` when the wordmark would not fit whole or a letter has no glyph. `DIR` and the folder, a barcode seeded from the terminal address, `EXTERNAL AGENT`; empty title slot, no peak |
+| Terminal | Everything else | `TERM-` and the basename of the terminal's argv[0] (`/bin/zsh -l` → `ZSH`, a login shell's `-` dropped), else plain `TERM`. `DIR` and the folder, `BRANCH` and the branch uppercased (`--` without one); empty title slot, no barcode, no peak |
+
+Every title block is 16 columns, W − 18 … W − 3, so blocks and bays line up across panes. W is the header's width over the terminal's cell width, measured in the app, and every cell sits at its column times that width, so the plate lines up with the terminal under it. Below 56 columns the plate has no title block (the design system's threshold). Over 256 columns the plate is composed 256 columns wide and its middle widened to the pane: the cells from two before the title block move to the right edge, and the gap repeats the plain ground before them, so the title block, barcode and bay still end on W − 3 (herdr-app stops a task after 500–700 ms, and a plate costs it about 1 ms a column).
+
+**The peak keeps clear of Herdr's grip.** Herdr's drag grip, a pill 28 × 18 px (measured at 2x: 56 × 36 device px), appears over the pane's top centre when the pointer reaches the top edge, over the plate. The droid's peak therefore starts right of it: its left-most painted cell is the first column at least the pane's centre plus 14 px (half the grip) plus 2 whole cells, and it still ends three cells before the 16-column title block (the design system's `unitPlate` option `peakFrom`; the droid header in a plain terminal keeps its centred peak). Where both cannot hold there is no peak:
+
+| Columns (W) | Peak |
+| --- | --- |
+| Under 56 | No title block and no peak |
+| 56–79 | Title block, no peak |
+| 80–83 | 1-cell stroke (80 columns: cells 44–59) |
+| 84–87 | 2-cell stroke (84 columns: 46–63) |
+| 88 and over | 3-cell stroke (99 columns: 54–73; 198: 103–122) |
+| Over about 418 | No peak: right of the grip it would fall in the widened middle |
+
+Each threshold is one column later when the header's leftover fraction of a cell puts the grip's edge past a column boundary (an 80-column header 8.4 px over 80 cells has no peak). The unpinned centred peak appeared from 72 columns.
+
+### Strip
+
+The strip packs its segments from column 2 with a 3-cell gap and at least 3 clear cells before the bay; when a segment would drop, 2 and 2, then 2 and 1, are tried first; then the lowest-priority segment drops and a clipped text ends in `…`.
+
+| State | Strip |
+| --- | --- |
+| Pi idle | `esc steer`, `ctrl+c clear`, `/ commands`, `! bash`, dropped from the right as the pane narrows |
+| Pi working | `■ <PHASE>` (`THINKING`, `WRITING`, `WAITING`, or the tool's name, `BASH`), the tool's target, the phase's elapsed `mm:ss`, `esc steer` |
+| Pi needs you | A black-on-critical `▲ NEEDS YOU` chip and the question, cut with `…` |
+| Pi done (Herdr's unseen-finished `done`) | `● DONE`, `SETTLED hh:mm` when the label has the settle time, then the hints after `esc` |
+| Pi starting | On the terminal plate, `▶ STARTING pi`, for 3 s or until the label arrives |
+| Pi, label missing or malformed | Herdr's own status stands: `■ WORKING` and `esc steer` while Herdr says it works, the `▲ NEEDS YOU` chip alone while it is blocked, else idle's hints; never a phase, question or clock the label does not give. Herdr's blocked shows even when the label says idle |
+| Agent | `○ READY`, `■ WORKING` and the time since herdr-core's status change (`status_ms`, when the terminal record has it) or since the mod saw it start working, `▲ NEEDS YOU`, `● DONE` |
+| Terminal | `○ READY`; `▶ RUNNING <command> hh:mm:ss`, the foreground command's full argv (one `hc get` per program change; the program's name until it answers) and the time since the mod saw it start; `○ READY  PI EXITED hh:mm` after Pi hands back to the shell, until the next command |
+
+Only what the mod can read is shown. Work already under way when the mod first looks (a command running, an agent working, at install or app start) has no clock, since its start is unknown; a Pi already running is not STARTING. There is no exit status (so no PASSED or FAILED), no reason Pi ended, nothing from other agents beyond their Herdr status. Unknown never shows as zero: a missing time is left out, a missing identity is `DRD-????`, `AGT` or `TERM`.
+
+### Lighting and keys
+
+| Level | When | Look |
+| --- | --- | --- |
+| Lit | The pane has focus and the window is active | Aluminium plate, frosted strip, the bay on `structural` |
+| Standby | The pointer is over an unfocused plate | Graphite at the standby level, lit frost, the bay on `decorative50` |
+| Dark | Every other pane, and every pane while the window is inactive | Graphite, the strip on `surface`, the bay on `decorative50` |
+
+Status lamps (`■`, `▶`, `●` and the `NEEDS YOU` chip) keep their lit inks on a dark plate; `READY` dims. The values are the design system's `GRAPHITE_GROUND`, `PLATE_LIGHTING` and `BAY_INKS`. The bay is the title block's 16 columns: `[|][-][^][x]` centred, 2 + 3 + 3 + 3 + 3 + 2, its two end cells part of the end keys' click areas; a hovered key is filled white, a pressed one acid. `[^]` becomes `[v]` while the pane is zoomed. There is no move key: Herdr's grip, top-centre on hover, moves panes.
+
+### Pane plate motion
+
+| Motion | When | Rate |
+| --- | --- | --- |
+| T2 bank switch | Focus moves, or the window activates or deactivates | A layer at the new lighting over the old, its four vertical banks fading in left to right, 30 ms apart, 40 ms each: 130 ms. A second change mid-switch stacks another layer over both, which fades in from whatever they show (at most three layers) |
+| H1 standby | The pointer enters or leaves an unfocused plate | The same layer with all four banks at once: 90 ms in, 120 ms out |
+| CRT boot | Pi starts in the pane (the plate becomes a droid) | The design system's `crtBoot` over the `DRD-????` plate and strip, seeded from the terminal address, about 1.5 s |
+| K5 serial roll | At the boot's end when the session is known, or when the label lands later | The serial's hex digits roll every 40 ms and lock left to right 50 ms apart from 120 ms, the unit's four wordmark digits on the odd steps; the pre-session barcode until the last lock (470 ms) |
+| Reveal | Pi or an agent hands back to the shell | The terminal plate wipes in from the left under the outgoing plate, each outgoing row narrowing to the right edge, rows 60 ms apart, 540 ms each: 900 ms |
+| Latch | The strip's state changes within one unit | The design system's `latch` on the status cells, 150 ms |
+| K4 registration ghost | The focused, idle plate while the window is active | Every 20–60 s (seeded per plate), the wordmark prints once one cell right in acid, then one cell left in the darker acid, 50 ms each |
+
+T2, H1 and the reveal are Herdr-native: the copy draws each new layer once at its start (opacity 0, or the outgoing row at full width) and once at its end 20 ms later, and Herdr's `.transition("opacity" | "width", { duration, delay })` animates between them without the script; the copy wakes once more when it ends, to drop what is covered. The motions that change characters, which no native transition can, draw frames on a timer at their own step, only while one plays: the CRT boot, the latch and K4 every 50 ms, K5 every 40 ms. Otherwise no timer runs but one wake for the next change the plate makes by itself (a clock's second, STARTING's end, the next ghost). A K4 ghost that falls due while another motion plays waits for it to end. A copy that is not shown stops its timers after two redraws that do not happen, and starts what is due when it is shown again. There is no reduced-motion setting: the plate always animates.
+
+### Deviations from the mockup
+
+- **The reveal's front is continuous.** Each outgoing row narrows with a native width transition, so for its 540 ms the front can cut a cell; the design system's `reveal` steps a whole cell at a time.
+- **The peak sits right of centre.** The mockup centres it; Herdr's grip covers the centre (see Units).
+- **Herdr's status stands in for a missing label.** The mockup always has the label; without one, a working or blocked Pi shows Herdr's WORKING or NEEDS YOU rather than idle.
+- **One spacing rule for every strip.** The mockup's hints try 3/3, 2/2 and 2/1 again after each dropped hint, while its other states pick the tightest spacing once and keep it after a drop. The status strip retries for every state, so a strip that dropped a segment returns to the 3-cell gap when it fits: a working, needs-you or running strip that had to drop shows a 3-cell gap where the mockup shows 2 (seen at 72, 60, 52 and 48 columns). Hints match the mockup at every width.
+- **No invented times.** Work already under way when the mod first looks has no clock, and a Pi already running is not STARTING; the mockup always shows both.
+- **Shapes, not glyphs.** The mockup sets the plate as text. The mod places every cell on the terminal's measured cell grid and draws block elements, light lines and the peak's Powerline triangles as shapes, as Herdr's terminal draws them, so the barcode's bars and the wordmark's pixels fill their cells and the peak needs no Nerd Font; the triangles' edges step one device pixel at a time. `⟁` is the mod's `mark.svg`.
 
 ## Pi Reloader
 

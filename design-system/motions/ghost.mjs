@@ -1,5 +1,6 @@
 import { assertLines, assertMs, assertTime, copyLines, inRegion, isStateCell, resolveOptions, resolveRegion, restyleCells } from './frame.mjs';
 import { between, pick, random, shuffle } from '../foundation/seeded.mjs';
+import { SIGNAL_COLORS } from '../foundation/signal-colors.mjs';
 
 const config = (wait, frames, runs, len, glyphs) => Object.freeze({ wait: Object.freeze(wait), frames: Object.freeze(frames), runs: Object.freeze(runs), len: Object.freeze(len), glyphs: Object.freeze(glyphs) });
 export const GHOST_GLITCH = Object.freeze({
@@ -13,7 +14,7 @@ function check(options) {
   const o = resolveOptions('ghost', options, GHOST_DEFAULTS);
   random(o.seed); assertMs(o.tick, 'ghost tick', { min: 1 });
   if (![1, 2, 3].includes(o.level)) throw new RangeError('ghost level must be 1, 2 or 3');
-  if (!['fill', 'registration'].includes(o.mode)) throw new RangeError('ghost mode must be fill or registration');
+  if (!['fill', 'registration', 'offset'].includes(o.mode)) throw new RangeError('ghost mode must be fill, registration or offset');
   if (o.region === undefined) throw new TypeError('ghost requires an explicit decoration-only region');
   o.region = resolveRegion('ghost', o.region); return o;
 }
@@ -49,7 +50,7 @@ function registration(lines, o) {
 }
 export function ghostDuration(lines, options = {}) {
   assertLines(lines); const o = check(options);
-  return o.mode === 'fill' ? between(random(o.seed), GHOST_GLITCH[o.level].frames) * o.tick : registration(lines, o).duration;
+  return o.mode === 'fill' ? between(random(o.seed), GHOST_GLITCH[o.level].frames) * o.tick : o.mode === 'offset' ? 2 * o.tick : registration(lines, o).duration;
 }
 // footer.ts:1441–1456: seeded runs stay fixed during the event; readout and edge are excluded by targeting.
 export function ghost(lines, options = {}) {
@@ -72,6 +73,18 @@ export function ghost(lines, options = {}) {
           const fg = o.level === 3 && r() < 0.12 ? 'primary' : cell.style.fg;
           changes.set(`${row}/${cell.col}`, { char: ch, style: { ...cell.style, fg } });
         }
+      }
+    }
+  } else if (o.mode === 'offset') {
+    // A registration ghost of a printed mark: for one tick its inked cells print again one cell right in acid, for
+    // the next one cell left in the darker acid, into blank cells only (one cell outside the region at most).
+    const off = k === 0 ? 1 : -1, ink = k === 0 ? 'accent' : SIGNAL_COLORS.accent75, grid = cells(lines), r = o.region;
+    for (let row = r.top; row < Math.min(grid.length, r.top + r.rows); row++) {
+      const line = grid[row], last = Math.min(line.length - 1, r.left + r.cols - 1);
+      for (let col = r.left; col <= last; col++) {
+        const from = line[col], to = line[col + off];
+        if (!to || from.ch === ' ' || to.ch !== ' ' || isStateCell(from.style) || isStateCell(to.style)) continue;
+        changes.set(`${row}/${col + off}`, { char: from.ch, style: { ...to.style, fg: ink, bold: true } });
       }
     }
   } else {

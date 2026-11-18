@@ -94,7 +94,11 @@
     "./elements/scroll-rail": "./elements/scroll-rail/scroll-rail.mjs",
     "./elements/crate-banner": "./elements/crate-banner/crate-banner.mjs",
     "./foundation/barcode": "./foundation/barcode.mjs",
+    "./foundation/glyph-shapes": "./foundation/glyph-shapes.mjs",
     "./elements/unit-plate": "./elements/unit-plate/unit-plate.mjs",
-    "./motions/crt-boot": "./motions/crt-boot.mjs"
+    "./motions/crt-boot": "./motions/crt-boot.mjs",
+    "./elements/status-strip": "./elements/status-strip/status-strip.mjs",
+    "./motions/bank-switch": "./motions/bank-switch.mjs",
+    "./motions/serial-roll": "./motions/serial-roll.mjs"
   }
 }
