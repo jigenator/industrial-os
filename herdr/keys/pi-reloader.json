@@ -1,5 +1,5 @@
 {
   "global": {
-    "cmd-alt-r": "mod.open:pi-reloader"
+    "cmd-alt-r": "mod.open:industrial-os"
   }
 }

@@ -1,6 +1,7 @@
 // Copies the design-system files a Herdr mod imports into the mod's `ds/` folder, byte for byte and in the design
 // system's own tree, because a mod folder is copied into ~/.config/herdr-app/mods/ as it is and cannot import the
-// package. The copied set is exactly the import closure of the mod's `./ds/…` imports. Node standard library only.
+// package. The copied set is exactly the import closure of the imports that reach into `ds/` from the mod's own
+// files, in any of its folders (`./ds/…`, and `../ds/…` from one folder down). Node standard library only.
 //
 //   node herdr/scripts/sync-design-system.mjs           rewrite every mod's ds/ that imports the design system
 //   node herdr/scripts/sync-design-system.mjs --check   exit 1 when a copy is missing, extra or different
@@ -20,13 +21,14 @@ export const relativeImports = (source) => [...source.matchAll(SPECIFIER)].map((
 
 const toPosix = (path) => path.split(sep).join("/");
 
-// The mod's own files (everything outside ds/) that import `./ds/…`, and the design-system paths they name.
+// The design-system paths named by the mod's own files: every script outside ds/, in any folder, whose import lands in ds/.
 export async function modEntries(modDir) {
-	const entries = new Set();
-	for (const name of await readdir(modDir)) {
-		if (!/\.(?:m?js)$/.test(name)) continue;
-		for (const spec of relativeImports(await readFile(join(modDir, name), "utf8"))) {
-			if (spec.startsWith(`./${DS_DIR}/`)) entries.add(spec.slice(DS_DIR.length + 3));
+	const entries = new Set(), inDs = `${DS_DIR}/`;
+	for (const file of await listFiles(modDir)) {
+		if (!/\.(?:m?js)$/.test(file) || file.startsWith(inDs) || /(^|\/)(node_modules|\.[^/]+)\//.test(file)) continue;
+		for (const spec of relativeImports(await readFile(join(modDir, file), "utf8"))) {
+			const target = toPosix(normalize(join(dirname(file), spec)));
+			if (target.startsWith(inDs)) entries.add(target.slice(inDs.length));
 		}
 	}
 	return [...entries].sort();

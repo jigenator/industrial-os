@@ -6,7 +6,7 @@ Purpose: the draft guard that the Herdr desktop Pi Reloader mod talks to. This p
 
 - Never write to the editor, type into a terminal, or send the draft text anywhere. Probes report only `ready`, `draft` or `busy`. Check: `test/extension.test.ts`.
 - Act only on a request whose token and session match, and recheck idle, queue and editor inside the dispatched command, with no await between that check and Pi's `reload()` or `shutdown()`. Check: `test/extension.test.ts`.
-- The wire protocol and label are [the contract](docs/contract.md), shared with `herdr/mods/pi-reloader/reloader.js`. Change the contract first, then both sides and their tests in one change.
+- The wire protocol and label are [the contract](docs/contract.md), shared with `herdr/mods/industrial-os/reloader/reloader.js`. Change the contract first, then both sides and their tests in one change.
 - TUI only, and only with `HC_TERMINAL_ID`; listen on loopback only; no I/O other than the listener and `hc label` on its own terminal. Check: `test/extension.test.ts`.
 - Tests never touch a real Pi, `hc` or Herdr: they use a stub Pi and a fake `hc`.
 
@@ -25,7 +25,7 @@ Purpose: the draft guard that the Herdr desktop Pi Reloader mod talks to. This p
 | --- | --- | --- |
 | The guard: listener, label, validation, dispatch | `src/extension.ts` | Pi's public extension API and Node's standard library; host peer only |
 | Its checks | `test/extension.test.ts` | Stub Pi, fake `hc`, the real loopback listener |
-| The reload or reset sequence, the overlay | `herdr/mods/pi-reloader/` | Not here; see [the Herdr guide](../../herdr/AGENTS.md) |
+| The reload or reset sequence, the overlay | `herdr/mods/industrial-os/reloader/` | Not here; see [the Herdr guide](../../herdr/AGENTS.md) |
 
 ## Implement and verify
 

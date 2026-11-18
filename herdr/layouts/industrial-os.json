@@ -103,7 +103,10 @@
                   "lone": true,
                   "header": {
                     "content": {
-                      "mod": "droid-plate"
+                      "mod": "industrial-os",
+                      "props": {
+                        "part": "plate"
+                      }
                     },
                     "height": 130,
                     "position": "top",

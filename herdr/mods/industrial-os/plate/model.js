@@ -2,8 +2,8 @@
 // reads. Pure: the view passes in what Herdr reports, the parsed signals label, the foreground command it looked up
 // and the remembered times; nothing here reads Herdr, a clock or a file. The rules are in ../../docs/design.md#pane-plate.
 
-import { sessionUnit } from "./ds/elements/unit-plate/unit-plate.mjs";
-import { hintSegments } from "./ds/elements/status-strip/status-strip.mjs";
+import { sessionUnit } from "../ds/elements/unit-plate/unit-plate.mjs";
+import { hintSegments } from "../ds/elements/status-strip/status-strip.mjs";
 
 /** Pi's idle hints, as its editor offers them. */
 export const PI_HINTS = Object.freeze([["esc", "steer"], ["ctrl+c", "clear"], ["/", "commands"], ["!", "bash"]]);

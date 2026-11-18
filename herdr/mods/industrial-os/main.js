@@ -1,9 +1,11 @@
-// Industrial OS sidebar for the Herdr desktop app. One mod draws the sidebar's three blocks, chosen by the layout's
-// `part` prop: "top" (the crate plate and the shortcut strip), the list (no prop: ACTION REQUIRED, the view switch,
-// spaces with their map windows, tabs and panes) and "bottom" (the search hint). Folded to the rail, each draws its
-// rail form. `part: "storybook"` shows the parts alone (storybook.js). This file reads Herdr, keeps the remembered
-// state, runs commands and places the parts; what the values mean is in the pure modules beside it, each part is in
-// parts/ (herdr/docs/parts.md), and how it looks is in herdr/docs/design.md.
+// Industrial OS for the Herdr desktop app: one mod, and each copy of it is the piece its `part` prop names.
+// The sidebar's three blocks: "top" (the crate plate and the shortcut strip), the list (no prop: ACTION REQUIRED, the
+// view switch, spaces with their map windows, tabs and panes) and "bottom" (the search hint); folded to the rail,
+// each draws its rail form. "plate" is the pane header (plate/view.js), "reloader" the Pi Reloader's window
+// (reloader/view.js, opened by `mod.open:industrial-os` with mod.json's props) and "storybook" the parts alone
+// (storybook.js). For the sidebar this file reads Herdr, keeps the remembered state, runs commands and places the
+// parts; what the values mean is in the pure modules beside it, each part is in parts/ (herdr/docs/parts.md), and
+// how it looks is in herdr/docs/design.md.
 import { View, div } from "gpui-kit";
 import { v_flex } from "gpui-base";
 import {
@@ -35,6 +37,8 @@ import { openStage } from "./parts/stage.js";
 import { font } from "./parts/text.js";
 import { groupTitle, tabTitle, tabTitleChars } from "./parts/titles.js";
 import { viewRuler } from "./parts/view-ruler.js";
+import { DroidPlate } from "./plate/view.js";
+import { PiReloader } from "./reloader/view.js";
 import { Storybook } from "./storybook.js";
 
 const MEMORY_KEY = "memory", FOLD_KEY = "fold", VIEW_KEY = "view";
@@ -45,6 +49,9 @@ const MOTION_KEY = "industrial-os.motion";
 const GIT_EVERY_MS = 30_000, GIT_TIMEOUT_MS = 5_000;
 // Narrower than this the sidebar is the rail.
 const RAIL_PX = 160;
+// The pieces that are a whole copy by themselves: this view hands each its own init, render and close, with its cx,
+// so it runs as the mod's root view, as it did when it was a mod of its own.
+const WHOLE = { plate: DroidPlate, reloader: PiReloader };
 // The storybook's window. Its key keeps one: opening it again replaces the open one, where it was dropped.
 const STORYBOOK_WINDOW = { mod: "industrial-os", kind: "window", key: "industrial-os.storybook", width: 900, height: 760, props: { part: "storybook" } };
 
@@ -113,6 +120,11 @@ export default class IndustrialOs extends View {
 		const p = initProps?.part ? initProps : (props() ?? {});
 		this.part = p.part ?? "list";
 		this.rail = p.rail === true; // a probe's rail, whatever the real sidebar's width
+		if (WHOLE[this.part]) {
+			this.whole = new WHOLE[this.part]();
+			this.whole.init(p, cx);
+			return;
+		}
 		if (this.part === "storybook") {
 			this.book = cx.new(Storybook);
 			return;
@@ -238,7 +250,13 @@ export default class IndustrialOs extends View {
 		return buildSidebar({ spaces: sp, agents: list, terminals: terminals(), panes: ps, git, home: home(), now, memory: this.memory, fold: this.fold, focusedPane, view: this.view });
 	}
 
-	render() {
+	// Herdr calls this on the root view only, when its pane, block or window goes.
+	close(cx) {
+		return this.whole?.close?.(cx);
+	}
+
+	render(cx) {
+		if (this.whole) return this.whole.render(cx);
 		if (this.part === "storybook") return div().size_full().child(this.book);
 		if (this.part === "all") {
 			return v_flex().size_full().bg(C.groundBottom)

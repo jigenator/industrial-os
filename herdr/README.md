@@ -1,8 +1,8 @@
 # Industrial OS Herdr configuration
 
-Industrial OS for the Herdr desktop app (herdr-app): the Acid / Black theme, [themes/acid-black.json](themes/acid-black.json), the Industrial OS sidebar, a mod, [mods/industrial-os](mods/industrial-os/main.js), drawn from [parts](docs/parts.md) that its [storybook](#storybook) shows alone, and shown by its layout, [layouts/industrial-os.json](layouts/industrial-os.json), which also holds [Lunalee's column](#lunalee-column) and frames every pane with the [droid-plate pane header](#droid-plate-pane-header), [mods/droid-plate](mods/droid-plate/main.js), and the [Pi Reloader](#pi-reloader) window, [mods/pi-reloader](mods/pi-reloader/main.js). The experience is in [the design](docs/design.md).
+Industrial OS for the Herdr desktop app (herdr-app): the Acid / Black theme, [themes/acid-black.json](themes/acid-black.json), and one mod, [mods/industrial-os](mods/industrial-os/main.js), which is every piece: the Industrial OS sidebar, drawn from [parts](docs/parts.md) that its [storybook](#storybook) shows alone; the [droid-plate pane header](#droid-plate-pane-header) over every pane, in [plate/](mods/industrial-os/plate/view.js); and the [Pi Reloader](#pi-reloader) window, in [reloader/](mods/industrial-os/reloader/view.js). Its layout, [layouts/industrial-os.json](layouts/industrial-os.json), places the sidebar and the pane header and holds [Lunalee's column](#lunalee-column). Until 2026-11-18 the pane header and the Pi Reloader were mods of their own, `droid-plate` and `pi-reloader`; see [upgrading](#upgrading-from-three-mods). The experience is in [the design](docs/design.md).
 
-Status: the theme was installed and checked live on 2026-11-12. The redesigned sidebar passes its Node tests and `herdr-app check`, was looked at with live data in a floating probe window, and was installed as the layout's sidebar on 2026-11-18, where its three blocks drew without errors; hover, clicks and the rail have not been checked there. See the [record](CONTRIBUTING.md#sidebar-redesign). The droid-plate pane header passes its Node tests and `herdr-app check`; its live looks are in its [record](CONTRIBUTING.md#droid-plate-pane-header).
+Status: the theme was installed and checked live on 2026-11-12. The redesigned sidebar passes its Node tests and `herdr-app check`, was looked at with live data in a floating probe window, and was installed as the layout's sidebar on 2026-11-18, where its three blocks drew without errors; hover, clicks and the rail have not been checked there. See the [record](CONTRIBUTING.md#sidebar-redesign). The droid-plate pane header passes its Node tests and `herdr-app check`; its live looks are in its [record](CONTRIBUTING.md#droid-plate-pane-header). As one mod, the three pieces were seen together in an isolated second Herdr, where the Pi Reloader reloaded one throwaway Pi; the combined mod has not been installed. See the [record](CONTRIBUTING.md#one-mod).
 
 The herdr-tui configuration this project used to hold (the agents and Spaces sidebar fragments, their parser check) and the herdr-tui Spaces plugin have been removed; their histories are in [contributing](CONTRIBUTING.md#verification-records).
 
@@ -24,7 +24,7 @@ What every value means is in [the design](docs/design.md#sidebar). A Pi's readin
 The app reads mods and layouts from `~/.config/herdr-app` (or `$HERDR_APP_HOME`). Copy both in, then switch to the layout:
 
 ```sh
-cp -R mods/industrial-os mods/droid-plate ~/.config/herdr-app/mods/
+cp -R mods/industrial-os ~/.config/herdr-app/mods/
 cp layouts/industrial-os.json ~/.config/herdr-app/layouts/
 herdr-app do layout.switch '{"name":"industrial-os"}'
 ```
@@ -32,6 +32,10 @@ herdr-app do layout.switch '{"name":"industrial-os"}'
 `ctrl-shift-l` (`layout.switch`) cycles back to `main`; `ctrl-alt-shift-escape` always returns to `main`. Run `herdr-app status` to see errors from the mod or layout.
 
 To fold and unfold the sidebar from the keyboard, bind a key to the mod's `fold` command in `~/.config/herdr-app/keys.json`, for example `"cmd-\\": "industrial-os.fold"`; the hide grip then shows that key. The sidebar's other key plates show whatever is bound to `tab.new` and `mod.open:picker`.
+
+#### Upgrading from three mods
+
+An install from before 2026-11-18 has three mod folders. Do these together, with no Pi Reloader run going: copy `mods/industrial-os` and the layout as above; delete the two installed folders `~/.config/herdr-app/mods/droid-plate` and `~/.config/herdr-app/mods/pi-reloader`; and in `~/.config/herdr-app/keys.json` change `mod.open:pi-reloader` to `mod.open:industrial-os`, and any `pi-reloader.reload`, `pi-reloader.reset` or `pi-reloader.close` to `industrial-os.reloader-reload`, `-reset` and `-close`. An old layout file still naming `droid-plate` shows no pane header once that folder is gone.
 
 The mod writes its drawings (glows, dot grids, the map) as SVG files into `~/.config/herdr-app/mods/industrial-os/.gen/`, a few megabytes, and empties that folder itself when it grows past 1500 files. It is safe to delete. The sidebar wants the `JetBrainsMono NFM` font for its heavy weights and falls back to the app's font without it.
 
@@ -45,7 +49,7 @@ The mod carries a storybook: a window with every part of the sidebar alone, in e
 - Pick a page in the index, or bind keys to `industrial-os.story-next` and `industrial-os.story-prev`. Drag the window by its header; `CLOSE` closes it, and so does switching layout. Running the command again opens it afresh where it was left.
 - A layout block can show it too: `{ "mod": "industrial-os", "props": { "part": "storybook" } }`.
 
-It has been looked at only in an isolated second Herdr, with commands sent by `herdr-app do`: not with a real key press or pointer, and not in the installed app. See the [record](CONTRIBUTING.md#sidebar-parts-and-storybook) and [how the parts are organized](docs/parts.md).
+It has been looked at only in an isolated second Herdr, with commands sent by `herdr-app do`: not with a real key press or pointer. The window itself has not been opened in the installed app, where the sidebar's parts have drawn since 2026-11-18. See the [record](CONTRIBUTING.md#sidebar-parts-and-storybook) and [how the parts are organized](docs/parts.md).
 
 ### Lunalee column
 
@@ -71,7 +75,7 @@ Herdr behaviours to know:
 
 ## Droid-plate pane header
 
-One mod, `droid-plate`, draws a unit plate over every pane of the shown tab, from the design system: who is in the pane on six rows, and what it is doing on a strip under it.
+The mod's `part: "plate"`, in `mods/industrial-os/plate/`, draws a unit plate over every pane of the shown tab, from the design system: who is in the pane on six rows, and what it is doing on a strip under it.
 
 - **Pi** (a pane whose agent app is `pi`, with the `io.signals.v1` label): `DRD-FA03`, its serial and barcode from the session ID, `⟁ PI AGENT DROID`, `HALDENN DYNAMICS` and the acid peak. The strip shows Pi's key hints when idle; `■ BASH <target> 00:42  esc steer` (or `THINKING`, `WRITING`) while it works; a `▲ NEEDS YOU` chip and the question; `● DONE  SETTLED 15:02` when it finished while you were away. Before the label arrives, `▶ STARTING pi` on the terminal plate for 3 s, then `DRD-????`.
 - **Another agent** (Claude Code, Codex): `AGT-CLAUDE` (or plain `AGT` when the name does not fit), its folder, a barcode from the terminal, `EXTERNAL AGENT`. Strip: `○ READY`, `■ WORKING 03:12`, `▲ NEEDS YOU`, `● DONE`.
@@ -83,7 +87,7 @@ Under the plate, Pi's [droid header](../pi/droid-header/README.md) shows only it
 
 ### Install
 
-It comes with the layout: copy `mods/droid-plate` with `mods/industrial-os`, as in the [sidebar install](#install). The folder is self-contained: `mods/droid-plate/ds/` is a byte-for-byte copy of the design-system files it draws with. After changing the design system, regenerate it with `node herdr/scripts/sync-design-system.mjs` from the checkout root before copying; `node --test` in `herdr/` fails while the copy differs. The plate's text is in the terminal's font (Herdr's JetBrains Mono unless the settings name another); block elements, lines and the peak's triangles are drawn as shapes, so no Nerd Font is needed.
+It comes with the mod and the layout, as in the [sidebar install](#install). The mod's folder is self-contained: `mods/industrial-os/ds/` is a byte-for-byte copy of the design-system files it draws with. After changing the design system, regenerate it with `node herdr/scripts/sync-design-system.mjs` from the checkout root before copying; `node --test` in `herdr/` fails while the copy differs. The plate's text is in the terminal's font (Herdr's JetBrains Mono unless the settings name another); block elements, lines and the peak's triangles are drawn as shapes, so no Nerd Font is needed.
 
 ### Limits
 
@@ -93,7 +97,7 @@ It comes with the layout: copy `mods/droid-plate` with `mods/industrial-os`, as 
 - Over 256 columns the plate's middle is widened plain ground, and past about 418 columns the droid has no peak.
 - The plate is the header's width over the terminal's cell width, both measured in the app; the part of a cell left over at the right takes the row's last color. For its first frames, before layout reports them, it draws the terminal's columns at `font_size × 0.6`.
 - Whether Herdr redraws a pane header when the window gains or loses focus is not documented; a 500 ms check per pane covers it.
-- Label writes are serialized and retried at most three times; a terminal `hc` never acknowledges stays as it was. A crashed or force-quit app can leave `io.droid-plate.v1=1` on a terminal, and a Pi started there before the app runs again shows only its ledger. Whether Herdr calls the mod's `close()` on a layout switch is not verified; if it does not, a Pi started after switching away shows only its ledger too.
+- Label writes are serialized and retried at most three times; a terminal `hc` never acknowledges stays as it was. A crashed or force-quit app can leave `io.droid-plate.v1=1` on a terminal, and a Pi started there before the app runs again shows only its ledger. On a layout switch Herdr closes the shown pane's header, which clears its label (seen in an isolated app); a terminal in a tab or space not shown keeps its label.
 - Herdr's pane header height is one value for the layout: plain shells get the same 130 px as Pi.
 - No reduced-motion setting: the motions always play.
 
@@ -113,18 +117,18 @@ Status: contract version 2. Its tests and `herdr-app check` pass, and a live run
 ### Install
 
 1. Load the [guard](../pi/reloader-guard/README.md#install) in Pi, and `/reload` each running Pi once with an empty editor. Install the mod and the guard together: each reads only its own contract version.
-2. Copy the mod: `cp -R mods/pi-reloader ~/.config/herdr-app/mods/`.
-3. Merge [keys/pi-reloader.json](keys/pi-reloader.json) into `~/.config/herdr-app/keys.json` by hand: it binds `cmd-alt-r` to `mod.open:pi-reloader` in `global`. Ask before replacing a key already in use, and pick another if so. Editing keys.json makes the whole file yours; see the app's `AGENTS.md`, Keys.
-4. Run `herdr-app check ~/.config/herdr-app/mods/pi-reloader` and `herdr-app status`; both must report no error.
+2. Install the `industrial-os` mod as in the [sidebar install](#install): the window is the one its `mod.json` opens. It needs no layout, so the key works in any.
+3. Merge [keys/pi-reloader.json](keys/pi-reloader.json) into `~/.config/herdr-app/keys.json` by hand: it binds `cmd-alt-r` to `mod.open:industrial-os` in `global`. Ask before replacing a key already in use, and pick another if so. Editing keys.json makes the whole file yours; see the app's `AGENTS.md`, Keys.
+4. Run `herdr-app check ~/.config/herdr-app/mods/industrial-os` and `herdr-app status`; both must report no error.
 
-Press the key, or run `herdr-app do mod.open --name pi-reloader`; the same again closes it.
+Press the key, or run `herdr-app do mod.open '{"name":"industrial-os"}'`; the same again closes it.
 
 ### Limits
 
-- **Don't switch layout during a run.** A layout switch closes the window and stops the run; a Pi already quit then stays at its shell prompt, its session file intact (`pi --session <file>` resumes it).
+- **Don't switch layout, or change the installed mod's files, during a run.** A layout switch closes the window and stops the run, and saving any file in `mods/industrial-os` reloads every copy of the mod, the window included; a Pi already quit then stays at its shell prompt, its session file intact (`pi --session <file>` resumes it).
 - A reset runs `pi` from the shell's `PATH` with `--session`, not the Pi's original arguments: flags such as `-e` or `--model` are not repeated (a shell function or alias named `pi` is used).
 - Scope is this computer and Herdr's agents; sub-agents without a pane are not listed.
-- For an isolated live check, a copy of the mod under another name can add `"props": { "only": ["t40", "t41"] }` to its `mod.json` overlay: it then acts only on those addresses and says so. The shipped `mod.json` has none.
+- For an isolated live check, a copy of the mod under another name can add `"only": ["t40", "t41"]` to its `mod.json` overlay props, beside `part`: it then acts only on those addresses and says so. The shipped `mod.json` has none.
 
 ## Theme
 

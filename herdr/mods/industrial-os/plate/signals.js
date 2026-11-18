@@ -1,9 +1,10 @@
 // Reads what the plate needs from the `io.signals.v1` terminal label, the frozen publication of the signals-collector
 // snapshot (pi/signals-collector/docs/contract.md, section 4). The label is untrusted: anything missing or malformed
-// is unknown (null), never zero; unknown fields are ignored. The sidebar mod reads the same label for its own fields.
+// is unknown (null), never zero; unknown fields are ignored. The sidebar reads the same label for its own fields, in
+// ../signals.js.
 
 export const LABEL = "io.signals.v1";
-/** The label this mod sets on its pane's terminal while it draws a plate there, for the droid header to read. */
+/** The label the pane header sets on its pane's terminal while it draws a plate there, for the droid header to read. */
 export const PLATE_LABEL = "io.droid-plate.v1";
 
 const FREE_TEXT_LIMIT = 200;

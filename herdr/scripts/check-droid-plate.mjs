@@ -1,10 +1,15 @@
-// Loads the droid-plate mod in herdr-app's own runtime with sample panes, one state at a time: `herdr-app check` on
-// a temporary copy whose `herdr` import is a stand-in returning that state, and whose first frame is composed in
-// init (render prints the element description only once). The header's width and the font's advance, which the mod
+// Loads the pane header (the industrial-os mod's `part: "plate"`, plate/view.js) in herdr-app's own runtime with
+// sample panes, one state at a time: `herdr-app check` on a temporary copy of the mod whose main.js is the plate's
+// view alone, whose `herdr` import in that view is a stand-in returning that state, and whose first frame is composed
+// in init (render prints the element description only once). The header's width and the font's advance, which the mod
 // measures from layout, are given as 2x-display samples (8.40625 px, a 0.5 px remainder). Read-only for the running
 // app: `herdr-app check` uses a hidden window and in-memory state. Prints each state's result, the plate's cells as
 // placed (text as itself, `#` a full-height bar or block, `=` a part block, `-` a line, `/` `\` the peak's
 // triangles), the grid checks, and the compose and draw times in the runtime.
+//
+// With no state named it also loads the Pi Reloader's window the same way (a copy whose main.js is reloader/view.js,
+// unpatched: the check's empty app has no Pi, and nothing runs), since `herdr-app check` passes no props and so draws
+// only the sidebar's list from the mod's real main.js.
 //
 //   node herdr/scripts/check-droid-plate.mjs [state …]
 import { execFileSync } from "node:child_process";
@@ -13,7 +18,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const MOD = join(dirname(fileURLToPath(import.meta.url)), "..", "mods", "droid-plate");
+const MOD = join(dirname(fileURLToPath(import.meta.url)), "..", "mods", "industrial-os");
+const VIEW = join("plate", "view.js");
 const SESSION = "01a1e81c-27f3-70f3-b278-150c4f01fa03";
 const now = Date.now();
 const signals = (over = {}) => JSON.stringify({ version: 1, sessionId: SESSION, root: { working: false, lastSettledAt: now - 60_000 }, ...over });
@@ -62,10 +68,10 @@ export const MODE = STATE.mode ?? null;
 
 function patch(source) {
 	const swap = (from, to) => {
-		if (!source.includes(from)) throw new Error(`check-droid-plate: main.js no longer contains ${JSON.stringify(from.slice(0, 60))}`);
+		if (!source.includes(from)) throw new Error(`check-droid-plate: plate/view.js no longer contains ${JSON.stringify(from.slice(0, 60))}`);
 		source = source.replace(from, to);
 	};
-	swap('from "herdr";', 'from "./sample-herdr.js"; import { MODE as __MODE__ } from "./sample-herdr.js";');
+	swap('from "herdr";', 'from "../sample-herdr.js"; import { MODE as __MODE__ } from "../sample-herdr.js";');
 	// In init: measure, compose the first frame (and for the motion states, the change), time a warm frame.
 	swap("		this.startPoll(cx);\n	}", `		{ const now = Date.now(); this.advance = 8.40625; this.width = terminals()[0].cols * 8.5 + 0.5; this.want = this.read(cx, panes()[0], now); this.wantKey = JSON.stringify({ ...this.want, model: { ...this.want.model, nextAt: null } });
 		if (__MODE__ === "switch") { const lit = this.want; this.want = { ...lit, lighting: "dark" }; this.compose(now - 5, true); this.want = lit; }
@@ -80,7 +86,7 @@ function patch(source) {
 	return source;
 }
 
-// Appended to the copy's main.js: the plan as placed cells, rows joined by `@@`, then the grid checks: the cell, the
+// Appended to the copy's plate/view.js: the plan as placed cells, rows joined by `@@`, then the grid checks: the cell, the
 // columns, whether every piece starts on a cell boundary, and the right edge of the last bay key.
 const PLAN_TEXT = `
 function planText(plan, shown) {
@@ -114,8 +120,10 @@ for (const name of names) {
 	if (!state) throw new Error(`unknown state ${name}; one of ${Object.keys(STATES).join(", ")}`);
 	const dir = mkdtempSync(join(tmpdir(), "droid-plate-check-"));
 	try {
-		cpSync(MOD, dir, { recursive: true });
-		writeFileSync(join(dir, "main.js"), patch(readFileSync(join(MOD, "main.js"), "utf8")));
+		cpSync(MOD, dir, { recursive: true, filter: (path) => !path.endsWith(".gen") });
+		writeFileSync(join(dir, VIEW), patch(readFileSync(join(MOD, VIEW), "utf8")));
+		// The copy is the pane header alone: the real main.js would ask the app, not the sample, which piece it is.
+		writeFileSync(join(dir, "main.js"), 'export { DroidPlate as default } from "./plate/view.js";\n');
 		writeFileSync(join(dir, "sample-herdr.js"), FAKE_HERDR);
 		const pane = { pane: "p1", terminal: "t3h", tab: "tb", title: "zsh", cwd: "/Users/sample/projects/lunalee", branch: "main", focused: true, zoomed: false, movable: true, ...state.pane };
 		const terminal = { address: "t3h", argv: ["/bin/zsh", "-l"], cols: state.cols ?? 99, state: "live", labels: state.labels };
@@ -137,6 +145,19 @@ for (const name of names) {
 		const grid = rows.length === 7 && off === 0 && (cols < 24 || bayEnd === cols - 2) && layers === expectLayers && revealOk;
 		if (!ok || !grid) { failed++; console.log(`${name}: FAILED ${checks}\n${out.split("\n").filter((l) => /interrupted|error|at |check/i.test(l)).slice(0, 12).join("\n")}`); if (process.env.DP_DEBUG) console.log(out.slice(0, 3000)); continue; }
 		console.log(`${name}: passed, first compose ${ms} ms, a warm frame ${frameMs} ms, draw ${drawMs} ms in the runtime; ${checks}\n${rows.map((r) => `  |${r}|`).join("\n")}`);
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+}
+if (!process.argv.slice(2).length) {
+	const dir = mkdtempSync(join(tmpdir(), "pi-reloader-check-"));
+	try {
+		cpSync(MOD, dir, { recursive: true, filter: (path) => !path.endsWith(".gen") });
+		writeFileSync(join(dir, "main.js"), 'export { PiReloader as default } from "./reloader/view.js";\n');
+		let out;
+		try { out = execFileSync("herdr-app", ["check", dir, "--print-spec"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 60_000 }); } catch (error) { out = `FAILED ${error.stdout ?? ""}${error.stderr ?? ""}`; }
+		const drawn = !out.startsWith("FAILED") && ["Pi Reloader", "Reload all Pi", "Reset all Pi", "IDLE OR DONE PI (0)"].every((text) => out.includes(text));
+		if (!drawn) { failed++; console.log(`pi-reloader: FAILED\n${out.slice(0, 1500)}`); } else console.log("pi-reloader: passed, the empty window drew in the runtime");
 	} finally {
 		rmSync(dir, { recursive: true, force: true });
 	}

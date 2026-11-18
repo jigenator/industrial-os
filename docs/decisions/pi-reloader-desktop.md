@@ -6,7 +6,7 @@ Status: current, version 2. Date: 2026-11-17. The placement, a herdr-app window 
 
 Two Industrial OS projects that share only [the guard contract](../../pi/reloader-guard/docs/contract.md):
 
-- `herdr/mods/pi-reloader/`, a window mod with Node-tested pure rules, opened from a key bound to `mod.open:pi-reloader`;
+- `herdr/mods/industrial-os/reloader/`, the window of the one Industrial OS mod, with Node-tested pure rules, opened from a key bound to `mod.open:industrial-os` (until 2026-11-18 a mod of its own, `herdr/mods/pi-reloader/`, on `mod.open:pi-reloader`; [why one mod](herdr-combined-mod.md));
 - `pi/reloader-guard/`, a Pi extension, active only in the TUI inside a Herdr desktop terminal (`HC_TERMINAL_ID`).
 
 **Channel.** The guard listens on a loopback TCP port and publishes `{ v: 2, port, token }` as the herdr-core label `io.pi-reloader.v2` on its own terminal. The mod reads it from `terminals()` and `hc get`, and sends one JSON line over gpui-kit's `net.connect` carrying the per-runtime token; one line comes back on the same connection.

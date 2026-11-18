@@ -9,13 +9,13 @@ Status: current at contract version 2. Evidence: `src/extension.ts`, its tests, 
 | `src/extension.ts` | The listener, the `io.pi-reloader.v2` label, request validation, the internal command and the reload and quit actions | Pi's extension API (type imports only, host peer `@earendil-works/pi-coding-agent`); Node's `net`, `crypto`, `fs` and `child_process`; `hc` on `PATH` |
 | `test/extension.test.ts` | The guard against a stub Pi and a fake `hc`, over its real loopback listener | Node's test runner |
 
-There is no other runtime dependency and no design-system import: the guard draws nothing but one warning. Its only client is the Herdr desktop mod in `herdr/mods/pi-reloader/`; they share [the contract](contract.md), never code.
+There is no other runtime dependency and no design-system import: the guard draws nothing but one warning. Its only client is the Pi Reloader in the Herdr desktop mod, `herdr/mods/industrial-os/reloader/`; they share [the contract](contract.md), never code.
 
 ```mermaid
 flowchart LR
     Pi["Pi TUI<br/>session_start / session_shutdown"] --> Guard["src/extension.ts"]
     Guard -->|"hc label $HC_TERMINAL_ID io.pi-reloader.v2=…"| Core["herdr-core label"]
-    Core -->|"terminals(), hc get"| Mod["herdr/mods/pi-reloader"]
+    Core -->|"terminals(), hc get"| Mod["herdr/mods/industrial-os/reloader"]
     Mod -->|"one JSON line over 127.0.0.1:port"| Guard
     Guard -->|"/pi-reloader-guard-control, expandPromptTemplates"| Cmd["internal command"]
     Cmd -->|"ctx.reload() or ctx.shutdown()"| Pi

@@ -1,6 +1,6 @@
 # reloader-guard
 
-The Pi side of the Herdr desktop **Pi Reloader**: a small guard that lets the [Pi Reloader mod](../../herdr/README.md#pi-reloader) reload or quit this Pi only when it is idle, has nothing queued and its editor is empty. **Unsent drafts are never submitted, cleared or copied out of Pi**, and the guard never types into a terminal.
+The Pi side of the Herdr desktop **Pi Reloader**: a small guard that lets the [Pi Reloader](../../herdr/README.md#pi-reloader), a window of the industrial-os Herdr mod, reload or quit this Pi only when it is idle, has nothing queued and its editor is empty. **Unsent drafts are never submitted, cleared or copied out of Pi**, and the guard never types into a terminal.
 
 Status: contract version 2. Its checks and a live run with three throwaway Pis in Herdr desktop pass; see [verification records](CONTRIBUTING.md#verification-records).
 

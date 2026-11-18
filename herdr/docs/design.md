@@ -1,6 +1,6 @@
 # Design
 
-Industrial OS in the Herdr desktop app: the [sidebar](#sidebar) mod, the [pane plate](#pane-plate), [Lunalee's column](#lunalee-column), the [Pi Reloader](#pi-reloader) window and the [chrome theme](#theme), in the [shared language](../../docs/design.md).
+Industrial OS in the Herdr desktop app: the [sidebar](#sidebar), the [pane plate](#pane-plate), [Lunalee's column](#lunalee-column), the [Pi Reloader](#pi-reloader) window and the [chrome theme](#theme), in the [shared language](../../docs/design.md).
 
 The window is `sidebar | work | lunalee`: the sidebar on the left, Herdr's tabs, panes, Files/Changes panel and status bar in the middle, and Lunalee's column on the right edge.
 
@@ -296,7 +296,7 @@ T2, H1 and the reveal are Herdr-native: the copy draws each new layer once at it
 
 ## Pi Reloader
 
-A window over the layout, 620 × 460 px, opened and closed with `mod.open:pi-reloader` (the [keys snippet](../keys/pi-reloader.json) binds `cmd-alt-r`). It stays open while panes and tabs change underneath; only a layout switch closes it. Like the sidebar it is plain text in theme colors; its visual design is deferred.
+A window over the layout, 620 × 460 px, opened and closed with `mod.open:industrial-os` (the [keys snippet](../keys/pi-reloader.json) binds `cmd-alt-r`). It stays open while panes and tabs change underneath; only a layout switch closes it. Like the sidebar it is plain text in theme colors; its visual design is deferred.
 
 From top to bottom:
 
@@ -309,7 +309,7 @@ While a run is going the actions give way to one `working` line, `Reset all Pi 1
 
 **States.** `Success` means at least one Pi completed and nothing failed; `Nothing to do` that nothing completed or failed. Reload is complete only when the new runtime's guard answers; restart only when the resumed Pi on the same session file answers, idle or done. A Pi keeps the idle or done it had: neither action runs a prompt, so Herdr's read state does not change.
 
-**Keys and commands.** `↑`/`k`, `↓`/`j`, `Enter`, `Esc`/`q`; clicking an action runs it. `pi-reloader.reload`, `pi-reloader.reset` and `pi-reloader.close` do the same from keys.json or `herdr-app do`.
+**Keys and commands.** `↑`/`k`, `↓`/`j`, `Enter`, `Esc`/`q`; clicking an action runs it. `industrial-os.reloader-reload`, `industrial-os.reloader-reset` and `industrial-os.reloader-close` do the same from keys.json or `herdr-app do`, while the window is open.
 
 ## Theme
 

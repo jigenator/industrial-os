@@ -5,14 +5,14 @@
 // native transition cannot, so the view draws their frames on a timer at the motion's own step, only while one plays.
 // Rates and rules: ../../docs/design.md#pane-plate-motion.
 
-import { bankSchedule, bankSwitchDuration } from "./ds/motions/bank-switch.mjs";
-import { crtBoot, crtBootDuration, CRT_BOOT_TIMING } from "./ds/motions/crt-boot.mjs";
-import { ghost } from "./ds/motions/ghost.mjs";
-import { latch, latchDuration } from "./ds/motions/latch.mjs";
-import { revealDuration } from "./ds/motions/reveal.mjs";
-import { serialRoll, serialRollDuration } from "./ds/motions/serial-roll.mjs";
-import { hash } from "./ds/foundation/seeded.mjs";
-import { numeralLines, textGrid } from "./ds/elements/pixel-numeral/pixel-numeral.mjs";
+import { bankSchedule, bankSwitchDuration } from "../ds/motions/bank-switch.mjs";
+import { crtBoot, crtBootDuration, CRT_BOOT_TIMING } from "../ds/motions/crt-boot.mjs";
+import { ghost } from "../ds/motions/ghost.mjs";
+import { latch, latchDuration } from "../ds/motions/latch.mjs";
+import { revealDuration } from "../ds/motions/reveal.mjs";
+import { serialRoll, serialRollDuration } from "../ds/motions/serial-roll.mjs";
+import { hash } from "../ds/foundation/seeded.mjs";
+import { numeralLines, textGrid } from "../ds/elements/pixel-numeral/pixel-numeral.mjs";
 
 /** T2: focus and window changes switch a plate's lighting in four banks, 30 ms apart, 40 ms each (130 ms). */
 export const BANKS = Object.freeze({ banks: 4, stagger: 30, fade: 40 });
