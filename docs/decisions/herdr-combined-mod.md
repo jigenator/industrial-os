@@ -33,7 +33,7 @@ The second change moved the other two mods in, each as one more form of the same
 | Storybook | `part: "storybook"`, opened by the mod | `storybook.js`, `stories.js`, `sample.js` |
 
 - **One root view.** Herdr gives a mod one view class (`main.js`'s default export). For `part: "plate"` and `"reloader"` it makes that piece's view with `new` and hands it `init`, `render` and Herdr's `close`; the inner view's timers, tasks, focus and commands run through the root's `cx`. Checked in an isolated app before the move, on herdr-app 0.1.16; Herdr's documents do not promise it.
-- **Each piece keeps its folder.** `plate/` and `reloader/` are a `view.js` and pure modules, moved as they were: they import nothing of the sidebar's but the mod's folder name, and no part imports them. They share nothing yet; the point of one mod is that they now can, by a plain import.
+- **Each piece keeps its folder.** `plate/` and `reloader/` are a `view.js` and pure modules, moved as they were: from outside their folders they import only the mod's folder name and what they share on purpose, and no part imports them. The first thing shared is the reader of Pi's `io.signals.v1` label: the pane header had its own, and now imports the mod's `signals.js`, as the sidebar does.
 - **Commands carry the piece's name.** Every copy of a mod on screen hears every command of that mod, so the Pi Reloader's `reload`, `reset` and `close` became `reloader-reload`, `reloader-reset` and `reloader-close`: a sidebar or pane-header copy can never take one for its own, and nothing else starts a reload.
 
 ## Alternatives

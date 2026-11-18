@@ -1,6 +1,7 @@
 // Reads the `io.signals.v1` terminal label: a signals-collector SignalsSnapshot v1 (without `usage`) plus
-// `backgroundTasks` and `flag`, as the frozen publication contract defines. The label is untrusted input: anything
-// missing or malformed becomes unknown (null), never zero or clean; unknown fields are ignored.
+// `backgroundTasks` and `flag`, as the frozen publication contract defines (pi/signals-collector/docs/contract.md).
+// The label is untrusted input: anything missing or malformed becomes unknown (null), never zero or clean; unknown
+// fields are ignored. The mod's one reader: the sidebar (model.js) and the pane header (plate/view.js) both use it.
 
 export const LABEL = "io.signals.v1";
 
@@ -36,7 +37,9 @@ function pullRequest(value) {
 function phase(value) {
 	if (!record(value) || !finite(value.since)) return null;
 	if (["waiting", "thinking", "writing"].includes(value.kind)) return { kind: value.kind, since: value.since };
-	if (value.kind === "tool" && typeof value.tool === "string" && value.tool) return { kind: "tool", since: value.since };
+	if (value.kind === "tool" && typeof value.tool === "string" && value.tool) {
+		return { kind: "tool", tool: value.tool.slice(0, FREE_TEXT_LIMIT), target: text(value.target), since: value.since };
+	}
 	return null;
 }
 
@@ -68,10 +71,12 @@ export function parseSignals(raw) {
 		: null;
 	const context = record(data.context) ? data.context : null;
 	return {
+		sessionId: typeof data.sessionId === "string" && data.sessionId ? data.sessionId : null,
 		active: typeof data.active === "string" && data.active ? data.active : null,
 		workspace: workspace(data.workspace),
 		pr: pullRequest(data.pr),
-		working: root.working === true,
+		// Unknown (null) unless the label says true or false: a malformed value is not "not working".
+		working: typeof root.working === "boolean" ? root.working : null,
 		lastSettledAt: time(root.lastSettledAt),
 		phase: root.working === true ? phase(data.phase) : null,
 		question,

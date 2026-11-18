@@ -110,7 +110,9 @@ test("label: version 1 JSON only; malformed fields become unknown, never zero; u
 	assert.equal(signals({ question: { text: "x".repeat(300), more: 2, since: NOW } }).question.text.length, 200);
 	// A phase only counts while the root agent works.
 	assert.equal(signals({ phase: { kind: "thinking", since: NOW } }).phase, null);
-	assert.deepEqual(signals({ root: { working: true, lastSettledAt: null }, phase: { kind: "tool", tool: "bash", target: "ls", since: NOW } }).phase, { kind: "tool", since: NOW });
+	assert.deepEqual(signals({ root: { working: true, lastSettledAt: null }, phase: { kind: "tool", tool: "bash", target: "ls", since: NOW } }).phase, { kind: "tool", tool: "bash", target: "ls", since: NOW });
+	// Working is unknown, not "not working", unless the label says true or false; the session ID is a string or unknown.
+	assert.deepEqual([missing.working, missing.sessionId, signals({ root: { working: "yes" } }).working, signals({}).working, signals({ sessionId: 7 }).sessionId, signals({ sessionId: "s-1" }).sessionId], [null, null, null, false, null, "s-1"]);
 });
 
 test("label: only a live terminal whose agent app is pi counts; any other label is stale", () => {
