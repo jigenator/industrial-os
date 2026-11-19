@@ -10,6 +10,9 @@ import { CH, partId, present, rgba } from "./sheet.js";
 import { stageOf } from "./stage.js";
 import { lit } from "./text.js";
 
+// The frame slides between panes in SCANNER_SLIDE_MS, and fades in over SCANNER_FADE_MS where it comes from nowhere.
+// A pane's white bar waits until the frame has settled on it.
+export const SCANNER_SLIDE_MS = 170, SCANNER_FADE_MS = 120;
 // A readout is redrawn this long after it starts: past the longest text's settling, and its light.
 const READ_REDRAW_MS = 1200;
 
@@ -35,12 +38,12 @@ export function startReadout(cx, stage, view, running) {
  */
 export function scannerFrame(color, { id, rect: r, on }) {
 	if (!r) return null;
-	const w = r.w + 2, h = r.h + 2, slide = { duration: 170, easing: "ease-out" };
+	const w = r.w + 2, h = r.h + 2, slide = { duration: SCANNER_SLIDE_MS, easing: "ease-out" };
 	// scopeBars' eight bars, each held to its own corner so it keeps its place while the frame changes size.
 	const corners = [["left", "top"], ["left", "bottom"], ["right", "top"], ["right", "bottom"]]
 		.flatMap(([x, y]) => [div().absolute()[x](T)[y](0).w(L).h(T).bg(color), div().absolute()[x](0)[y](T).w(T).h(L).bg(color)]);
 	return div().id(partId(id)).absolute().left(r.x - 1).top(r.y - 1).w(w).h(h).bg(rgba(color, A.scopeGlass)).opacity(on ? 1 : 0)
-		.transition("top", slide).transition("height", slide).transition("left", slide).transition("width", slide).transition("opacity", { duration: 120 })
+		.transition("top", slide).transition("height", slide).transition("left", slide).transition("width", slide).transition("opacity", { duration: SCANNER_FADE_MS })
 		.children(present([lamp(`scope/${w}x${h}/${color}`, () => scopeGlowSvg(w, h, color), -HALO_PAD, -HALO_PAD, w + 2 * HALO_PAD, h + 2 * HALO_PAD), ...corners]));
 }
 /** A pane's own scanner, still, as a list of elements over a `w` × `h` pane. */

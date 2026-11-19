@@ -28,7 +28,7 @@ import { hideGrip } from "./parts/hide-grip.js";
 import { MapView } from "./parts/map-window.js";
 import { latchOf, paneRow, paneRowHeight, readoutOf } from "./parts/pane-row.js";
 import { railLamp } from "./parts/rail-lamp.js";
-import { ReadoutView, scannerFrame, startReadout } from "./parts/scanner.js";
+import { ReadoutView, SCANNER_FADE_MS, SCANNER_SLIDE_MS, scannerFrame, startReadout } from "./parts/scanner.js";
 import { searchHint } from "./parts/search-hint.js";
 import { CH, INNER, PAD, ROW, STEP_MS, present } from "./parts/sheet.js";
 import { shortcutStrip, unfoldStrip } from "./parts/shortcut-strip.js";
@@ -149,7 +149,9 @@ export default class IndustrialOs extends View {
 		this.latch = new Map(); // unit ID → when its state changed
 		this.more = false;
 		// The scanner: one frame per list. Where it is, whether it is on, and which element it is.
-		this.scopes = { list: { rect: null, on: false, shown: false, gen: 0 }, act: { rect: null, on: false, shown: false, gen: 0 } };
+		// `at`: the pane a scanner is aimed at; `settled`: it has finished moving there; `aim` counts aims, for their timers.
+		const scope = () => ({ rect: null, on: false, shown: false, gen: 0, at: null, settled: false, aim: 0 });
+		this.scopes = { list: scope(), act: scope() };
 		this.measured = {};
 		this.machine = "";
 		this.ticks = 0;
@@ -366,6 +368,8 @@ export default class IndustrialOs extends View {
 		stage.viewW = inner - 2 * PAD;
 		const ground = picture(`field/${width}x${height}`, () => fieldSvg(width, height), 0, 0, width, height);
 		const focus = (u) => () => run("pane.focus", { pane: u.id });
+		// A pane's white bar waits until its list's scanner has settled on it.
+		const scanned = (which, id) => { const sc = this.scopes[which]; return sc.on && sc.settled && sc.at === id; };
 
 		// A pane in a list: `where` is "m" under its tab, "g" under its space in the agents view.
 		const unitItem = (u, where) => {
@@ -374,10 +378,10 @@ export default class IndustrialOs extends View {
 			return paneRow(t, {
 				unit: u, where, inner, now, latchAt, hovered, readout: this.readout, near: this.lit?.id === u.id ? this.lit : null,
 				// Until the list has been measured there is no sliding scanner, so the pane shows its own.
-				ownScanner: !this.measured.body,
+				ownScanner: !this.measured.body, scanned: !this.measured.body || scanned("list", u.id),
 				onHover: this.enter(where === "m" ? { unit: u.id, at: where, unitTab: u.tabId, unitSpace: u.spaceId } : { unit: u.id, at: where }),
 				onClick: focus(u),
-				onMove: (e, cx, pitch) => { if (pitch) this.near(u.id, e, pitch[0], pitch[1], cx); this.measure("unit", e, cx); },
+				onMove: (e, cx, pitch) => { if (pitch) this.near(u.id, e, pitch[0], pitch[1], cx); this.measure("unit", e, cx, u.id); },
 			});
 		};
 		// A list's scanner: one frame that slides to the pane the pointer reaches.
@@ -421,11 +425,11 @@ export default class IndustrialOs extends View {
 		// ACTION REQUIRED: pinned. The plate's crosshair goes to the row under the pointer.
 		const actionZone = actionRequired(t, {
 			units: result.action, more: this.more, inner, now, hover: this.hov.at === "a" ? this.hov.unit ?? null : null,
-			near: this.lit?.id === "act" ? this.lit : null, scanner: scanner("act"),
+			near: this.lit?.id === "act" ? this.lit : null, scanner: scanner("act"), scanned: (u) => scanned("act", u.id),
 			onRow: (u, rect, hovered, cx) => {
 				setShared(AIM_KEY, hovered ? u.id : null);
 				this.enter({ unit: u.id, at: "a" })(hovered, cx);
-				if (hovered) this.aimScope("act", rect, cx);
+				if (hovered) this.aimScope("act", rect, cx, u.id);
 			},
 			onPick: (u) => focus(u)(),
 			onMove: (e, cx, pitch) => this.near("act", e, pitch[0], pitch[1], cx),
@@ -463,15 +467,23 @@ export default class IndustrialOs extends View {
 			.children(grip);
 	}
 
-	// Moves a list's scanner to a pane. Coming from nowhere it does not slide: it is placed, then fades in.
-	aimScope(which, rect, cx) {
+	// Moves a list's scanner to pane `id`. Coming from nowhere it does not slide: it is placed, then fades in. It has
+	// settled once its fade or slide is over; aimed elsewhere first, it never settles here.
+	aimScope(which, rect, cx, id) {
 		const sc = this.scopes[which], r = sc.rect;
 		if (sc.on && r && r.x === rect.x && r.y === rect.y && r.w === rect.w && r.h === rect.h) return;
+		const settle = (ms) => {
+			const aim = ++sc.aim;
+			sc.at = id;
+			sc.settled = false;
+			cx.timer.after(ms, (cx) => { if (sc.aim !== aim) return; sc.settled = true; cx.notify(); });
+		};
 		if (!sc.on) {
 			sc.gen++;
 			sc.shown = false;
 			cx.timer.after(20, (cx) => { sc.shown = true; cx.notify(); });
-		}
+			settle(20 + SCANNER_FADE_MS);
+		} else if (sc.at !== id) settle(SCANNER_SLIDE_MS);
 		sc.on = true;
 		sc.rect = rect;
 		cx.notify();
@@ -485,12 +497,12 @@ export default class IndustrialOs extends View {
 
 	// Where a pane is in the scrolling list: its bounds against the list body's. Both are taken from the same pointer
 	// move, so a scroll cannot come between them.
-	measure(what, event, cx) {
-		this.measured[what] = { bounds: event.bounds, x: event.position.x, y: event.position.y };
+	measure(what, event, cx, id) {
+		this.measured[what] = { bounds: event.bounds, x: event.position.x, y: event.position.y, id };
 		const { unit, body } = this.measured;
 		if (!unit?.bounds || !body?.bounds || unit.x !== body.x || unit.y !== body.y) return;
 		const half = (n) => Math.round(n * 2) / 2;
-		this.aimScope("list", { x: half(unit.bounds.x - body.bounds.x), y: half(unit.bounds.y - body.bounds.y), w: half(unit.bounds.width), h: half(unit.bounds.height) }, cx);
+		this.aimScope("list", { x: half(unit.bounds.x - body.bounds.x), y: half(unit.bounds.y - body.bounds.y), w: half(unit.bounds.width), h: half(unit.bounds.height) }, cx, unit.id);
 	}
 
 	// The dots near the pointer come up a little: where the pointer is in a block, snapped to the block's dot grid.
