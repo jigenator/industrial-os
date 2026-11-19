@@ -16,11 +16,11 @@ import { lit, tape, word } from "./text.js";
  * `units`: every unit that waits (model.js's `action`); ACTION_SHOWN are shown until `more`. `inner`: the column's
  * width. `now` steps the state marks. `hover`: the id of the unit under the pointer, or null: its place runs as
  * ticker tape when it is too long, and its gutter bar grows. `near`: { x, y }, the lit dot of the grid, or null.
- * `scanner`: this list's scanner frame, or null.
+ * `scanner`: this list's scanner frame, or null; `scanned(unit)`: it has settled on that row, whose gutter bar grows only then.
  * `onRow(unit, rect, hovered, cx)`: `rect` is the row's place in the zone, since these rows do not scroll;
  * `onPick(unit)`; `onMove(event, cx, pitch)` with the dot grid's pitch; `onLeave(cx)`; `onMore(cx)`.
  */
-export function actionRequired(t, { units, more = false, inner, now, hover = null, near = null, scanner = null, onRow, onPick, onMove, onLeave, onMore }) {
+export function actionRequired(t, { units, more = false, inner, now, hover = null, near = null, scanner = null, scanned = () => true, onRow, onPick, onMove, onLeave, onMore }) {
 	const tone = toneColors(t);
 	const whereChars = Math.floor((inner - 2 * PAD - NAME_X - 2 * CH - 4 * CH) / CH);
 	const waitChars = Math.floor((inner - 2 * PAD - NAME_X) / CH);
@@ -34,7 +34,7 @@ export function actionRequired(t, { units, more = false, inner, now, hover = nul
 			// The row's place is worked out when the pointer reaches it, not on every draw.
 			.on_hover((hovered, cx) => onRow(u, { x: 0, y: 2 + rows.slice(0, i).reduce((n, row) => n + 2 + 17 + row.lines.length * 15 + 5, 0), w: inner, h }, hovered, cx))
 			.on_click(() => onPick(u))
-			.children(hoverBar(`a-${u.id}`, h, hov))
+			.children(hoverBar(`a-${u.id}`, h, hov && scanned(u)))
 			.child(h_flex().h(17).items_center().whitespace_nowrap()
 				.child(stateMark(u.mark, color, now))
 				.child(div().flex_none().w(CODE_W + CH).child(lit(u.code, color, { glow: LIT_TONES[u.tone] === true })))

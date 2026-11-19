@@ -65,11 +65,12 @@ export const readoutOf = (t, u) => ({
  * is shown in its second row. `inner`: the column's width. `now` steps the state mark; `latchAt`: when its state
  * last changed, or undefined. `hovered`: under the pointer, which shows `readout` (a ReadoutView) at the end of its
  * first row and the white gutter bar; `ownScanner` also draws a still scanner on the pane. `near`: { x, y }, the
- * dot of the focused pane's grid that is lit, or null.
+ * dot of the focused pane's grid that is lit, or null. `scanned`: the list's scanner has settled on the pane, so its
+ * white bar grows only then.
  * `onHover(hovered, cx)`, `onClick`, `onMove(event, cx, pitch)`: `pitch` is the dot grid's [x, y] pitch while the
  * pane is focused, else null.
  */
-export function paneRow(t, { unit: u, where, inner, now, latchAt, hovered = false, readout = null, ownScanner = false, near = null, onHover, onClick, onMove }) {
+export function paneRow(t, { unit: u, where, inner, now, latchAt, hovered = false, readout = null, ownScanner = false, near = null, scanned = true, onHover, onClick, onMove }) {
 	const tone = toneColors(t), open = opens(u), h = paneRowHeight(u, where, inner), w = inner;
 	const { first, latched } = latchOf(latchAt, now), hov = hovered;
 	// A state change latches: black on acid, then on its new colour, then settled.
@@ -116,7 +117,7 @@ export function paneRow(t, { unit: u, where, inner, now, latchAt, hovered = fals
 				near && div().absolute().left(0).top(0).w(w).h(h).overflow_hidden().children(present([picture(`lit/${w}x${h}/w`, () => litDotsSvg(w, h, WHITE, A.focusDotLit), near.x - lw / 2, near.y - lh / 2, lw, lh)])),
 			])))
 		// The gutter bar: acid beside the focused pane, white and pulsing beside the pane under the pointer.
-		.children(u.focused ? bar(-8, 1, 3, Math.min(h, TWO_ROWS) - 2, t.working, { radius: 2, glow: t.working, pulse: true, strong: true }) : hoverBar(`${where}-${u.id}`, h, hov))
+		.children(u.focused ? bar(-8, 1, 3, Math.min(h, TWO_ROWS) - 2, t.working, { radius: 2, glow: t.working, pulse: true, strong: true }) : hoverBar(`${where}-${u.id}`, h, hov && scanned))
 		// Until the list has been measured there is no sliding scanner, so the pane shows its own.
 		.when(hov && !latched && ownScanner, (el) => el.children(scannerStill(w, h, t.working)))
 		.child(row1).children(present(rows));

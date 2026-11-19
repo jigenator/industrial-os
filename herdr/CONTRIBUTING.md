@@ -183,6 +183,14 @@ Record each run with its date, app version and results.
 - **Afterwards, one meaning per name (2026-11-19, branch `refactor/herdr-unambiguous-names`):** names the mod used for two different things now say which: `LAMP_GLYPH` (a rail lamp's mark) and `LAMP_PULSE` (its pulse), `monoAdvance` (a monospace character's width; the plate's `advance` steps its motion), `contextReading` (the context bar's text, zone and percent; `contextBar` is the part that draws it), `fieldSvg` (the list's dotted ground; `groundSvg` is a map belt's), `emptyPlateMemory` (the pane header's; `emptyMemory` is the sidebar's), `SIGNALS_LABEL` and `RELOADER_LABEL` (with `PLATE_LABEL`), and `paneStory` (a story helper; `paneState` is the sidebar's rule). No behaviour changed: `node --test` **89/89**, `herdr-app check` passed, the sidebar's 1754 trees and the plates' cells for 20 states equal to `origin/main`'s. Not seen in an app; no second reader.
 - **Not run:** a reload or reset from the installed mod, and clicks, arrow keys and Esc in its window; a real click or key on an installed pane header; a layout switch with the Pi Reloader open; **Reset all Pi** from the combined mod, and a draft or a busy Pi skipped live (those sequences are `reloader.js`, unchanged, with its tests); a Pi with the signals label under the combined pane header; saving the installed mod during a run; how long a new pane's header takes to appear now that it loads the whole mod.
 
+### Gutter bar waits for the scanner
+
+2026-11-19, macOS, herdr-app 0.1.16, branch `fix/herdr-gutter-bar-follows-scanner`. A pane's white gutter bar turned on with the pane's hover event, before the scanner frame had arrived, and its light showed at full height before the bar grew. Now `main.js` records which pane each scanner is aimed at and when it has settled there (its 120 ms fade over, or its 170 ms slide, `SCANNER_FADE_MS` and `SCANNER_SLIDE_MS` in `parts/scanner.js`); the bar grows only then, and a pane the frame only passes over gets none. The bar's light now fades in with it.
+
+- `cd herdr && node --test`: **89/89 passed**. `herdr-app check mods/industrial-os`: **`check passed`**. No check covers the timing.
+- **Installed (2026-11-19, with the operator's word):** only the changed files differed from the installed mod; after copying, the installed mod equalled the branch and `herdr-app status` showed `errors: []`. The operator hovered the sidebar and approved the timing.
+- **Not run:** the isolated app, a second reader, and the ACTION REQUIRED rows' bar looked at on its own.
+
 ### Flat panes
 
 2026-11-17, macOS, Node 22.23.4, herdr-app 0.1.16: the layout's pane radius 0 and no border or focus outline, taken from the operator's installed layout, which has run this way. `cd herdr && node --test`: **45/45 passed**; the layout check now requires them. Not checked: how a person tells the focused pane apart without the outline.
